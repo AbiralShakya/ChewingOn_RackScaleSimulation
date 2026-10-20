@@ -24,6 +24,7 @@ pub enum SchedPolicy {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct GpuConfig {
     pub policy: SchedPolicy,
     /// Honour compiler control bits (stall counts / SB barriers) when the
@@ -138,6 +139,14 @@ impl Gpu {
 
     /// Queue a kernel whose CTAs become dispatchable at `at` (cycles).
     pub fn submit(&mut self, launch: Arc<KernelLaunch>, at: u64, tag: u64) -> u32 {
+        assert!(
+            crate::sm::Sm::occupancy(&self.spec, &launch) > 0,
+            "kernel `{}` cannot fit one CTA on an SM ({} B smem, {} threads, {} regs/thread)",
+            launch.name,
+            launch.smem_per_cta,
+            launch.threads_per_cta(),
+            launch.regs_per_thread
+        );
         let kid = self.next_kid;
         self.next_kid += 1;
         let total = launch.num_ctas();

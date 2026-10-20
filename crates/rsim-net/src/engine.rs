@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct NetConfig {
     /// Transport chunk size (NCCL Simple-protocol chunk granularity).
     pub chunk_bytes: u64,

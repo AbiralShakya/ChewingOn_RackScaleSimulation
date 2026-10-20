@@ -1,0 +1,17 @@
+[package]
+name = "rsim-py"
+description = "Python bindings (module `rackscale._native`)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "_native"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rsim-hw.workspace = true
+rsim-gpu.workspace = true
+rsim-rack.workspace = true
+serde_json.workspace = true
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }

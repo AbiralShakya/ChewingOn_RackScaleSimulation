@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct RunConfig {
     pub gpu: GpuConfig,
     pub net: NetConfig,
@@ -28,6 +29,12 @@ pub struct RunConfig {
     pub horizon_ns: Option<f64>,
     /// Directory relative paths in the workload resolve against.
     pub base_dir: Option<PathBuf>,
+    /// Fast mode: simulate each distinct (kernel, free-SM count) once at
+    /// cycle level on a cold GPU and reuse the result on every rank and
+    /// repetition. Exact for kernels that run alone with cold caches; it
+    /// ignores cross-kernel L2 reuse and the CTA-level interleaving of
+    /// concurrent kernels (they share SMs as fixed blocks instead).
+    pub memoize_kernels: bool,
 }
 
 impl Default for RunConfig {
@@ -39,6 +46,7 @@ impl Default for RunConfig {
             trace: true,
             horizon_ns: None,
             base_dir: None,
+            memoize_kernels: false,
         }
     }
 }
@@ -103,6 +111,40 @@ pub struct Span {
 enum Local {
     StreamNext(usize),
     FixedDone(usize),
+    MemoDone(usize),
+}
+
+/// Shared across ranks: one cold-GPU cycle-level run per distinct kernel.
+#[derive(Default)]
+pub struct KernelMemo {
+    map: Mutex<HashMap<(usize, u32), Arc<std::sync::OnceLock<KernelDone>>>>,
+}
+
+impl KernelMemo {
+    fn get(
+        &self,
+        spec: &Arc<GpuSpec>,
+        cfg: &GpuConfig,
+        k: &Arc<KernelLaunch>,
+        reserved: u32,
+    ) -> KernelDone {
+        let cell = self
+            .map
+            .lock()
+            .unwrap()
+            .entry((Arc::as_ptr(k) as usize, reserved))
+            .or_default()
+            .clone();
+        cell.get_or_init(|| {
+            let mut g = Gpu::new(0, (**spec).clone(), cfg.clone(), false);
+            g.reserve_sms(reserved);
+            g.submit(k.clone(), 0, 0);
+            let mut out = Vec::new();
+            g.advance(u64::MAX / 2, &mut out);
+            out.pop().expect("memoized kernel did not complete")
+        })
+        .clone()
+    }
 }
 
 struct StreamState {
@@ -111,6 +153,8 @@ struct StreamState {
     busy: bool,
     blocked_on: Option<u32>,
     op_start: Time,
+    /// Fast mode: the memoized result and SMs held by the running kernel.
+    memo: Option<(KernelDone, u32)>,
 }
 
 pub struct RankLp {
@@ -128,6 +172,10 @@ pub struct RankLp {
     pub spans: Vec<Span>,
     pub kernels: Vec<KernelDone>,
     pub finish: Time,
+    memo: Option<Arc<KernelMemo>>,
+    /// Fast mode busy accounting: running memoized kernels and since when.
+    memo_active: u32,
+    memo_since: u64,
 }
 
 impl RankLp {
@@ -154,10 +202,28 @@ impl RankLp {
                 FlatOp::Kernel { k, .. } => {
                     let start = t + self.launch_gap;
                     let c = self.cyc(start);
-                    let st = &mut self.streams[s];
-                    st.busy = true;
-                    st.op_start = start;
-                    self.gpu.submit(k, c, ((s as u64) << 32) | st.pc as u64);
+                    let tag = ((s as u64) << 32) | self.streams[s].pc as u64;
+                    self.streams[s].busy = true;
+                    self.streams[s].op_start = start;
+                    if let Some(memo) = self.memo.clone() {
+                        let reserved = self.gpu.reserved_sms.min(self.gpu.spec.sm_count - 1);
+                        let mut d = memo.get(&self.gpu.spec, &self.gpu.cfg, &k, reserved);
+                        let held = (k.num_ctas() as u32).min(self.gpu.spec.sm_count - reserved);
+                        self.gpu.reserve_sms(held);
+                        let dur = d.end_cycle - d.start_cycle;
+                        d.tag = tag;
+                        d.start_cycle = c;
+                        d.end_cycle = c + dur;
+                        let end = self.ps(d.end_cycle);
+                        if self.memo_active == 0 {
+                            self.memo_since = c;
+                        }
+                        self.memo_active += 1;
+                        self.streams[s].memo = Some((d, held));
+                        self.q.push(end, Local::MemoDone(s));
+                    } else {
+                        self.gpu.submit(k, c, tag);
+                    }
                     return;
                 }
                 FlatOp::Fixed { ns, sms, .. } => {
@@ -275,6 +341,16 @@ impl LogicalProcess for RankLp {
             let (t, ev) = self.q.pop().unwrap();
             match ev {
                 Local::StreamNext(s) => self.kick(s, t, out),
+                Local::MemoDone(s) => {
+                    let (d, held) = self.streams[s].memo.take().unwrap();
+                    self.gpu.release_sms(held);
+                    self.memo_active -= 1;
+                    if self.memo_active == 0 {
+                        self.gpu.busy_cycles += d.end_cycle - self.memo_since;
+                    }
+                    self.finish_op(s, t, "kernel");
+                    self.kernels.push(d);
+                }
                 Local::FixedDone(s) => {
                     let kind = match self.streams[s].ops[self.streams[s].pc] {
                         FlatOp::Fixed { sms, .. } => {
@@ -672,6 +748,10 @@ impl Simulation {
             cache: &cache,
             lib: &self.workload.kernels,
         };
+        let memo = self
+            .cfg
+            .memoize_kernels
+            .then(|| Arc::new(KernelMemo::default()));
         let net = NetEngine::new(&self.system, self.cfg.net.clone(), self.cfg.trace);
         let lookahead = net.lookahead();
         let mut lps: Vec<Lp> = Vec::with_capacity(world + 1);
@@ -705,6 +785,7 @@ impl Simulation {
                         busy: false,
                         blocked_on: None,
                         op_start: 0,
+                        memo: None,
                     })
                     .collect(),
                 q: EventQueue::new(),
@@ -717,6 +798,9 @@ impl Simulation {
                 spans: vec![],
                 kernels: vec![],
                 finish: 0,
+                memo: memo.clone(),
+                memo_active: 0,
+                memo_since: 0,
             };
             for s in 0..lp.streams.len() {
                 lp.q.push(0, Local::StreamNext(s));

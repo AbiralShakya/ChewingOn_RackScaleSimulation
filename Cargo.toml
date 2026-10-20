@@ -7,8 +7,8 @@ members = [
     "crates/rsim-gpu",
     "crates/rsim-net",
     "crates/rsim-rack",
-#    "crates/rsim-cli",
-#    "crates/rsim-py",
+    "crates/rsim-cli",
+    "crates/rsim-py",
 ]
 
 [workspace.package]

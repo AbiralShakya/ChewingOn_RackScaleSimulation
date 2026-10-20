@@ -604,10 +604,22 @@ pub fn attention(
     let group = (heads_q / heads_kv.max(1)).max(1);
     let decode = sq * group <= 128 && sq <= 16;
     // Rows per CTA tile, KV block.
-    let (tile_q, kv_blk) = match g.arch {
+    let (mut tile_q, mut kv_blk) = match g.arch {
         Arch::Blackwell => (128u64, 128u64),
         _ => (if decode { 64 } else { 128 }, 128u64),
     };
+    // MLA-style heads (d > 256, e.g. DeepSeek's 576-wide latent) share one
+    // smem buffer between K and V, as FlashMLA does.
+    let kv_shared = d > 256;
+    let kv_mult = if kv_shared { 1 } else { 2 };
+    let fits =
+        |tq: u64, kb: u64| (kv_mult * 2 * kb * d + tq * d) * 2 + 1024 <= g.smem_per_sm_bytes as u64;
+    while !fits(tile_q, kv_blk) && kv_blk > 32 {
+        kv_blk /= 2;
+    }
+    while !fits(tile_q, kv_blk) && tile_q > 64 {
+        tile_q /= 2;
+    }
     let rows_total = if decode {
         batch * heads_kv * (sq * group).div_ceil(tile_q)
     } else {
@@ -635,8 +647,16 @@ pub fn attention(
         k_blk: d,
         k_iters,
         stages: 2,
-        a_bytes: kv_bytes as u64,
-        b_bytes: kv_bytes as u64,
+        a_bytes: if kv_shared {
+            kv_bytes as u64 / 2
+        } else {
+            kv_bytes as u64
+        },
+        b_bytes: if kv_shared {
+            kv_bytes as u64 / 2
+        } else {
+            kv_bytes as u64
+        },
         cluster: 1,
         a_base: AddrGen {
             base: region(3),
@@ -656,7 +676,7 @@ pub fn attention(
     };
     let _ = (ml.tile_m, ml.tile_n, ml.k_blk);
     let flops_real = 4.0 * batch as f64 * heads_q as f64 * sq as f64 * eff_kv as f64 * d as f64;
-    let bytes = (2 * batch * heads_kv * skv * d) as f64 * dt.bytes
+    let bytes = (kv_mult * batch * heads_kv * skv * d) as f64 * dt.bytes
         + (2 * batch * heads_q * sq * d) as f64 * dt.bytes;
     let mut barriers = HashMap::new();
     barriers.insert(
@@ -796,7 +816,7 @@ pub fn attention(
         grid: [ctas as u32, 1, 1],
         block: [block, 1, 1],
         regs_per_thread: 160,
-        smem_per_cta: ((2.0 * kv_bytes) as u32) * ml.stages + (tile_q * d * 2) as u32,
+        smem_per_cta: ((kv_mult as f64 * kv_bytes) as u32) * ml.stages + (tile_q * d * 2) as u32,
         cluster: 1,
         source: KernelSource::Static { roles, barriers },
         flops: flops_real,
