@@ -140,7 +140,7 @@ pub struct InstMeta {
 impl InstMeta {
     pub fn compute(opcode: &str, class: OpClass, operands: &str) -> Self {
         let mods: Vec<&str> = opcode.split('.').skip(1).collect();
-        let has = |m: &str| mods.iter().any(|x| *x == m);
+        let has = |m: &str| mods.contains(&m);
         let base = opcode.split('.').next().unwrap_or("");
         let mut f = 0;
         if class == OpClass::AsyncBarrier
@@ -199,10 +199,9 @@ impl InstMeta {
                         break;
                     }
                 } else if m.len() >= 3 && m.chars().all(|c| c.is_ascii_digit()) {
-                    let (mm, rest) = if m.starts_with("16") {
-                        (16, &m[2..])
-                    } else {
-                        (8, &m[1..])
+                    let (mm, rest) = match m.strip_prefix("16") {
+                        Some(r) => (16, r),
+                        None => (8, &m[1..]),
                     };
                     if let (Ok(n), Ok(k)) = (rest[..1].parse::<u32>(), rest[1..].parse::<u32>()) {
                         mma = Some((mm, n, k));

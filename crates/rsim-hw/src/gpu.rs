@@ -150,6 +150,20 @@ pub struct GpuSpec {
     /// Free-form provenance notes.
     #[serde(default)]
     pub notes: Vec<String>,
+    /// Measured per-opcode timing (from `calibration.json`), keyed by the
+    /// full SASS opcode (`MUFU.EX2`) or its base (`FFMA`). Overrides the
+    /// class-level latency table for fixed-latency ALU/FMA/XU/shuffle ops.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub opcode_timing: BTreeMap<String, OpTiming>,
+}
+
+/// Measured timing of one SASS opcode on one SMSP.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct OpTiming {
+    /// Dependent-issue latency, cycles.
+    pub latency: u32,
+    /// Issue interval of back-to-back independent instructions, cycles.
+    pub issue_interval: u32,
 }
 
 impl GpuSpec {

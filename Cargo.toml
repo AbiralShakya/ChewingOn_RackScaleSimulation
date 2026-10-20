@@ -37,3 +37,8 @@ clap = { version = "4", features = ["derive"] }
 lto = "thin"
 codegen-units = 1
 debug = 1
+
+[workspace.lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"
+needless_range_loop = "allow"

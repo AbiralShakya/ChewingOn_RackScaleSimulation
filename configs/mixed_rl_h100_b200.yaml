@@ -1,0 +1,20 @@
+# Heterogeneous async-RL cluster: node 0 = 8x H100 rollout samplers,
+# node 1 = 8x B200 trainers, joined by a 400G rail-optimised IB fabric.
+# Ranks 0-7 are the H100s, 8-15 the B200s (GPU groups are laid out in order).
+name: mixed H100 samplers + B200 trainers
+gpus:
+  - preset: h100_sxm
+    count: 8
+  - preset: b200
+    count: 8
+topology:
+  kind: multi_node
+  nodes: 2
+  intra:
+    kind: switched
+    switches: 4
+    switch: {name: NVSwitch, ports: 64, gbps_per_port_per_dir: 25.0, latency_ns: 60.0, in_network_reduction: true}
+    links_per_gpu_per_switch: [5, 4, 4, 5]
+    link: {gbps_per_dir: 25.0, latency_ns: 20.0}
+  nic: {gbps_per_dir: 50.0, latency_ns: 600.0}
+  leaf: {name: IB NDR leaf, ports: 64, gbps_per_port_per_dir: 50.0, latency_ns: 300.0, in_network_reduction: false}

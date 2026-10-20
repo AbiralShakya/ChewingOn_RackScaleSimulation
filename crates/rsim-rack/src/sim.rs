@@ -176,6 +176,9 @@ pub struct RankLp {
     /// Fast mode busy accounting: running memoized kernels and since when.
     memo_active: u32,
     memo_since: u64,
+    /// SMs held by running memoized kernels, and kernels waiting for SMs.
+    memo_held: u32,
+    memo_pending: std::collections::VecDeque<(usize, Arc<KernelLaunch>, u64, Time)>,
 }
 
 impl RankLp {
@@ -205,22 +208,9 @@ impl RankLp {
                     let tag = ((s as u64) << 32) | self.streams[s].pc as u64;
                     self.streams[s].busy = true;
                     self.streams[s].op_start = start;
-                    if let Some(memo) = self.memo.clone() {
-                        let reserved = self.gpu.reserved_sms.min(self.gpu.spec.sm_count - 1);
-                        let mut d = memo.get(&self.gpu.spec, &self.gpu.cfg, &k, reserved);
-                        let held = (k.num_ctas() as u32).min(self.gpu.spec.sm_count - reserved);
-                        self.gpu.reserve_sms(held);
-                        let dur = d.end_cycle - d.start_cycle;
-                        d.tag = tag;
-                        d.start_cycle = c;
-                        d.end_cycle = c + dur;
-                        let end = self.ps(d.end_cycle);
-                        if self.memo_active == 0 {
-                            self.memo_since = c;
-                        }
-                        self.memo_active += 1;
-                        self.streams[s].memo = Some((d, held));
-                        self.q.push(end, Local::MemoDone(s));
+                    if self.memo.is_some() {
+                        self.memo_pending.push_back((s, k, tag, start));
+                        self.start_memo_pending(start);
                     } else {
                         self.gpu.submit(k, c, tag);
                     }
@@ -293,6 +283,43 @@ impl RankLp {
         }
     }
 
+    /// Fast mode: start queued kernels (FIFO) while SMs are free. A kernel
+    /// that would get fewer SMs than it can use waits for running memoized
+    /// kernels to drain, rather than being timed on a sliver of the GPU.
+    fn start_memo_pending(&mut self, now: Time) {
+        let Some(memo) = self.memo.clone() else {
+            return;
+        };
+        let n = self.gpu.spec.sm_count;
+        while let Some((s, k, tag, ready)) = self.memo_pending.front().cloned() {
+            // Memo holds are tracked here, not as GPU reservations, so comm
+            // kernels can always take their SMs.
+            let comm = self.gpu.reserved_sms.min(n - 1);
+            let free = n.saturating_sub(comm + self.memo_held);
+            let want = (k.num_ctas() as u32).clamp(1, (n - comm).max(1));
+            if free == 0 || (free < want && self.memo_held > 0) {
+                return;
+            }
+            self.memo_pending.pop_front();
+            let held = want.min(free);
+            let start = ready.max(now);
+            let c = self.cyc(start);
+            let mut d = memo.get(&self.gpu.spec, &self.gpu.cfg, &k, n - held);
+            self.memo_held += held;
+            let dur = d.end_cycle - d.start_cycle;
+            d.tag = tag;
+            d.start_cycle = c;
+            d.end_cycle = c + dur;
+            if self.memo_active == 0 {
+                self.memo_since = c;
+            }
+            self.memo_active += 1;
+            self.streams[s].op_start = start;
+            self.streams[s].memo = Some((d.clone(), held));
+            self.q.push(self.ps(d.end_cycle), Local::MemoDone(s));
+        }
+    }
+
     fn finish_op(&mut self, s: usize, end: Time, kind: &'static str) {
         let st = &mut self.streams[s];
         let label = match &st.ops[st.pc] {
@@ -343,13 +370,14 @@ impl LogicalProcess for RankLp {
                 Local::StreamNext(s) => self.kick(s, t, out),
                 Local::MemoDone(s) => {
                     let (d, held) = self.streams[s].memo.take().unwrap();
-                    self.gpu.release_sms(held);
+                    self.memo_held -= held;
                     self.memo_active -= 1;
                     if self.memo_active == 0 {
                         self.gpu.busy_cycles += d.end_cycle - self.memo_since;
                     }
                     self.finish_op(s, t, "kernel");
                     self.kernels.push(d);
+                    self.start_memo_pending(t);
                 }
                 Local::FixedDone(s) => {
                     let kind = match self.streams[s].ops[self.streams[s].pc] {
@@ -801,6 +829,8 @@ impl Simulation {
                 memo: memo.clone(),
                 memo_active: 0,
                 memo_since: 0,
+                memo_held: 0,
+                memo_pending: Default::default(),
             };
             for s in 0..lp.streams.len() {
                 lp.q.push(0, Local::StreamNext(s));

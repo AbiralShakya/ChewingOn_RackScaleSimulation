@@ -22,6 +22,7 @@ def _common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--dump-workload", help="write the lowered workload JSON and continue")
     p.add_argument("--launch-gap-ns", type=float)
     p.add_argument("--fast", action="store_true", help="simulate each distinct kernel once and reuse it across ranks/layers")
+    p.add_argument("--per-sm", action="store_true", help="add one Perfetto track per SM with a span per CTA (exact mode)")
 
 
 def _model_args(p: argparse.ArgumentParser) -> None:
@@ -87,7 +88,8 @@ def main(argv=None) -> int:
     if a.dump_workload and isinstance(wl, dict):
         with open(a.dump_workload, "w") as f:
             json.dump(wl, f, indent=1)
-    rep = simulate(a.system, wl, trace=a.trace, launch_gap_ns=a.launch_gap_ns, fast=a.fast)
+    cfg = {"gpu": {"per_sm_counters": True}} if a.per_sm else None
+    rep = simulate(a.system, wl, trace=a.trace, launch_gap_ns=a.launch_gap_ns, fast=a.fast, config=cfg)
     print(rep.summary())
     if a.report:
         with open(a.report, "w") as f:

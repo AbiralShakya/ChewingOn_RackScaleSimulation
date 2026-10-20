@@ -1,0 +1,202 @@
+//! Apply measured microbenchmark results (`rackscale-calibration/v1`, as
+//! written by `calibration/` on real hardware) to a [`GpuSpec`].
+//!
+//! Everything is optional: a field missing from the JSON leaves the preset
+//! value alone. Every value taken is recorded in `spec.notes` with a
+//! `calibrated` tag so reports show provenance.
+
+use crate::gpu::{GpuSpec, OpTiming};
+use serde_json::Value;
+use std::path::Path;
+
+pub const SCHEMA: &str = "rackscale-calibration/v1";
+
+#[derive(Debug, thiserror::Error)]
+pub enum CalError {
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("json: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("unsupported schema `{0}` (expected {SCHEMA})")]
+    Schema(String),
+}
+
+pub fn apply_file(spec: &mut GpuSpec, path: &Path) -> Result<Vec<String>, CalError> {
+    let v: Value = serde_json::from_str(&std::fs::read_to_string(path)?)?;
+    apply(spec, &v)
+}
+
+fn f(v: &Value, path: &[&str]) -> Option<f64> {
+    let mut cur = v;
+    for p in path {
+        cur = cur.get(*p)?;
+    }
+    cur.as_f64()
+}
+
+fn cyc(x: f64) -> u32 {
+    x.round().max(1.0) as u32
+}
+
+/// Apply a parsed calibration document. Returns the list of fields taken.
+pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
+    let schema = doc.get("schema").and_then(Value::as_str).unwrap_or("");
+    if schema != SCHEMA {
+        return Err(CalError::Schema(schema.into()));
+    }
+    let m = doc.get("model").unwrap_or(&Value::Null);
+    let mut took = Vec::new();
+    let set = |name: &str, took: &mut Vec<String>| took.push(name.to_string());
+
+    if let Some(n) = m.pointer("/device/name").and_then(Value::as_str) {
+        spec.name = n.to_string();
+    }
+    if let Some(n) = f(m, &["device", "sm_count"]) {
+        spec.sm_count = n as u32;
+        set("sm_count", &mut took);
+    }
+    if let Some(mhz) = f(m, &["sm_clock_mhz_measured"]) {
+        spec.sm_clock_mhz = mhz;
+        set("sm_clock_mhz", &mut took);
+    }
+    let ghz = spec.sm_clock_mhz / 1000.0;
+
+    // Memory hierarchy.
+    let mem = m.get("memory").unwrap_or(&Value::Null);
+    if let Some(b) = f(mem, &["l2_bytes"]) {
+        spec.l2.size_bytes = b as u64;
+        set("l2.size_bytes", &mut took);
+    }
+    if let Some(b) = f(mem, &["smem_per_sm_bytes"]) {
+        spec.smem_per_sm_bytes = b as u32;
+        set("smem_per_sm_bytes", &mut took);
+    }
+    if let Some(l) = f(mem, &["latency_cycles", "l1_hit"]) {
+        spec.l1.hit_latency = cyc(l);
+        set("l1.hit_latency", &mut took);
+    }
+    if let Some(l) = f(mem, &["latency_cycles", "l2_hit_repeat"]) {
+        spec.l2.hit_latency = cyc(l);
+        set("l2.hit_latency", &mut took);
+    }
+    if let Some(l) = f(mem, &["latency_cycles", "smem"]) {
+        spec.latency.lds = cyc(l);
+        set("latency.lds", &mut took);
+    }
+    if let (Some(dram), Some(l2)) = (
+        f(mem, &["latency_cycles", "dram"]),
+        f(mem, &["latency_cycles", "l2_hit_first_touch"]),
+    ) {
+        spec.hbm.latency_ns = ((dram - l2) / ghz).max(0.0);
+        set("hbm.latency_ns", &mut took);
+    }
+    if let Some(peak) = f(mem, &["bandwidth", "hbm_peak_GBps_from_attrs"]) {
+        spec.hbm.bw_gbps = peak;
+        set("hbm.bw_gbps", &mut took);
+        if let Some(rd) = f(mem, &["bandwidth", "hbm_read_GBps"]) {
+            spec.hbm.efficiency = (rd / peak).clamp(0.3, 1.0);
+            set("hbm.efficiency", &mut took);
+        }
+    }
+    if let Some(b) = f(mem, &["bandwidth", "l2_read_bytes_per_clk_per_sm"]) {
+        spec.l2_bytes_per_cycle = b * spec.sm_count as f64;
+        set("l2_bytes_per_cycle", &mut took);
+    }
+
+    // Per-opcode ALU/FMA/XU timing.
+    if let Some(ops) = m.get("sass").and_then(Value::as_object) {
+        for (op, t) in ops {
+            if op.contains('@') {
+                continue; // `OP@bench` duplicates
+            }
+            let (Some(lat), Some(ii)) = (
+                f(t, &["latency_cycles"]),
+                f(t, &["issue_interval_cycles_per_smsp"]),
+            ) else {
+                continue;
+            };
+            spec.opcode_timing.insert(
+                op.clone(),
+                OpTiming {
+                    latency: cyc(lat),
+                    issue_interval: cyc(ii),
+                },
+            );
+        }
+        set("opcode_timing", &mut took);
+    }
+
+    // Tensor cores.
+    let tc = m.get("tensor").unwrap_or(&Value::Null);
+    if let Some(l) = f(tc, &["mma_sync_m16n8k16_bf16_f32", "latency_cycles"]) {
+        spec.tensor.hmma_latency = cyc(l);
+        set("tensor.hmma_latency", &mut took);
+    }
+    for (key, dtypes) in [
+        ("tcgen05_f16_bf16_m128n256k16", &["bf16", "fp16"][..]),
+        ("tcgen05_tf32_m128n256k8", &["tf32"][..]),
+        ("tcgen05_f8f6f4_e4m3_m128n256k32", &["fp8", "fp6"][..]),
+        ("tcgen05_nvfp4_m128n256k64", &["fp4"][..]),
+    ] {
+        if let Some(fl) = f(tc, &[key, "flop_per_clk_per_sm_allsm"]) {
+            for d in dtypes {
+                spec.tensor.flops_per_cycle_per_sm.insert(d.to_string(), fl);
+            }
+            set(&format!("tensor.{}", dtypes[0]), &mut took);
+        }
+    }
+
+    if let Some(us) = f(m, &["launch", "back_to_back_us_per_kernel"]) {
+        spec.launch_overhead_ns = us * 1000.0;
+        set("launch_overhead_ns", &mut took);
+    }
+    if let Some(c) = f(m, &["syncthreads_cycles", "256"]) {
+        spec.latency.bar = cyc(c);
+        set("latency.bar", &mut took);
+    }
+    let gen = doc
+        .get("generated_utc")
+        .and_then(Value::as_str)
+        .unwrap_or("?");
+    spec.notes
+        .push(format!("calibrated ({gen}): {}", took.join(", ")));
+    Ok(took)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn applies_partial_document() {
+        let mut g = crate::presets::b300();
+        let doc = serde_json::json!({
+            "schema": SCHEMA,
+            "model": {
+                "sm_clock_mhz_measured": 2000.0,
+                "memory": {"latency_cycles": {"l1_hit": 39.4, "l2_hit_repeat": 298.8}},
+                "sass": {"MUFU.EX2": {"latency_cycles": 14.0, "issue_interval_cycles_per_smsp": 4.01},
+                         "MUFU.EX2@OpEX2": {"latency_cycles": 99.0, "issue_interval_cycles_per_smsp": 9.0}},
+                "tensor": {"tcgen05_nvfp4_m128n256k64": {"flop_per_clk_per_sm_allsm": 32768.0}}
+            }
+        });
+        apply(&mut g, &doc).unwrap();
+        assert_eq!(g.sm_clock_mhz, 2000.0);
+        assert_eq!(g.l2.hit_latency, 299);
+        assert_eq!(
+            g.opcode_timing["MUFU.EX2"],
+            OpTiming {
+                latency: 14,
+                issue_interval: 4
+            }
+        );
+        assert_eq!(g.opcode_timing.len(), 1);
+        assert_eq!(g.tensor.flops_per_cycle("fp4"), 32768.0);
+    }
+
+    #[test]
+    fn rejects_unknown_schema() {
+        let mut g = crate::presets::b300();
+        assert!(apply(&mut g, &serde_json::json!({"schema": "v0"})).is_err());
+    }
+}

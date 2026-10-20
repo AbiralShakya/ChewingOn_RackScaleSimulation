@@ -444,7 +444,7 @@ impl Sm {
     }
 
     /// Fetch the warp's next op if needed; `None` => stream exhausted.
-    fn peek<'a>(w: &'a mut Warp) -> Option<&'a DynOp> {
+    fn peek(w: &mut Warp) -> Option<&DynOp> {
         if w.next.is_none() {
             w.next = w.stream.next_op();
         }
@@ -872,8 +872,7 @@ impl Sm {
 
         let w = self.warps[ws].as_mut().unwrap();
         if let Some((rt, kind)) = result {
-            if self.use_ctrl && inst.ctrl.is_some() {
-                let ctrl = inst.ctrl.unwrap();
+            if let (true, Some(ctrl)) = (self.use_ctrl, inst.ctrl) {
                 if let Some(b) = ctrl.wbar {
                     w.sb[b as usize].retain(|x| x.0 > c);
                     w.sb[b as usize].push((rt, kind));

@@ -1,0 +1,15 @@
+# GB200 NVL72: 72 Blackwell GPUs, 18 NVLink5 switch chips, one link per
+# GPU per switch (18 x 50 GB/s = 900 GB/s per direction per GPU).
+# Everything below is the preset spelled out so you can edit it; delete a
+# field to fall back to the preset value.
+preset: gb200_nvl72
+name: GB200 NVL72
+gpus:
+  - preset: gb200
+    count: 72
+    # Nested overrides on the GPU preset, e.g. a lower clock under power cap:
+    # overrides: {sm_clock_mhz: 1800}
+topology:
+  kind: switched
+  switches: 18
+  links_per_gpu_per_switch: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]

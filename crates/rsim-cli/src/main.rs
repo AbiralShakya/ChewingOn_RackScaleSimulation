@@ -135,7 +135,7 @@ fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> 
     println!("  scheduler-cycle anatomy:");
     let tot = d.stats.sched.total().max(1) as f64;
     let mut v: Vec<_> = d.stats.sched.to_map().into_iter().collect();
-    v.sort_by(|a, b| b.1.cmp(&a.1));
+    v.sort_by_key(|x| std::cmp::Reverse(x.1));
     for (k, n) in v {
         let f = n as f64 / tot;
         println!(

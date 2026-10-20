@@ -22,6 +22,9 @@ pub struct GpuGroup {
     /// Nested field overrides applied on top of the preset/spec.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub overrides: Option<Value>,
+    /// Path to a `rackscale-calibration/v1` JSON applied after `overrides`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calibration: Option<String>,
     pub count: u32,
 }
 
@@ -31,6 +34,7 @@ impl GpuGroup {
             preset: Some(name.into()),
             spec: None,
             overrides: None,
+            calibration: None,
             count,
         }
     }
@@ -47,14 +51,19 @@ impl GpuGroup {
                 ))
             }
         };
-        match &self.overrides {
-            None => Ok(base),
+        let mut spec = match &self.overrides {
+            None => base,
             Some(o) => {
                 let mut v = serde_yaml::to_value(&base)?;
                 deep_merge(&mut v, o.clone());
-                Ok(serde_yaml::from_value(v)?)
+                serde_yaml::from_value(v)?
             }
+        };
+        if let Some(path) = &self.calibration {
+            crate::calibration::apply_file(&mut spec, std::path::Path::new(path))
+                .map_err(|e| HwError::Invalid(format!("calibration `{path}`: {e}")))?;
         }
+        Ok(spec)
     }
 }
 
@@ -282,7 +291,7 @@ impl Builder<'_> {
                 leaf,
             } => {
                 let n = *nodes as usize;
-                if ranks.len() % n != 0 {
+                if !ranks.len().is_multiple_of(n) {
                     return Err(HwError::Invalid(format!(
                         "{} GPUs not divisible into {} nodes",
                         ranks.len(),

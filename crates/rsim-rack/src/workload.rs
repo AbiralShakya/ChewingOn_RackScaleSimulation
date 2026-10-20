@@ -234,7 +234,7 @@ pub fn resolve_group(g: &Group, rank: usize, world: usize) -> Result<Vec<usize>,
                 .split_once(':')
                 .ok_or_else(|| format!("bad group `{s}`"))?;
             let n: usize = n.parse().map_err(|_| format!("bad group size in `{s}`"))?;
-            if n == 0 || world % n != 0 {
+            if n == 0 || !world.is_multiple_of(n) {
                 return Err(format!("group `{s}` does not divide world {world}"));
             }
             match kind {

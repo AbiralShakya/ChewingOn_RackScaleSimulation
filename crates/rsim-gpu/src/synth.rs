@@ -803,7 +803,7 @@ pub fn attention(
                     Asm::new().role("producer_idle", 1..4),
                     cons,
                 ],
-                (128 + 128 * wgs) as u32,
+                (128 + 128 * wgs),
                 format!(
                     "sm90_fmha_{}b{batch}_hq{heads_q}_hkv{heads_kv}_sq{sq}_skv{skv}_d{d}",
                     if decode { "decode_" } else { "" }

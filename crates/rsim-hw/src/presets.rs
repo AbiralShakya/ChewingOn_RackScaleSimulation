@@ -16,7 +16,7 @@ use crate::gpu::*;
 use crate::system::{GpuGroup, SystemSpec, TopologySpec};
 use std::collections::BTreeMap;
 
-pub const GPU_PRESETS: &[&str] = &["h100_sxm", "h200_sxm", "b200", "gb200"];
+pub const GPU_PRESETS: &[&str] = &["h100_sxm", "h200_sxm", "b200", "gb200", "b300"];
 pub const SWITCH_PRESETS: &[&str] = &["nvswitch3", "nvswitch_nvl5", "ib_ndr_leaf"];
 pub const SYSTEM_PRESETS: &[&str] = &["hgx_h100_8", "hgx_b200_8", "gb200_nvl72", "h100_2node_ib"];
 
@@ -30,6 +30,7 @@ pub fn gpu(name: &str) -> Option<GpuSpec> {
         "h200_sxm" => h200_sxm(),
         "b200" => b200(),
         "gb200" => gb200(),
+        "b300" => b300(),
         _ => return None,
     })
 }
@@ -150,6 +151,7 @@ pub fn h100_sxm() -> GpuSpec {
             "pipe latencies, L1/L2 latency: ubench (approx)".into(),
             "L2 bandwidth, HBM latency, launch gap, CTA launch: est".into(),
         ],
+        opcode_timing: BTreeMap::new(),
     }
 }
 
@@ -236,10 +238,27 @@ pub fn b200() -> GpuSpec {
             "dual-die split, D2D latency, pipe latencies, L2 latency/bandwidth: est (Blackwell ubench data is sparse)".into(),
             "tcgen05 (UTC*MMA) issue/complete timing: est — calibrate with ubench/tcgen05_mma.cu".into(),
         ],
+        opcode_timing: BTreeMap::new(),
     }
 }
 
 /// B200 as configured in GB200 (higher power envelope, 186 GB HBM3e).
+/// B300 (Blackwell Ultra, SM103). Starts from B200 and takes what the
+/// calibration run measured (`calibration/results/b300-*/calibration.json`)
+/// via [`crate::calibration`]; the values here are the uncalibrated defaults.
+pub fn b300() -> GpuSpec {
+    let mut g = b200();
+    g.name = "B300 SXM".into();
+    g.sm_clock_mhz = 2032.0;
+    g.hbm.capacity_gb = 288.0;
+    g.tensor
+        .flops_per_cycle_per_sm
+        .insert("fp4".into(), 32768.0);
+    g.notes
+        .push("b300: derived from b200; clock/fp4 est, calibrate with calibration/".into());
+    g
+}
+
 pub fn gb200() -> GpuSpec {
     let mut g = b200();
     g.name = "B200 in GB200 (1200 W)".into();

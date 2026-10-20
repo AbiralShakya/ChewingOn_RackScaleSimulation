@@ -12,6 +12,7 @@ use rsim_hw::GpuSpec;
 use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -32,7 +33,8 @@ pub struct GpuConfig {
     pub use_control_bits: bool,
     /// Emit GPU-level counter samples every N cycles (0 = off).
     pub sample_interval: u64,
-    /// Emit per-SM counter tracks as well (large traces for big systems).
+    /// Emit a per-SM timeline: one track per SM with a span per CTA
+    /// (kernel name, CTA id). Large traces for big systems.
     pub per_sm_counters: bool,
 }
 
@@ -66,6 +68,9 @@ pub struct KernelDone {
     pub stats: KernelStats,
 }
 
+/// Perfetto thread id of SM 0's track (streams use small tids).
+const SM_TID0: u64 = 1000;
+
 pub struct Gpu {
     pub rank: usize,
     pub spec: Arc<GpuSpec>,
@@ -91,6 +96,8 @@ pub struct Gpu {
     /// Min-heap of (next event, sm) with lazy invalidation.
     heap: BinaryHeap<Reverse<(u64, u32)>>,
     stepping: Vec<u32>,
+    /// Per-SM timeline: CTA start cycle keyed by (sm, kernel id, cta id).
+    cta_start: HashMap<(u32, u32, u64), u64>,
 }
 
 impl Gpu {
@@ -107,6 +114,11 @@ impl Gpu {
         let mut trace = TraceSink::new(trace_enabled);
         let pid = rank as u64 + 1;
         trace.name_process(pid, &format!("GPU{rank} ({})", spec.name));
+        if cfg.per_sm_counters {
+            for s in 0..spec.sm_count as u64 {
+                trace.name_thread(pid, SM_TID0 + s, &format!("SM{s:03}"));
+            }
+        }
         Self {
             rank,
             next_sample: cfg.sample_interval,
@@ -128,6 +140,7 @@ impl Gpu {
             busy_cycles: 0,
             sm_next: vec![NEVER; spec.sm_count as usize],
             heap: BinaryHeap::new(),
+            cta_start: HashMap::new(),
             stepping: Vec::new(),
             spec,
         }
@@ -245,6 +258,9 @@ impl Gpu {
                     if self.sms[s].can_fit(&launch) {
                         let cta = self.kernels[ki].next_cta;
                         self.sms[s].launch_cta(kid, &launch, cta, t + lat);
+                        if self.cfg.per_sm_counters && self.trace.enabled {
+                            self.cta_start.insert((s as u32, kid, cta), t + lat);
+                        }
                         self.update_sm(s);
                         self.kernels[ki].next_cta += 1;
                         if self.kernels[ki].started.is_none() {
@@ -315,8 +331,15 @@ impl Gpu {
             self.stepping.sort_unstable();
             for i in 0..self.stepping.len() {
                 let s = self.stepping[i] as usize;
+                let before = cta_done.len();
                 self.sms[s].step(t, &mut self.mem, &mut cta_done);
                 self.update_sm(s);
+                if self.cfg.per_sm_counters && self.trace.enabled {
+                    for i in before..cta_done.len() {
+                        let (kid, cta) = cta_done[i];
+                        self.trace_cta(s, kid, cta, t);
+                    }
+                }
             }
             if !cta_done.is_empty() {
                 self.dispatch_dirty = true;
@@ -397,6 +420,29 @@ impl Gpu {
             end_cycle: end,
             stats: st,
         }
+    }
+
+    fn trace_cta(&mut self, s: usize, kid: u32, cta: u64, end: u64) {
+        let Some(start) = self.cta_start.remove(&(s as u32, kid, cta)) else {
+            return;
+        };
+        let name = self
+            .kernels
+            .iter()
+            .find(|k| k.kid == kid)
+            .map(|k| k.launch.name.clone())
+            .unwrap_or_default();
+        let ghz = self.spec.sm_clock_mhz / 1000.0;
+        let ps = |c: u64| (c as f64 / ghz * 1000.0) as u64;
+        self.trace.span(
+            name,
+            "cta",
+            self.pid,
+            SM_TID0 + s as u64,
+            ps(start),
+            ps(end),
+            serde_json::json!({ "cta": cta, "cycles": end - start }),
+        );
     }
 
     fn sample(&mut self, t: u64) {

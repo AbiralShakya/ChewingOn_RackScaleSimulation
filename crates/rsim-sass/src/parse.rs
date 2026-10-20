@@ -207,13 +207,12 @@ pub(crate) fn parse_reg(tok: &str) -> Option<(Reg, u16)> {
             return None;
         }
         reg_r(n)
-    } else if let Some(n) = name.strip_prefix('P') {
+    } else {
+        let n = name.strip_prefix('P')?;
         if n == "T" {
             return None;
         }
         reg_p(num(n)?)
-    } else {
-        return None;
     };
     Some((r, width))
 }

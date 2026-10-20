@@ -73,6 +73,36 @@ pub fn timing(g: &GpuSpec, inst: &Inst) -> Timing {
     let p = &g.pipes;
     let ii = |lanes: u32| (32 / lanes.max(1)).max(1);
     let t = |pipe, ii, lat, sb| Timing { pipe, ii, lat, sb };
+    let mut out = class_timing(g, inst, l, p, ii, t);
+    // Measured per-opcode timing (calibration.json) for fixed/short-latency ops.
+    if !g.opcode_timing.is_empty()
+        && matches!(
+            inst.class,
+            IntAlu | Imad | Fp32 | Fp16 | Fp64 | Sfu | Conv | Shfl | Misc
+        )
+    {
+        let op = &*inst.opcode;
+        let m = g
+            .opcode_timing
+            .get(op)
+            .or_else(|| g.opcode_timing.get(op.split('.').next().unwrap_or(op)));
+        if let Some(m) = m {
+            out.lat = m.latency;
+            out.ii = m.issue_interval;
+        }
+    }
+    out
+}
+
+fn class_timing(
+    g: &GpuSpec,
+    inst: &Inst,
+    l: &rsim_hw::LatencyTable,
+    p: &rsim_hw::PipeSpec,
+    ii: impl Fn(u32) -> u32,
+    t: impl Fn(Pipe, u32, u32, Sb) -> Timing,
+) -> Timing {
+    use OpClass::*;
     match inst.class {
         IntAlu => t(Pipe::Alu, ii(p.int_lanes), l.int_alu, Sb::Fixed),
         Imad => t(Pipe::Fma, ii(p.fp32_lanes / 2), l.imad, Sb::Fixed),

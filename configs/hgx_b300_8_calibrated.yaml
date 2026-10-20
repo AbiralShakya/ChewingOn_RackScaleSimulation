@@ -1,0 +1,9 @@
+# HGX B300 8-GPU with the SM model driven by measured microbenchmarks.
+# `calibration` points at the output of calibration/ (schema
+# rackscale-calibration/v1); paths are relative to the working directory.
+preset: hgx_b200_8
+name: HGX B300 8-GPU (calibrated)
+gpus:
+  - preset: b300
+    count: 8
+    calibration: calibration/results/b300-sxm6-ac-sm103/calibration.json

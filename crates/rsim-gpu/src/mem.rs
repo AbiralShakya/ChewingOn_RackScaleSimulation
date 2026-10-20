@@ -1,8 +1,8 @@
 //! Memory hierarchy timing.
 //!
 //! Caches are functional (tags, sectors, LRU) so hit rates come from real
-//! address streams. Bandwidth is modelled with FCFS *servers* (`free_at`
-//! + bytes/rate): because the GPU model processes requests in global time
+//! address streams. Bandwidth is modelled with FCFS *servers*
+//! (`free_at + bytes/rate`): because the GPU model processes requests in global time
 //! order, a server's queueing delay is exact for its service discipline.
 
 use rsim_hw::{CacheSpec, GpuSpec};

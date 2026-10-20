@@ -12,6 +12,7 @@
 //! datasheet, `ubench` = public microbenchmark literature, `est` = estimate
 //! awaiting calibration with `ubench/`). See `docs/CALIBRATION.md`.
 
+pub mod calibration;
 pub mod fabric;
 pub mod gpu;
 pub mod merge;
@@ -20,7 +21,8 @@ pub mod system;
 
 pub use fabric::{LinkSpec, SwitchSpec};
 pub use gpu::{
-    Arch, CacheSpec, DieLink, GpuSpec, HbmSpec, LatencyTable, NvlinkSpec, PipeSpec, TensorSpec,
+    Arch, CacheSpec, DieLink, GpuSpec, HbmSpec, LatencyTable, NvlinkSpec, OpTiming, PipeSpec,
+    TensorSpec,
 };
 pub use system::{Link, NodeId, NodeKind, System, SystemSpec, Topology, TopologySpec};
 
