@@ -57,6 +57,9 @@ impl<E> EventQueue<E> {
             ev,
         });
     }
+    pub fn peek(&self) -> Option<(Time, &E)> {
+        self.heap.peek().map(|e| (e.t, &e.ev))
+    }
     pub fn peek_time(&self) -> Option<Time> {
         self.heap.peek().map(|e| e.t)
     }

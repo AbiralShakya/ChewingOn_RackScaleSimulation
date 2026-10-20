@@ -1,0 +1,12 @@
+[package]
+name = "rsim-net"
+description = "Interconnect model: NVLink/NVSwitch/InfiniBand fabrics, ECMP routing, chunked transport and NCCL-style collective algorithms (ring, NVLS, all-to-all)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rsim-core.workspace = true
+rsim-hw.workspace = true
+serde.workspace = true
+serde_json.workspace = true

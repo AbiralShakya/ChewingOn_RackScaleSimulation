@@ -136,6 +136,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsim-net"
+version = "0.1.0"
+dependencies = [
+ "rsim-core",
+ "rsim-hw",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rsim-sass"
 version = "0.1.0"
 dependencies = [

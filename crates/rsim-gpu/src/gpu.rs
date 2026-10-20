@@ -239,6 +239,16 @@ impl Gpu {
 
     /// Run until cycle `until` (exclusive). Completed kernels are returned.
     pub fn advance(&mut self, until: u64, out: &mut Vec<KernelDone>) {
+        self.advance_inner(until, out, false)
+    }
+
+    /// Like [`Gpu::advance`] but returns at the first cycle in which any
+    /// kernel completes (so dependent launches are never late).
+    pub fn advance_to_completion(&mut self, until: u64, out: &mut Vec<KernelDone>) {
+        self.advance_inner(until, out, true)
+    }
+
+    fn advance_inner(&mut self, until: u64, out: &mut Vec<KernelDone>, stop_on_done: bool) {
         let mut cta_done: Vec<(u32, u64)> = Vec::new();
         loop {
             let Some(t) = self.next_event() else {
@@ -293,6 +303,11 @@ impl Gpu {
                 } else {
                     i += 1;
                 }
+            }
+            if stop_on_done && !out.is_empty() {
+                // Let the caller react (launch dependent work) at exactly `t`.
+                self.now = t;
+                break;
             }
         }
     }

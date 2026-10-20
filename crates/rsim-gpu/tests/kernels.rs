@@ -42,7 +42,7 @@ fn hopper_gemm_is_tensor_bound() {
         "H100 gemm 4k: {:.0} TFLOPS ({:.0}% of peak) tensor_busy={} l2h={} l2m={} dram={} sched={:?}",
         tflops,
         100.0 * tflops / peak,
-        d.stats.tensor_busy_cycles, 
+        d.stats.tensor_busy_cycles,
         d.stats.l2_hits, d.stats.l2_misses, d.stats.dram_read_bytes, d.stats.sched.to_map()
     );
     assert!(
