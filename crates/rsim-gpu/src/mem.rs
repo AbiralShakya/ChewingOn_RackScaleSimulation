@@ -75,7 +75,9 @@ impl Cache {
         let lines = (size_bytes / spec.line_bytes as u64).max(spec.assoc as u64);
         let nsets = (lines / spec.assoc as u64).max(1) as usize;
         Self {
-            sets: vec![Vec::with_capacity(spec.assoc as usize); nsets],
+            sets: (0..nsets)
+                .map(|_| Vec::with_capacity(spec.assoc as usize))
+                .collect(),
             assoc: spec.assoc as usize,
             line_shift: spec.line_bytes.trailing_zeros(),
             sector_shift: spec.sector_bytes.trailing_zeros(),

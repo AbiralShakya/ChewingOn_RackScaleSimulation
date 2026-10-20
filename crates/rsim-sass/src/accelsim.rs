@@ -176,6 +176,7 @@ pub fn parse_trace(src: &str) -> Result<TraceKernel, String> {
                     parse_inst(pc, &text).unwrap_or_else(|_| parse_inst(pc, opcode).unwrap());
                 let class = classify(opcode);
                 inst.class = class;
+                inst.meta = crate::inst::InstMeta::compute(opcode, class, &inst.operands);
                 inst.mem = mem_info(opcode, class).map(|mut m| {
                     if width > 0 {
                         m.width = width;

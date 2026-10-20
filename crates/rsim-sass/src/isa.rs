@@ -64,6 +64,37 @@ pub enum OpClass {
 }
 
 impl OpClass {
+    pub const ALL: [OpClass; 28] = [
+        OpClass::IntAlu,
+        OpClass::Imad,
+        OpClass::Uniform,
+        OpClass::Fp32,
+        OpClass::Fp16,
+        OpClass::Fp64,
+        OpClass::Sfu,
+        OpClass::Conv,
+        OpClass::Shfl,
+        OpClass::S2R,
+        OpClass::Ldc,
+        OpClass::Mem,
+        OpClass::AsyncCopy,
+        OpClass::Ldsm,
+        OpClass::MmaSync,
+        OpClass::MmaWarpgroup,
+        OpClass::MmaTcgen05,
+        OpClass::Tma,
+        OpClass::Tmem,
+        OpClass::AsyncBarrier,
+        OpClass::Warpgroup,
+        OpClass::Barrier,
+        OpClass::DepBar,
+        OpClass::Fence,
+        OpClass::Branch,
+        OpClass::Exit,
+        OpClass::Nop,
+        OpClass::Misc,
+    ];
+
     pub fn is_variable_latency(self) -> bool {
         use OpClass::*;
         matches!(

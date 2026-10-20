@@ -346,6 +346,7 @@ pub fn parse_inst(pc: u32, text: &str) -> Result<(Inst, Option<String>), String>
             mem,
             branch_target,
             operands: ops.to_string(),
+            meta: InstMeta::compute(opcode, class, ops),
         },
         label,
     ))

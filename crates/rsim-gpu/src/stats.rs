@@ -23,9 +23,14 @@ pub enum Stall {
     LgThrottle,
     /// Waiting at a CTA barrier (BAR.SYNC).
     Barrier,
-    /// Waiting on an asynchronous producer: mbarrier phase (TMA, tcgen05
-    /// commit), wgmma group (WARPGROUP.DEPBAR) or cp.async group (DEPBAR).
+    /// Waiting on another warp's arrival at an mbarrier, or a cp.async
+    /// group (DEPBAR), or un-annotated async work.
     AsyncWait,
+    /// Waiting for TMA data to land (mbarrier phase completed by TMA).
+    TmaWait,
+    /// Waiting for tensor-core work: WARPGROUP.DEPBAR (wgmma) or an
+    /// mbarrier phase completed by tcgen05.commit (UTCBAR).
+    TensorWait,
     /// Waiting on tensor-core resources (queue full).
     TensorThrottle,
     /// Branch target resolution.
@@ -49,6 +54,8 @@ pub const ALL_STALLS: &[Stall] = &[
     Stall::LgThrottle,
     Stall::Barrier,
     Stall::AsyncWait,
+    Stall::TmaWait,
+    Stall::TensorWait,
     Stall::TensorThrottle,
     Stall::BranchResolving,
     Stall::Membar,
@@ -57,7 +64,7 @@ pub const ALL_STALLS: &[Stall] = &[
 ];
 
 #[derive(Clone, Debug, Default, Serialize)]
-pub struct StallCounts(pub [u64; 15]);
+pub struct StallCounts(pub [u64; 17]);
 
 impl StallCounts {
     #[inline]
@@ -121,6 +128,28 @@ pub struct KernelStats {
     pub l1_misses: u64,
     pub smem_wavefronts: u64,
     pub unknown_opcodes: BTreeMap<String, u64>,
+    /// Hot-path class counters (indexed by `OpClass as usize`).
+    #[serde(skip)]
+    pub class_counts: [u64; 32],
+}
+
+/// Small per-SM map of kernel id -> stats (few kernels are co-resident).
+#[derive(Default)]
+pub struct AccMap(Vec<(u32, KernelStats)>);
+
+impl AccMap {
+    #[inline]
+    pub fn get(&mut self, kid: u32) -> &mut KernelStats {
+        if let Some(i) = self.0.iter().position(|x| x.0 == kid) {
+            return &mut self.0[i].1;
+        }
+        self.0.push((kid, KernelStats::default()));
+        &mut self.0.last_mut().unwrap().1
+    }
+    pub fn remove(&mut self, kid: &u32) -> Option<KernelStats> {
+        let i = self.0.iter().position(|x| x.0 == *kid)?;
+        Some(self.0.swap_remove(i).1)
+    }
 }
 
 impl KernelStats {

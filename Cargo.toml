@@ -6,7 +6,7 @@ members = [
     "crates/rsim-sass",
     "crates/rsim-gpu",
     "crates/rsim-net",
-#    "crates/rsim-rack",
+    "crates/rsim-rack",
 #    "crates/rsim-cli",
 #    "crates/rsim-py",
 ]

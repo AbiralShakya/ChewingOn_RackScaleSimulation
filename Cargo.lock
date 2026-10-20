@@ -146,6 +146,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsim-rack"
+version = "0.1.0"
+dependencies = [
+ "rayon",
+ "rsim-core",
+ "rsim-gpu",
+ "rsim-hw",
+ "rsim-net",
+ "rsim-sass",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror",
+]
+
+[[package]]
 name = "rsim-sass"
 version = "0.1.0"
 dependencies = [

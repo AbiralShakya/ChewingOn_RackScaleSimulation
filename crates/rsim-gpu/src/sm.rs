@@ -5,8 +5,9 @@
 use crate::kernel::{BarOp, InstStream, KernelLaunch, KernelSource};
 use crate::mem::{Cache, MemSystem, Server};
 use crate::pipes::{mma_dtype, mma_flops, timing, Pipe, Sb, NUM_PIPES};
-use crate::stats::{KernelStats, Stall};
+use crate::stats::{AccMap, Stall};
 use rsim_hw::GpuSpec;
+use rsim_sass::inst::flags;
 use rsim_sass::walker::DynOp;
 use rsim_sass::{MemSpace, OpClass, Reg};
 use std::collections::HashMap;
@@ -33,7 +34,7 @@ struct MBar {
     arrivals: u32,
     max_t: u64,
     /// Completion time of every produced phase, in order.
-    phases: Vec<u64>,
+    phases: Vec<(u64, Stall)>,
 }
 
 struct CtaBar {
@@ -89,12 +90,6 @@ struct Smsp {
     rr: usize,
 }
 
-/// Per-SM, per-kernel accumulators (merged into `KernelStats` by the GPU).
-#[derive(Default, Clone)]
-pub struct SmKernelAcc {
-    pub stats: KernelStats,
-}
-
 pub struct Sm {
     pub id: u32,
     spec: Arc<GpuSpec>,
@@ -116,11 +111,13 @@ pub struct Sm {
     use_ctrl: bool,
     age: u64,
     stream_addr: u64,
-    pub acc: HashMap<u32, KernelStats>,
+    pub acc: AccMap,
     /// SM-level counters for timeline sampling.
     pub issued_total: u64,
     pub tensor_busy_total: u64,
     pub idle_sched_cycles: u64,
+    scratch_ws: Vec<usize>,
+    scratch_el: Vec<usize>,
 }
 
 impl Sm {
@@ -150,10 +147,12 @@ impl Sm {
             use_ctrl,
             age: 0,
             stream_addr: 0x7000_0000_0000 + ((id as u64) << 36),
-            acc: HashMap::new(),
+            acc: AccMap::default(),
             issued_total: 0,
             tensor_busy_total: 0,
             idle_sched_cycles: 0,
+            scratch_ws: Vec::with_capacity(16),
+            scratch_el: Vec::with_capacity(16),
             spec,
             policy,
         }
@@ -208,7 +207,7 @@ impl Sm {
                         count: init.count.max(1),
                         arrivals: 0,
                         max_t: 0,
-                        phases: vec![at; init.initial_phases as usize],
+                        phases: vec![(at, Stall::AsyncWait); init.initial_phases as usize],
                     },
                 );
             }
@@ -275,7 +274,7 @@ impl Sm {
         self.used_warps += nw;
         self.used_regs += regs;
         self.used_smem += smem;
-        let st = self.acc.entry(kid).or_default();
+        let st = self.acc.get(kid);
         st.ctas += 1;
         st.warps += nw as u64;
     }
@@ -323,14 +322,14 @@ impl Sm {
             return;
         }
         if let Some((st, kid)) = s.sched_state {
-            let acc = self.acc.entry(kid).or_default();
+            let acc = self.acc.get(kid);
             // `Selected` only ever lasts one cycle; the rest of the gap is
             // attributed to whatever the warps were doing (re-evaluated below).
             acc.sched.add(st, dt);
         }
         for &ws in &s.warps {
             if let Some(w) = &self.warps[ws] {
-                self.acc.entry(w.kid).or_default().warp.add(w.state, dt);
+                self.acc.get(w.kid).warp.add(w.state, dt);
             }
         }
     }
@@ -342,8 +341,12 @@ impl Sm {
             return;
         }
         // 1. Evaluate warp states.
-        let ws_list = self.smsps[sp].warps.clone();
-        let mut eligible: Vec<usize> = Vec::new();
+        let ws_list = std::mem::take(&mut self.scratch_ws);
+        let mut ws_list = ws_list;
+        ws_list.clear();
+        ws_list.extend_from_slice(&self.smsps[sp].warps);
+        let mut eligible = std::mem::take(&mut self.scratch_el);
+        eligible.clear();
         let mut min_until = NEVER;
         for &ws in &ws_list {
             let needs = self.warps[ws]
@@ -406,10 +409,14 @@ impl Sm {
         let sched = match pick {
             Some(ws) => (Stall::Selected, self.warps[ws].as_ref().unwrap().kid),
             None => {
-                // Attribute the bubble to the oldest warp's reason.
+                // Attribute the bubble to the warp that will unblock first (the
+                // critical warp); ties go to the oldest.
                 let ws = *ws_list
                     .iter()
-                    .min_by_key(|&&ws| self.warps[ws].as_ref().unwrap().age)
+                    .min_by_key(|&&ws| {
+                        let w = self.warps[ws].as_ref().unwrap();
+                        (w.until, w.age)
+                    })
                     .unwrap();
                 let w = self.warps[ws].as_ref().unwrap();
                 (w.state, w.kid)
@@ -429,9 +436,11 @@ impl Sm {
                 min_until.max(c + 1)
             };
         }
-        if !eligible.is_empty() && eligible.len() > 1 {
+        if eligible.len() > 1 {
             self.smsps[sp].next_eval = c + 1;
         }
+        self.scratch_ws = ws_list;
+        self.scratch_el = eligible;
     }
 
     /// Fetch the warp's next op if needed; `None` => stream exhausted.
@@ -510,18 +519,18 @@ impl Sm {
         }
         // Class-specific waits.
         match inst.class {
-            OpClass::Warpgroup if inst.has_modifier("DEPBAR") => {
-                let n = trailing_imm(&inst.operands).unwrap_or(0) as usize;
+            OpClass::Warpgroup if inst.meta.flags & flags::DEPBAR != 0 => {
+                let n = inst.meta.imm_last.unwrap_or(0) as usize;
                 let mut pend: Vec<u64> = w.wg_pending.iter().copied().filter(|&t| t > c).collect();
                 if pend.len() > n {
                     pend.sort_unstable();
-                    return (Stall::AsyncWait, pend[pend.len() - n - 1]);
+                    return (Stall::TensorWait, pend[pend.len() - n - 1]);
                 }
             }
             OpClass::DepBar if inst.base_opcode() == "DEPBAR" => {
-                let n = trailing_imm(&inst.operands).unwrap_or(0) as usize;
+                let n = inst.meta.imm_last.unwrap_or(0) as usize;
                 if use_ctrl && inst.ctrl.is_some() {
-                    let b = sb_index(&inst.operands).unwrap_or(0);
+                    let b = inst.meta.sb.unwrap_or(0) as usize;
                     let mut pend: Vec<u64> =
                         w.sb[b].iter().map(|x| x.0).filter(|&t| t > c).collect();
                     if pend.len() > n {
@@ -537,7 +546,7 @@ impl Sm {
                     }
                 }
             }
-            OpClass::AsyncBarrier if is_mbar_wait(&inst.opcode) => {
+            OpClass::AsyncBarrier if inst.meta.flags & flags::MBAR_WAIT != 0 => {
                 let role = w.role;
                 let bar = self.bar_op(cta_idx, role, inst.pc);
                 let w = self.warps[ws].as_ref().unwrap();
@@ -547,7 +556,7 @@ impl Sm {
                         let k = w.mbar_idx.get(&id).copied().unwrap_or(0);
                         match cta.mbars.get(&id).and_then(|m| m.phases.get(k)) {
                             None => return (Stall::AsyncWait, NEVER),
-                            Some(&t) if t > c => return (Stall::AsyncWait, t),
+                            Some(&(t, why)) if t > c => return (why, t),
                             _ => {}
                         }
                     }
@@ -630,7 +639,7 @@ impl Sm {
         }
     }
 
-    fn mbar_arrive(&mut self, cta: usize, id: u32, t: u64) {
+    fn mbar_arrive(&mut self, cta: usize, id: u32, t: u64, producer: Stall) {
         let c = self.ctas[cta].as_mut().unwrap();
         let m = c.mbars.entry(id).or_insert(MBar {
             count: 1,
@@ -641,10 +650,10 @@ impl Sm {
         m.arrivals += 1;
         m.max_t = m.max_t.max(t);
         if m.arrivals >= m.count {
-            m.phases.push(m.max_t);
+            m.phases.push((m.max_t, producer));
             m.arrivals = 0;
             m.max_t = 0;
-            let at = *m.phases.last().unwrap();
+            let at = m.phases.last().unwrap().0;
             self.poke_cta(cta, at);
         }
     }
@@ -670,9 +679,9 @@ impl Sm {
         let t = timing(&spec, &inst);
         self.issued_total += 1;
         {
-            let st = self.acc.entry(kid).or_default();
+            let st = self.acc.get(kid);
             st.insts_issued += 1;
-            *st.class_mix.entry(format!("{:?}", inst.class)).or_default() += 1;
+            st.class_counts[inst.class as usize] += 1;
             if inst.class == OpClass::Misc {
                 *st.unknown_opcodes
                     .entry(inst.base_opcode().to_string())
@@ -732,7 +741,7 @@ impl Sm {
                 sps.pipe_free[Pipe::Tensor as usize] = c + ii;
                 result = Some((c + ii + t.lat as u64, Sb::Short));
                 self.tensor_busy_total += ii;
-                let st = self.acc.entry(kid).or_default();
+                let st = self.acc.get(kid);
                 st.tensor_busy_cycles += ii;
                 st.tensor_flops += flops;
             }
@@ -747,7 +756,7 @@ impl Sm {
                 let fin = start + dur;
                 self.warps[ws].as_mut().unwrap().wg_pending.push(fin);
                 self.tensor_busy_total += dur;
-                let st = self.acc.entry(kid).or_default();
+                let st = self.acc.get(kid);
                 st.tensor_busy_cycles += dur;
                 st.tensor_flops += flops;
                 let cta_ref = self.ctas[cta].as_mut().unwrap();
@@ -762,7 +771,7 @@ impl Sm {
                 let fin = start + dur;
                 // The SM's four tensor cores work as one engine here.
                 self.tensor_busy_total += dur * spec.sub_partitions as u64;
-                let st = self.acc.entry(kid).or_default();
+                let st = self.acc.get(kid);
                 st.tensor_busy_cycles += dur * spec.sub_partitions as u64;
                 st.tensor_flops += flops;
                 let cta_ref = self.ctas[cta].as_mut().unwrap();
@@ -779,11 +788,11 @@ impl Sm {
                     self.stream_addr += bytes;
                     self.stream_addr
                 });
-                let store = inst.opcode.contains("STG") || inst.opcode.contains("RED");
+                let store = inst.meta.flags & flags::BULK_STORE != 0;
                 let frac = self.multicast(cta, role, inst.pc);
                 let start = self.tma.serve(c, bytes);
                 let r = mem.bulk(self.id, start, addr, bytes, frac, store);
-                let st = self.acc.entry(kid).or_default();
+                let st = self.acc.get(kid);
                 st.l2_hits += r.l2_hit_sectors as u64;
                 st.l2_misses += r.l2_miss_sectors as u64;
                 if store {
@@ -795,19 +804,22 @@ impl Sm {
                 let cta_ref = self.ctas[cta].as_mut().unwrap();
                 cta_ref.async_tail = cta_ref.async_tail.max(fin);
                 if let Some(BarOp::Arrive(id)) = self.bar_op(cta, role, inst.pc) {
-                    self.mbar_arrive(cta, id, fin);
+                    self.mbar_arrive(cta, id, fin, Stall::TmaWait);
                 }
             }
             OpClass::AsyncBarrier => {
                 let bar = self.bar_op(cta, role, inst.pc);
                 match bar {
                     Some(BarOp::Arrive(id)) => {
-                        let at = if inst.base_opcode() == "UTCBAR" {
-                            self.ctas[cta].as_ref().unwrap().tensor_tail.max(c)
+                        let (at, why) = if inst.base_opcode() == "UTCBAR" {
+                            (
+                                self.ctas[cta].as_ref().unwrap().tensor_tail.max(c),
+                                Stall::TensorWait,
+                            )
                         } else {
-                            c + t.lat as u64
+                            (c + t.lat as u64, Stall::AsyncWait)
                         };
-                        self.mbar_arrive(cta, id, at);
+                        self.mbar_arrive(cta, id, at, why);
                     }
                     Some(BarOp::Wait(id)) => {
                         let w = self.warps[ws].as_mut().unwrap();
@@ -826,10 +838,13 @@ impl Sm {
                 }
             }
             OpClass::Barrier => {
-                if inst.has_modifier("ARV") {
+                if inst.meta.flags & flags::ARV != 0 {
                     // Arrive-only: no wait.
                 } else {
-                    let (id, expected) = bar_operands(&inst.operands);
+                    let (id, expected) = (
+                        inst.meta.bar_id,
+                        inst.meta.bar_threads.map(|t| t.div_ceil(32)),
+                    );
                     let cta_ref = self.ctas[cta].as_mut().unwrap();
                     let exp = expected.unwrap_or(cta_ref.live);
                     let b = cta_ref.bars.entry(id).or_insert(CtaBar {
@@ -969,9 +984,9 @@ impl Sm {
         match m.space {
             MemSpace::Shared => {
                 let ways = if inst.class == OpClass::Ldsm {
-                    if inst.has_modifier("4") || inst.opcode.contains(".M88.4") {
+                    if inst.meta.flags & flags::LDSM_X4 != 0 {
                         4
-                    } else if inst.opcode.contains(".2") {
+                    } else if inst.meta.flags & flags::LDSM_X2 != 0 {
                         2
                     } else {
                         1
@@ -981,7 +996,7 @@ impl Sm {
                 };
                 let t0 = self.mio.serve(c, 1);
                 let t1 = self.smem_srv.serve(t0, ways as u64);
-                self.acc.entry(kid).or_default().smem_wavefronts += ways as u64;
+                self.acc.get(kid).smem_wavefronts += ways as u64;
                 t1 + spec.latency.lds as u64
             }
             MemSpace::Const => c + spec.latency.ldc as u64,
@@ -1016,9 +1031,9 @@ impl Sm {
                 let mut done_t = t0 + l1_lat;
                 let bypass_l1 = m.store
                     || m.atomic
-                    || inst.has_modifier("STRONG")
-                    || inst.class == OpClass::AsyncCopy && inst.has_modifier("BYPASS");
-                let st = self.acc.entry(kid).or_default();
+                    || inst.meta.flags & flags::STRONG != 0
+                    || inst.class == OpClass::AsyncCopy && inst.meta.flags & flags::BYPASS != 0;
+                let st = self.acc.get(kid);
                 for (line, mask) in lines {
                     let miss = if bypass_l1 {
                         mask
@@ -1079,22 +1094,8 @@ pub fn bank_wavefronts(addrs: &[u64], width: u32, active: u32) -> u32 {
     ways.max(((width * active) as u64).div_ceil(128) as u32)
 }
 
-fn trailing_imm(ops: &str) -> Option<u64> {
-    let last = ops.split(',').last()?.trim();
-    let h = last.strip_prefix("0x")?;
-    u64::from_str_radix(h, 16).ok()
-}
-
-fn sb_index(ops: &str) -> Option<usize> {
-    let first = ops.split(',').next()?.trim();
-    first.strip_prefix("SB")?.parse().ok()
-}
-
-fn is_mbar_wait(opcode: &str) -> bool {
-    opcode.contains("PHASECHK") || opcode.contains("TRYWAIT") || opcode.contains("WAIT")
-}
-
 /// `BAR.SYNC 0x1, 0x100` => (1, Some(8 warps)).
+#[cfg(test)]
 fn bar_operands(ops: &str) -> (u32, Option<u32>) {
     let parts: Vec<&str> = ops.split(',').map(|s| s.trim()).collect();
     let imm = |s: &str| {

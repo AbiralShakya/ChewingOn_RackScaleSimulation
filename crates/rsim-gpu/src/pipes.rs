@@ -36,54 +36,18 @@ pub struct Timing {
     pub sb: Sb,
 }
 
-/// Parse an MMA shape from modifiers: `16816` → (16,8,16), `64x128x16` → (64,128,16).
 pub fn mma_shape(inst: &Inst) -> Option<(u64, u64, u64)> {
-    for m in inst.opcode.split('.').skip(1) {
-        if m.contains('x') {
-            let v: Vec<u64> = m.split('x').filter_map(|x| x.parse().ok()).collect();
-            if v.len() == 3 {
-                return Some((v[0], v[1], v[2]));
-            }
-        } else if m.len() >= 3 && m.chars().all(|c| c.is_ascii_digit()) {
-            // m16n8k16 => "16816", m16n8k8 => "1688", m16n8k32 => "16832", m8n8k4 => "884"
-            let s = m.as_bytes();
-            let (mm, rest) = if s.starts_with(b"16") {
-                (16, &m[2..])
-            } else {
-                (8, &m[1..])
-            };
-            let (n, k) = (
-                rest[..1].parse::<u64>().ok()?,
-                rest[1..].parse::<u64>().ok()?,
-            );
-            return Some((mm, n, k));
-        }
-    }
-    None
+    inst.meta
+        .mma
+        .map(|(m, n, k)| (m as u64, n as u64, k as u64))
 }
 
 pub fn mma_dtype(inst: &Inst) -> &'static str {
-    for m in inst.opcode.split('.').skip(1) {
-        match m {
-            "F16" => return "fp16",
-            "BF16" => return "bf16",
-            "TF32" => return "tf32",
-            "E4M3" | "E5M2" | "F8" | "F8F6F4" => return "fp8",
-            "E2M1" | "MXF4" | "F4" | "NVF4" => return "fp4",
-            "S8" | "U8" => return "int8",
-            "F64" if inst.class == OpClass::MmaSync && inst.base_opcode() == "DMMA" => {
-                return "fp64"
-            }
-            _ => {}
-        }
+    if inst.meta.dtype.is_empty() {
+        "bf16"
+    } else {
+        inst.meta.dtype
     }
-    if inst.base_opcode() == "DMMA" {
-        return "fp64";
-    }
-    if inst.base_opcode() == "IMMA" {
-        return "int8";
-    }
-    "bf16"
 }
 
 /// FLOPs of one dynamic MMA instruction *per issuing warp*.

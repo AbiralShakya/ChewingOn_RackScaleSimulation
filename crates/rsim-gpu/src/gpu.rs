@@ -10,6 +10,8 @@ use crate::stats::KernelStats;
 use rsim_core::trace::TraceSink;
 use rsim_hw::GpuSpec;
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -83,6 +85,11 @@ pub struct Gpu {
     last_dram: u64,
     pub reserved_sms: u32,
     pub busy_cycles: u64,
+    /// Cached `sms[i].next_event()`.
+    sm_next: Vec<u64>,
+    /// Min-heap of (next event, sm) with lazy invalidation.
+    heap: BinaryHeap<Reverse<(u64, u32)>>,
+    stepping: Vec<u32>,
 }
 
 impl Gpu {
@@ -118,6 +125,9 @@ impl Gpu {
             last_dram: 0,
             reserved_sms: 0,
             busy_cycles: 0,
+            sm_next: vec![NEVER; spec.sm_count as usize],
+            heap: BinaryHeap::new(),
+            stepping: Vec::new(),
             spec,
         }
     }
@@ -171,14 +181,22 @@ impl Gpu {
         self.kernels.is_empty()
     }
 
+    #[inline]
+    fn update_sm(&mut self, s: usize) {
+        let n = self.sms[s].next_event();
+        if n != self.sm_next[s] || n != NEVER {
+            self.sm_next[s] = n;
+            if n != NEVER {
+                self.heap.push(Reverse((n, s as u32)));
+            }
+        }
+    }
+
     /// Next cycle at which something happens (or `None` if quiescent).
     pub fn next_event(&self) -> Option<u64> {
-        let sm = self
-            .sms
-            .iter()
-            .map(|s| s.next_event())
-            .min()
-            .unwrap_or(NEVER);
+        // Heap entries may be stale (older, earlier times): that only makes
+        // this estimate conservative.
+        let sm = self.heap.peek().map(|r| r.0 .0).unwrap_or(NEVER);
         let k = self
             .kernels
             .iter()
@@ -218,6 +236,7 @@ impl Gpu {
                     if self.sms[s].can_fit(&launch) {
                         let cta = self.kernels[ki].next_cta;
                         self.sms[s].launch_cta(kid, &launch, cta, t + lat);
+                        self.update_sm(s);
                         self.kernels[ki].next_cta += 1;
                         if self.kernels[ki].started.is_none() {
                             self.kernels[ki].started = Some(t);
@@ -272,10 +291,23 @@ impl Gpu {
             {
                 self.dispatch(t);
             }
-            for s in 0..self.sms.len() {
-                if self.sms[s].next_event() <= t {
-                    self.sms[s].step(t, &mut self.mem, &mut cta_done);
+            // Pop every SM due at `t` (skipping stale heap entries), step
+            // them in id order for determinism.
+            self.stepping.clear();
+            while let Some(&Reverse((tt, s))) = self.heap.peek() {
+                if tt > t {
+                    break;
                 }
+                self.heap.pop();
+                if self.sm_next[s as usize] == tt && !self.stepping.contains(&s) {
+                    self.stepping.push(s);
+                }
+            }
+            self.stepping.sort_unstable();
+            for i in 0..self.stepping.len() {
+                let s = self.stepping[i] as usize;
+                self.sms[s].step(t, &mut self.mem, &mut cta_done);
+                self.update_sm(s);
             }
             if !cta_done.is_empty() {
                 self.dispatch_dirty = true;
@@ -323,8 +355,12 @@ impl Gpu {
                 st.ctas += a.ctas;
                 st.warps += a.warps;
                 st.insts_issued += a.insts_issued;
-                for (c, n) in a.class_mix {
-                    *st.class_mix.entry(c).or_default() += n;
+                for (i, n) in a.class_counts.iter().enumerate() {
+                    if *n > 0 {
+                        *st.class_mix
+                            .entry(format!("{:?}", rsim_sass::OpClass::ALL[i]))
+                            .or_default() += n;
+                    }
                 }
                 for (c, n) in a.unknown_opcodes {
                     *st.unknown_opcodes.entry(c).or_default() += n;

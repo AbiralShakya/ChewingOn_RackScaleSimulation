@@ -105,6 +105,138 @@ pub struct Inst {
     /// Raw operand text (debugging / reports).
     #[serde(default)]
     pub operands: String,
+    /// Pre-decoded facts for the timing model's hot path.
+    #[serde(skip)]
+    pub meta: InstMeta,
+}
+
+pub mod flags {
+    pub const MBAR_WAIT: u32 = 1;
+    pub const DEPBAR: u32 = 2;
+    pub const ARV: u32 = 4;
+    pub const STRONG: u32 = 8;
+    pub const BYPASS: u32 = 16;
+    pub const BULK_STORE: u32 = 32;
+    pub const LDSM_X4: u32 = 64;
+    pub const LDSM_X2: u32 = 128;
+}
+
+/// Decoded once at parse time.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct InstMeta {
+    pub flags: u32,
+    /// Last operand as an immediate (`DEPBAR.LE SB0, 0x2` => 2).
+    pub imm_last: Option<u64>,
+    /// `SBx` index in the first operand (DEPBAR).
+    pub sb: Option<u8>,
+    /// Barrier id / expected thread count for `BAR.SYNC id, threads`.
+    pub bar_id: u32,
+    pub bar_threads: Option<u32>,
+    /// MMA shape (m, n, k) from the modifiers, and operand dtype.
+    pub mma: Option<(u32, u32, u32)>,
+    pub dtype: &'static str,
+}
+
+impl InstMeta {
+    pub fn compute(opcode: &str, class: OpClass, operands: &str) -> Self {
+        let mods: Vec<&str> = opcode.split('.').skip(1).collect();
+        let has = |m: &str| mods.iter().any(|x| *x == m);
+        let base = opcode.split('.').next().unwrap_or("");
+        let mut f = 0;
+        if class == OpClass::AsyncBarrier
+            && (opcode.contains("PHASECHK") || opcode.contains("WAIT"))
+        {
+            f |= flags::MBAR_WAIT;
+        }
+        if has("DEPBAR") {
+            f |= flags::DEPBAR;
+        }
+        if has("ARV") {
+            f |= flags::ARV;
+        }
+        if has("STRONG") {
+            f |= flags::STRONG;
+        }
+        if has("BYPASS") {
+            f |= flags::BYPASS;
+        }
+        if class == OpClass::Tma && (base.contains("STG") || base.contains("RED")) {
+            f |= flags::BULK_STORE;
+        }
+        if class == OpClass::Ldsm {
+            if has("4") {
+                f |= flags::LDSM_X4;
+            } else if has("2") {
+                f |= flags::LDSM_X2;
+            }
+        }
+        let parts: Vec<&str> = operands.split(',').map(|x| x.trim()).collect();
+        let imm = |x: &str| {
+            x.strip_prefix("0x")
+                .and_then(|h| u64::from_str_radix(h, 16).ok())
+        };
+        let imm_last = parts.last().and_then(|x| imm(x));
+        let sb = parts
+            .first()
+            .and_then(|x| x.strip_prefix("SB"))
+            .and_then(|x| x.parse().ok());
+        let (bar_id, bar_threads) = if class == OpClass::Barrier {
+            (
+                parts.first().and_then(|x| imm(x)).unwrap_or(0) as u32,
+                parts.get(1).and_then(|x| imm(x)).map(|t| t as u32),
+            )
+        } else {
+            (0, None)
+        };
+        let mut mma = None;
+        let mut dtype = "";
+        if class.is_tensor() {
+            for m in &mods {
+                if m.contains('x') {
+                    let v: Vec<u32> = m.split('x').filter_map(|x| x.parse().ok()).collect();
+                    if v.len() == 3 {
+                        mma = Some((v[0], v[1], v[2]));
+                        break;
+                    }
+                } else if m.len() >= 3 && m.chars().all(|c| c.is_ascii_digit()) {
+                    let (mm, rest) = if m.starts_with("16") {
+                        (16, &m[2..])
+                    } else {
+                        (8, &m[1..])
+                    };
+                    if let (Ok(n), Ok(k)) = (rest[..1].parse::<u32>(), rest[1..].parse::<u32>()) {
+                        mma = Some((mm, n, k));
+                        break;
+                    }
+                }
+            }
+            dtype = match base {
+                "DMMA" => "fp64",
+                "IMMA" => "int8",
+                _ => mods
+                    .iter()
+                    .find_map(|m| match *m {
+                        "F16" => Some("fp16"),
+                        "BF16" => Some("bf16"),
+                        "TF32" => Some("tf32"),
+                        "E4M3" | "E5M2" | "F8" | "F8F6F4" => Some("fp8"),
+                        "E2M1" | "MXF4" | "F4" | "NVF4" => Some("fp4"),
+                        "S8" | "U8" => Some("int8"),
+                        _ => None,
+                    })
+                    .unwrap_or("bf16"),
+            };
+        }
+        Self {
+            flags: f,
+            imm_last,
+            sb,
+            bar_id,
+            bar_threads,
+            mma,
+            dtype,
+        }
+    }
 }
 
 impl Inst {

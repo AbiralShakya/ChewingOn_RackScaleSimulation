@@ -1,0 +1,18 @@
+[package]
+name = "rsim-rack"
+description = "Rack/cluster simulation: workloads (streams, kernels, collectives, events), parallel PDES runner, bubble reports"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rsim-core.workspace = true
+rsim-hw.workspace = true
+rsim-sass.workspace = true
+rsim-gpu.workspace = true
+rsim-net.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+rayon.workspace = true
