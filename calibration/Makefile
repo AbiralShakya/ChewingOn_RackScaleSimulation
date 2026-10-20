@@ -7,10 +7,17 @@ CC_RAW    := $(shell nvidia-smi --query-gpu=compute_cap --format=csv,noheader -i
 SM        ?= $(CC_RAW)
 SUFFIX    := $(if $(filter 90 100 101 103 110 120 121,$(SM)),a,)
 ARCH      ?= -gencode arch=compute_$(SM)$(SUFFIX),code=sm_$(SM)$(SUFFIX)
-NVFLAGS   ?= -O3 -std=c++17 -lineinfo $(ARCH) -Xptxas -v
+NVFLAGS   ?= -O3 -std=c++17 -lineinfo $(ARCH) -Xptxas -v -DCAL_SM=$(SM)
 BUILD     := build
 
-BENCHES := alu mem tc tma misc
+# Arch-specific benches only build where the hardware has the feature.
+BENCHES := alu mem tc misc
+ifeq ($(shell test $(SM) -ge 80 && echo y),y)
+BENCHES += mma_sync cpasync l2part
+endif
+ifeq ($(shell test $(SM) -ge 90 && echo y),y)
+BENCHES += tma
+endif
 BINS    := $(addprefix $(BUILD)/bench_,$(BENCHES))
 
 all: $(BINS) $(addsuffix .ptx,$(BINS))
@@ -20,7 +27,7 @@ $(BUILD)/bench_%: src/bench_%.cu src/common.cuh | $(BUILD)
 
 # PTX next to each binary: scripts/sass_check.py compares PTX and SASS counts.
 $(BUILD)/bench_%.ptx: src/bench_%.cu src/common.cuh | $(BUILD)
-	$(NVCC) -O3 -std=c++17 -arch=compute_$(SM)$(SUFFIX) -ptx -o $@ $<
+	$(NVCC) -O3 -std=c++17 -arch=compute_$(SM)$(SUFFIX) -DCAL_SM=$(SM) -ptx -o $@ $<
 
 $(BUILD):
 	mkdir -p $@

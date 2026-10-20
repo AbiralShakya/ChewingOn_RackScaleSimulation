@@ -331,6 +331,7 @@ __global__ void smem_bw128_kernel(int iters, uint64_t* out, uint32_t* sink) {
   if (threadIdx.x == 0) out[blockIdx.x] = span;
 }
 
+#if CAL_SM >= 90  // thread block clusters / DSMEM are sm_90+
 __global__ void __cluster_dims__(2, 1, 1) dsmem_chase_kernel(int hops, uint64_t* out, uint32_t* sink) {
   __shared__ uint32_t s[1024];
   cg::cluster_group cl = cg::this_cluster();
@@ -356,6 +357,7 @@ __global__ void __cluster_dims__(2, 1, 1) dsmem_chase_kernel(int hops, uint64_t*
   }
   cl.sync();
 }
+#endif
 
 void run_smem(Json& j, const DeviceInfo& d) {
   uint64_t* out;
@@ -410,6 +412,7 @@ void run_smem(Json& j, const DeviceInfo& d) {
   j.kv("ld_shared_v4_bytes_per_clk_per_sm", bytes / span);
   fprintf(stderr, "smem v4 bw %.1f B/clk/SM\n", bytes / span);
 
+#if CAL_SM >= 90
   // DSMEM
   int hops = 2048;
   std::vector<double> rem, loc;
@@ -424,6 +427,9 @@ void run_smem(Json& j, const DeviceInfo& d) {
   j.kv("dsmem_remote_latency_cycles", vmin(rem));
   j.kv("dsmem_local_generic_latency_cycles", vmin(loc));
   fprintf(stderr, "smem lat %.1f  dsmem remote %.1f local-generic %.1f\n", l2, vmin(rem), vmin(loc));
+#else
+  fprintf(stderr, "smem lat %.1f  (no DSMEM before sm_90)\n", l2);
+#endif
   j.end_obj();
   cudaFree(out);
   cudaFree(sink);

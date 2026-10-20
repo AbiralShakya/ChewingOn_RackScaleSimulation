@@ -33,12 +33,24 @@ REFERENCE = [
     ("smem_32way_conflict", "build/bench_mem", [], r"smem_bw_kernel", 5, 1),
     ("hbm_stream_read", "build/bench_mem", [], r"bw_read_kernel", 1, 1),
     ("hbm_copy", "build/bench_mem", [], r"bw_copy_kernel", 1, 1),
-    ("l2_pointer_chase", "build/bench_mem", [], r"chase_kernel<(int)1>", 20, 1),
-    ("hmma_bf16_throughput", "build/bench_tc", ["mma_sync"], r"mma_sync_kernel<MmaBF16, (int)4>", 0, 1),
+    ("l2_pointer_chase", "build/bench_mem", [], r"chase_kernel<1>", 20, 1),
+    ("hmma_bf16_throughput", "build/bench_tc", ["mma_sync"], r"mma_sync_kernel<MmaBF16, 4>", 0, 1),
     ("umma_bf16_m128n256k16", "build/bench_tc", ["tcgen05_f16_bf16_m128n256k16"], r"tc05_kernel", 12, 1),
     ("umma_nvfp4_m128n256k64", "build/bench_tc", ["tcgen05_nvfp4_m128n256k64"], r"tc05_kernel", 12, 1),
     ("tma_bulk_stream", "build/bench_tma", [], r"tma_bw_kernel", 4, 1),
+    # sm_80+ async-copy and warp-MMA paths (Ampere's main data movers).
+    ("cp_async_cg16_dram_stream", "build/bench_cpasync", [], r"stream_kernel<1, 4>", 68, 1),  # DRAM pass, 256 thr x 4 CTA/SM
+    ("hmma_f16_f32_m16n8k16_w32_ilp4", "build/bench_mma_sync", [], r"mma_thr_kernel<F16_F32_m16n8k16, 4>", 17, 1),
 ]
+
+# Reference kernels that need hardware newer than sm_80.
+MIN_CC = {"umma_bf16_m128n256k16": 100, "umma_nvfp4_m128n256k64": 100, "tma_bulk_stream": 90}
+
+
+def name_regex(regex):
+    """Escape a kernel signature, letting integer template args match either
+    `<1>` or `<(int)1>`: cu++filt from CUDA 12 prints the cast, CUDA 13 does not."""
+    return re.sub(r"(<|,\\ )(\d)", r"\1(?:\\(int\\))?\2", re.escape(regex))
 
 METRICS = [
     "sm__cycles_elapsed.max", "sm__cycles_elapsed.avg", "smsp__cycles_active.avg", "gpu__time_duration.sum",
@@ -69,7 +81,7 @@ def mangled_names(binary):
 def run_ncu(binary, args, regex, skip, count):
     # With --kernel-name-base demangled the regex sees the full signature,
     # template arguments included; the launch is then picked by index.
-    cmd = ["ncu", "--clock-control", "none", "--csv", "--page", "raw", "--kernel-name-base", "demangled", "--kernel-name", f"regex:{re.escape(regex)}",
+    cmd = ["ncu", "--clock-control", "none", "--csv", "--page", "raw", "--kernel-name-base", "demangled", "--kernel-name", f"regex:{name_regex(regex)}",
            "--launch-skip", str(skip), "--launch-count", str(count), "--metrics", ",".join(METRICS), binary] + args
     p = subprocess.run(cmd, capture_output=True, text=True)
     text = p.stdout
@@ -96,7 +108,12 @@ def main(outdir):
     os.makedirs(sass_dir, exist_ok=True)
     results = []
     names_cache = {}
+    cc = int(subprocess.run(["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader", "-i",
+                             os.environ.get("CUDA_VISIBLE_DEVICES", "0").split(",")[0]],
+                            capture_output=True, text=True).stdout.split()[0].replace(".", ""))
     for label, binary, args, regex, skip, count in REFERENCE:
+        if cc < MIN_CC.get(label, 0) or not os.access(binary, os.X_OK):
+            continue
         rec, err = run_ncu(binary, args, regex, skip, count)
         entry = {"label": label, "binary": binary, "args": args, "kernel": regex, "launch_index": skip}
         if rec is None:
@@ -113,7 +130,8 @@ def main(outdir):
             if "average_warps_issue_stalled_" in k and k.endswith("per_issue_active.ratio") and isinstance(v, float)
         }
         names = names_cache.setdefault(binary, mangled_names(binary))
-        mangled = next((m for d, m in names.items() if d.startswith(f"void {regex}(") or d.startswith(f"{regex}(")), None)
+        full = re.compile(r"(?:void )?" + name_regex(regex) + r"\(")
+        mangled = next((m for d, m in names.items() if full.match(d)), None)
         if mangled is None:
             mangled = next((m for d, m in names.items() if regex.split("<")[0] in d), None)
         if mangled:
