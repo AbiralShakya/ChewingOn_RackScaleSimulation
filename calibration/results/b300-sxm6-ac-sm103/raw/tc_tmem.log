@@ -1,0 +1,1 @@
+tcgen05.ld 32x32b.x32: lat 181.8 cyc, 90 B/clk (4 warps), 317 B/clk (16 warps)

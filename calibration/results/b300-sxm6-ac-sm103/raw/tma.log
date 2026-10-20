@@ -1,0 +1,13 @@
+bulk copy    128 B: L2   368 cyc  HBM   882 cyc
+bulk copy    256 B: L2   362 cyc  HBM   873 cyc
+bulk copy    512 B: L2   362 cyc  HBM   901 cyc
+bulk copy   1024 B: L2   366 cyc  HBM   913 cyc
+bulk copy   2048 B: L2   367 cyc  HBM   975 cyc
+bulk copy   4096 B: L2   367 cyc  HBM  1024 cyc
+bulk copy   8192 B: L2   397 cyc  HBM  1050 cyc
+bulk copy  16384 B: L2   473 cyc  HBM  1387 cyc
+bulk copy  32768 B: L2   617 cyc  HBM  1533 cyc
+bulk copy  65536 B: L2   869 cyc  HBM  1732 cyc
+bulk copy bw chunk  4096 x4: all-SM 3830 GB/s (13.0 B/clk/SM), one SM 14.1 B/clk
+bulk copy bw chunk 16384 x4: all-SM 7175 GB/s (24.3 B/clk/SM), one SM 47.5 B/clk
+bulk copy bw chunk 32768 x4: all-SM 7231 GB/s (25.5 B/clk/SM), one SM 84.7 B/clk

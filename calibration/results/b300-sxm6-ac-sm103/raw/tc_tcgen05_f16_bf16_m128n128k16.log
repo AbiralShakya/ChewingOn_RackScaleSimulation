@@ -1,0 +1,1 @@
+tcgen05_f16_bf16_m128n128k16       rt-lat  426.0 cyc    64.0 cyc/MMA (1 SM)   64.0 (all)      8194 FLOP/clk/SM

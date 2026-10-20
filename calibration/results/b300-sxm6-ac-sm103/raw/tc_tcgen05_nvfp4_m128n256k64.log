@@ -1,0 +1,1 @@
+tcgen05_nvfp4_m128n256k64          rt-lat  433.0 cyc   128.0 cyc/MMA (1 SM)  128.0 (all)     32768 FLOP/clk/SM
