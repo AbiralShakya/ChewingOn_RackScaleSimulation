@@ -31,7 +31,13 @@ struct Pending {
 
 impl Pending {
     fn new(name: String) -> Self {
-        Self { name, insts: vec![], labels: HashMap::new(), label_targets: vec![], pending_labels: vec![] }
+        Self {
+            name,
+            insts: vec![],
+            labels: HashMap::new(),
+            label_targets: vec![],
+            pending_labels: vec![],
+        }
     }
     fn finish(mut self) -> Program {
         for (idx, l) in self.label_targets.drain(..) {
@@ -52,14 +58,20 @@ pub fn parse_listing(src: &str) -> Result<Vec<Program>, ParseError> {
         if line.is_empty() {
             continue;
         }
-        if let Some(rest) = line.strip_prefix("Function :").or_else(|| line.strip_prefix("Function:")) {
+        if let Some(rest) = line
+            .strip_prefix("Function :")
+            .or_else(|| line.strip_prefix("Function:"))
+        {
             if let Some(p) = cur.take() {
                 out.push(p.finish());
             }
             cur = Some(Pending::new(rest.trim().to_string()));
             continue;
         }
-        if let Some(name) = line.strip_prefix(".text.").and_then(|s| s.strip_suffix(':')) {
+        if let Some(name) = line
+            .strip_prefix(".text.")
+            .and_then(|s| s.strip_suffix(':'))
+        {
             if let Some(p) = cur.take() {
                 out.push(p.finish());
             }
@@ -69,7 +81,9 @@ pub fn parse_listing(src: &str) -> Result<Vec<Program>, ParseError> {
         // Label line, e.g. `.L_x_3:` (may be followed by a comment).
         if line.starts_with(".L") {
             if let Some(l) = line.split(':').next() {
-                cur.get_or_insert_with(|| Pending::new("kernel".into())).pending_labels.push(l.to_string());
+                cur.get_or_insert_with(|| Pending::new("kernel".into()))
+                    .pending_labels
+                    .push(l.to_string());
             }
             continue;
         }
@@ -88,24 +102,33 @@ pub fn parse_listing(src: &str) -> Result<Vec<Program>, ParseError> {
             continue; // directives, headers, etc.
         }
         let Some(end) = line.find("*/") else { continue };
-        let Ok(pc) = u32::from_str_radix(line[2..end].trim(), 16) else { continue };
+        let Ok(pc) = u32::from_str_radix(line[2..end].trim(), 16) else {
+            continue;
+        };
         let body = &line[end + 2..];
         let Some(semi) = body.find(';') else {
-            return Err(ParseError::Syntax { line: ln + 1, msg: "missing ';'".into() });
+            return Err(ParseError::Syntax {
+                line: ln + 1,
+                msg: "missing ';'".into(),
+            });
         };
         let text = body[..semi].trim();
         let p = cur.get_or_insert_with(|| Pending::new("kernel".into()));
         for l in p.pending_labels.drain(..) {
             p.labels.insert(l, pc);
         }
-        let (inst, label) = parse_inst(pc, text).map_err(|msg| ParseError::Syntax { line: ln + 1, msg })?;
+        let (inst, label) =
+            parse_inst(pc, text).map_err(|msg| ParseError::Syntax { line: ln + 1, msg })?;
         if let Some(l) = label {
             p.label_targets.push((p.insts.len(), l));
         }
         p.insts.push(inst);
         // cuobjdump: a second hex comment on the same line is the *low* word;
         // nvdisasm -hex can put both words on one line: `/* lo */ /* hi */`.
-        let comments: Vec<u64> = body[semi + 1..].split("/*").filter_map(|c| parse_hex_comment(&format!("/*{c}"))).collect();
+        let comments: Vec<u64> = body[semi + 1..]
+            .split("/*")
+            .filter_map(|c| parse_hex_comment(&format!("/*{c}")))
+            .collect();
         if comments.len() >= 2 {
             p.insts.last_mut().unwrap().ctrl = Some(Ctrl::from_hi_word(comments[1]));
         }
@@ -151,7 +174,9 @@ fn split_operands(s: &str) -> Vec<&str> {
 /// Parse one register token (without leading `!`/`-`/`|`), returning the
 /// base id and the vector width suffix (`.64` => 2 regs).
 pub(crate) fn parse_reg(tok: &str) -> Option<(Reg, u16)> {
-    let tok = tok.trim_start_matches(['!', '-', '|', '~']).trim_end_matches('|');
+    let tok = tok
+        .trim_start_matches(['!', '-', '|', '~'])
+        .trim_end_matches('|');
     let mut parts = tok.split('.');
     let name = parts.next()?;
     let width = parts
@@ -212,14 +237,19 @@ fn regs_in(op: &str) -> Vec<(Reg, u16)> {
 
 fn is_pred_only(op: &str) -> bool {
     let t = op.trim_start_matches('!');
-    t == "PT" || t == "UPT" || (t.starts_with('P') && t[1..].parse::<u16>().is_ok()) || (t.starts_with("UP") && t[2..].parse::<u16>().is_ok())
+    t == "PT"
+        || t == "UPT"
+        || (t.starts_with('P') && t[1..].parse::<u16>().is_ok())
+        || (t.starts_with("UP") && t[2..].parse::<u16>().is_ok())
 }
 
 pub fn parse_inst(pc: u32, text: &str) -> Result<(Inst, Option<String>), String> {
     let mut text = text.trim();
     let mut guard = None;
     if let Some(rest) = text.strip_prefix('@') {
-        let (g, r) = rest.split_once(char::is_whitespace).ok_or("guard without opcode")?;
+        let (g, r) = rest
+            .split_once(char::is_whitespace)
+            .ok_or("guard without opcode")?;
         let neg = g.starts_with('!');
         if let Some((reg, _)) = parse_reg(g) {
             guard = Some((reg, neg));
@@ -249,14 +279,23 @@ pub fn parse_inst(pc: u32, text: &str) -> Result<(Inst, Option<String>), String>
         let op0 = operands[0];
         if !op0.contains('[') {
             for (r, w) in regs_in(op0) {
-                let w = if mem.is_some() && !mem.unwrap().store { w.max(vec_w) } else { w };
-                let w = if class == OpClass::MmaSync { w.max(4) } else { w };
+                let w = if mem.is_some() && !mem.unwrap().store {
+                    w.max(vec_w)
+                } else {
+                    w
+                };
+                let w = if class == OpClass::MmaSync {
+                    w.max(4)
+                } else {
+                    w
+                };
                 push_reg(&mut dsts, r, w);
             }
         }
         first_src = 1;
         if writes_trailing_predicates(base) {
-            while first_src < operands.len() && first_src <= 2 && is_pred_only(operands[first_src]) {
+            while first_src < operands.len() && first_src <= 2 && is_pred_only(operands[first_src])
+            {
                 for (r, w) in regs_in(operands[first_src]) {
                     push_reg(&mut dsts, r, w);
                 }
@@ -268,13 +307,21 @@ pub fn parse_inst(pc: u32, text: &str) -> Result<(Inst, Option<String>), String>
         let is_data = mem.map(|m| m.store).unwrap_or(false) && !op.contains('[');
         for (r, w) in regs_in(op) {
             let w = if is_data { w.max(vec_w) } else { w };
-            let w = if class == OpClass::MmaSync && i <= 3 { w.max(if i == 2 { 2 } else { 4 }) } else { w };
+            let w = if class == OpClass::MmaSync && i <= 3 {
+                w.max(if i == 2 { 2 } else { 4 })
+            } else {
+                w
+            };
             push_reg(&mut srcs, r, w);
         }
     }
     if class == OpClass::Branch && matches!(base, "BRA" | "JMP" | "CALL" | "BSSY" | "BREAK") {
         if let Some(t) = operands.last() {
-            let t = t.trim().trim_start_matches('`').trim_start_matches('(').trim_end_matches(')');
+            let t = t
+                .trim()
+                .trim_start_matches('`')
+                .trim_start_matches('(')
+                .trim_end_matches(')');
             if let Some(h) = t.strip_prefix("0x") {
                 branch_target = u32::from_str_radix(h, 16).ok();
             } else if t.starts_with(".L") {

@@ -19,7 +19,9 @@ pub mod presets;
 pub mod system;
 
 pub use fabric::{LinkSpec, SwitchSpec};
-pub use gpu::{Arch, CacheSpec, DieLink, GpuSpec, HbmSpec, LatencyTable, NvlinkSpec, PipeSpec, TensorSpec};
+pub use gpu::{
+    Arch, CacheSpec, DieLink, GpuSpec, HbmSpec, LatencyTable, NvlinkSpec, PipeSpec, TensorSpec,
+};
 pub use system::{Link, NodeId, NodeKind, System, SystemSpec, Topology, TopologySpec};
 
 #[derive(Debug, thiserror::Error)]

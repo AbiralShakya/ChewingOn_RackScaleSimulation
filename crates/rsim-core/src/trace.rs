@@ -39,10 +39,22 @@ fn us(t: Time) -> f64 {
 
 impl TraceSink {
     pub fn new(enabled: bool) -> Self {
-        Self { enabled, events: Vec::new() }
+        Self {
+            enabled,
+            events: Vec::new(),
+        }
     }
 
-    pub fn span(&mut self, name: impl Into<String>, cat: &str, pid: u64, tid: u64, start: Time, end: Time, args: Value) {
+    pub fn span(
+        &mut self,
+        name: impl Into<String>,
+        cat: &str,
+        pid: u64,
+        tid: u64,
+        start: Time,
+        end: Time,
+        args: Value,
+    ) {
         if !self.enabled {
             return;
         }
@@ -62,7 +74,16 @@ impl TraceSink {
         if !self.enabled {
             return;
         }
-        self.events.push(TraceEvent { name: name.into(), ph: "C", ts: us(t), dur: None, pid, tid: 0, cat: None, args: values });
+        self.events.push(TraceEvent {
+            name: name.into(),
+            ph: "C",
+            ts: us(t),
+            dur: None,
+            pid,
+            tid: 0,
+            cat: None,
+            args: values,
+        });
     }
 
     pub fn name_process(&mut self, pid: u64, name: &str) {

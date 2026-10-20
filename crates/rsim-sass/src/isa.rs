@@ -68,11 +68,26 @@ impl OpClass {
         use OpClass::*;
         matches!(
             self,
-            Sfu | Conv | Shfl | S2R | Ldc | Mem | AsyncCopy | Ldsm | MmaSync | MmaWarpgroup | MmaTcgen05 | Tma | Tmem | AsyncBarrier
+            Sfu | Conv
+                | Shfl
+                | S2R
+                | Ldc
+                | Mem
+                | AsyncCopy
+                | Ldsm
+                | MmaSync
+                | MmaWarpgroup
+                | MmaTcgen05
+                | Tma
+                | Tmem
+                | AsyncBarrier
         )
     }
     pub fn is_tensor(self) -> bool {
-        matches!(self, OpClass::MmaSync | OpClass::MmaWarpgroup | OpClass::MmaTcgen05)
+        matches!(
+            self,
+            OpClass::MmaSync | OpClass::MmaWarpgroup | OpClass::MmaTcgen05
+        )
     }
 }
 
@@ -80,40 +95,45 @@ pub fn classify(opcode: &str) -> OpClass {
     use OpClass::*;
     let base = opcode.split('.').next().unwrap_or(opcode);
     match base {
-        "IADD3" | "IADD" | "IABS" | "IMNMX" | "VIMNMX" | "VIADD" | "LOP3" | "LOP" | "SHF" | "SHL" | "SHR" | "LEA" | "SEL"
-        | "ISETP" | "PSETP" | "PLOP3" | "MOV" | "MOV32I" | "PRMT" | "POPC" | "FLO" | "BREV" | "BMSK" | "SGXT" | "P2R"
-        | "R2P" | "CS2R" | "IDP" | "IDP4A" | "ICMP" | "LEPC" | "R2UR" => IntAlu,
+        "IADD3" | "IADD" | "IABS" | "IMNMX" | "VIMNMX" | "VIADD" | "LOP3" | "LOP" | "SHF"
+        | "SHL" | "SHR" | "LEA" | "SEL" | "ISETP" | "PSETP" | "PLOP3" | "MOV" | "MOV32I"
+        | "PRMT" | "POPC" | "FLO" | "BREV" | "BMSK" | "SGXT" | "P2R" | "R2P" | "CS2R" | "IDP"
+        | "IDP4A" | "ICMP" | "LEPC" | "R2UR" => IntAlu,
         "IMAD" | "IMUL" | "IMADSP" | "IMUL32I" | "IMAD32I" => Imad,
-        "FADD" | "FMUL" | "FFMA" | "FSETP" | "FSET" | "FMNMX" | "FSEL" | "FCHK" | "FSWZADD" | "FADD32I" | "FMUL32I"
-        | "FFMA32I" | "FCMP" | "FRND" => Fp32,
-        "HADD2" | "HMUL2" | "HFMA2" | "HSETP2" | "HSET2" | "HMNMX2" | "HADD2_32I" | "HFMA2_32I" | "HMUL2_32I" => Fp16,
+        "FADD" | "FMUL" | "FFMA" | "FSETP" | "FSET" | "FMNMX" | "FSEL" | "FCHK" | "FSWZADD"
+        | "FADD32I" | "FMUL32I" | "FFMA32I" | "FCMP" | "FRND" => Fp32,
+        "HADD2" | "HMUL2" | "HFMA2" | "HSETP2" | "HSET2" | "HMNMX2" | "HADD2_32I" | "HFMA2_32I"
+        | "HMUL2_32I" => Fp16,
         "DADD" | "DMUL" | "DFMA" | "DSETP" | "DMNMX" => Fp64,
         "MUFU" => Sfu,
         "F2F" | "F2I" | "I2F" | "I2I" | "F2FP" | "I2FP" | "F2IP" => Conv,
         "SHFL" | "VOTE" | "VOTEU" | "MATCH" | "REDUX" | "CREDUX" => Shfl,
         "S2R" | "S2UR" => S2R,
         "LDC" | "ULDC" => Ldc,
-        "LDG" | "STG" | "LDS" | "STS" | "LDL" | "STL" | "LD" | "ST" | "ATOM" | "ATOMG" | "ATOMS" | "RED" | "REDG"
-        | "SUST" | "SULD" | "TEX" | "TLD" | "TLD4" | "LDSTS" => Mem,
+        "LDG" | "STG" | "LDS" | "STS" | "LDL" | "STL" | "LD" | "ST" | "ATOM" | "ATOMG"
+        | "ATOMS" | "RED" | "REDG" | "SUST" | "SULD" | "TEX" | "TLD" | "TLD4" | "LDSTS" => Mem,
         "LDGSTS" => AsyncCopy,
         "LDSM" | "STSM" | "MOVM" => Ldsm,
         "HMMA" | "IMMA" | "DMMA" | "BMMA" | "QMMA" | "OMMA" => MmaSync,
         "HGMMA" | "IGMMA" | "QGMMA" | "BGMMA" => MmaWarpgroup,
         "UTCHMMA" | "UTCIMMA" | "UTCQMMA" | "UTCOMMA" | "UTCMMA" | "UTCBMMA" => MmaTcgen05,
-        "UTMALDG" | "UTMASTG" | "UTMAPF" | "UTMAREDG" | "UTMACCTL" | "UBLKCP" | "UBLKRED" | "UBLKPF" => Tma,
+        "UTMALDG" | "UTMASTG" | "UTMAPF" | "UTMAREDG" | "UTMACCTL" | "UBLKCP" | "UBLKRED"
+        | "UBLKPF" => Tma,
         "LDTM" | "STTM" | "UTCCP" | "UTCSHIFT" => Tmem,
         "SYNCS" | "UTCBAR" | "ARRIVES" => AsyncBarrier,
         "WARPGROUP" => Warpgroup,
         "BAR" | "B2R" | "R2B" => Barrier,
         "DEPBAR" | "LDGDEPBAR" => DepBar,
         "MEMBAR" | "FENCE" | "ERRBAR" | "CCTL" | "CCTLL" => Fence,
-        "BRA" | "BRX" | "JMP" | "JMX" | "CALL" | "RET" | "BSSY" | "BSYNC" | "BREAK" | "BPT" | "WARPSYNC" | "YIELD"
-        | "KILL" | "NANOSLEEP" | "ELECT" | "ACQBULK" | "ENDCOLLECTIVE" | "UCGABAR_ARV" | "UCGABAR_WAIT" => Branch,
+        "BRA" | "BRX" | "JMP" | "JMX" | "CALL" | "RET" | "BSSY" | "BSYNC" | "BREAK" | "BPT"
+        | "WARPSYNC" | "YIELD" | "KILL" | "NANOSLEEP" | "ELECT" | "ACQBULK" | "ENDCOLLECTIVE"
+        | "UCGABAR_ARV" | "UCGABAR_WAIT" => Branch,
         "EXIT" => Exit,
         "NOP" => Nop,
         b if b.starts_with('U') && b.len() > 1 => match &b[1..] {
-            "IADD3" | "MOV" | "LOP3" | "SHF" | "LEA" | "SEL" | "ISETP" | "PRMT" | "FLO" | "POPC" | "PLOP3" | "IMAD" | "SGXT"
-            | "BMSK" | "BREV" | "P2UR" | "PSETP" | "IABS" | "IMNMX" | "VIADD" | "VIMNMX" | "STG" | "LDG" => Uniform,
+            "IADD3" | "MOV" | "LOP3" | "SHF" | "LEA" | "SEL" | "ISETP" | "PRMT" | "FLO"
+            | "POPC" | "PLOP3" | "IMAD" | "SGXT" | "BMSK" | "BREV" | "P2UR" | "PSETP" | "IABS"
+            | "IMNMX" | "VIADD" | "VIMNMX" | "STG" | "LDG" => Uniform,
             _ => Misc,
         },
         _ => Misc,
@@ -143,9 +163,11 @@ pub fn mem_info(opcode: &str, class: OpClass) -> Option<MemInfo> {
         (OpClass::Mem, "STS") => (MemSpace::Shared, true, false),
         (OpClass::Mem, "LDL") => (MemSpace::Local, false, false),
         (OpClass::Mem, "STL") => (MemSpace::Local, true, false),
-        (OpClass::Mem, "LD") | (OpClass::Mem, "TEX") | (OpClass::Mem, "TLD") | (OpClass::Mem, "TLD4") | (OpClass::Mem, "SULD") => {
-            (MemSpace::Generic, false, false)
-        }
+        (OpClass::Mem, "LD")
+        | (OpClass::Mem, "TEX")
+        | (OpClass::Mem, "TLD")
+        | (OpClass::Mem, "TLD4")
+        | (OpClass::Mem, "SULD") => (MemSpace::Generic, false, false),
         (OpClass::Mem, "ST") | (OpClass::Mem, "SUST") => (MemSpace::Generic, true, false),
         (OpClass::Mem, "ATOMS") => (MemSpace::Shared, false, true),
         (OpClass::Mem, "ATOM") | (OpClass::Mem, "ATOMG") => (MemSpace::Global, false, true),
@@ -158,18 +180,65 @@ pub fn mem_info(opcode: &str, class: OpClass) -> Option<MemInfo> {
         (OpClass::Tmem, _) => (MemSpace::Tensor, false, false),
         _ => return None,
     };
-    Some(MemInfo { space, store, atomic, width })
+    Some(MemInfo {
+        space,
+        store,
+        atomic,
+        width,
+    })
 }
 
 /// Opcodes whose first operand is *not* a destination.
 pub fn first_operand_is_src(base: &str) -> bool {
     matches!(
         base,
-        "STG" | "STS" | "STL" | "ST" | "RED" | "REDG" | "SUST" | "STSM" | "STTM" | "BAR" | "BRA" | "BRX" | "JMP" | "JMX"
-            | "CALL" | "RET" | "EXIT" | "NOP" | "BSSY" | "BSYNC" | "BREAK" | "WARPSYNC" | "YIELD" | "KILL" | "DEPBAR"
-            | "LDGDEPBAR" | "MEMBAR" | "FENCE" | "ERRBAR" | "CCTL" | "UTMASTG" | "UTMAPF" | "UTMALDG" | "UBLKCP"
-            | "UTCHMMA" | "UTCIMMA" | "UTCQMMA" | "UTCOMMA" | "UTCMMA" | "UTCBAR" | "UTCCP" | "WARPGROUP" | "NANOSLEEP"
-            | "LDGSTS" | "ARRIVES" | "UTMAREDG" | "UBLKRED"
+        "STG"
+            | "STS"
+            | "STL"
+            | "ST"
+            | "RED"
+            | "REDG"
+            | "SUST"
+            | "STSM"
+            | "STTM"
+            | "BAR"
+            | "BRA"
+            | "BRX"
+            | "JMP"
+            | "JMX"
+            | "CALL"
+            | "RET"
+            | "EXIT"
+            | "NOP"
+            | "BSSY"
+            | "BSYNC"
+            | "BREAK"
+            | "WARPSYNC"
+            | "YIELD"
+            | "KILL"
+            | "DEPBAR"
+            | "LDGDEPBAR"
+            | "MEMBAR"
+            | "FENCE"
+            | "ERRBAR"
+            | "CCTL"
+            | "UTMASTG"
+            | "UTMAPF"
+            | "UTMALDG"
+            | "UBLKCP"
+            | "UTCHMMA"
+            | "UTCIMMA"
+            | "UTCQMMA"
+            | "UTCOMMA"
+            | "UTCMMA"
+            | "UTCBAR"
+            | "UTCCP"
+            | "WARPGROUP"
+            | "NANOSLEEP"
+            | "LDGSTS"
+            | "ARRIVES"
+            | "UTMAREDG"
+            | "UBLKRED"
     )
 }
 
@@ -177,8 +246,24 @@ pub fn first_operand_is_src(base: &str) -> bool {
 pub fn writes_trailing_predicates(base: &str) -> bool {
     matches!(
         base,
-        "ISETP" | "FSETP" | "DSETP" | "HSETP2" | "PSETP" | "PLOP3" | "IADD3" | "LEA" | "UISETP" | "UIADD3" | "ULEA"
-            | "UPLOP3" | "UPSETP" | "VOTE" | "VOTEU" | "R2P" | "ELECT" | "SYNCS"
+        "ISETP"
+            | "FSETP"
+            | "DSETP"
+            | "HSETP2"
+            | "PSETP"
+            | "PLOP3"
+            | "IADD3"
+            | "LEA"
+            | "UISETP"
+            | "UIADD3"
+            | "ULEA"
+            | "UPLOP3"
+            | "UPSETP"
+            | "VOTE"
+            | "VOTEU"
+            | "R2P"
+            | "ELECT"
+            | "SYNCS"
     )
 }
 
@@ -191,7 +276,10 @@ mod tests {
         assert_eq!(classify("HGMMA.64x128x16.F32.BF16"), OpClass::MmaWarpgroup);
         assert_eq!(classify("UTCHMMA.2CTA"), OpClass::MmaTcgen05);
         assert_eq!(classify("UTMALDG.2D"), OpClass::Tma);
-        assert_eq!(classify("SYNCS.PHASECHK.TRANS64.TRYWAIT"), OpClass::AsyncBarrier);
+        assert_eq!(
+            classify("SYNCS.PHASECHK.TRANS64.TRYWAIT"),
+            OpClass::AsyncBarrier
+        );
         assert_eq!(classify("UIADD3"), OpClass::Uniform);
         assert_eq!(classify("FOOBAR"), OpClass::Misc);
         let m = mem_info("LDG.E.128.CONSTANT", OpClass::Mem).unwrap();

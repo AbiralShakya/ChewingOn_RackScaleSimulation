@@ -38,12 +38,35 @@ pub struct AddrGen {
     pub iter_stride: i64,
     #[serde(default)]
     pub footprint: u64,
+    /// CTA index transform before `cta_stride`: `(cta / cta_div) % cta_mod`
+    /// (0 = disabled). Maps a linear CTA id to a tile row/column.
+    #[serde(default)]
+    pub cta_div: u64,
+    #[serde(default)]
+    pub cta_mod: u64,
 }
 
 impl AddrGen {
     pub fn addr(&self, cta: u64, warp: u64, lane: u64, iter: u64) -> u64 {
-        let off = cta as i64 * self.cta_stride + warp as i64 * self.warp_stride + lane as i64 * self.lane_stride + iter as i64 * self.iter_stride;
-        let off = if self.footprint > 0 { off.rem_euclid(self.footprint as i64) } else { off };
+        let cta = if self.cta_div > 1 {
+            cta / self.cta_div
+        } else {
+            cta
+        };
+        let cta = if self.cta_mod > 0 {
+            cta % self.cta_mod
+        } else {
+            cta
+        };
+        let off = cta as i64 * self.cta_stride
+            + warp as i64 * self.warp_stride
+            + lane as i64 * self.lane_stride
+            + iter as i64 * self.iter_stride;
+        let off = if self.footprint > 0 {
+            off.rem_euclid(self.footprint as i64)
+        } else {
+            off
+        };
         self.base.wrapping_add(off as u64)
     }
 }
@@ -71,7 +94,7 @@ pub struct Annotations {
 
 pub struct Walker {
     prog: Arc<Program>,
-    insts: Vec<Arc<Inst>>,
+    insts: Arc<Vec<Arc<Inst>>>,
     profile: Arc<BranchProfile>,
     ann: Arc<Annotations>,
     pc: usize,
@@ -85,8 +108,28 @@ pub struct Walker {
 }
 
 impl Walker {
-    pub fn new(prog: Arc<Program>, insts: Vec<Arc<Inst>>, profile: Arc<BranchProfile>, ann: Arc<Annotations>, cta: u64, warp: u64) -> Self {
-        Self { prog, insts, profile, ann, pc: 0, taken: HashMap::new(), iter: 0, cta, warp, exited: false, steps: 0, max_steps: 1 << 32 }
+    pub fn new(
+        prog: Arc<Program>,
+        insts: Arc<Vec<Arc<Inst>>>,
+        profile: Arc<BranchProfile>,
+        ann: Arc<Annotations>,
+        cta: u64,
+        warp: u64,
+    ) -> Self {
+        Self {
+            prog,
+            insts,
+            profile,
+            ann,
+            pc: 0,
+            taken: HashMap::new(),
+            iter: 0,
+            cta,
+            warp,
+            exited: false,
+            steps: 0,
+            max_steps: 1 << 32,
+        }
     }
 
     /// Wrap a program's instructions in `Arc`s once (share across warps).
@@ -99,7 +142,8 @@ impl Walker {
             None => false,
             Some(&p) => {
                 // Deterministic per-CTA hash in [0,1).
-                let h = (self.cta.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 11) as f64 / (1u64 << 53) as f64;
+                let h = (self.cta.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 11) as f64
+                    / (1u64 << 53) as f64;
                 h < p
             }
         }
@@ -119,7 +163,9 @@ impl Walker {
                     self.exited = true;
                 }
             }
-            OpClass::Branch if inst.branch_target.is_some() && matches!(inst.base_opcode(), "BRA" | "JMP") => {
+            OpClass::Branch
+                if inst.branch_target.is_some() && matches!(inst.base_opcode(), "BRA" | "JMP") =>
+            {
                 let target = inst.branch_target.unwrap();
                 let take = match self.profile.taken.get(&pc) {
                     Some(&n) => {
@@ -153,14 +199,21 @@ impl Walker {
         self.pc = next;
         let active = self.ann.active.get(&pc).copied().unwrap_or(u32::MAX);
         let mut addrs = Vec::new();
-        if inst.mem.is_some() {
+        {
             if let Some(g) = self.ann.addr.get(&pc) {
                 let lanes = active.count_ones().min(32) as u64;
-                addrs = (0..lanes).map(|l| g.addr(self.cta, self.warp, l, self.iter)).collect();
+                addrs = (0..lanes)
+                    .map(|l| g.addr(self.cta, self.warp, l, self.iter))
+                    .collect();
             }
         }
         let payload = self.ann.payload.get(&pc).copied().unwrap_or(0);
-        Some(DynOp { inst, active, addrs, payload })
+        Some(DynOp {
+            inst,
+            active,
+            addrs,
+            payload,
+        })
     }
 }
 
@@ -182,8 +235,15 @@ mod tests {
         let p = Arc::new(parse_listing(src).unwrap().remove(0));
         let mut prof = BranchProfile::default();
         prof.taken.insert(0x30, 15);
-        let insts = Walker::share(&p);
-        let mut w = Walker::new(p, insts, Arc::new(prof), Arc::new(Annotations::default()), 0, 0);
+        let insts = Arc::new(Walker::share(&p));
+        let mut w = Walker::new(
+            p,
+            insts,
+            Arc::new(prof),
+            Arc::new(Annotations::default()),
+            0,
+            0,
+        );
         let mut n = 0;
         while w.next_op().is_some() {
             n += 1;

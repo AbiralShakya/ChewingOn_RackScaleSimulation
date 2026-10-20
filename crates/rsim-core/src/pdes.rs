@@ -121,7 +121,11 @@ mod tests {
             while let Some((t, n)) = self.q.pop_before(until) {
                 self.received.push((t, n));
                 if n < self.limit {
-                    out.push(Envelope { dst: 1 - self.id, at: t + self.lat, msg: n + 1 });
+                    out.push(Envelope {
+                        dst: 1 - self.id,
+                        at: t + self.lat,
+                        msg: n + 1,
+                    });
                 }
             }
         }
@@ -138,12 +142,23 @@ mod tests {
 
     #[test]
     fn ping_pong_is_exact() {
-        let mk = |id| Pinger { id, q: EventQueue::new(), lat: 100, received: vec![], limit: 10 };
+        let mk = |id| Pinger {
+            id,
+            q: EventQueue::new(),
+            lat: 100,
+            received: vec![],
+            limit: 10,
+        };
         let mut lps = vec![mk(0), mk(1)];
         lps[0].q.push(0, 0);
         let mut st = PdesStats::default();
         run(&mut lps, 100, Time::MAX, &mut st);
-        let all: Vec<_> = lps[0].received.iter().chain(lps[1].received.iter()).copied().collect();
+        let all: Vec<_> = lps[0]
+            .received
+            .iter()
+            .chain(lps[1].received.iter())
+            .copied()
+            .collect();
         assert_eq!(all.len(), 11);
         for (t, n) in all {
             assert_eq!(t, n as Time * 100);

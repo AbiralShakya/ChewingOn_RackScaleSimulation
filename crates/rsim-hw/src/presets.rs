@@ -72,13 +72,35 @@ pub fn h100_sxm() -> GpuSpec {
         max_ctas_per_sm: 32,
         regs_per_sm: 65536,
         smem_per_sm_bytes: 228 * 1024,
-        l1: CacheSpec { size_bytes: 64 * 1024, line_bytes: 128, sector_bytes: 32, assoc: 4, hit_latency: 33 },
-        l2: CacheSpec { size_bytes: 50 * 1024 * 1024, line_bytes: 128, sector_bytes: 32, assoc: 16, hit_latency: 260 },
+        l1: CacheSpec {
+            size_bytes: 64 * 1024,
+            line_bytes: 128,
+            sector_bytes: 32,
+            assoc: 4,
+            hit_latency: 33,
+        },
+        l2: CacheSpec {
+            size_bytes: 50 * 1024 * 1024,
+            line_bytes: 128,
+            sector_bytes: 32,
+            assoc: 16,
+            hit_latency: 260,
+        },
         l2_bytes_per_cycle: 3000.0,
-        hbm: HbmSpec { capacity_gb: 80.0, bw_gbps: 3350.0, efficiency: 0.9, latency_ns: 350.0 },
+        hbm: HbmSpec {
+            capacity_gb: 80.0,
+            bw_gbps: 3350.0,
+            efficiency: 0.9,
+            latency_ns: 350.0,
+        },
         dies: 1,
         d2d: None,
-        nvlink: NvlinkSpec { generation: 4, ports: 18, gbps_per_port_per_dir: 25.0, port_latency_ns: 60.0 },
+        nvlink: NvlinkSpec {
+            generation: 4,
+            ports: 18,
+            gbps_per_port_per_dir: 25.0,
+            port_latency_ns: 60.0,
+        },
         pipes: PipeSpec {
             fp32_lanes: 32,
             int_lanes: 16,
@@ -123,7 +145,8 @@ pub fn h100_sxm() -> GpuSpec {
         launch_overhead_ns: 1500.0,
         cta_launch_cycles: 120,
         notes: vec![
-            "sm_count, clocks, HBM, NVLink, tensor peak: spec (989 TFLOPS dense BF16 @1830 MHz)".into(),
+            "sm_count, clocks, HBM, NVLink, tensor peak: spec (989 TFLOPS dense BF16 @1830 MHz)"
+                .into(),
             "pipe latencies, L1/L2 latency: ubench (approx)".into(),
             "L2 bandwidth, HBM latency, launch gap, CTA launch: est".into(),
         ],
@@ -133,8 +156,14 @@ pub fn h100_sxm() -> GpuSpec {
 pub fn h200_sxm() -> GpuSpec {
     let mut g = h100_sxm();
     g.name = "H200 SXM 141GB".into();
-    g.hbm = HbmSpec { capacity_gb: 141.0, bw_gbps: 4800.0, efficiency: 0.9, latency_ns: 350.0 };
-    g.notes.push("H200 = H100 compute + HBM3e 141 GB / 4.8 TB/s (spec)".into());
+    g.hbm = HbmSpec {
+        capacity_gb: 141.0,
+        bw_gbps: 4800.0,
+        efficiency: 0.9,
+        latency_ns: 350.0,
+    };
+    g.notes
+        .push("H200 = H100 compute + HBM3e 141 GB / 4.8 TB/s (spec)".into());
     g
 }
 
@@ -218,12 +247,16 @@ pub fn gb200() -> GpuSpec {
     g.sm_clock_mhz = 2062.0;
     g.hbm.capacity_gb = 186.0;
     g.hbm.bw_gbps = 8000.0;
-    g.notes.push("GB200 per-GPU: 2.5 PF dense BF16, 8 TB/s HBM3e (spec)".into());
+    g.notes
+        .push("GB200 per-GPU: 2.5 PF dense BF16, 8 TB/s HBM3e (spec)".into());
     g
 }
 
 fn nvlink_link(gpu: &GpuSpec) -> LinkSpec {
-    LinkSpec { gbps_per_dir: gpu.nvlink.gbps_per_port_per_dir, latency_ns: 20.0 }
+    LinkSpec {
+        gbps_per_dir: gpu.nvlink.gbps_per_port_per_dir,
+        latency_ns: 20.0,
+    }
 }
 
 pub fn system(name: &str) -> Option<SystemSpec> {
@@ -250,7 +283,10 @@ pub fn system(name: &str) -> Option<SystemSpec> {
                 gpus: vec![GpuGroup::preset("b200", 8)],
                 topology: TopologySpec::Switched {
                     switches: 2,
-                    switch: SwitchSpec { ports: 144, ..switch("nvswitch_nvl5").unwrap() },
+                    switch: SwitchSpec {
+                        ports: 144,
+                        ..switch("nvswitch_nvl5").unwrap()
+                    },
                     links_per_gpu_per_switch: vec![9, 9],
                     link: nvlink_link(&g),
                 },
@@ -280,7 +316,10 @@ pub fn system(name: &str) -> Option<SystemSpec> {
                 topology: TopologySpec::MultiNode {
                     nodes: 2,
                     intra: Box::new(base.topology),
-                    nic: LinkSpec { gbps_per_dir: 50.0, latency_ns: 600.0 },
+                    nic: LinkSpec {
+                        gbps_per_dir: 50.0,
+                        latency_ns: 600.0,
+                    },
                     leaf: switch("ib_ndr_leaf").unwrap(),
                 },
             }

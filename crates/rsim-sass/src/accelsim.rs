@@ -50,8 +50,18 @@ pub struct TraceKernel {
 }
 
 fn dims(s: &str) -> [u32; 3] {
-    let v: Vec<u32> = s.trim().trim_start_matches('(').trim_end_matches(')').split(',').filter_map(|x| x.trim().parse().ok()).collect();
-    [v.first().copied().unwrap_or(1), v.get(1).copied().unwrap_or(1), v.get(2).copied().unwrap_or(1)]
+    let v: Vec<u32> = s
+        .trim()
+        .trim_start_matches('(')
+        .trim_end_matches(')')
+        .split(',')
+        .filter_map(|x| x.trim().parse().ok())
+        .collect();
+    [
+        v.first().copied().unwrap_or(1),
+        v.get(1).copied().unwrap_or(1),
+        v.get(2).copied().unwrap_or(1),
+    ]
 }
 
 fn hex(s: &str) -> Option<u64> {
@@ -90,7 +100,10 @@ pub fn parse_trace(src: &str) -> Result<TraceKernel, String> {
             continue;
         }
         if let Some(v) = line.strip_prefix("warp =") {
-            warp = v.trim().parse().map_err(|_| format!("line {}: bad warp", ln + 1))?;
+            warp = v
+                .trim()
+                .parse()
+                .map_err(|_| format!("line {}: bad warp", ln + 1))?;
             continue;
         }
         if line.starts_with("insts =") {
@@ -124,7 +137,9 @@ pub fn parse_trace(src: &str) -> Result<TraceKernel, String> {
                 1 => {
                     let base = toks.get(i).and_then(|t| hex(t)).unwrap_or(0);
                     let stride: i64 = toks.get(i + 1).and_then(|t| t.parse().ok()).unwrap_or(0);
-                    addrs = (0..active as i64).map(|k| (base as i64 + k * stride) as u64).collect();
+                    addrs = (0..active as i64)
+                        .map(|k| (base as i64 + k * stride) as u64)
+                        .collect();
                 }
                 2 => {
                     let mut a = toks.get(i).and_then(|t| hex(t)).unwrap_or(0) as i64;
@@ -135,7 +150,12 @@ pub fn parse_trace(src: &str) -> Result<TraceKernel, String> {
                     }
                 }
                 _ => {
-                    addrs = toks.iter().skip(i).take(active).filter_map(|t| hex(t)).collect();
+                    addrs = toks
+                        .iter()
+                        .skip(i)
+                        .take(active)
+                        .filter_map(|t| hex(t))
+                        .collect();
                 }
             }
         }
@@ -144,8 +164,16 @@ pub fn parse_trace(src: &str) -> Result<TraceKernel, String> {
             .entry(key)
             .or_insert_with(|| {
                 // Re-use the listing parser for classification; registers come from the trace.
-                let text = format!("{opcode} {}", dsts.iter().chain(srcs.iter()).copied().collect::<Vec<_>>().join(", "));
-                let (mut inst, _) = parse_inst(pc, &text).unwrap_or_else(|_| parse_inst(pc, opcode).unwrap());
+                let text = format!(
+                    "{opcode} {}",
+                    dsts.iter()
+                        .chain(srcs.iter())
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+                let (mut inst, _) =
+                    parse_inst(pc, &text).unwrap_or_else(|_| parse_inst(pc, opcode).unwrap());
                 let class = classify(opcode);
                 inst.class = class;
                 inst.mem = mem_info(opcode, class).map(|mut m| {
@@ -155,14 +183,20 @@ pub fn parse_trace(src: &str) -> Result<TraceKernel, String> {
                     m
                 });
                 let regs = |v: &[&str]| -> Vec<Reg> {
-                    v.iter().filter_map(|t| parse_reg(t)).flat_map(|(r, w)| (0..w).map(move |k| r + k)).collect()
+                    v.iter()
+                        .filter_map(|t| parse_reg(t))
+                        .flat_map(|(r, w)| (0..w).map(move |k| r + k))
+                        .collect()
                 };
                 inst.dsts = regs(&dsts);
                 inst.srcs = regs(&srcs);
                 Arc::new(inst)
             })
             .clone();
-        k.warps.entry((cta, warp)).or_default().push(DynInst { inst, mask, addrs });
+        k.warps
+            .entry((cta, warp))
+            .or_default()
+            .push(DynInst { inst, mask, addrs });
     }
     if k.header.name.is_empty() {
         return Err("missing `-kernel name` header".into());

@@ -27,15 +27,25 @@ pub struct GpuGroup {
 
 impl GpuGroup {
     pub fn preset(name: &str, count: u32) -> Self {
-        Self { preset: Some(name.into()), spec: None, overrides: None, count }
+        Self {
+            preset: Some(name.into()),
+            spec: None,
+            overrides: None,
+            count,
+        }
     }
 
     pub fn resolve(&self) -> Result<GpuSpec, HwError> {
         let base = match (&self.preset, &self.spec) {
             (_, Some(s)) => s.clone(),
-            (Some(p), None) => presets::gpu(p)
-                .ok_or_else(|| HwError::UnknownPreset(p.clone(), presets::GPU_PRESETS.join(", ")))?,
-            (None, None) => return Err(HwError::Invalid("gpu group needs `preset` or `spec`".into())),
+            (Some(p), None) => presets::gpu(p).ok_or_else(|| {
+                HwError::UnknownPreset(p.clone(), presets::GPU_PRESETS.join(", "))
+            })?,
+            (None, None) => {
+                return Err(HwError::Invalid(
+                    "gpu group needs `preset` or `spec`".into(),
+                ))
+            }
         };
         match &self.overrides {
             None => Ok(base),
@@ -64,9 +74,17 @@ pub enum TopologySpec {
     /// `nodes` copies of `intra`, plus a rail-optimised scale-out network:
     /// local GPU `r` of every node attaches to leaf `r`; leaves join a
     /// non-blocking spine.
-    MultiNode { nodes: u32, intra: Box<TopologySpec>, nic: LinkSpec, leaf: SwitchSpec },
+    MultiNode {
+        nodes: u32,
+        intra: Box<TopologySpec>,
+        nic: LinkSpec,
+        leaf: SwitchSpec,
+    },
     /// Arbitrary wiring. Endpoints are `gpu<i>` or `sw<j>`.
-    Explicit { switches: Vec<SwitchSpec>, links: Vec<ExplicitLink> },
+    Explicit {
+        switches: Vec<SwitchSpec>,
+        links: Vec<ExplicitLink>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -130,7 +148,11 @@ impl System {
     }
     /// Minimum one-way latency of any link (the PDES lookahead), ns.
     pub fn min_link_latency_ns(&self) -> f64 {
-        self.topology.links.iter().map(|l| l.latency_ns).fold(f64::INFINITY, f64::min)
+        self.topology
+            .links
+            .iter()
+            .map(|l| l.latency_ns)
+            .fold(f64::INFINITY, f64::min)
     }
 }
 
@@ -140,8 +162,9 @@ impl SystemSpec {
     pub fn from_yaml(src: &str) -> Result<Self, HwError> {
         let mut v: Value = serde_yaml::from_str(src)?;
         if let Some(Value::String(p)) = v.get("preset").cloned() {
-            let base = presets::system(&p)
-                .ok_or_else(|| HwError::UnknownPreset(p.clone(), presets::SYSTEM_PRESETS.join(", ")))?;
+            let base = presets::system(&p).ok_or_else(|| {
+                HwError::UnknownPreset(p.clone(), presets::SYSTEM_PRESETS.join(", "))
+            })?;
             let mut bv = serde_yaml::to_value(&base)?;
             if let Value::Mapping(m) = &mut v {
                 m.remove("preset");
@@ -163,12 +186,23 @@ impl SystemSpec {
         if gpus.is_empty() {
             return Err(HwError::Invalid("system has no GPUs".into()));
         }
-        let mut b = Builder { nodes: (0..gpus.len()).map(|rank| NodeKind::Gpu { rank }).collect(), links: vec![], gpus: &gpus };
+        let mut b = Builder {
+            nodes: (0..gpus.len()).map(|rank| NodeKind::Gpu { rank }).collect(),
+            links: vec![],
+            gpus: &gpus,
+        };
         let ranks: Vec<usize> = (0..gpus.len()).collect();
         b.lower(&self.topology, &ranks)?;
-        let topo = Topology { nodes: b.nodes, links: b.links };
+        let topo = Topology {
+            nodes: b.nodes,
+            links: b.links,
+        };
         validate(&topo, &gpus)?;
-        Ok(System { name: self.name.clone(), gpus, topology: topo })
+        Ok(System {
+            name: self.name.clone(),
+            gpus,
+            topology: topo,
+        })
     }
 }
 
@@ -180,7 +214,10 @@ struct Builder<'a> {
 
 impl Builder<'_> {
     fn add_switch(&mut self, spec: &SwitchSpec, label: String) -> NodeId {
-        self.nodes.push(NodeKind::Switch { spec: spec.clone(), label });
+        self.nodes.push(NodeKind::Switch {
+            spec: spec.clone(),
+            label,
+        });
         self.nodes.len() - 1
     }
 
@@ -196,12 +233,23 @@ impl Builder<'_> {
             return;
         }
         let latency_ns = l.latency_ns + self.port_latency(a) + self.port_latency(b);
-        self.links.push(Link { a, b, count, gbps_per_dir: l.gbps_per_dir * count as f64, latency_ns });
+        self.links.push(Link {
+            a,
+            b,
+            count,
+            gbps_per_dir: l.gbps_per_dir * count as f64,
+            latency_ns,
+        });
     }
 
     fn lower(&mut self, t: &TopologySpec, ranks: &[usize]) -> Result<(), HwError> {
         match t {
-            TopologySpec::Switched { switches, switch, links_per_gpu_per_switch, link } => {
+            TopologySpec::Switched {
+                switches,
+                switch,
+                links_per_gpu_per_switch,
+                link,
+            } => {
                 if links_per_gpu_per_switch.len() != *switches as usize {
                     return Err(HwError::Invalid(format!(
                         "links_per_gpu_per_switch has {} entries for {} switches",
@@ -217,35 +265,64 @@ impl Builder<'_> {
                     }
                 }
             }
-            TopologySpec::FullMesh { links_per_pair, link } => {
+            TopologySpec::FullMesh {
+                links_per_pair,
+                link,
+            } => {
                 for (i, &a) in ranks.iter().enumerate() {
                     for &b in &ranks[i + 1..] {
                         self.connect(a, b, *links_per_pair, link);
                     }
                 }
             }
-            TopologySpec::MultiNode { nodes, intra, nic, leaf } => {
+            TopologySpec::MultiNode {
+                nodes,
+                intra,
+                nic,
+                leaf,
+            } => {
                 let n = *nodes as usize;
                 if ranks.len() % n != 0 {
-                    return Err(HwError::Invalid(format!("{} GPUs not divisible into {} nodes", ranks.len(), n)));
+                    return Err(HwError::Invalid(format!(
+                        "{} GPUs not divisible into {} nodes",
+                        ranks.len(),
+                        n
+                    )));
                 }
                 let per = ranks.len() / n;
                 for node in 0..n {
                     self.lower(intra, &ranks[node * per..(node + 1) * per])?;
                 }
-                let leaves: Vec<NodeId> = (0..per).map(|r| self.add_switch(leaf, format!("leaf{r}"))).collect();
+                let leaves: Vec<NodeId> = (0..per)
+                    .map(|r| self.add_switch(leaf, format!("leaf{r}")))
+                    .collect();
                 for node in 0..n {
                     for (r, &lf) in leaves.iter().enumerate() {
                         let g = ranks[node * per + r];
                         // NIC hangs off PCIe, not NVLink: no NVLink port latency.
-                        self.links.push(Link { a: g, b: lf, count: 1, gbps_per_dir: nic.gbps_per_dir, latency_ns: nic.latency_ns });
+                        self.links.push(Link {
+                            a: g,
+                            b: lf,
+                            count: 1,
+                            gbps_per_dir: nic.gbps_per_dir,
+                            latency_ns: nic.latency_ns,
+                        });
                     }
                 }
                 if per > 1 {
                     let spine = self.add_switch(leaf, "spine".into());
-                    let up = LinkSpec { gbps_per_dir: nic.gbps_per_dir * n as f64, latency_ns: 50.0 };
+                    let up = LinkSpec {
+                        gbps_per_dir: nic.gbps_per_dir * n as f64,
+                        latency_ns: 50.0,
+                    };
                     for &lf in &leaves {
-                        self.links.push(Link { a: lf, b: spine, count: n as u32, gbps_per_dir: up.gbps_per_dir, latency_ns: up.latency_ns });
+                        self.links.push(Link {
+                            a: lf,
+                            b: spine,
+                            count: n as u32,
+                            gbps_per_dir: up.gbps_per_dir,
+                            latency_ns: up.latency_ns,
+                        });
                     }
                 }
             }
@@ -256,16 +333,25 @@ impl Builder<'_> {
                 }
                 let parse = |s: &str| -> Result<NodeId, HwError> {
                     if let Some(i) = s.strip_prefix("gpu") {
-                        let i: usize = i.parse().map_err(|_| HwError::Invalid(format!("bad endpoint {s}")))?;
-                        ranks.get(i).copied().ok_or_else(|| HwError::Invalid(format!("no {s}")))
+                        let i: usize = i
+                            .parse()
+                            .map_err(|_| HwError::Invalid(format!("bad endpoint {s}")))?;
+                        ranks
+                            .get(i)
+                            .copied()
+                            .ok_or_else(|| HwError::Invalid(format!("no {s}")))
                     } else if let Some(j) = s.strip_prefix("sw") {
-                        let j: usize = j.parse().map_err(|_| HwError::Invalid(format!("bad endpoint {s}")))?;
+                        let j: usize = j
+                            .parse()
+                            .map_err(|_| HwError::Invalid(format!("bad endpoint {s}")))?;
                         if j >= switches.len() {
                             return Err(HwError::Invalid(format!("no {s}")));
                         }
                         Ok(base_sw + j)
                     } else {
-                        Err(HwError::Invalid(format!("endpoint `{s}` must be gpu<i> or sw<j>")))
+                        Err(HwError::Invalid(format!(
+                            "endpoint `{s}` must be gpu<i> or sw<j>"
+                        )))
                     }
                 };
                 for l in links {
@@ -288,7 +374,10 @@ fn validate(t: &Topology, gpus: &[GpuSpec]) -> Result<(), HwError> {
     for (i, n) in t.nodes.iter().enumerate() {
         match n {
             NodeKind::Switch { spec, label } if ports[i] > spec.ports => {
-                return Err(HwError::Invalid(format!("switch {label} uses {} ports but has {}", ports[i], spec.ports)));
+                return Err(HwError::Invalid(format!(
+                    "switch {label} uses {} ports but has {}",
+                    ports[i], spec.ports
+                )));
             }
             NodeKind::Gpu { rank } => nvlink_used[*rank] = ports[i],
             _ => {}
@@ -309,7 +398,13 @@ mod tests {
         assert_eq!(sys.topology.nodes.len(), 72 + 18);
         assert_eq!(sys.topology.links.len(), 72 * 18);
         // Per-GPU injection bandwidth: 18 x 50 GB/s.
-        let bw: f64 = sys.topology.links.iter().filter(|l| l.a == 0).map(|l| l.gbps_per_dir).sum();
+        let bw: f64 = sys
+            .topology
+            .links
+            .iter()
+            .filter(|l| l.a == 0)
+            .map(|l| l.gbps_per_dir)
+            .sum();
         assert_eq!(bw, 900.0);
     }
 

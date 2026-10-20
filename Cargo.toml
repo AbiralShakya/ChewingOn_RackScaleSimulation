@@ -4,7 +4,7 @@ members = [
     "crates/rsim-core",
     "crates/rsim-hw",
     "crates/rsim-sass",
-#    "crates/rsim-gpu",
+    "crates/rsim-gpu",
 #    "crates/rsim-net",
 #    "crates/rsim-rack",
 #    "crates/rsim-cli",

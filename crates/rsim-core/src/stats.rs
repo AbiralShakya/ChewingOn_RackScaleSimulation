@@ -43,7 +43,11 @@ impl Histogram {
         for (a, b) in self.buckets.iter_mut().zip(&o.buckets) {
             *a += b;
         }
-        self.min = if self.count == 0 { o.min } else { self.min.min(o.min) };
+        self.min = if self.count == 0 {
+            o.min
+        } else {
+            self.min.min(o.min)
+        };
         self.max = self.max.max(o.max);
         self.count += o.count;
         self.sum += o.sum;

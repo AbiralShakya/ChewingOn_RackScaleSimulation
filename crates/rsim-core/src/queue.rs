@@ -38,7 +38,10 @@ pub struct EventQueue<E> {
 
 impl<E> Default for EventQueue<E> {
     fn default() -> Self {
-        Self { heap: BinaryHeap::new(), seq: 0 }
+        Self {
+            heap: BinaryHeap::new(),
+            seq: 0,
+        }
     }
 }
 
@@ -48,7 +51,11 @@ impl<E> EventQueue<E> {
     }
     pub fn push(&mut self, t: Time, ev: E) {
         self.seq += 1;
-        self.heap.push(Entry { t, seq: self.seq, ev });
+        self.heap.push(Entry {
+            t,
+            seq: self.seq,
+            ev,
+        });
     }
     pub fn peek_time(&self) -> Option<Time> {
         self.heap.peek().map(|e| e.t)

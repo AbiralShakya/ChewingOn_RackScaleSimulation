@@ -128,7 +128,11 @@ pub struct Program {
 impl Program {
     pub fn new(name: impl Into<String>, insts: Vec<Inst>) -> Self {
         let pc_index = insts.iter().enumerate().map(|(i, x)| (x.pc, i)).collect();
-        Self { name: name.into(), insts, pc_index }
+        Self {
+            name: name.into(),
+            insts,
+            pc_index,
+        }
     }
     pub fn index_of_pc(&self, pc: u32) -> Option<usize> {
         if self.pc_index.is_empty() && !self.insts.is_empty() {
