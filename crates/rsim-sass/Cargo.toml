@@ -1,0 +1,11 @@
+[package]
+name = "rsim-sass"
+description = "SASS (NVIDIA GPU machine code) parser, control-bit decoder and opcode classifier (Volta through Blackwell)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

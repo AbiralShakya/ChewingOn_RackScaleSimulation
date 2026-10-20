@@ -30,7 +30,7 @@ copies this directory to della-tridao and runs a command there on GPU 3.
 |---|---|---|
 | `bench_alu` | latency and issue rate of 29 ALU, FMA, MUFU, FP64, conversion and shuffle instructions | dependent chain at two lengths (slope removes the fixed overhead); throughput uses one 1024-thread CTA per SM with 8 chains per thread |
 | `bench_mem` | pointer-chase latency over an 8 KB to 4 GB footprint sweep (L1, L2, DRAM), per-hop L2 latency distribution, smem latency, bank conflicts, DSMEM latency, HBM/L2/L1/smem bandwidth, HBM bandwidth vs SM count | random cyclic permutation of 128 B lines; cold footprints are chased after an L2 flush, each line once |
-| `bench_tc` | `mma.sync` (HMMA/IMMA), `tcgen05.mma` (UMMA) BF16/TF32/FP8/MXFP8/NVFP4 at several shapes, and the TMEM load rate | UMMA is issued by one thread with the accumulator in TMEM; round trip is MMA + commit + mbarrier wait |
+| `bench_tc` | `mma.sync` (HMMA/IMMA), `tcgen05.mma` (UMMA) BF16/TF32/FP8/MXFP8/NVFP4/MXFP4 at several shapes, 1-SM and 2-SM (`cta_group::2`), A from smem or TMEM, and the TMEM load rate | UMMA is issued by one thread with the accumulator in TMEM; round trip is MMA + commit + mbarrier wait |
 | `bench_tma` | `cp.async.bulk` global→smem latency (128 B to 64 KB, from L2 and from HBM) and streaming bandwidth (1 SM and all SMs) | 4-stage mbarrier ring |
 | `bench_misc` | kernel launch (sync, back-to-back, graph), `__syncthreads` vs CTA size, global and shared atomics | |
 | `bench_mma_sync` (sm_80+) | `mma.sync` HMMA f16/bf16/tf32 (incl. f16 accumulate and m16n8k8), IMMA s8/s4, DMMA f64, 2:4 sparse `mma.sp`; `ldmatrix` x1/x2/x4 latency and bandwidth | accumulator-dependent chain for latency; throughput swept over warps (1 to 32) × independent accumulators (1, 2, 4) so the simulator sees how many warps per SMSP saturate the pipe |
@@ -99,9 +99,24 @@ at N ≥ 128. A `tcgen05.ld 32x32b.x32` plus `wait::ld` takes 182 cycles.
 The SASS opcodes are UTCHMMA (f16/tf32), UTCQMMA (f8f6f4/mxf8) and
 UTCOMMA.BLOCK16 (NVFP4).
 
-NVFP4 measures 32768 FLOP/clk/SM with `cta_group::1`, which is 2× FP8 and
-about 9.9 dense PFLOP/s. That is below the B300 marketing figure. The
-`cta_group::2` (2-SM) path is not measured yet and is the next thing to check.
+**NVFP4 is at the B200 rate, not 1.5× it.** Every block-scaled FP4 variant measures
+32768 FLOP/clk/SM, which is 2× FP8 and about 9.9 dense PFLOP/s at 2.03 GHz. That holds for
+NVFP4 (`mxf4nvf4`, UE4M3 scales, `scale_vec::4X`) and MXFP4 (`mxf4`, UE8M0, `scale_vec::2X`),
+on one SM (`cta_group::1`) and on an SM pair (`cta_group::2`, M=256). The 1.5× B300 FP4
+figure would need about 49k FLOP/clk/SM. Three checks rule out the obvious causes:
+
+| variant | BF16 | FP8 | NVFP4 |
+|---|---|---|---|
+| 1 SM, A and B in smem | 8192 | 16384 | 32768 |
+| 2-SM pair (`cta_group::2`, 256×256) | 8192 | 16384 | 32768 |
+| 1 SM, A from TMEM (`[a_tmem]`) | 8192 | 16384 | 32768 |
+
+The shared-memory operand path isn't the limit, since moving A to TMEM changes
+nothing. The pair path gives exactly 2× per pair, so the per-SM rate is the same.
+Every kind takes 128 cycles for a 128×256 MMA. The remaining explanations are a
+shape or path that unlocks the higher FP4 rate and that these benches don't
+exercise, or that this part (B300 SXM6 AC) runs at the B200 FP4 rate. Running
+CUTLASS's NVFP4 GEMM on the same GPU would settle it.
 
 **Memory:**
 
@@ -113,6 +128,10 @@ about 9.9 dense PFLOP/s. That is below the B300 marketing figure. The
 | L2 hit, first touch of a far-homed line | ~706 (24% of lines at a 16 MB footprint) | |
 | HBM | 852 (~420 ns, incl. TLB) | 6.82 TB/s read, 6.32 write, 6.45 copy (of 7.67 from attributes) |
 | DSMEM (cluster peer) | 193 | |
+
+The chase uses `ld.global.cg` (`LDG.E.STRONG.GPU`). On B300 a weak `LDG.E.NA` measures
+the same 299 cycles at every footprint, so unlike A100 there is no strong-load penalty
+(`ld_weak_noalloc_cycles` in the sweep).
 
 The far-partition first-touch effect is visible in the footprint sweep. The first
 pass over a warmed footprint costs about 390 cycles per hop on average, and repeat
@@ -179,10 +198,8 @@ Per hop, a cp.async plus wait_group plus LDS costs 243 cycles from L2, cheaper t
 
 ## Not covered yet
 
-* `tcgen05.mma.cta_group::2` (2-SM UMMA), TMEM stores and `tcgen05.cp`, TMA tensor maps (2-D/5-D, multicast)
+* TMEM stores and `tcgen05.cp`, TMA tensor maps (2-D/5-D, multicast), sparse UMMA
+* A CUTLASS NVFP4 GEMM run to cross-check the FP4 ceiling
 * `mma.sync` with FP8 (ptxas lowers it on sm_103a; not timed)
-* The chase uses `ld.global.cg`, which compiles to `LDG.E.STRONG.GPU`. On A100 that costs
-  about 70 cycles more per L2 hit than a plain `LDG`. The L2 figures above may therefore
-  include that overhead; a plain-LDG variant is still to be added
 * NVLink/NVSwitch: these benches cover a single GPU; fabric calibration is a separate step
 * Hopper (H100/H200) runs; an A100 MIG 3g.40gb slice run (queued)

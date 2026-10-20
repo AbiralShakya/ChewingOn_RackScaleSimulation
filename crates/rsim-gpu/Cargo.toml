@@ -1,0 +1,13 @@
+[package]
+name = "rsim-gpu"
+description = "Cycle-level GPU model: SM sub-partitions, warp schedulers, scoreboards, pipes, tensor cores (HMMA/HGMMA/tcgen05), TMA, caches, HBM"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rsim-core.workspace = true
+rsim-hw.workspace = true
+rsim-sass.workspace = true
+serde.workspace = true
+serde_json.workspace = true
