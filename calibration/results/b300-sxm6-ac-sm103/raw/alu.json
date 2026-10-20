@@ -7,7 +7,7 @@
   "sm_count": 148,
   "clock_khz_reported": 2032000
  },
- "sm_clock_mhz_measured": 2002.78,
+ "sm_clock_mhz_measured": 2032.43,
  "ops": {
   "OpFADD": {
    "sass_expected": "FADD",
@@ -17,10 +17,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 4.02734,
-   "throughput_ptx_ops_per_clk_per_sm": 125.06,
-   "throughput_warp_inst_per_clk_per_smsp": 0.977034,
-   "lat_raw_cycles_n1": 2272,
-   "lat_raw_cycles_n2": 10520,
+   "throughput_ptx_ops_per_clk_per_sm": 125.021,
+   "throughput_warp_inst_per_clk_per_smsp": 0.976728,
+   "lat_raw_cycles_n1": 2195,
+   "lat_raw_cycles_n2": 10443,
    "sass": {
     "ptx_token": "add.f32",
     "lat_sass_count": 322,
@@ -50,7 +50,7 @@
      "BRA.U": 4
     },
     "latency_cycles": 4.02734,
-    "throughput_sass_inst_per_clk_per_sm": 125.06
+    "throughput_sass_inst_per_clk_per_sm": 125.021
    }
   },
   "OpFMUL": {
@@ -61,10 +61,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 4.02734,
-   "throughput_ptx_ops_per_clk_per_sm": 125.057,
-   "throughput_warp_inst_per_clk_per_smsp": 0.977005,
-   "lat_raw_cycles_n1": 2272,
-   "lat_raw_cycles_n2": 10520,
+   "throughput_ptx_ops_per_clk_per_sm": 125.012,
+   "throughput_warp_inst_per_clk_per_smsp": 0.976655,
+   "lat_raw_cycles_n1": 2195,
+   "lat_raw_cycles_n2": 10443,
    "sass": {
     "ptx_token": "mul.f32",
     "lat_sass_count": 320,
@@ -94,7 +94,7 @@
      "S2R": 5
     },
     "latency_cycles": 4.02734,
-    "throughput_sass_inst_per_clk_per_sm": 125.057
+    "throughput_sass_inst_per_clk_per_sm": 125.012
    }
   },
   "OpFFMA": {
@@ -105,10 +105,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 4.03516,
-   "throughput_ptx_ops_per_clk_per_sm": 123.958,
-   "throughput_warp_inst_per_clk_per_smsp": 0.968422,
-   "lat_raw_cycles_n1": 2271,
-   "lat_raw_cycles_n2": 10535,
+   "throughput_ptx_ops_per_clk_per_sm": 123.957,
+   "throughput_warp_inst_per_clk_per_smsp": 0.968415,
+   "lat_raw_cycles_n1": 2197,
+   "lat_raw_cycles_n2": 10461,
    "sass": {
     "ptx_token": "fma.rn.f32",
     "lat_sass_count": 320,
@@ -138,7 +138,7 @@
      "S2R": 5
     },
     "latency_cycles": 4.03516,
-    "throughput_sass_inst_per_clk_per_sm": 123.958
+    "throughput_sass_inst_per_clk_per_sm": 123.957
    }
   },
   "OpFMNMX": {
@@ -149,10 +149,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 2.02734,
-   "throughput_ptx_ops_per_clk_per_sm": 126.31,
-   "throughput_warp_inst_per_clk_per_smsp": 0.986795,
-   "lat_raw_cycles_n1": 1185,
-   "lat_raw_cycles_n2": 5337,
+   "throughput_ptx_ops_per_clk_per_sm": 126.279,
+   "throughput_warp_inst_per_clk_per_smsp": 0.986557,
+   "lat_raw_cycles_n1": 1171,
+   "lat_raw_cycles_n2": 5323,
    "sass": {
     "ptx_token": "max.f32",
     "lat_sass_count": 160,
@@ -182,7 +182,7 @@
      "IMAD": 4
     },
     "latency_cycles": 4.05468,
-    "throughput_sass_inst_per_clk_per_sm": 63.155
+    "throughput_sass_inst_per_clk_per_sm": 63.1395
    }
   },
   "OpFFMA2": {
@@ -192,11 +192,11 @@
    "thr_kernel": "thr_kernel<OpFFMA2>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.02441,
-   "throughput_ptx_ops_per_clk_per_sm": 58.4812,
-   "throughput_warp_inst_per_clk_per_smsp": 0.456885,
-   "lat_raw_cycles_n1": 2879,
-   "lat_raw_cycles_n2": 11121,
+   "latency_cycles_per_ptx_op": 4.02197,
+   "throughput_ptx_ops_per_clk_per_sm": 58.4698,
+   "throughput_warp_inst_per_clk_per_smsp": 0.456796,
+   "lat_raw_cycles_n1": 2389,
+   "lat_raw_cycles_n2": 10626,
    "sass": {
     "ptx_token": "fma.rn.f32x2",
     "lat_sass_count": 320,
@@ -225,8 +225,8 @@
      "S2R": 5,
      "ISETP.NE.U32.AND": 4
     },
-    "latency_cycles": 4.02441,
-    "throughput_sass_inst_per_clk_per_sm": 58.4812
+    "latency_cycles": 4.02197,
+    "throughput_sass_inst_per_clk_per_sm": 58.4698
    }
   },
   "OpFADD2": {
@@ -236,11 +236,11 @@
    "thr_kernel": "thr_kernel<OpFADD2>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.02783,
-   "throughput_ptx_ops_per_clk_per_sm": 63.5611,
-   "throughput_warp_inst_per_clk_per_smsp": 0.496571,
-   "lat_raw_cycles_n1": 2879,
-   "lat_raw_cycles_n2": 11128,
+   "latency_cycles_per_ptx_op": 4.02344,
+   "throughput_ptx_ops_per_clk_per_sm": 63.5679,
+   "throughput_warp_inst_per_clk_per_smsp": 0.496624,
+   "lat_raw_cycles_n1": 2391,
+   "lat_raw_cycles_n2": 10631,
    "sass": {
     "ptx_token": "add.rn.f32x2",
     "lat_sass_count": 320,
@@ -269,8 +269,8 @@
      "S2R": 5,
      "ISETP.NE.U32.AND": 4
     },
-    "latency_cycles": 4.02783,
-    "throughput_sass_inst_per_clk_per_sm": 63.5611
+    "latency_cycles": 4.02344,
+    "throughput_sass_inst_per_clk_per_sm": 63.5679
    }
   },
   "OpHFMA2": {
@@ -280,11 +280,11 @@
    "thr_kernel": "thr_kernel<OpHFMA2>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.02832,
-   "throughput_ptx_ops_per_clk_per_sm": 63.6624,
-   "throughput_warp_inst_per_clk_per_smsp": 0.497363,
-   "lat_raw_cycles_n1": 2867,
-   "lat_raw_cycles_n2": 11117,
+   "latency_cycles_per_ptx_op": 4.02295,
+   "throughput_ptx_ops_per_clk_per_sm": 63.6566,
+   "throughput_warp_inst_per_clk_per_smsp": 0.497317,
+   "lat_raw_cycles_n1": 2382,
+   "lat_raw_cycles_n2": 10621,
    "sass": {
     "ptx_token": "fma.rn.f16x2",
     "lat_sass_count": 320,
@@ -313,8 +313,8 @@
      "ISETP.NE.U32.AND": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 4.02832,
-    "throughput_sass_inst_per_clk_per_sm": 63.6624
+    "latency_cycles": 4.02295,
+    "throughput_sass_inst_per_clk_per_sm": 63.6566
    }
   },
   "OpHFMA2BF": {
@@ -324,11 +324,11 @@
    "thr_kernel": "thr_kernel<OpHFMA2BF>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.02588,
-   "throughput_ptx_ops_per_clk_per_sm": 63.6607,
-   "throughput_warp_inst_per_clk_per_smsp": 0.49735,
-   "lat_raw_cycles_n1": 2870,
-   "lat_raw_cycles_n2": 11115,
+   "latency_cycles_per_ptx_op": 4.02344,
+   "throughput_ptx_ops_per_clk_per_sm": 63.6588,
+   "throughput_warp_inst_per_clk_per_smsp": 0.497334,
+   "lat_raw_cycles_n1": 2381,
+   "lat_raw_cycles_n2": 10621,
    "sass": {
     "ptx_token": "fma.rn.bf16x2",
     "lat_sass_count": 320,
@@ -357,8 +357,8 @@
      "ISETP.NE.U32.AND": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 4.02588,
-    "throughput_sass_inst_per_clk_per_sm": 63.6607
+    "latency_cycles": 4.02344,
+    "throughput_sass_inst_per_clk_per_sm": 63.6588
    }
   },
   "OpHADD2": {
@@ -368,11 +368,11 @@
    "thr_kernel": "thr_kernel<OpHADD2>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.02441,
-   "throughput_ptx_ops_per_clk_per_sm": 63.6885,
-   "throughput_warp_inst_per_clk_per_smsp": 0.497567,
-   "lat_raw_cycles_n1": 2873,
-   "lat_raw_cycles_n2": 11115,
+   "latency_cycles_per_ptx_op": 4.02344,
+   "throughput_ptx_ops_per_clk_per_sm": 63.6615,
+   "throughput_warp_inst_per_clk_per_smsp": 0.497355,
+   "lat_raw_cycles_n1": 2384,
+   "lat_raw_cycles_n2": 10624,
    "sass": {
     "ptx_token": "add.rn.f16x2",
     "lat_sass_count": 320,
@@ -401,8 +401,8 @@
      "S2R": 5,
      "ISETP.NE.U32.AND": 4
     },
-    "latency_cycles": 4.02441,
-    "throughput_sass_inst_per_clk_per_sm": 63.6885
+    "latency_cycles": 4.02344,
+    "throughput_sass_inst_per_clk_per_sm": 63.6615
    }
   },
   "OpIADD": {
@@ -412,11 +412,11 @@
    "thr_kernel": "thr_kernel<OpIADD>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 2.02686,
-   "throughput_ptx_ops_per_clk_per_sm": 126.657,
-   "throughput_warp_inst_per_clk_per_smsp": 0.989506,
-   "lat_raw_cycles_n1": 1785,
-   "lat_raw_cycles_n2": 5936,
+   "latency_cycles_per_ptx_op": 2.02246,
+   "throughput_ptx_ops_per_clk_per_sm": 126.63,
+   "throughput_warp_inst_per_clk_per_smsp": 0.989297,
+   "lat_raw_cycles_n1": 1362,
+   "lat_raw_cycles_n2": 5504,
    "sass": {
     "ptx_token": "add.u32",
     "lat_sass_count": 162,
@@ -445,8 +445,8 @@
      "IMAD.MOV.U32": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 4.003674074074074,
-    "throughput_sass_inst_per_clk_per_sm": 63.65833593749999
+    "latency_cycles": 3.994982716049383,
+    "throughput_sass_inst_per_clk_per_sm": 63.64476562499999
    }
   },
   "OpIMAD": {
@@ -456,11 +456,11 @@
    "thr_kernel": "thr_kernel<OpIMAD>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.02881,
-   "throughput_ptx_ops_per_clk_per_sm": 63.6598,
-   "throughput_warp_inst_per_clk_per_smsp": 0.497342,
-   "lat_raw_cycles_n1": 2866,
-   "lat_raw_cycles_n2": 11117,
+   "latency_cycles_per_ptx_op": 4.02783,
+   "throughput_ptx_ops_per_clk_per_sm": 63.6588,
+   "throughput_warp_inst_per_clk_per_smsp": 0.497334,
+   "lat_raw_cycles_n1": 2372,
+   "lat_raw_cycles_n2": 10621,
    "sass": {
     "ptx_token": "mad.lo.u32",
     "lat_sass_count": 320,
@@ -489,8 +489,8 @@
      "ISETP.NE.U32.AND": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 4.02881,
-    "throughput_sass_inst_per_clk_per_sm": 63.70124518229167
+    "latency_cycles": 4.02783,
+    "throughput_sass_inst_per_clk_per_sm": 63.70024453125001
    }
   },
   "OpLOP3": {
@@ -500,11 +500,11 @@
    "thr_kernel": "thr_kernel<OpLOP3>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.02686,
-   "throughput_ptx_ops_per_clk_per_sm": 63.6441,
-   "throughput_warp_inst_per_clk_per_smsp": 0.497219,
-   "lat_raw_cycles_n1": 2866,
-   "lat_raw_cycles_n2": 11113,
+   "latency_cycles_per_ptx_op": 4.02246,
+   "throughput_ptx_ops_per_clk_per_sm": 63.6407,
+   "throughput_warp_inst_per_clk_per_smsp": 0.497193,
+   "lat_raw_cycles_n1": 2382,
+   "lat_raw_cycles_n2": 10620,
    "sass": {
     "ptx_token": "lop3.b32",
     "lat_sass_count": 320,
@@ -533,8 +533,8 @@
      "IMAD.MOV.U32": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 4.02686,
-    "throughput_sass_inst_per_clk_per_sm": 63.68553496093751
+    "latency_cycles": 4.02246,
+    "throughput_sass_inst_per_clk_per_sm": 63.68213274739584
    }
   },
   "OpSHF": {
@@ -544,11 +544,11 @@
    "thr_kernel": "thr_kernel<OpSHF>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.0249,
-   "throughput_ptx_ops_per_clk_per_sm": 63.661,
-   "throughput_warp_inst_per_clk_per_smsp": 0.497351,
-   "lat_raw_cycles_n1": 2871,
-   "lat_raw_cycles_n2": 11114,
+   "latency_cycles_per_ptx_op": 4.02295,
+   "throughput_ptx_ops_per_clk_per_sm": 63.6552,
+   "throughput_warp_inst_per_clk_per_smsp": 0.497306,
+   "lat_raw_cycles_n1": 2386,
+   "lat_raw_cycles_n2": 10625,
    "sass": {
     "ptx_token": "shf.l.wrap.b32",
     "lat_sass_count": 321,
@@ -577,8 +577,8 @@
      "IMAD.MOV.U32": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 4.01236137071651,
-    "throughput_sass_inst_per_clk_per_sm": 63.661
+    "latency_cycles": 4.010417445482866,
+    "throughput_sass_inst_per_clk_per_sm": 63.6552
    }
   },
   "OpPRMT": {
@@ -588,11 +588,11 @@
    "thr_kernel": "thr_kernel<OpPRMT>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.02197,
-   "throughput_ptx_ops_per_clk_per_sm": 63.6605,
-   "throughput_warp_inst_per_clk_per_smsp": 0.497348,
-   "lat_raw_cycles_n1": 2875,
-   "lat_raw_cycles_n2": 11112,
+   "latency_cycles_per_ptx_op": 4.02295,
+   "throughput_ptx_ops_per_clk_per_sm": 63.6552,
+   "throughput_warp_inst_per_clk_per_smsp": 0.497306,
+   "lat_raw_cycles_n1": 2385,
+   "lat_raw_cycles_n2": 10624,
    "sass": {
     "ptx_token": "prmt.b32",
     "lat_sass_count": 320,
@@ -621,8 +621,8 @@
      "IMAD.MOV.U32": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 4.02197,
-    "throughput_sass_inst_per_clk_per_sm": 63.6605
+    "latency_cycles": 4.02295,
+    "throughput_sass_inst_per_clk_per_sm": 63.6552
    }
   },
   "OpPOPC": {
@@ -632,11 +632,11 @@
    "thr_kernel": "thr_kernel<OpPOPC>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 17.9951,
-   "throughput_ptx_ops_per_clk_per_sm": 15.9834,
-   "throughput_warp_inst_per_clk_per_smsp": 0.124871,
-   "lat_raw_cycles_n1": 10026,
-   "lat_raw_cycles_n2": 46880,
+   "latency_cycles_per_ptx_op": 18,
+   "throughput_ptx_ops_per_clk_per_sm": 15.9836,
+   "throughput_warp_inst_per_clk_per_smsp": 0.124872,
+   "lat_raw_cycles_n1": 9526,
+   "lat_raw_cycles_n2": 46390,
    "sass": {
     "ptx_token": "popc.b32",
     "lat_sass_count": 320,
@@ -665,8 +665,8 @@
      "IMAD.MOV.U32": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 17.9951,
-    "throughput_sass_inst_per_clk_per_sm": 15.9834
+    "latency_cycles": 18.0,
+    "throughput_sass_inst_per_clk_per_sm": 15.9836
    }
   },
   "OpFLO": {
@@ -676,11 +676,11 @@
    "thr_kernel": "thr_kernel<OpFLO>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 18,
-   "throughput_ptx_ops_per_clk_per_sm": 15.9831,
-   "throughput_warp_inst_per_clk_per_smsp": 0.124868,
-   "lat_raw_cycles_n1": 10023,
-   "lat_raw_cycles_n2": 46887,
+   "latency_cycles_per_ptx_op": 17.9956,
+   "throughput_ptx_ops_per_clk_per_sm": 15.9834,
+   "throughput_warp_inst_per_clk_per_smsp": 0.12487,
+   "lat_raw_cycles_n1": 9535,
+   "lat_raw_cycles_n2": 46390,
    "sass": {
     "ptx_token": "bfind.u32",
     "lat_sass_count": 320,
@@ -709,8 +709,8 @@
      "IMAD.MOV.U32": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 18.0,
-    "throughput_sass_inst_per_clk_per_sm": 15.9831
+    "latency_cycles": 17.9956,
+    "throughput_sass_inst_per_clk_per_sm": 15.9834
    }
   },
   "OpIMNMX": {
@@ -720,11 +720,11 @@
    "thr_kernel": "thr_kernel<OpIMNMX>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 2.02539,
-   "throughput_ptx_ops_per_clk_per_sm": 126.655,
-   "throughput_warp_inst_per_clk_per_smsp": 0.989491,
-   "lat_raw_cycles_n1": 1787,
-   "lat_raw_cycles_n2": 5935,
+   "latency_cycles_per_ptx_op": 2.02686,
+   "throughput_ptx_ops_per_clk_per_sm": 126.63,
+   "throughput_warp_inst_per_clk_per_smsp": 0.989297,
+   "lat_raw_cycles_n1": 1353,
+   "lat_raw_cycles_n2": 5504,
    "sass": {
     "ptx_token": "max.u32",
     "lat_sass_count": 160,
@@ -753,8 +753,8 @@
      "IMAD.MOV.U32": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 4.05078,
-    "throughput_sass_inst_per_clk_per_sm": 63.3275
+    "latency_cycles": 4.05372,
+    "throughput_sass_inst_per_clk_per_sm": 63.315
    }
   },
   "OpEX2": {
@@ -765,10 +765,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 14,
-   "throughput_ptx_ops_per_clk_per_sm": 31.8983,
-   "throughput_warp_inst_per_clk_per_smsp": 0.249205,
-   "lat_raw_cycles_n1": 7374,
-   "lat_raw_cycles_n2": 36046,
+   "throughput_ptx_ops_per_clk_per_sm": 31.8958,
+   "throughput_warp_inst_per_clk_per_smsp": 0.249186,
+   "lat_raw_cycles_n1": 7297,
+   "lat_raw_cycles_n2": 35969,
    "sass": {
     "ptx_token": "ex2.approx.ftz.f32",
     "lat_sass_count": 320,
@@ -798,7 +798,7 @@
      "IMAD": 4
     },
     "latency_cycles": 14.0,
-    "throughput_sass_inst_per_clk_per_sm": 31.8983
+    "throughput_sass_inst_per_clk_per_sm": 31.8958
    }
   },
   "OpRSQ": {
@@ -809,10 +809,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 18,
-   "throughput_ptx_ops_per_clk_per_sm": 15.9767,
-   "throughput_warp_inst_per_clk_per_smsp": 0.124818,
-   "lat_raw_cycles_n1": 9418,
-   "lat_raw_cycles_n2": 46282,
+   "throughput_ptx_ops_per_clk_per_sm": 15.9762,
+   "throughput_warp_inst_per_clk_per_smsp": 0.124814,
+   "lat_raw_cycles_n1": 9341,
+   "lat_raw_cycles_n2": 46205,
    "sass": {
     "ptx_token": "rsqrt.approx.ftz.f32",
     "lat_sass_count": 320,
@@ -842,7 +842,7 @@
      "IMAD": 4
     },
     "latency_cycles": 18.0,
-    "throughput_sass_inst_per_clk_per_sm": 15.9767
+    "throughput_sass_inst_per_clk_per_sm": 15.9762
    }
   },
   "OpRCP": {
@@ -853,10 +853,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 24.0273,
-   "throughput_ptx_ops_per_clk_per_sm": 15.9761,
-   "throughput_warp_inst_per_clk_per_smsp": 0.124813,
-   "lat_raw_cycles_n1": 12498,
-   "lat_raw_cycles_n2": 61706,
+   "throughput_ptx_ops_per_clk_per_sm": 15.9757,
+   "throughput_warp_inst_per_clk_per_smsp": 0.124811,
+   "lat_raw_cycles_n1": 12434,
+   "lat_raw_cycles_n2": 61642,
    "sass": {
     "ptx_token": "rcp.approx.ftz.f32",
     "lat_sass_count": 320,
@@ -886,7 +886,7 @@
      "S2R": 5
     },
     "latency_cycles": 24.0273,
-    "throughput_sass_inst_per_clk_per_sm": 15.9761,
+    "throughput_sass_inst_per_clk_per_sm": 15.9757,
     "composite_with": "OpFADD"
    }
   },
@@ -898,10 +898,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 18,
-   "throughput_ptx_ops_per_clk_per_sm": 15.9768,
-   "throughput_warp_inst_per_clk_per_smsp": 0.124819,
-   "lat_raw_cycles_n1": 9418,
-   "lat_raw_cycles_n2": 46282,
+   "throughput_ptx_ops_per_clk_per_sm": 15.9762,
+   "throughput_warp_inst_per_clk_per_smsp": 0.124814,
+   "lat_raw_cycles_n1": 9341,
+   "lat_raw_cycles_n2": 46205,
    "sass": {
     "ptx_token": "sqrt.approx.ftz.f32",
     "lat_sass_count": 320,
@@ -931,7 +931,7 @@
      "IMAD": 4
     },
     "latency_cycles": 18.0,
-    "throughput_sass_inst_per_clk_per_sm": 15.9768
+    "throughput_sass_inst_per_clk_per_sm": 15.9762
    }
   },
   "OpLG2": {
@@ -942,10 +942,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 18,
-   "throughput_ptx_ops_per_clk_per_sm": 15.9768,
-   "throughput_warp_inst_per_clk_per_smsp": 0.124819,
-   "lat_raw_cycles_n1": 9418,
-   "lat_raw_cycles_n2": 46282,
+   "throughput_ptx_ops_per_clk_per_sm": 15.9762,
+   "throughput_warp_inst_per_clk_per_smsp": 0.124814,
+   "lat_raw_cycles_n1": 9341,
+   "lat_raw_cycles_n2": 46205,
    "sass": {
     "ptx_token": "lg2.approx.ftz.f32",
     "lat_sass_count": 320,
@@ -975,7 +975,7 @@
      "IMAD": 4
     },
     "latency_cycles": 18.0,
-    "throughput_sass_inst_per_clk_per_sm": 15.9768
+    "throughput_sass_inst_per_clk_per_sm": 15.9762
    }
   },
   "OpTANH": {
@@ -986,10 +986,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 18,
-   "throughput_ptx_ops_per_clk_per_sm": 15.9766,
-   "throughput_warp_inst_per_clk_per_smsp": 0.124817,
-   "lat_raw_cycles_n1": 9418,
-   "lat_raw_cycles_n2": 46282,
+   "throughput_ptx_ops_per_clk_per_sm": 15.9761,
+   "throughput_warp_inst_per_clk_per_smsp": 0.124813,
+   "lat_raw_cycles_n1": 9341,
+   "lat_raw_cycles_n2": 46205,
    "sass": {
     "ptx_token": "tanh.approx.f32",
     "lat_sass_count": 320,
@@ -1019,7 +1019,7 @@
      "IMAD": 4
     },
     "latency_cycles": 18.0,
-    "throughput_sass_inst_per_clk_per_sm": 15.9766
+    "throughput_sass_inst_per_clk_per_sm": 15.9761
    }
   },
   "OpSIN": {
@@ -1030,10 +1030,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 24.0156,
-   "throughput_ptx_ops_per_clk_per_sm": 15.9745,
-   "throughput_warp_inst_per_clk_per_smsp": 0.124801,
-   "lat_raw_cycles_n1": 12492,
-   "lat_raw_cycles_n2": 61676,
+   "throughput_ptx_ops_per_clk_per_sm": 15.9743,
+   "throughput_warp_inst_per_clk_per_smsp": 0.1248,
+   "lat_raw_cycles_n1": 12429,
+   "lat_raw_cycles_n2": 61613,
    "sass": {
     "ptx_token": "sin.approx.ftz.f32",
     "lat_sass_count": 320,
@@ -1063,7 +1063,7 @@
      "LEA": 6
     },
     "latency_cycles": 24.0156,
-    "throughput_sass_inst_per_clk_per_sm": 15.9745,
+    "throughput_sass_inst_per_clk_per_sm": 15.9743,
     "composite_with": "OpFMUL"
    }
   },
@@ -1075,10 +1075,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 63.9609,
-   "throughput_ptx_ops_per_clk_per_sm": 1.92848,
-   "throughput_warp_inst_per_clk_per_smsp": 0.0150663,
-   "lat_raw_cycles_n1": 32979,
-   "lat_raw_cycles_n2": 163971,
+   "throughput_ptx_ops_per_clk_per_sm": 1.92838,
+   "throughput_warp_inst_per_clk_per_smsp": 0.0150655,
+   "lat_raw_cycles_n1": 32916,
+   "lat_raw_cycles_n2": 163908,
    "sass": {
     "ptx_token": "fma.rn.f64",
     "lat_sass_count": 320,
@@ -1108,7 +1108,7 @@
      "IMAD": 4
     },
     "latency_cycles": 63.9609,
-    "throughput_sass_inst_per_clk_per_sm": 1.92848
+    "throughput_sass_inst_per_clk_per_sm": 1.92838
    }
   },
   "OpDADD": {
@@ -1119,10 +1119,10 @@
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
    "latency_cycles_per_ptx_op": 63.9375,
-   "throughput_ptx_ops_per_clk_per_sm": 1.63331,
+   "throughput_ptx_ops_per_clk_per_sm": 1.6333,
    "throughput_warp_inst_per_clk_per_smsp": 0.0127602,
-   "lat_raw_cycles_n1": 32972,
-   "lat_raw_cycles_n2": 163916,
+   "lat_raw_cycles_n1": 32922,
+   "lat_raw_cycles_n2": 163866,
    "sass": {
     "ptx_token": "add.f64",
     "lat_sass_count": 322,
@@ -1152,7 +1152,7 @@
      "BRA.U": 4
     },
     "latency_cycles": 63.9375,
-    "throughput_sass_inst_per_clk_per_sm": 1.63331
+    "throughput_sass_inst_per_clk_per_sm": 1.6333
    }
   },
   "OpF2FBF": {
@@ -1162,11 +1162,11 @@
    "thr_kernel": "thr_kernel<OpF2FBF>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.02734,
-   "throughput_ptx_ops_per_clk_per_sm": 63.6663,
-   "throughput_warp_inst_per_clk_per_smsp": 0.497393,
-   "lat_raw_cycles_n1": 2874,
-   "lat_raw_cycles_n2": 11122,
+   "latency_cycles_per_ptx_op": 4.02344,
+   "throughput_ptx_ops_per_clk_per_sm": 63.6615,
+   "throughput_warp_inst_per_clk_per_smsp": 0.497355,
+   "lat_raw_cycles_n1": 2388,
+   "lat_raw_cycles_n2": 10628,
    "sass": {
     "ptx_token": "cvt.rn.bf16x2.f32",
     "lat_sass_count": 320,
@@ -1195,8 +1195,8 @@
      "IMAD.MOV.U32": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 4.02734,
-    "throughput_sass_inst_per_clk_per_sm": 63.6663
+    "latency_cycles": 4.02344,
+    "throughput_sass_inst_per_clk_per_sm": 63.6615
    }
   },
   "OpF2I": {
@@ -1206,11 +1206,11 @@
    "thr_kernel": "thr_kernel<OpF2I>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 17.9976,
-   "throughput_ptx_ops_per_clk_per_sm": 15.9832,
-   "throughput_warp_inst_per_clk_per_smsp": 0.124869,
-   "lat_raw_cycles_n1": 10022,
-   "lat_raw_cycles_n2": 46881,
+   "latency_cycles_per_ptx_op": 17.9961,
+   "throughput_ptx_ops_per_clk_per_sm": 15.9834,
+   "throughput_warp_inst_per_clk_per_smsp": 0.12487,
+   "lat_raw_cycles_n1": 9535,
+   "lat_raw_cycles_n2": 46391,
    "sass": {
     "ptx_token": "cvt.rzi.s32.f32",
     "lat_sass_count": 320,
@@ -1239,8 +1239,8 @@
      "IMAD.MOV.U32": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 17.9976,
-    "throughput_sass_inst_per_clk_per_sm": 15.9832
+    "latency_cycles": 17.9961,
+    "throughput_sass_inst_per_clk_per_sm": 15.9834
    }
   },
   "OpI2F": {
@@ -1250,11 +1250,11 @@
    "thr_kernel": "thr_kernel<OpI2F>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 4.0293,
-   "throughput_ptx_ops_per_clk_per_sm": 63.6682,
-   "throughput_warp_inst_per_clk_per_smsp": 0.497408,
-   "lat_raw_cycles_n1": 2869,
-   "lat_raw_cycles_n2": 11121,
+   "latency_cycles_per_ptx_op": 4.02295,
+   "throughput_ptx_ops_per_clk_per_sm": 63.6624,
+   "throughput_warp_inst_per_clk_per_smsp": 0.497363,
+   "lat_raw_cycles_n1": 2389,
+   "lat_raw_cycles_n2": 10628,
    "sass": {
     "ptx_token": "cvt.rn.f32.s32",
     "lat_sass_count": 320,
@@ -1283,8 +1283,8 @@
      "IMAD.MOV.U32": 4,
      "BRA.U": 4
     },
-    "latency_cycles": 4.0293,
-    "throughput_sass_inst_per_clk_per_sm": 63.6682
+    "latency_cycles": 4.02295,
+    "throughput_sass_inst_per_clk_per_sm": 63.6624
    }
   },
   "OpSHFL": {
@@ -1294,11 +1294,11 @@
    "thr_kernel": "thr_kernel<OpSHFL>",
    "ptx_ops_per_iter_lat": 64,
    "ptx_ops_per_iter_thr": 512,
-   "latency_cycles_per_ptx_op": 30.998,
-   "throughput_ptx_ops_per_clk_per_sm": 36.4508,
-   "throughput_warp_inst_per_clk_per_smsp": 0.284772,
-   "lat_raw_cycles_n1": 16664,
-   "lat_raw_cycles_n2": 80148,
+   "latency_cycles_per_ptx_op": 30.9995,
+   "throughput_ptx_ops_per_clk_per_sm": 36.4484,
+   "throughput_warp_inst_per_clk_per_smsp": 0.284753,
+   "lat_raw_cycles_n1": 16179,
+   "lat_raw_cycles_n2": 79666,
    "sass": {
     "ptx_token": "shfl.sync.bfly.b32",
     "lat_sass_count": 320,
@@ -1327,8 +1327,8 @@
      "BRA": 8,
      "S2R": 5
     },
-    "latency_cycles": 30.998,
-    "throughput_sass_inst_per_clk_per_sm": 31.89445,
+    "latency_cycles": 30.9995,
+    "throughput_sass_inst_per_clk_per_sm": 31.89235,
     "composite_with": "OpIADD"
    }
   }

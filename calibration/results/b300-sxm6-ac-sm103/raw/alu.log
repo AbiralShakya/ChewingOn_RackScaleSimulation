@@ -1,20 +1,20 @@
-OpFADD     lat   4.03 cyc  thr  125.06 ops/clk/SM
-OpFMUL     lat   4.03 cyc  thr  125.06 ops/clk/SM
+OpFADD     lat   4.03 cyc  thr  125.02 ops/clk/SM
+OpFMUL     lat   4.03 cyc  thr  125.01 ops/clk/SM
 OpFFMA     lat   4.04 cyc  thr  123.96 ops/clk/SM
-OpFMNMX    lat   2.03 cyc  thr  126.31 ops/clk/SM
-OpFFMA2    lat   4.02 cyc  thr   58.48 ops/clk/SM
-OpFADD2    lat   4.03 cyc  thr   63.56 ops/clk/SM
-OpHFMA2    lat   4.03 cyc  thr   63.66 ops/clk/SM
-OpHFMA2BF  lat   4.03 cyc  thr   63.66 ops/clk/SM
-OpHADD2    lat   4.02 cyc  thr   63.69 ops/clk/SM
-OpIADD     lat   2.03 cyc  thr  126.66 ops/clk/SM
+OpFMNMX    lat   2.03 cyc  thr  126.28 ops/clk/SM
+OpFFMA2    lat   4.02 cyc  thr   58.47 ops/clk/SM
+OpFADD2    lat   4.02 cyc  thr   63.57 ops/clk/SM
+OpHFMA2    lat   4.02 cyc  thr   63.66 ops/clk/SM
+OpHFMA2BF  lat   4.02 cyc  thr   63.66 ops/clk/SM
+OpHADD2    lat   4.02 cyc  thr   63.66 ops/clk/SM
+OpIADD     lat   2.02 cyc  thr  126.63 ops/clk/SM
 OpIMAD     lat   4.03 cyc  thr   63.66 ops/clk/SM
-OpLOP3     lat   4.03 cyc  thr   63.64 ops/clk/SM
+OpLOP3     lat   4.02 cyc  thr   63.64 ops/clk/SM
 OpSHF      lat   4.02 cyc  thr   63.66 ops/clk/SM
 OpPRMT     lat   4.02 cyc  thr   63.66 ops/clk/SM
 OpPOPC     lat  18.00 cyc  thr   15.98 ops/clk/SM
 OpFLO      lat  18.00 cyc  thr   15.98 ops/clk/SM
-OpIMNMX    lat   2.03 cyc  thr  126.65 ops/clk/SM
+OpIMNMX    lat   2.03 cyc  thr  126.63 ops/clk/SM
 OpEX2      lat  14.00 cyc  thr   31.90 ops/clk/SM
 OpRSQ      lat  18.00 cyc  thr   15.98 ops/clk/SM
 OpRCP      lat  24.03 cyc  thr   15.98 ops/clk/SM
@@ -24,9 +24,9 @@ OpTANH     lat  18.00 cyc  thr   15.98 ops/clk/SM
 OpSIN      lat  24.02 cyc  thr   15.97 ops/clk/SM
 OpDFMA     lat  63.96 cyc  thr    1.93 ops/clk/SM
 OpDADD     lat  63.94 cyc  thr    1.63 ops/clk/SM
-OpF2FBF    lat   4.03 cyc  thr   63.67 ops/clk/SM
+OpF2FBF    lat   4.02 cyc  thr   63.66 ops/clk/SM
 OpF2I      lat  18.00 cyc  thr   15.98 ops/clk/SM
-OpI2F      lat   4.03 cyc  thr   63.67 ops/clk/SM
+OpI2F      lat   4.02 cyc  thr   63.66 ops/clk/SM
 OpSHFL     lat  31.00 cyc  thr   36.45 ops/clk/SM
 OpFADD     add.f32                lat x1.0 thr x1.0  top=[('FADD', 322), ('NOP', 16), ('BRA.U', 5)]
 OpFMUL     mul.f32                lat x1.0 thr x1.0  top=[('FMUL', 320), ('NOP', 16), ('BRA.U', 5)]

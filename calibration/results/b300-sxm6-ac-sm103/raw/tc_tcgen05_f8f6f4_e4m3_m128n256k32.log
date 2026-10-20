@@ -1,1 +1,1 @@
-tcgen05_f8f6f4_e4m3_m128n256k32    rt-lat  428.0 cyc   128.0 cyc/MMA (1 SM)  128.0 (all)     16384 FLOP/clk/SM
+tcgen05_f8f6f4_e4m3_m128n256k32    rt-lat  428.5 cyc   128.0 cyc/MMA (1 SM)  128.0 (all)     16384 FLOP/clk/SM

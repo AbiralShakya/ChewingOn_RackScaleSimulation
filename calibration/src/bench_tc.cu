@@ -146,7 +146,7 @@ __host__ __device__ constexpr uint64_t smem_desc(uint32_t addr, uint32_t lbo, ui
          ((uint64_t)((sbo >> 4) & 0x3FFF) << 32) | (1ull << 46) | ((uint64_t)(swz & 7) << 61);
 }
 
-enum Kind { KIND_F16 = 0, KIND_TF32 = 1, KIND_F8F6F4 = 2, KIND_MXF8 = 3, KIND_NVFP4 = 4, KIND_I8 = 5 };
+enum Kind { KIND_F16 = 0, KIND_TF32 = 1, KIND_F8F6F4 = 2, KIND_MXF8 = 3, KIND_NVFP4 = 4, KIND_I8 = 5, KIND_MXF4 = 6 };
 
 // Instruction descriptor (PTX ISA, tcgen05 "Instruction descriptor"):
 // [4,6) D fmt, [7,10) A fmt, [10,13) B fmt, [15]/[16] A/B transpose (0 = K-major),
@@ -161,6 +161,7 @@ __host__ __device__ constexpr uint32_t make_idesc(int kind, int M, int N) {
     case KIND_I8: d = (2u << 4) | (1u << 7) | (1u << 10); break;     // S32 <- S8 x S8
     case KIND_MXF8: d = (1u << 23); break;                           // E4M3 x E4M3, UE8M0 scales
     case KIND_NVFP4: d = (1u << 7) | (1u << 10); break;              // E2M1 x E2M1, UE4M3 scales
+    case KIND_MXF4: d = (1u << 7) | (1u << 10) | (1u << 23); break;  // E2M1 x E2M1, UE8M0 scales
   }
   return d | ((uint32_t)(N >> 3) << 17) | ((uint32_t)(M >> 4) << 24);
 }
@@ -180,43 +181,81 @@ __device__ __forceinline__ void mbar_wait(uint32_t mbar, uint32_t phase) {
   } while (!done);
 }
 
-template <int KIND>
+#define UMMA_PLAIN(CG, KS)                                                                                   \
+  asm volatile("{.reg .pred p; setp.ne.b32 p, %4, 0; tcgen05.mma.cta_group::" CG ".kind::" KS " [%0], %1, %2, %3, p;}" ::"r"( \
+                   tmem_d),                                                                                    \
+               "l"(ad), "l"(bd), "r"(idesc), "r"(accum))
+#define UMMA_SCALED(CG, KS)                                                                                    \
+  asm volatile("{.reg .pred p; setp.ne.b32 p, %4, 0; tcgen05.mma.cta_group::" CG ".kind::" KS                   \
+               " [%0], %1, %2, %3, [%5], [%6], p;}" ::"r"(tmem_d),                                             \
+               "l"(ad), "l"(bd), "r"(idesc), "r"(accum), "r"(tsfa), "r"(tsfb))
+
+// A operand read from TMEM instead of shared memory ("ts" form).
+#define UMMA_TS_PLAIN(KS)                                                                                     \
+  asm volatile("{.reg .pred p; setp.ne.b32 p, %4, 0; tcgen05.mma.cta_group::1.kind::" KS " [%0], [%1], %2, %3, p;}" ::"r"( \
+                   tmem_d),                                                                                   \
+               "r"(ta), "l"(bd), "r"(idesc), "r"(accum))
+#define UMMA_TS_SCALED(KS)                                                                                    \
+  asm volatile("{.reg .pred p; setp.ne.b32 p, %4, 0; tcgen05.mma.cta_group::1.kind::" KS                      \
+               " [%0], [%1], %2, %3, [%5], [%6], p;}" ::"r"(tmem_d),                                          \
+               "r"(ta), "l"(bd), "r"(idesc), "r"(accum), "r"(tsfa), "r"(tsfb))
+
+// kind::i8 exists on sm_100a but ptxas rejects it for sm_103a (B300 has no
+// INT8 UMMA), so it is not built here.
+template <int KIND, int CG>
 __device__ __forceinline__ void umma(uint32_t tmem_d, uint64_t ad, uint64_t bd, uint32_t idesc, uint32_t accum,
                                      uint32_t tsfa, uint32_t tsfb) {
 #ifdef HAS_TCGEN05
-  if constexpr (KIND == KIND_F16)
-    asm volatile("{.reg .pred p; setp.ne.b32 p, %4, 0; tcgen05.mma.cta_group::1.kind::f16 [%0], %1, %2, %3, p;}" ::"r"(tmem_d),
-                 "l"(ad), "l"(bd), "r"(idesc), "r"(accum));
-  else if constexpr (KIND == KIND_TF32)
-    asm volatile("{.reg .pred p; setp.ne.b32 p, %4, 0; tcgen05.mma.cta_group::1.kind::tf32 [%0], %1, %2, %3, p;}" ::"r"(tmem_d),
-                 "l"(ad), "l"(bd), "r"(idesc), "r"(accum));
-  else if constexpr (KIND == KIND_F8F6F4)
-    asm volatile("{.reg .pred p; setp.ne.b32 p, %4, 0; tcgen05.mma.cta_group::1.kind::f8f6f4 [%0], %1, %2, %3, p;}" ::"r"(tmem_d),
-                 "l"(ad), "l"(bd), "r"(idesc), "r"(accum));
-  // kind::i8 exists on sm_100a but ptxas rejects it for sm_103a (B300 has no
-  // INT8 UMMA), so it is not built here.
-  else if constexpr (KIND == KIND_MXF8)
-    asm volatile(
-        "{.reg .pred p; setp.ne.b32 p, %4, 0; tcgen05.mma.cta_group::1.kind::mxf8f6f4.block_scale.scale_vec::1X [%0], %1, %2, %3, [%5], [%6], p;}" ::"r"(
-            tmem_d),
-        "l"(ad), "l"(bd), "r"(idesc), "r"(accum), "r"(tsfa), "r"(tsfb));
-  else if constexpr (KIND == KIND_NVFP4)
-    asm volatile(
-        "{.reg .pred p; setp.ne.b32 p, %4, 0; tcgen05.mma.cta_group::1.kind::mxf4nvf4.block_scale.scale_vec::4X [%0], %1, %2, %3, [%5], [%6], p;}" ::"r"(
-            tmem_d),
-        "l"(ad), "l"(bd), "r"(idesc), "r"(accum), "r"(tsfa), "r"(tsfb));
+  if constexpr (CG == 3) {  // CG 3 = one SM, A from TMEM
+    uint32_t ta = tmem_d + 256;
+    if constexpr (KIND == KIND_F16) UMMA_TS_PLAIN("f16");
+    else if constexpr (KIND == KIND_F8F6F4) UMMA_TS_PLAIN("f8f6f4");
+    else if constexpr (KIND == KIND_NVFP4) UMMA_TS_SCALED("mxf4nvf4.block_scale.scale_vec::4X");
+  } else if constexpr (CG == 1) {
+    if constexpr (KIND == KIND_F16) UMMA_PLAIN("1", "f16");
+    else if constexpr (KIND == KIND_TF32) UMMA_PLAIN("1", "tf32");
+    else if constexpr (KIND == KIND_F8F6F4) UMMA_PLAIN("1", "f8f6f4");
+    else if constexpr (KIND == KIND_MXF8) UMMA_SCALED("1", "mxf8f6f4.block_scale.scale_vec::1X");
+    else if constexpr (KIND == KIND_NVFP4) UMMA_SCALED("1", "mxf4nvf4.block_scale.scale_vec::4X");
+    else if constexpr (KIND == KIND_MXF4) UMMA_SCALED("1", "mxf4.block_scale.scale_vec::2X");
+  } else {
+    if constexpr (KIND == KIND_F16) UMMA_PLAIN("2", "f16");
+    else if constexpr (KIND == KIND_TF32) UMMA_PLAIN("2", "tf32");
+    else if constexpr (KIND == KIND_F8F6F4) UMMA_PLAIN("2", "f8f6f4");
+    else if constexpr (KIND == KIND_MXF8) UMMA_SCALED("2", "mxf8f6f4.block_scale.scale_vec::1X");
+    else if constexpr (KIND == KIND_NVFP4) UMMA_SCALED("2", "mxf4nvf4.block_scale.scale_vec::4X");
+  }
 #endif
 }
 
+template <int CG>
 __device__ __forceinline__ void umma_commit(uint32_t mbar) {
 #ifdef HAS_TCGEN05
-  asm volatile("tcgen05.commit.cta_group::1.mbarrier::arrive::one.shared::cluster.b64 [%0];" ::"r"(mbar) : "memory");
+  if constexpr (CG != 2)
+    asm volatile("tcgen05.commit.cta_group::1.mbarrier::arrive::one.shared::cluster.b64 [%0];" ::"r"(mbar) : "memory");
+  else  // signal the mbarrier at the same offset in both CTAs of the pair
+    asm volatile("tcgen05.commit.cta_group::2.mbarrier::arrive::one.shared::cluster.multicast::cluster.b64 [%0], %1;" ::"r"(mbar),
+                 "h"((uint16_t)0x3)
+                 : "memory");
 #endif
 }
 
+__device__ __forceinline__ uint32_t cluster_ctarank() {
+  uint32_t r;
+  asm volatile("mov.u32 %0, %%cluster_ctarank;" : "=r"(r));
+  return r;
+}
+
+__device__ __forceinline__ void cluster_sync() {
+  asm volatile("barrier.cluster.arrive.release.aligned;\nbarrier.cluster.wait.acquire.aligned;" ::: "memory");
+}
+
+// CG = 1: one SM, M <= 128.  CG = 2: a CTA pair on two SMs (cluster of 2)
+// computes M = 256; each CTA holds half of A and half of B in its own smem and
+// half of D in its own TMEM, and the even CTA issues for both.
 // mode 0: throughput (iters back-to-back MMAs, one commit at the end)
 // mode 1: latency (each MMA committed and waited for before the next)
-template <int KIND>
+template <int KIND, int CG>
 __global__ void tc05_kernel(int M, int N, int iters, int mode, uint64_t* out) {
 #ifdef HAS_TCGEN05
   extern __shared__ __align__(1024) uint8_t smem[];
@@ -226,45 +265,63 @@ __global__ void tc05_kernel(int M, int N, int iters, int mode, uint64_t* out) {
   uint8_t* B = A + 16 * 1024;
   uint32_t mbar = smem_u32(&mbar_storage);
   const int warp = threadIdx.x / 32;
+  constexpr int G = CG == 2 ? 2 : 1;  // CTAs per MMA; CG 3 is the one-SM A-from-TMEM variant
+  const bool leader = G == 1 || cluster_ctarank() == 0;
   if (warp == 0) {
-    asm volatile("tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [%0], %1;" ::"r"(smem_u32(&tmem_slot)), "r"(512));
-    asm volatile("tcgen05.relinquish_alloc_permit.cta_group::1.sync.aligned;");
+    if constexpr (G == 1) {
+      asm volatile("tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [%0], %1;" ::"r"(smem_u32(&tmem_slot)), "r"(512));
+      asm volatile("tcgen05.relinquish_alloc_permit.cta_group::1.sync.aligned;");
+    } else {
+      asm volatile("tcgen05.alloc.cta_group::2.sync.aligned.shared::cta.b32 [%0], %1;" ::"r"(smem_u32(&tmem_slot)), "r"(512));
+      asm volatile("tcgen05.relinquish_alloc_permit.cta_group::2.sync.aligned;");
+    }
   }
   if (threadIdx.x == 0) mbar_init(mbar, 1);
   for (int i = threadIdx.x; i < 32 * 1024 / 4; i += blockDim.x) ((uint32_t*)A)[i] = 0x38383838u ^ i;
   asm volatile("fence.proxy.async.shared::cta;" ::: "memory");  // make generic-proxy writes visible to UMMA
   asm volatile("tcgen05.fence::before_thread_sync;" ::: "memory");
-  __syncthreads();
+  if constexpr (G == 1) __syncthreads();
+  else cluster_sync();
   asm volatile("tcgen05.fence::after_thread_sync;" ::: "memory");
   uint32_t tmem = tmem_slot;
   if (threadIdx.x == 0) {
-    // K-major, no swizzle: core matrix (8 rows x 16 B) at (mi, ki) -> mi*256 + ki*128.
-    uint64_t ad = smem_desc(smem_u32(A), 128, 256, 0);
-    uint64_t bd = smem_desc(smem_u32(B), 128, 256, 0);
-    uint32_t idesc = make_idesc(KIND, M, N);
-    uint32_t tsfa = tmem + 256, tsfb = tmem + 384;  // scale factors (block-scaled kinds only)
-    uint32_t phase = 0;
     uint64_t t0 = clk64();
-    if (mode == 0) {
-      for (int i = 0; i < iters; ++i) umma<KIND>(tmem, ad, bd, idesc, i > 0, tsfa, tsfb);
-      umma_commit(mbar);
-      mbar_wait(mbar, 0);
-    } else {
-      for (int i = 0; i < iters; ++i) {
-        umma<KIND>(tmem, ad, bd, idesc, i > 0, tsfa, tsfb);
-        umma_commit(mbar);
-        mbar_wait(mbar, phase);
-        phase ^= 1;
+    if (leader) {
+      // K-major, no swizzle: core matrix (8 rows x 16 B) at (mi, ki) -> mi*256 + ki*128.
+      uint64_t ad = smem_desc(smem_u32(A), 128, 256, 0);
+      uint64_t bd = smem_desc(smem_u32(B), 128, 256, 0);
+      uint32_t idesc = make_idesc(KIND, M, N);
+      uint32_t tsfa = tmem + 256, tsfb = tmem + 384;  // scale factors (block-scaled kinds only)
+      uint32_t phase = 0;
+      if (mode == 0) {
+        for (int i = 0; i < iters; ++i) umma<KIND, CG>(tmem, ad, bd, idesc, i > 0, tsfa, tsfb);
+        umma_commit<CG>(mbar);
+        mbar_wait(mbar, 0);
+      } else {
+        for (int i = 0; i < iters; ++i) {
+          umma<KIND, CG>(tmem, ad, bd, idesc, i > 0, tsfa, tsfb);
+          umma_commit<CG>(mbar);
+          mbar_wait(mbar, phase);
+          phase ^= 1;
+        }
       }
+    } else {
+      // The peer only waits for every commit to land on its own mbarrier.
+      uint32_t phase = 0;
+      for (int i = 0; i < (mode == 0 ? 1 : iters); ++i, phase ^= 1) mbar_wait(mbar, phase);
     }
     uint64_t t1 = clk64();
     out[2 * blockIdx.x] = t1 - t0;
     out[2 * blockIdx.x + 1] = smid();
   }
   asm volatile("tcgen05.fence::before_thread_sync;" ::: "memory");
-  __syncthreads();
+  if constexpr (G == 1) __syncthreads();
+  else cluster_sync();
   asm volatile("tcgen05.fence::after_thread_sync;" ::: "memory");
-  if (warp == 0) asm volatile("tcgen05.dealloc.cta_group::1.sync.aligned.b32 %0, %1;" ::"r"(tmem), "r"(512));
+  if (warp == 0) {
+    if constexpr (G == 1) asm volatile("tcgen05.dealloc.cta_group::1.sync.aligned.b32 %0, %1;" ::"r"(tmem), "r"(512));
+    else asm volatile("tcgen05.dealloc.cta_group::2.sync.aligned.b32 %0, %1;" ::"r"(tmem), "r"(512));
+  }
 #endif
 }
 
@@ -317,6 +374,7 @@ __global__ void tmem_ld_kernel(int iters, uint64_t* out, float* sink) {
 struct Tc05Case {
   const char* name;
   int kind, M, N, K;
+  int cg = 1;
 };
 
 static const Tc05Case TC05_CASES[] = {
@@ -328,38 +386,65 @@ static const Tc05Case TC05_CASES[] = {
     {"tcgen05_f8f6f4_e4m3_m128n256k32", KIND_F8F6F4, 128, 256, 32},
     {"tcgen05_mxf8_e4m3_m128n256k32", KIND_MXF8, 128, 256, 32},
     {"tcgen05_nvfp4_m128n256k64", KIND_NVFP4, 128, 256, 64},
+    {"tcgen05_mxf4_m128n256k64", KIND_MXF4, 128, 256, 64},
+    // 2-SM UMMA (cta_group::2): M = 256 across a CTA pair
+    {"tcgen05x2_f16_bf16_m256n256k16", KIND_F16, 256, 256, 16, 2},
+    {"tcgen05x2_f8f6f4_e4m3_m256n256k32", KIND_F8F6F4, 256, 256, 32, 2},
+    {"tcgen05x2_mxf8_e4m3_m256n256k32", KIND_MXF8, 256, 256, 32, 2},
+    {"tcgen05x2_nvfp4_m256n256k64", KIND_NVFP4, 256, 256, 64, 2},
+    // A operand from TMEM ("ts"): halves the smem operand traffic per MMA
+    {"tcgen05ts_f16_bf16_m128n256k16", KIND_F16, 128, 256, 16, 3},
+    {"tcgen05ts_f8f6f4_e4m3_m128n256k32", KIND_F8F6F4, 128, 256, 32, 3},
+    {"tcgen05ts_nvfp4_m128n256k64", KIND_NVFP4, 128, 256, 64, 3},
 };
 
-template <int KIND>
+template <int KIND, int CG>
 void run_tc05(Json& j, const DeviceInfo& d, const Tc05Case& c, size_t one_cta_smem) {
   uint64_t* out;
   CK(cudaMalloc(&out, 16 * d.sm_count));
-  auto kern = tc05_kernel<KIND>;
+  constexpr int G = CG == 2 ? 2 : 1;  // CTAs per MMA
+  auto kern = tc05_kernel<KIND, CG>;
   CK(cudaFuncSetAttribute(kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)one_cta_smem));
+  if (CG == 2) CK(cudaFuncSetAttribute(kern, cudaFuncAttributeNonPortableClusterSizeAllowed, 1));
   auto run = [&](int blocks, int iters, int mode) {
     std::vector<double> best;
     for (int r = 0; r < 3; ++r) {
-      kern<<<blocks, 128, one_cta_smem>>>(c.M, c.N, iters, mode, out);
+      cudaLaunchConfig_t cfg = {};
+      cfg.gridDim = dim3(blocks);
+      cfg.blockDim = dim3(128);
+      cfg.dynamicSmemBytes = one_cta_smem;
+      cudaLaunchAttribute attr[1];
+      attr[0].id = cudaLaunchAttributeClusterDimension;
+      attr[0].val.clusterDim.x = G;
+      attr[0].val.clusterDim.y = 1;
+      attr[0].val.clusterDim.z = 1;
+      cfg.attrs = attr;
+      cfg.numAttrs = 1;
+      CK(cudaLaunchKernelEx(&cfg, kern, c.M, c.N, iters, mode, out));
       CK(cudaDeviceSynchronize());
       std::vector<uint64_t> h(2 * blocks);
       CK(cudaMemcpy(h.data(), out, 16 * blocks, cudaMemcpyDeviceToHost));
       std::vector<double> v;
-      for (int b = 0; b < blocks; ++b) v.push_back((double)h[2 * b]);
+      for (int b = 0; b < blocks; b += G) v.push_back((double)h[2 * b]);  // issuing CTAs
       best.push_back(median(v));
     }
     return vmin(best);
   };
-  double flop = 2.0 * c.M * c.N * c.K;
+  // FLOP per SM: a 2-SM MMA's work is split over two SMs.
+  double flop = 2.0 * c.M * c.N * c.K / G;
   // latency: slope of (MMA + commit + mbarrier wait) round trips
-  double lat = (run(1, 64, 1) - run(1, 16, 1)) / 48.0;
-  // single-SM and all-SM throughput: slope over MMA count
-  double s1 = (run(1, 4096, 0) - run(1, 1024, 0)) / 3072.0;
-  double sa = (run(d.sm_count, 4096, 0) - run(d.sm_count, 1024, 0)) / 3072.0;
+  double lat = (run(G, 64, 1) - run(G, 16, 1)) / 48.0;
+  // single-SM (or single-pair) and all-SM throughput: slope over MMA count
+  double s1 = (run(G, 4096, 0) - run(G, 1024, 0)) / 3072.0;
+  int all = d.sm_count / G * G;
+  double sa = (run(all, 4096, 0) - run(all, 1024, 0)) / 3072.0;
   j.key(c.name);
   j.obj();
   j.kvi("M", c.M);
   j.kvi("N", c.N);
   j.kvi("K", c.K);
+  j.kvi("cta_group", G);
+  j.kvb("a_from_tmem", CG == 3);
   j.kv("roundtrip_latency_cycles", lat);
   j.kv("cycles_per_mma_1sm", s1);
   j.kv("cycles_per_mma_allsm", sa);
@@ -438,12 +523,20 @@ int main(int argc, char** argv) {
     for (auto& c : TC05_CASES) {
       if (want != c.name) continue;
       found = true;
-      switch (c.kind) {
-        case KIND_F16: run_tc05<KIND_F16>(j, d, c, one_cta_smem); break;
-        case KIND_TF32: run_tc05<KIND_TF32>(j, d, c, one_cta_smem); break;
-        case KIND_F8F6F4: run_tc05<KIND_F8F6F4>(j, d, c, one_cta_smem); break;
-        case KIND_MXF8: run_tc05<KIND_MXF8>(j, d, c, one_cta_smem); break;
-        case KIND_NVFP4: run_tc05<KIND_NVFP4>(j, d, c, one_cta_smem); break;
+      switch (c.kind * 4 + c.cg) {
+        case KIND_F16 * 4 + 1: run_tc05<KIND_F16, 1>(j, d, c, one_cta_smem); break;
+        case KIND_TF32 * 4 + 1: run_tc05<KIND_TF32, 1>(j, d, c, one_cta_smem); break;
+        case KIND_F8F6F4 * 4 + 1: run_tc05<KIND_F8F6F4, 1>(j, d, c, one_cta_smem); break;
+        case KIND_MXF8 * 4 + 1: run_tc05<KIND_MXF8, 1>(j, d, c, one_cta_smem); break;
+        case KIND_NVFP4 * 4 + 1: run_tc05<KIND_NVFP4, 1>(j, d, c, one_cta_smem); break;
+        case KIND_MXF4 * 4 + 1: run_tc05<KIND_MXF4, 1>(j, d, c, one_cta_smem); break;
+        case KIND_F16 * 4 + 2: run_tc05<KIND_F16, 2>(j, d, c, one_cta_smem); break;
+        case KIND_F8F6F4 * 4 + 2: run_tc05<KIND_F8F6F4, 2>(j, d, c, one_cta_smem); break;
+        case KIND_MXF8 * 4 + 2: run_tc05<KIND_MXF8, 2>(j, d, c, one_cta_smem); break;
+        case KIND_NVFP4 * 4 + 2: run_tc05<KIND_NVFP4, 2>(j, d, c, one_cta_smem); break;
+        case KIND_F16 * 4 + 3: run_tc05<KIND_F16, 3>(j, d, c, one_cta_smem); break;
+        case KIND_F8F6F4 * 4 + 3: run_tc05<KIND_F8F6F4, 3>(j, d, c, one_cta_smem); break;
+        case KIND_NVFP4 * 4 + 3: run_tc05<KIND_NVFP4, 3>(j, d, c, one_cta_smem); break;
       }
     }
     if (!found) {

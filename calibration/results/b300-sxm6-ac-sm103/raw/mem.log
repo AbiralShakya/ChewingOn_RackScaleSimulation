@@ -5,41 +5,41 @@ smem stride  8: 8.01 cyc/warp-load (SM-wide)
 smem stride 16: 16.01 cyc/warp-load (SM-wide)
 smem stride 32: 32.01 cyc/warp-load (SM-wide)
 smem stride 33: 1.01 cyc/warp-load (SM-wide)
-smem v4 bw 127.3 B/clk/SM
+smem v4 bw 127.4 B/clk/SM
 smem lat 29.1  dsmem remote 193.1 local-generic 32.6
-HBM read 6824 write 6315 copy 6446 GB/s
-L2 read (12% of L2) 13817 GB/s = 46.0 B/clk/SM
-L2 read (25% of L2) 16232 GB/s = 54.0 B/clk/SM
-L2 read (50% of L2) 17620 GB/s = 58.6 B/clk/SM
-L1 read 78.7 B/clk/SM
-HBM read with   1 SMs: 66 GB/s (65.7 per SM)
-HBM read with   2 SMs: 79 GB/s (39.7 per SM)
-HBM read with   4 SMs: 145 GB/s (36.4 per SM)
+HBM read 6818 write 6296 copy 6446 GB/s
+L2 read (12% of L2) 13658 GB/s = 45.4 B/clk/SM
+L2 read (25% of L2) 16129 GB/s = 53.6 B/clk/SM
+L2 read (50% of L2) 17833 GB/s = 59.3 B/clk/SM
+L1 read 78.9 B/clk/SM
+HBM read with   1 SMs: 72 GB/s (71.9 per SM)
+HBM read with   2 SMs: 80 GB/s (39.8 per SM)
+HBM read with   4 SMs: 145 GB/s (36.3 per SM)
 HBM read with   8 SMs: 293 GB/s (36.6 per SM)
 HBM read with  16 SMs: 589 GB/s (36.8 per SM)
 HBM read with  32 SMs: 1166 GB/s (36.4 per SM)
 HBM read with  64 SMs: 2287 GB/s (35.7 per SM)
-HBM read with  96 SMs: 3335 GB/s (34.7 per SM)
-HBM read with 128 SMs: 4316 GB/s (33.7 per SM)
-HBM read with 148 SMs: 4819 GB/s (32.6 per SM)
-chase       8192 B  ca    39.4  cg   300.6  cg-first   300.7 cyc
-chase      16384 B  ca    39.4  cg   292.9  cg-first   292.9 cyc
-chase      32768 B  ca    39.4  cg   297.7  cg-first   297.6 cyc
-chase      65536 B  ca    39.4  cg   297.7  cg-first   297.7 cyc
-chase     131072 B  ca    39.4  cg   297.7  cg-first   297.8 cyc
-chase     262144 B  ca   189.8  cg   297.6  cg-first   297.6 cyc
-chase     524288 B  ca   299.0  cg   299.0  cg-first   352.8 cyc
-chase    1048576 B  ca   298.6  cg   298.6  cg-first   379.9 cyc
-chase    2097152 B  ca   299.4  cg   299.4  cg-first   380.4 cyc
-chase    4194304 B  ca   298.9  cg   298.8  cg-first   395.5 cyc
-chase    8388608 B  ca   298.8  cg   298.9  cg-first   386.7 cyc
-chase   16777216 B  ca   298.1  cg   298.0  cg-first   396.7 cyc
-chase   33554432 B  ca   299.2  cg   299.1  cg-first   400.1 cyc
-chase   67108864 B  ca   298.7  cg   298.7  cg-first   394.8 cyc
-chase  134217728 B  ca   298.4  cg   298.4  cg-first   553.1 cyc
-chase  268435456 B  ca   847.8  cg   846.2  cg-first   846.2 cyc (cold)
-chase  536870912 B  ca   850.7  cg   850.9  cg-first   850.9 cyc (cold)
-chase 1073741824 B  ca   856.2  cg   851.7  cg-first   851.7 cyc (cold)
-chase 2147483648 B  ca   854.6  cg   854.7  cg-first   854.7 cyc (cold)
-chase 4294967296 B  ca   855.5  cg   857.6  cg-first   857.6 cyc (cold)
-L2 hit per-hop p10 295 p50 333 p90 714
+HBM read with  96 SMs: 3336 GB/s (34.8 per SM)
+HBM read with 128 SMs: 4319 GB/s (33.7 per SM)
+HBM read with 148 SMs: 4830 GB/s (32.6 per SM)
+chase       8192 B  ca    39.4  cg   305.7  cg-first   305.6  weak   305.6 cyc
+chase      16384 B  ca    39.4  cg   301.2  cg-first   301.3  weak   301.2 cyc
+chase      32768 B  ca    39.4  cg   300.9  cg-first   300.9  weak   300.9 cyc
+chase      65536 B  ca    39.4  cg   300.9  cg-first   300.8  weak   300.8 cyc
+chase     131072 B  ca    39.4  cg   300.8  cg-first   300.8  weak   300.8 cyc
+chase     262144 B  ca   191.0  cg   299.4  cg-first   299.4  weak   299.6 cyc
+chase     524288 B  ca   299.3  cg   299.2  cg-first   352.9  weak   299.3 cyc
+chase    1048576 B  ca   298.4  cg   298.4  cg-first   379.6  weak   298.4 cyc
+chase    2097152 B  ca   299.3  cg   299.2  cg-first   380.3  weak   299.3 cyc
+chase    4194304 B  ca   298.7  cg   298.7  cg-first   395.6  weak   298.7 cyc
+chase    8388608 B  ca   298.7  cg   298.7  cg-first   385.7  weak   298.6 cyc
+chase   16777216 B  ca   299.3  cg   299.1  cg-first   383.8  weak   299.2 cyc
+chase   33554432 B  ca   299.7  cg   299.5  cg-first   392.6  weak   299.5 cyc
+chase   67108864 B  ca   299.5  cg   299.2  cg-first   385.3  weak   299.2 cyc
+chase  134217728 B  ca   299.4  cg   299.2  cg-first   550.3  weak   299.2 cyc
+chase  268435456 B  ca   844.7  cg   847.4  cg-first   847.4  weak   845.8 cyc (cold)
+chase  536870912 B  ca   854.5  cg   847.7  cg-first   847.7  weak   851.1 cyc (cold)
+chase 1073741824 B  ca   856.0  cg   849.7  cg-first   849.7  weak   857.2 cyc (cold)
+chase 2147483648 B  ca   854.6  cg   855.7  cg-first   855.7  weak   853.1 cyc (cold)
+chase 4294967296 B  ca   857.3  cg   850.7  cg-first   850.7  weak   856.1 cyc (cold)
+L2 hit per-hop p10 294 p50 333 p90 717

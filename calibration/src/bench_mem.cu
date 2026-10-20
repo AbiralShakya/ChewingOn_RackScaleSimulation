@@ -25,13 +25,18 @@ constexpr int CHASE_HOPS = 4096;
 // ---------------------------------------------------------------------------
 // Pointer chase over global memory
 // ---------------------------------------------------------------------------
-template <int MODE>  // 0: ld.global.ca (L1+L2), 1: ld.global.cg (L2 only)
+// 0: ld.global.ca  -> LDG.E.STRONG.SM
+// 1: ld.global.cg  -> LDG.E.STRONG.GPU (L2 only)
+// 2: ld.global.L1::no_allocate -> plain (weak) LDG that does not fill L1
+template <int MODE>
 __device__ __forceinline__ uint32_t ld_chase(const uint32_t* p) {
   uint32_t v;
   if (MODE == 0)
     asm volatile("ld.global.ca.u32 %0, [%1];" : "=r"(v) : "l"(p) : "memory");
-  else
+  else if (MODE == 1)
     asm volatile("ld.global.cg.u32 %0, [%1];" : "=r"(v) : "l"(p) : "memory");
+  else
+    asm volatile("ld.global.L1::no_allocate.u32 %0, [%1];" : "=r"(v) : "l"(p) : "memory");
   return v;
 }
 
@@ -158,23 +163,25 @@ void run_latency_sweep(Json& j, const DeviceInfo& d) {
     // the copy the near partition now holds. Order: cg passes, then ca passes.
     auto chase = [&](int mode, int warm_hops, int hops) {
       if (mode == 0) chase_kernel<0><<<1, 1>>>(b.d, start, warm_hops, hops, out, sink);
-      else chase_kernel<1><<<1, 1>>>(b.d, start, warm_hops, hops, out, sink);
+      else if (mode == 1) chase_kernel<1><<<1, 1>>>(b.d, start, warm_hops, hops, out, sink);
+      else chase_kernel<2><<<1, 1>>>(b.d, start, warm_hops, hops, out, sink);
       CK(cudaDeviceSynchronize());
       uint64_t c;
       CK(cudaMemcpy(&c, out, 8, cudaMemcpyDeviceToHost));
       return (double)c / hops;
     };
-    double cg_first, cg_repeat, ca_repeat;
+    double cg_first, cg_repeat, ca_repeat, weak_repeat;
     if (warm) {
       read_all_kernel<<<1024, 512>>>((const uint4*)b.d, fp / 16, sink);
       CK(cudaDeviceSynchronize());
       cg_first = chase(1, 0, CHASE_HOPS);
       cg_repeat = std::min(chase(1, 0, CHASE_HOPS), chase(1, 0, CHASE_HOPS));
+      weak_repeat = std::min(chase(2, 0, CHASE_HOPS), chase(2, 0, CHASE_HOPS));
       // L1 can only be warmed from the chasing SM itself.
       int warm_hops = fp <= (1 << 20) ? (int)(fp / 128) : 0;
       ca_repeat = std::min(chase(0, warm_hops, CHASE_HOPS), chase(0, warm_hops, CHASE_HOPS));
     } else {
-      std::vector<double> v0, v1;
+      std::vector<double> v0, v1, v2;
       for (int r = 0; r < 3; ++r) {
         flush_l2(flush, flush_bytes, sink);
         start = build_cycle(b, fp, lines, rng);  // fresh lines: never touched before
@@ -184,7 +191,12 @@ void run_latency_sweep(Json& j, const DeviceInfo& d) {
         start = build_cycle(b, fp, lines, rng);
         flush_l2(flush, flush_bytes, sink);
         v0.push_back(chase(0, 0, (int)lines - 1));
+        flush_l2(flush, flush_bytes, sink);
+        start = build_cycle(b, fp, lines, rng);
+        flush_l2(flush, flush_bytes, sink);
+        v2.push_back(chase(2, 0, (int)lines - 1));
       }
+      weak_repeat = median(v2);
       cg_first = cg_repeat = median(v1);
       ca_repeat = median(v0);
     }
@@ -195,8 +207,10 @@ void run_latency_sweep(Json& j, const DeviceInfo& d) {
     j.kv("ld_ca_cycles", ca_repeat);
     j.kv("ld_cg_cycles", cg_repeat);
     j.kv("ld_cg_first_pass_cycles", cg_first);
+    j.kv("ld_weak_noalloc_cycles", weak_repeat);
     j.end_obj();
-    fprintf(stderr, "chase %10zu B  ca %7.1f  cg %7.1f  cg-first %7.1f cyc%s\n", fp, cyc[0], cyc[1], cg_first, warm ? "" : " (cold)");
+    fprintf(stderr, "chase %10zu B  ca %7.1f  cg %7.1f  cg-first %7.1f  weak %7.1f cyc%s\n", fp, cyc[0], cyc[1], cg_first,
+            weak_repeat, warm ? "" : " (cold)");
   }
   j.end_arr();
 
