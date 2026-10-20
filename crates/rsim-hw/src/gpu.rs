@@ -1,0 +1,164 @@
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum Arch {
+    /// sm_80 / sm_86
+    Ampere,
+    /// sm_90 / sm_90a: wgmma (HGMMA), TMA, thread-block clusters, mbarrier.
+    Hopper,
+    /// sm_100 / sm_100a: tcgen05 (UTC*MMA), tensor memory (TMEM), CTA pairs.
+    Blackwell,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CacheSpec {
+    pub size_bytes: u64,
+    pub line_bytes: u32,
+    pub sector_bytes: u32,
+    pub assoc: u32,
+    /// Load-to-use latency on hit, in SM cycles.
+    pub hit_latency: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct HbmSpec {
+    pub capacity_gb: f64,
+    /// Peak bandwidth, GB/s.
+    pub bw_gbps: f64,
+    /// Fraction of peak that is achievable by streaming kernels (~0.85-0.92).
+    pub efficiency: f64,
+    /// Unloaded latency beyond L2 miss, ns.
+    pub latency_ns: f64,
+}
+
+fn one() -> u32 {
+    1
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct DieLink {
+    /// Per-direction die-to-die bandwidth, GB/s.
+    pub gbps_per_dir: f64,
+    /// Extra latency for a far-die access, SM cycles.
+    pub extra_latency: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct NvlinkSpec {
+    pub generation: u32,
+    pub ports: u32,
+    /// Per-port, per-direction bandwidth in GB/s.
+    pub gbps_per_port_per_dir: f64,
+    /// GPU-side PHY + controller latency, ns (one side).
+    pub port_latency_ns: f64,
+}
+
+/// Execution pipe widths, in lanes per SM sub-partition (SMSP). A warp
+/// instruction occupies a pipe for `32 / lanes` cycles.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PipeSpec {
+    pub fp32_lanes: u32,
+    pub int_lanes: u32,
+    pub fp64_lanes: u32,
+    pub sfu_lanes: u32,
+    pub fp16_lanes: u32,
+    /// LSU / MIO dispatch: warp memory instructions accepted per cycle per SM.
+    pub lsu_per_sm_per_cycle: u32,
+    /// L1/shared bandwidth, bytes per cycle per SM.
+    pub l1_bytes_per_cycle: u32,
+}
+
+/// Dense tensor-core throughput per SM per cycle, keyed by datatype
+/// (`fp16`, `bf16`, `tf32`, `fp8`, `fp6`, `fp4`, `int8`, `fp64`).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct TensorSpec {
+    pub flops_per_cycle_per_sm: BTreeMap<String, f64>,
+    /// Latency of a synchronous warp-level MMA (HMMA m16n8k16), cycles.
+    pub hmma_latency: u32,
+    /// Fixed issue/setup overhead for an async (wgmma/tcgen05) MMA, cycles.
+    pub async_mma_overhead: u32,
+    /// Tensor memory per SM (Blackwell TMEM), bytes. 0 if absent.
+    pub tmem_bytes: u64,
+}
+
+impl TensorSpec {
+    pub fn flops_per_cycle(&self, dtype: &str) -> f64 {
+        self.flops_per_cycle_per_sm
+            .get(dtype)
+            .or_else(|| self.flops_per_cycle_per_sm.get("bf16"))
+            .copied()
+            .unwrap_or(1024.0)
+    }
+}
+
+/// Fixed (dependent-issue) and nominal latencies, in SM cycles unless noted.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LatencyTable {
+    pub int_alu: u32,
+    pub imad: u32,
+    pub fp32: u32,
+    pub fp16: u32,
+    pub fp64: u32,
+    pub sfu: u32,
+    pub conv: u32,
+    pub shfl: u32,
+    pub s2r: u32,
+    pub ldc: u32,
+    pub lds: u32,
+    pub ldsm: u32,
+    pub sts: u32,
+    pub branch: u32,
+    pub bar: u32,
+    /// Generic fallback for unclassified opcodes.
+    pub misc: u32,
+    /// Extra cycles after the last operand is read for stores/atomics.
+    pub store_read: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct GpuSpec {
+    pub name: String,
+    pub arch: Arch,
+    pub sm_count: u32,
+    pub sm_clock_mhz: f64,
+    pub sub_partitions: u32,
+    pub max_warps_per_sm: u32,
+    pub max_ctas_per_sm: u32,
+    pub regs_per_sm: u32,
+    pub smem_per_sm_bytes: u32,
+    pub l1: CacheSpec,
+    pub l2: CacheSpec,
+    /// Aggregate L2 bandwidth in bytes per SM-clock cycle (whole GPU).
+    pub l2_bytes_per_cycle: f64,
+    pub hbm: HbmSpec,
+    /// Number of compute dies (B200 = 2, joined by NV-HBI). SMs and memory
+    /// channels are split evenly; a far-die L2/HBM access pays `d2d`.
+    #[serde(default = "one")]
+    pub dies: u32,
+    #[serde(default)]
+    pub d2d: Option<DieLink>,
+    pub nvlink: NvlinkSpec,
+    pub pipes: PipeSpec,
+    pub tensor: TensorSpec,
+    pub latency: LatencyTable,
+    /// Host-side kernel launch overhead (eager launch), ns.
+    pub launch_overhead_ns: f64,
+    /// Per-CTA dispatch latency from the work distributor, cycles.
+    pub cta_launch_cycles: u32,
+    /// Free-form provenance notes.
+    #[serde(default)]
+    pub notes: Vec<String>,
+}
+
+impl GpuSpec {
+    pub fn warps_per_smsp(&self) -> u32 {
+        self.max_warps_per_sm / self.sub_partitions
+    }
+
+    /// Peak dense tensor TFLOPS for a dtype (sanity checks / roofline).
+    pub fn peak_tensor_tflops(&self, dtype: &str) -> f64 {
+        self.tensor.flops_per_cycle(dtype) * self.sm_count as f64 * self.sm_clock_mhz * 1e6 / 1e12
+    }
+}

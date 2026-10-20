@@ -1,0 +1,304 @@
+//! Calibrated starting points.
+//!
+//! Provenance legend used in `notes`:
+//! * `spec`   — NVIDIA datasheet / whitepaper value.
+//! * `ubench` — public microbenchmark literature (Jia et al.; Luo et al.,
+//!   "Benchmarking and Dissecting the Nvidia Hopper GPU Architecture", 2024;
+//!   Chips and Cheese). Approximate.
+//! * `est`    — estimate; calibrate with `ubench/` on real hardware.
+//!
+//! Tensor throughput is expressed per SM per cycle and the preset clock is
+//! the one NVIDIA uses for its headline dense-TFLOPS figure, so
+//! `peak_tensor_tflops("bf16")` reproduces the datasheet.
+
+use crate::fabric::{LinkSpec, SwitchSpec};
+use crate::gpu::*;
+use crate::system::{GpuGroup, SystemSpec, TopologySpec};
+use std::collections::BTreeMap;
+
+pub const GPU_PRESETS: &[&str] = &["h100_sxm", "h200_sxm", "b200", "gb200"];
+pub const SWITCH_PRESETS: &[&str] = &["nvswitch3", "nvswitch_nvl5", "ib_ndr_leaf"];
+pub const SYSTEM_PRESETS: &[&str] = &["hgx_h100_8", "hgx_b200_8", "gb200_nvl72", "h100_2node_ib"];
+
+fn flops(pairs: &[(&str, f64)]) -> BTreeMap<String, f64> {
+    pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+}
+
+pub fn gpu(name: &str) -> Option<GpuSpec> {
+    Some(match name {
+        "h100_sxm" => h100_sxm(),
+        "h200_sxm" => h200_sxm(),
+        "b200" => b200(),
+        "gb200" => gb200(),
+        _ => return None,
+    })
+}
+
+pub fn switch(name: &str) -> Option<SwitchSpec> {
+    Some(match name {
+        "nvswitch3" => SwitchSpec {
+            name: "NVSwitch3 (NVLink4)".into(),
+            ports: 64,
+            gbps_per_port_per_dir: 25.0,
+            latency_ns: 100.0, // est
+            in_network_reduction: true,
+        },
+        "nvswitch_nvl5" => SwitchSpec {
+            name: "NVLink5 switch chip".into(),
+            ports: 72,
+            gbps_per_port_per_dir: 50.0,
+            latency_ns: 100.0, // est
+            in_network_reduction: true,
+        },
+        "ib_ndr_leaf" => SwitchSpec {
+            name: "InfiniBand NDR leaf".into(),
+            ports: 64,
+            gbps_per_port_per_dir: 50.0,
+            latency_ns: 130.0, // est (~100-150 ns cut-through)
+            in_network_reduction: false,
+        },
+        _ => return None,
+    })
+}
+
+pub fn h100_sxm() -> GpuSpec {
+    GpuSpec {
+        name: "H100 SXM5 80GB".into(),
+        arch: Arch::Hopper,
+        sm_count: 132,
+        sm_clock_mhz: 1830.0,
+        sub_partitions: 4,
+        max_warps_per_sm: 64,
+        max_ctas_per_sm: 32,
+        regs_per_sm: 65536,
+        smem_per_sm_bytes: 228 * 1024,
+        l1: CacheSpec { size_bytes: 64 * 1024, line_bytes: 128, sector_bytes: 32, assoc: 4, hit_latency: 33 },
+        l2: CacheSpec { size_bytes: 50 * 1024 * 1024, line_bytes: 128, sector_bytes: 32, assoc: 16, hit_latency: 260 },
+        l2_bytes_per_cycle: 3000.0,
+        hbm: HbmSpec { capacity_gb: 80.0, bw_gbps: 3350.0, efficiency: 0.9, latency_ns: 350.0 },
+        dies: 1,
+        d2d: None,
+        nvlink: NvlinkSpec { generation: 4, ports: 18, gbps_per_port_per_dir: 25.0, port_latency_ns: 60.0 },
+        pipes: PipeSpec {
+            fp32_lanes: 32,
+            int_lanes: 16,
+            fp64_lanes: 16,
+            sfu_lanes: 4,
+            fp16_lanes: 32,
+            lsu_per_sm_per_cycle: 1,
+            l1_bytes_per_cycle: 128,
+        },
+        tensor: TensorSpec {
+            flops_per_cycle_per_sm: flops(&[
+                ("fp16", 4096.0),
+                ("bf16", 4096.0),
+                ("tf32", 2048.0),
+                ("fp8", 8192.0),
+                ("int8", 8192.0),
+                ("fp64", 256.0),
+            ]),
+            hmma_latency: 32,
+            async_mma_overhead: 16,
+            tmem_bytes: 0,
+        },
+        latency: LatencyTable {
+            int_alu: 4,
+            imad: 4,
+            fp32: 4,
+            fp16: 5,
+            fp64: 8,
+            sfu: 18,
+            conv: 14,
+            shfl: 24,
+            s2r: 22,
+            ldc: 8,
+            lds: 29,
+            ldsm: 33,
+            sts: 20,
+            branch: 6,
+            bar: 20,
+            misc: 6,
+            store_read: 4,
+        },
+        launch_overhead_ns: 1500.0,
+        cta_launch_cycles: 120,
+        notes: vec![
+            "sm_count, clocks, HBM, NVLink, tensor peak: spec (989 TFLOPS dense BF16 @1830 MHz)".into(),
+            "pipe latencies, L1/L2 latency: ubench (approx)".into(),
+            "L2 bandwidth, HBM latency, launch gap, CTA launch: est".into(),
+        ],
+    }
+}
+
+pub fn h200_sxm() -> GpuSpec {
+    let mut g = h100_sxm();
+    g.name = "H200 SXM 141GB".into();
+    g.hbm = HbmSpec { capacity_gb: 141.0, bw_gbps: 4800.0, efficiency: 0.9, latency_ns: 350.0 };
+    g.notes.push("H200 = H100 compute + HBM3e 141 GB / 4.8 TB/s (spec)".into());
+    g
+}
+
+pub fn b200() -> GpuSpec {
+    GpuSpec {
+        name: "B200 (HGX, 1000 W)".into(),
+        arch: Arch::Blackwell,
+        sm_count: 148,
+        // 2.25 PFLOPS dense BF16 / (148 SM * 8192 FLOP/clk) => ~1856 MHz.
+        sm_clock_mhz: 1856.0,
+        sub_partitions: 4,
+        max_warps_per_sm: 64,
+        max_ctas_per_sm: 32,
+        regs_per_sm: 65536,
+        smem_per_sm_bytes: 228 * 1024,
+        l1: CacheSpec { size_bytes: 64 * 1024, line_bytes: 128, sector_bytes: 32, assoc: 4, hit_latency: 33 },
+        l2: CacheSpec { size_bytes: 126 * 1024 * 1024, line_bytes: 128, sector_bytes: 32, assoc: 16, hit_latency: 300 },
+        l2_bytes_per_cycle: 6000.0,
+        hbm: HbmSpec { capacity_gb: 180.0, bw_gbps: 7700.0, efficiency: 0.9, latency_ns: 380.0 },
+        dies: 2,
+        d2d: Some(DieLink { gbps_per_dir: 5000.0, extra_latency: 60 }),
+        nvlink: NvlinkSpec { generation: 5, ports: 18, gbps_per_port_per_dir: 50.0, port_latency_ns: 60.0 },
+        pipes: PipeSpec {
+            fp32_lanes: 32,
+            int_lanes: 32,
+            fp64_lanes: 8,
+            sfu_lanes: 4,
+            fp16_lanes: 32,
+            lsu_per_sm_per_cycle: 1,
+            l1_bytes_per_cycle: 128,
+        },
+        tensor: TensorSpec {
+            flops_per_cycle_per_sm: flops(&[
+                ("fp16", 8192.0),
+                ("bf16", 8192.0),
+                ("tf32", 4096.0),
+                ("fp8", 16384.0),
+                ("fp6", 16384.0),
+                ("int8", 16384.0),
+                ("fp4", 32768.0),
+                ("fp64", 128.0),
+            ]),
+            hmma_latency: 32,
+            async_mma_overhead: 12,
+            tmem_bytes: 256 * 1024,
+        },
+        latency: LatencyTable {
+            int_alu: 4,
+            imad: 4,
+            fp32: 4,
+            fp16: 5,
+            fp64: 10,
+            sfu: 18,
+            conv: 14,
+            shfl: 24,
+            s2r: 22,
+            ldc: 8,
+            lds: 29,
+            ldsm: 33,
+            sts: 20,
+            branch: 6,
+            bar: 20,
+            misc: 6,
+            store_read: 4,
+        },
+        launch_overhead_ns: 1500.0,
+        cta_launch_cycles: 120,
+        notes: vec![
+            "sm_count, HBM, NVLink5, dense tensor peaks: spec (2.25 PF BF16, 4.5 PF FP8, 9 PF FP4)".into(),
+            "dual-die split, D2D latency, pipe latencies, L2 latency/bandwidth: est (Blackwell ubench data is sparse)".into(),
+            "tcgen05 (UTC*MMA) issue/complete timing: est — calibrate with ubench/tcgen05_mma.cu".into(),
+        ],
+    }
+}
+
+/// B200 as configured in GB200 (higher power envelope, 186 GB HBM3e).
+pub fn gb200() -> GpuSpec {
+    let mut g = b200();
+    g.name = "B200 in GB200 (1200 W)".into();
+    // 2.5 PFLOPS dense BF16 per GPU => ~2062 MHz at 8192 FLOP/clk/SM.
+    g.sm_clock_mhz = 2062.0;
+    g.hbm.capacity_gb = 186.0;
+    g.hbm.bw_gbps = 8000.0;
+    g.notes.push("GB200 per-GPU: 2.5 PF dense BF16, 8 TB/s HBM3e (spec)".into());
+    g
+}
+
+fn nvlink_link(gpu: &GpuSpec) -> LinkSpec {
+    LinkSpec { gbps_per_dir: gpu.nvlink.gbps_per_port_per_dir, latency_ns: 20.0 }
+}
+
+pub fn system(name: &str) -> Option<SystemSpec> {
+    Some(match name {
+        // 8x H100 + 4 NVSwitch3 chips. Real HGX splits the 18 links 5/4/4/5;
+        // we use 4-4-5-5 via an explicit per-switch link count.
+        "hgx_h100_8" => {
+            let g = h100_sxm();
+            SystemSpec {
+                name: "HGX H100 8-GPU".into(),
+                gpus: vec![GpuGroup::preset("h100_sxm", 8)],
+                topology: TopologySpec::Switched {
+                    switches: 4,
+                    switch: switch("nvswitch3").unwrap(),
+                    links_per_gpu_per_switch: vec![5, 4, 4, 5],
+                    link: nvlink_link(&g),
+                },
+            }
+        }
+        "hgx_b200_8" => {
+            let g = b200();
+            SystemSpec {
+                name: "HGX B200 8-GPU".into(),
+                gpus: vec![GpuGroup::preset("b200", 8)],
+                topology: TopologySpec::Switched {
+                    switches: 2,
+                    switch: SwitchSpec { ports: 144, ..switch("nvswitch_nvl5").unwrap() },
+                    links_per_gpu_per_switch: vec![9, 9],
+                    link: nvlink_link(&g),
+                },
+            }
+        }
+        // 72 GPUs, 18 NVLink5 switch chips (9 trays x 2). Every GPU has one
+        // link to every switch chip: 18 x 50 GB/s/dir = 1.8 TB/s bidir.
+        "gb200_nvl72" => {
+            let g = gb200();
+            SystemSpec {
+                name: "GB200 NVL72".into(),
+                gpus: vec![GpuGroup::preset("gb200", 72)],
+                topology: TopologySpec::Switched {
+                    switches: 18,
+                    switch: switch("nvswitch_nvl5").unwrap(),
+                    links_per_gpu_per_switch: vec![1; 18],
+                    link: nvlink_link(&g),
+                },
+            }
+        }
+        // Two HGX H100 nodes, rail-optimised 400G InfiniBand (1 NIC / GPU).
+        "h100_2node_ib" => {
+            let base = system("hgx_h100_8").unwrap();
+            SystemSpec {
+                name: "2x HGX H100, 400G IB rail-optimised".into(),
+                gpus: vec![GpuGroup::preset("h100_sxm", 16)],
+                topology: TopologySpec::MultiNode {
+                    nodes: 2,
+                    intra: Box::new(base.topology),
+                    nic: LinkSpec { gbps_per_dir: 50.0, latency_ns: 600.0 },
+                    leaf: switch("ib_ndr_leaf").unwrap(),
+                },
+            }
+        }
+        _ => return None,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn datasheet_peaks() {
+        let close = |a: f64, b: f64| (a - b).abs() / b < 0.01;
+        assert!(close(h100_sxm().peak_tensor_tflops("bf16"), 989.4));
+        assert!(close(b200().peak_tensor_tflops("bf16"), 2250.0));
+        assert!(close(b200().peak_tensor_tflops("fp4"), 9000.0));
+        assert!(close(gb200().peak_tensor_tflops("bf16"), 2500.0));
+    }
+}
