@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/rsim-core",
+    "crates/rsim-hw",
+    "crates/rsim-sass",
+    "crates/rsim-gpu",
+    "crates/rsim-net",
+    "crates/rsim-rack",
+    "crates/rsim-cli",
+    "crates/rsim-py",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation"
+rust-version = "1.80"
+
+[workspace.dependencies]
+rsim-core = { path = "crates/rsim-core" }
+rsim-hw = { path = "crates/rsim-hw" }
+rsim-sass = { path = "crates/rsim-sass" }
+rsim-gpu = { path = "crates/rsim-gpu" }
+rsim-net = { path = "crates/rsim-net" }
+rsim-rack = { path = "crates/rsim-rack" }
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = "1"
+serde_yaml = "0.9"
+thiserror = "1"
+anyhow = "1"
+rayon = "1.10"
+clap = { version = "4", features = ["derive"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+debug = 1

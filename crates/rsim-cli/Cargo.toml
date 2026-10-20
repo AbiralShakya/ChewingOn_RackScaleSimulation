@@ -1,0 +1,21 @@
+[package]
+name = "rsim-cli"
+description = "Command-line front-end for the rsim rack-scale GPU simulator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "rsim"
+path = "src/main.rs"
+
+[dependencies]
+rsim-core.workspace = true
+rsim-hw.workspace = true
+rsim-sass.workspace = true
+rsim-gpu.workspace = true
+rsim-rack.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+anyhow.workspace = true
+clap.workspace = true

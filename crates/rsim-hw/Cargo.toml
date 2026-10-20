@@ -1,0 +1,12 @@
+[package]
+name = "rsim-hw"
+description = "Hardware description: GPUs (Hopper/Blackwell), switches, links and rack topologies"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
