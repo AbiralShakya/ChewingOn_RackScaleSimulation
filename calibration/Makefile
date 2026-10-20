@@ -3,7 +3,9 @@
 # with the arch-specific "a" suffix (needed for tcgen05/TMEM on sm_100+).
 CUDA_HOME ?= /usr/local/cuda
 NVCC      ?= $(CUDA_HOME)/bin/nvcc
-CC_RAW    := $(shell nvidia-smi --query-gpu=compute_cap --format=csv,noheader -i $${CUDA_VISIBLE_DEVICES:-0} 2>/dev/null | head -1 | tr -d '.')
+# A MIG UUID is not a valid `nvidia-smi -i`; only the parent GPU is visible then.
+GPU_IDX   := $(if $(filter MIG-%,$(CUDA_VISIBLE_DEVICES)),0,$(or $(CUDA_VISIBLE_DEVICES),0))
+CC_RAW    := $(shell nvidia-smi --query-gpu=compute_cap --format=csv,noheader -i $(GPU_IDX) 2>/dev/null | head -1 | tr -d '.')
 SM        ?= $(CC_RAW)
 SUFFIX    := $(if $(filter 90 100 101 103 110 120 121,$(SM)),a,)
 ARCH      ?= -gencode arch=compute_$(SM)$(SUFFIX),code=sm_$(SM)$(SUFFIX)

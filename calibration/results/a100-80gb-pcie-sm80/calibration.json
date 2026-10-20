@@ -1,7 +1,7 @@
 {
  "schema": "rackscale-calibration/v1",
- "generated_utc": "2026-10-20T23:27:58+00:00",
- "driver": null,
+ "generated_utc": "2026-10-20T23:42:34+00:00",
+ "driver": "NVIDIA-SMI",
  "missing_benches": [
   "tma"
  ],

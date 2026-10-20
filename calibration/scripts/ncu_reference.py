@@ -47,6 +47,12 @@ REFERENCE = [
 MIN_CC = {"umma_bf16_m128n256k16": 100, "umma_nvfp4_m128n256k64": 100, "tma_bulk_stream": 90}
 
 
+def gpu_index():
+    """nvidia-smi index of the visible GPU; a MIG UUID maps to its parent (0 in the job)."""
+    d = os.environ.get("CUDA_VISIBLE_DEVICES", "0").split(",")[0]
+    return "0" if d.startswith("MIG-") else d
+
+
 def name_regex(regex):
     """Escape a kernel signature, letting integer template args match either
     `<1>` or `<(int)1>`: cu++filt from CUDA 12 prints the cast, CUDA 13 does not."""
@@ -109,7 +115,7 @@ def main(outdir):
     results = []
     names_cache = {}
     cc = int(subprocess.run(["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader", "-i",
-                             os.environ.get("CUDA_VISIBLE_DEVICES", "0").split(",")[0]],
+                             gpu_index()],
                             capture_output=True, text=True).stdout.split()[0].replace(".", ""))
     for label, binary, args, regex, skip, count in REFERENCE:
         if cc < MIN_CC.get(label, 0) or not os.access(binary, os.X_OK):

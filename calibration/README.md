@@ -196,10 +196,23 @@ Per hop, a cp.async plus wait_group plus LDS costs 243 cycles from L2, cheaper t
 **Launch:** sync round trip 6.2 µs, back-to-back 1.9 µs, graph 0.94 µs per kernel.
 `__syncthreads` takes 24 cycles at 32 threads and 86 at 1024.
 
+### A100 MIG 3g.40gb slice (Della `intel&gpu40`)
+
+A 3g.40gb slice of an A100 80GB PCIe has 42 SMs, 20 MB of L2 and half the HBM. Compute
+per SM is unchanged (HMMA 2026 FLOP/clk/SM, same ALU rates). The memory system is not
+just a scaled-down copy: the slice sits on **one L2 partition**. The near/far split
+almost disappears (210 vs 230 cycles per hop, against 224 vs 373 on the full GPU), and
+the L2 hit latency drops from 284 to 202 cycles (`ld.cg`). DRAM latency is 486 cycles
+against 560. Per SM, L2 read bandwidth rises from 18.7 to 34.4 B/clk, and HBM reads reach
+858 GB/s, half of the full GPU. cp.async.cg streams 1.87 TB/s from L2 and 0.90 TB/s from
+DRAM. Nsight Compute can't profile on the shared MIG node ("driver resource
+unavailable"), so the slice has no `ncu_reference.json`.
+
 ## Not covered yet
 
 * TMEM stores and `tcgen05.cp`, TMA tensor maps (2-D/5-D, multicast), sparse UMMA
 * A CUTLASS NVFP4 GEMM run to cross-check the FP4 ceiling
 * `mma.sync` with FP8 (ptxas lowers it on sm_103a; not timed)
 * NVLink/NVSwitch: these benches cover a single GPU; fabric calibration is a separate step
-* Hopper (H100/H200) runs; an A100 MIG 3g.40gb slice run (queued)
+* Hopper (H100/H200) runs
+* A100 SXM4 (NVLink, 1555 MHz HBM2e); the runs here are PCIe parts

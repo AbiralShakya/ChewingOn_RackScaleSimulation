@@ -1,0 +1,5583 @@
+{
+ "schema": "rackscale-calibration/v1",
+ "generated_utc": "2026-10-20T23:42:34+00:00",
+ "driver": "NVIDIA-SMI",
+ "missing_benches": [
+  "tma"
+ ],
+ "model": {
+  "device": {
+   "name": "NVIDIA A100 80GB PCIe MIG 3g.40gb",
+   "cc_major": 8,
+   "cc_minor": 0,
+   "sm_count": 42,
+   "clock_khz_reported": 1410000
+  },
+  "sm_clock_mhz_measured": 1409.77,
+  "sass": {
+   "FADD": {
+    "bench_op": "OpFADD",
+    "ptx": "add.f32 %0, %0, %1;",
+    "latency_cycles": 4.07,
+    "issue_per_clk_per_sm": 1.9793,
+    "thread_ops_per_clk_per_sm": 63.34,
+    "issue_interval_cycles_per_smsp": 2.021
+   },
+   "FADD@OpFADD": {
+    "bench_op": "OpFADD",
+    "ptx": "add.f32 %0, %0, %1;",
+    "latency_cycles": 4.07,
+    "issue_per_clk_per_sm": 1.9793,
+    "thread_ops_per_clk_per_sm": 63.34,
+    "issue_interval_cycles_per_smsp": 2.021
+   },
+   "FMUL": {
+    "bench_op": "OpFMUL",
+    "ptx": "mul.f32 %0, %0, %1;",
+    "latency_cycles": 4.07,
+    "issue_per_clk_per_sm": 1.9793,
+    "thread_ops_per_clk_per_sm": 63.34,
+    "issue_interval_cycles_per_smsp": 2.021
+   },
+   "FMUL@OpFMUL": {
+    "bench_op": "OpFMUL",
+    "ptx": "mul.f32 %0, %0, %1;",
+    "latency_cycles": 4.07,
+    "issue_per_clk_per_sm": 1.9793,
+    "thread_ops_per_clk_per_sm": 63.34,
+    "issue_interval_cycles_per_smsp": 2.021
+   },
+   "FFMA": {
+    "bench_op": "OpFFMA",
+    "ptx": "fma.rn.f32 %0, %0, %1, %2;",
+    "latency_cycles": 4.05,
+    "issue_per_clk_per_sm": 1.9808,
+    "thread_ops_per_clk_per_sm": 63.38,
+    "issue_interval_cycles_per_smsp": 2.019
+   },
+   "FFMA@OpFFMA": {
+    "bench_op": "OpFFMA",
+    "ptx": "fma.rn.f32 %0, %0, %1, %2;",
+    "latency_cycles": 4.05,
+    "issue_per_clk_per_sm": 1.9808,
+    "thread_ops_per_clk_per_sm": 63.38,
+    "issue_interval_cycles_per_smsp": 2.019
+   },
+   "FMNMX": {
+    "bench_op": "OpFMNMX",
+    "ptx": "max.f32 %0, %0, %1;",
+    "latency_cycles": 4.06,
+    "issue_per_clk_per_sm": 1.9759,
+    "thread_ops_per_clk_per_sm": 63.23,
+    "issue_interval_cycles_per_smsp": 2.024
+   },
+   "FMNMX@OpFMNMX": {
+    "bench_op": "OpFMNMX",
+    "ptx": "max.f32 %0, %0, %1;",
+    "latency_cycles": 4.06,
+    "issue_per_clk_per_sm": 1.9759,
+    "thread_ops_per_clk_per_sm": 63.23,
+    "issue_interval_cycles_per_smsp": 2.024
+   },
+   "HFMA2.MMA": {
+    "bench_op": "OpHFMA2",
+    "ptx": "fma.rn.f16x2 %0, %0, %1, %2;",
+    "latency_cycles": 8.04,
+    "issue_per_clk_per_sm": 3.8981,
+    "thread_ops_per_clk_per_sm": 124.74,
+    "issue_interval_cycles_per_smsp": 1.026
+   },
+   "HFMA2.MMA@OpHFMA2": {
+    "bench_op": "OpHFMA2",
+    "ptx": "fma.rn.f16x2 %0, %0, %1, %2;",
+    "latency_cycles": 8.04,
+    "issue_per_clk_per_sm": 3.8981,
+    "thread_ops_per_clk_per_sm": 124.74,
+    "issue_interval_cycles_per_smsp": 1.026
+   },
+   "HFMA2.BF16_V2": {
+    "bench_op": "OpHFMA2BF",
+    "ptx": "fma.rn.bf16x2 %0, %0, %1, %2;",
+    "latency_cycles": 4.06,
+    "issue_per_clk_per_sm": 1.9891,
+    "thread_ops_per_clk_per_sm": 63.65,
+    "issue_interval_cycles_per_smsp": 2.011
+   },
+   "HFMA2.BF16_V2@OpHFMA2BF": {
+    "bench_op": "OpHFMA2BF",
+    "ptx": "fma.rn.bf16x2 %0, %0, %1, %2;",
+    "latency_cycles": 4.06,
+    "issue_per_clk_per_sm": 1.9891,
+    "thread_ops_per_clk_per_sm": 63.65,
+    "issue_interval_cycles_per_smsp": 2.011
+   },
+   "HFMA2.MMA@OpHADD2": {
+    "bench_op": "OpHADD2",
+    "ptx": "add.rn.f16x2 %0, %0, %1;",
+    "latency_cycles": 8.04,
+    "issue_per_clk_per_sm": 3.8948,
+    "thread_ops_per_clk_per_sm": 124.63,
+    "issue_interval_cycles_per_smsp": 1.027
+   },
+   "IADD3": {
+    "bench_op": "OpIADD",
+    "ptx": "add.u32 %0, %0, %1;",
+    "latency_cycles": 3.94,
+    "issue_per_clk_per_sm": 1.9998,
+    "thread_ops_per_clk_per_sm": 63.99,
+    "issue_interval_cycles_per_smsp": 2.0
+   },
+   "IADD3@OpIADD": {
+    "bench_op": "OpIADD",
+    "ptx": "add.u32 %0, %0, %1;",
+    "latency_cycles": 3.94,
+    "issue_per_clk_per_sm": 1.9998,
+    "thread_ops_per_clk_per_sm": 63.99,
+    "issue_interval_cycles_per_smsp": 2.0
+   },
+   "IMAD": {
+    "bench_op": "OpIMAD",
+    "ptx": "mad.lo.u32 %0, %0, %1, %2;",
+    "latency_cycles": 4.05,
+    "issue_per_clk_per_sm": 1.9907,
+    "thread_ops_per_clk_per_sm": 63.7,
+    "issue_interval_cycles_per_smsp": 2.009
+   },
+   "IMAD@OpIMAD": {
+    "bench_op": "OpIMAD",
+    "ptx": "mad.lo.u32 %0, %0, %1, %2;",
+    "latency_cycles": 4.05,
+    "issue_per_clk_per_sm": 1.9907,
+    "thread_ops_per_clk_per_sm": 63.7,
+    "issue_interval_cycles_per_smsp": 2.009
+   },
+   "LOP3.LUT": {
+    "bench_op": "OpLOP3",
+    "ptx": "lop3.b32 %0, %0, %1, %2, 0x6A;",
+    "latency_cycles": 4.01,
+    "issue_per_clk_per_sm": 1.9887,
+    "thread_ops_per_clk_per_sm": 63.64,
+    "issue_interval_cycles_per_smsp": 2.011
+   },
+   "LOP3.LUT@OpLOP3": {
+    "bench_op": "OpLOP3",
+    "ptx": "lop3.b32 %0, %0, %1, %2, 0x6A;",
+    "latency_cycles": 4.01,
+    "issue_per_clk_per_sm": 1.9887,
+    "thread_ops_per_clk_per_sm": 63.64,
+    "issue_interval_cycles_per_smsp": 2.011
+   },
+   "SHF.L.W.U32.HI": {
+    "bench_op": "OpSHF",
+    "ptx": "shf.l.wrap.b32 %0, %0, %0, %1;",
+    "latency_cycles": 4.03,
+    "issue_per_clk_per_sm": 1.9806,
+    "thread_ops_per_clk_per_sm": 63.38,
+    "issue_interval_cycles_per_smsp": 2.02
+   },
+   "SHF.L.W.U32.HI@OpSHF": {
+    "bench_op": "OpSHF",
+    "ptx": "shf.l.wrap.b32 %0, %0, %0, %1;",
+    "latency_cycles": 4.03,
+    "issue_per_clk_per_sm": 1.9806,
+    "thread_ops_per_clk_per_sm": 63.38,
+    "issue_interval_cycles_per_smsp": 2.02
+   },
+   "PRMT": {
+    "bench_op": "OpPRMT",
+    "ptx": "prmt.b32 %0, %0, %1, 0x4321;",
+    "latency_cycles": 4.05,
+    "issue_per_clk_per_sm": 1.9806,
+    "thread_ops_per_clk_per_sm": 63.38,
+    "issue_interval_cycles_per_smsp": 2.02
+   },
+   "PRMT@OpPRMT": {
+    "bench_op": "OpPRMT",
+    "ptx": "prmt.b32 %0, %0, %1, 0x4321;",
+    "latency_cycles": 4.05,
+    "issue_per_clk_per_sm": 1.9806,
+    "thread_ops_per_clk_per_sm": 63.38,
+    "issue_interval_cycles_per_smsp": 2.02
+   },
+   "POPC": {
+    "bench_op": "OpPOPC",
+    "ptx": "popc.b32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4995,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.008
+   },
+   "POPC@OpPOPC": {
+    "bench_op": "OpPOPC",
+    "ptx": "popc.b32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4995,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.008
+   },
+   "FLO.U32": {
+    "bench_op": "OpFLO",
+    "ptx": "bfind.u32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4995,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.008
+   },
+   "FLO.U32@OpFLO": {
+    "bench_op": "OpFLO",
+    "ptx": "bfind.u32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4995,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.008
+   },
+   "IMNMX.U32": {
+    "bench_op": "OpIMNMX",
+    "ptx": "max.u32 %0, %0, %1;",
+    "latency_cycles": 4.05,
+    "issue_per_clk_per_sm": 1.9807,
+    "thread_ops_per_clk_per_sm": 63.38,
+    "issue_interval_cycles_per_smsp": 2.02
+   },
+   "IMNMX.U32@OpIMNMX": {
+    "bench_op": "OpIMNMX",
+    "ptx": "max.u32 %0, %0, %1;",
+    "latency_cycles": 4.05,
+    "issue_per_clk_per_sm": 1.9807,
+    "thread_ops_per_clk_per_sm": 63.38,
+    "issue_interval_cycles_per_smsp": 2.02
+   },
+   "MUFU.EX2": {
+    "bench_op": "OpEX2",
+    "ptx": "ex2.approx.ftz.f32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4993,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.012
+   },
+   "MUFU.EX2@OpEX2": {
+    "bench_op": "OpEX2",
+    "ptx": "ex2.approx.ftz.f32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4993,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.012
+   },
+   "MUFU.RSQ": {
+    "bench_op": "OpRSQ",
+    "ptx": "rsqrt.approx.ftz.f32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4993,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.012
+   },
+   "MUFU.RSQ@OpRSQ": {
+    "bench_op": "OpRSQ",
+    "ptx": "rsqrt.approx.ftz.f32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4993,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.012
+   },
+   "MUFU.RCP": {
+    "bench_op": "OpRCP",
+    "ptx": "{.reg .f32 t; add.f32 t, %0, %1; rcp.approx.ftz.f32 %0, t;}",
+    "latency_cycles": 18.93,
+    "issue_per_clk_per_sm": 0.4989,
+    "thread_ops_per_clk_per_sm": 15.96,
+    "issue_interval_cycles_per_smsp": 8.018,
+    "note": "timed as OpRCP+OpFADD; OpFADD latency 4.07 subtracted"
+   },
+   "MUFU.RCP@OpRCP": {
+    "bench_op": "OpRCP",
+    "ptx": "{.reg .f32 t; add.f32 t, %0, %1; rcp.approx.ftz.f32 %0, t;}",
+    "latency_cycles": 18.93,
+    "issue_per_clk_per_sm": 0.4989,
+    "thread_ops_per_clk_per_sm": 15.96,
+    "issue_interval_cycles_per_smsp": 8.018,
+    "note": "timed as OpRCP+OpFADD; OpFADD latency 4.07 subtracted"
+   },
+   "MUFU.SQRT": {
+    "bench_op": "OpSQRT",
+    "ptx": "sqrt.approx.ftz.f32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4993,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.012
+   },
+   "MUFU.SQRT@OpSQRT": {
+    "bench_op": "OpSQRT",
+    "ptx": "sqrt.approx.ftz.f32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4993,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.012
+   },
+   "MUFU.LG2": {
+    "bench_op": "OpLG2",
+    "ptx": "lg2.approx.ftz.f32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4993,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.012
+   },
+   "MUFU.LG2@OpLG2": {
+    "bench_op": "OpLG2",
+    "ptx": "lg2.approx.ftz.f32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4993,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.012
+   },
+   "MUFU.TANH": {
+    "bench_op": "OpTANH",
+    "ptx": "tanh.approx.f32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4993,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.012
+   },
+   "MUFU.TANH@OpTANH": {
+    "bench_op": "OpTANH",
+    "ptx": "tanh.approx.f32 %0, %0;",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4993,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.012
+   },
+   "MUFU.SIN": {
+    "bench_op": "OpSIN",
+    "ptx": "sin.approx.ftz.f32 %0, %0;",
+    "latency_cycles": 18.91,
+    "issue_per_clk_per_sm": 0.499,
+    "thread_ops_per_clk_per_sm": 15.97,
+    "issue_interval_cycles_per_smsp": 8.016,
+    "note": "timed as OpSIN+OpFMUL; OpFMUL latency 4.07 subtracted"
+   },
+   "MUFU.SIN@OpSIN": {
+    "bench_op": "OpSIN",
+    "ptx": "sin.approx.ftz.f32 %0, %0;",
+    "latency_cycles": 18.91,
+    "issue_per_clk_per_sm": 0.499,
+    "thread_ops_per_clk_per_sm": 15.97,
+    "issue_interval_cycles_per_smsp": 8.016,
+    "note": "timed as OpSIN+OpFMUL; OpFMUL latency 4.07 subtracted"
+   },
+   "DFMA": {
+    "bench_op": "OpDFMA",
+    "ptx": "fma.rn.f64 %0, %0, %1, %2;",
+    "latency_cycles": 6.05,
+    "issue_per_clk_per_sm": 0.9633,
+    "thread_ops_per_clk_per_sm": 30.83,
+    "issue_interval_cycles_per_smsp": 4.152
+   },
+   "DFMA@OpDFMA": {
+    "bench_op": "OpDFMA",
+    "ptx": "fma.rn.f64 %0, %0, %1, %2;",
+    "latency_cycles": 6.05,
+    "issue_per_clk_per_sm": 0.9633,
+    "thread_ops_per_clk_per_sm": 30.83,
+    "issue_interval_cycles_per_smsp": 4.152
+   },
+   "DADD": {
+    "bench_op": "OpDADD",
+    "ptx": "add.f64 %0, %0, %1;",
+    "latency_cycles": 6.05,
+    "issue_per_clk_per_sm": 0.9629,
+    "thread_ops_per_clk_per_sm": 30.81,
+    "issue_interval_cycles_per_smsp": 4.154
+   },
+   "DADD@OpDADD": {
+    "bench_op": "OpDADD",
+    "ptx": "add.f64 %0, %0, %1;",
+    "latency_cycles": 6.05,
+    "issue_per_clk_per_sm": 0.9629,
+    "thread_ops_per_clk_per_sm": 30.81,
+    "issue_interval_cycles_per_smsp": 4.154
+   },
+   "F2FP.BF16.PACK_AB": {
+    "bench_op": "OpF2FBF",
+    "ptx": "{.reg .f32 t; mov.b32 t, %0; cvt.rn.bf16x2.f32 %0, t, t;}",
+    "latency_cycles": 4.11,
+    "issue_per_clk_per_sm": 1.9811,
+    "thread_ops_per_clk_per_sm": 63.4,
+    "issue_interval_cycles_per_smsp": 2.019
+   },
+   "F2FP.BF16.PACK_AB@OpF2FBF": {
+    "bench_op": "OpF2FBF",
+    "ptx": "{.reg .f32 t; mov.b32 t, %0; cvt.rn.bf16x2.f32 %0, t, t;}",
+    "latency_cycles": 4.11,
+    "issue_per_clk_per_sm": 1.9811,
+    "thread_ops_per_clk_per_sm": 63.4,
+    "issue_interval_cycles_per_smsp": 2.019
+   },
+   "F2I.TRUNC.NTZ": {
+    "bench_op": "OpF2I",
+    "ptx": "{.reg .f32 t; mov.b32 t, %0; cvt.rzi.s32.f32 %0, t;}",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4995,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.008
+   },
+   "F2I.TRUNC.NTZ@OpF2I": {
+    "bench_op": "OpF2I",
+    "ptx": "{.reg .f32 t; mov.b32 t, %0; cvt.rzi.s32.f32 %0, t;}",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4995,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.008
+   },
+   "I2F": {
+    "bench_op": "OpI2F",
+    "ptx": "{.reg .f32 t; cvt.rn.f32.s32 t, %0; mov.b32 %0, t;}",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4995,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.008
+   },
+   "I2F@OpI2F": {
+    "bench_op": "OpI2F",
+    "ptx": "{.reg .f32 t; cvt.rn.f32.s32 t, %0; mov.b32 %0, t;}",
+    "latency_cycles": 17.0,
+    "issue_per_clk_per_sm": 0.4995,
+    "thread_ops_per_clk_per_sm": 15.98,
+    "issue_interval_cycles_per_smsp": 8.008
+   },
+   "SHFL.BFLY": {
+    "bench_op": "OpSHFL",
+    "ptx": "{.reg .b32 t; add.u32 t, %0, %1; shfl.sync.bfly.b32 %0, t, %2, 0x1f, 0xffffffff;}",
+    "latency_cycles": 27.06,
+    "issue_per_clk_per_sm": 0.9761,
+    "thread_ops_per_clk_per_sm": 31.23,
+    "issue_interval_cycles_per_smsp": 4.098,
+    "note": "timed as OpSHFL+OpIADD; OpIADD latency 3.94 subtracted"
+   },
+   "SHFL.BFLY@OpSHFL": {
+    "bench_op": "OpSHFL",
+    "ptx": "{.reg .b32 t; add.u32 t, %0, %1; shfl.sync.bfly.b32 %0, t, %2, 0x1f, 0xffffffff;}",
+    "latency_cycles": 27.06,
+    "issue_per_clk_per_sm": 0.9761,
+    "thread_ops_per_clk_per_sm": 31.23,
+    "issue_interval_cycles_per_smsp": 4.098,
+    "note": "timed as OpSHFL+OpIADD; OpIADD latency 3.94 subtracted"
+   }
+  },
+  "memory": {
+   "l2_bytes": 20971520,
+   "smem_per_sm_bytes": 167936,
+   "smem_per_block_optin_bytes": 166912,
+   "latency_cycles": {
+    "l1_hit": 38.9341,
+    "l2_hit_repeat": 201.93,
+    "l2_hit_first_touch": 202.07,
+    "dram": 485.516,
+    "smem": 29.0608,
+    "dsmem_remote": null
+   },
+   "l2_partitions": {
+    "near_mean_cycles": 256.841,
+    "far_mean_cycles": 268.93,
+    "far_fraction": 0.535645,
+    "split_threshold_cycles": 264
+   },
+   "bandwidth": {
+    "hbm_read_GBps": 857.682,
+    "hbm_write_GBps": 784.601,
+    "hbm_copy_GBps": 813.907,
+    "hbm_peak_GBps_from_attrs": 967.68,
+    "l2_read_bytes_per_clk_per_sm": 34.4254,
+    "l1_read_bytes_per_clk_per_sm": 81.0415,
+    "smem_bytes_per_clk_per_sm": 127.121,
+    "hbm_read_vs_sms": [
+     {
+      "sms": 1,
+      "GBps": 37.0038,
+      "GBps_per_sm": 37.0038
+     },
+     {
+      "sms": 2,
+      "GBps": 72.4893,
+      "GBps_per_sm": 36.2447
+     },
+     {
+      "sms": 4,
+      "GBps": 140.421,
+      "GBps_per_sm": 35.1052
+     },
+     {
+      "sms": 8,
+      "GBps": 262.99,
+      "GBps_per_sm": 32.8738
+     },
+     {
+      "sms": 16,
+      "GBps": 489.417,
+      "GBps_per_sm": 30.5886
+     },
+     {
+      "sms": 32,
+      "GBps": 767.388,
+      "GBps_per_sm": 23.9809
+     },
+     {
+      "sms": 42,
+      "GBps": 851.216,
+      "GBps_per_sm": 20.267
+     }
+    ]
+   },
+   "smem_bank_conflicts": {
+    "1": 1.00746,
+    "2": 2.0055,
+    "4": 4.00549,
+    "8": 8.00575,
+    "16": 16.0059,
+    "32": 32.0064,
+    "33": 1.00753
+   }
+  },
+  "tensor": {
+   "mma_sync_m16n8k16_bf16_f32": {
+    "latency_cycles": 24.0215,
+    "warp_mma_per_clk_per_sm": 0.495325,
+    "flop_per_clk_per_sm": 2028.85
+   },
+   "mma_sync_m16n8k16_f16_f16": {
+    "latency_cycles": 23.9785,
+    "warp_mma_per_clk_per_sm": 0.497189,
+    "flop_per_clk_per_sm": 2036.49
+   },
+   "mma_sync_m16n8k8_tf32_f32": {
+    "latency_cycles": 24.0215,
+    "warp_mma_per_clk_per_sm": 0.495307,
+    "flop_per_clk_per_sm": 1014.39
+   },
+   "mma_sync_m16n8k32_s8_s32": {
+    "latency_cycles": 24.0215,
+    "warp_mma_per_clk_per_sm": 0.495337,
+    "flop_per_clk_per_sm": 4057.8
+   }
+  },
+  "async_copy": {
+   "latency_cycles": {
+    "l2": {
+     "ld_global_cg": 201.826,
+     "cp_async_cg16": 233.932,
+     "cp_async_ca16": 236.064,
+     "cp_async_ca4": 236.073,
+     "ld_global_ca": 201.982
+    },
+    "dram": {
+     "ld_global_cg": 476.49,
+     "cp_async_cg16": 508.083,
+     "cp_async_ca16": 509.547,
+     "cp_async_ca4": 510.299,
+     "ld_global_ca": 475.494
+    }
+   },
+   "lds_hop_cycles": 29.113,
+   "bandwidth_GBps": {
+    "l2": {
+     "ld_global_v4_st_shared": 1565.97,
+     "cp_async_cg16": 1869.79,
+     "cp_async_ca16": 1732.04,
+     "cp_async_ca8": 1337.13,
+     "cp_async_ca4": 870.477
+    },
+    "dram": {
+     "ld_global_v4_st_shared": 807.82,
+     "cp_async_cg16": 903.762,
+     "cp_async_ca16": 874.314,
+     "cp_async_ca8": 834.718,
+     "cp_async_ca4": 793.315
+    }
+   }
+  },
+  "warp_mma": {
+   "F16_F32_m16n8k16": {
+    "shape": [
+     16,
+     8,
+     16
+    ],
+    "latency_cycles": 24.0088,
+    "flop_per_clk_per_sm": 2026.28,
+    "issue_interval_cycles_per_smsp": 8.08575,
+    "saturating_warps": 32,
+    "saturating_ilp": 4
+   },
+   "F16_F16_m16n8k16": {
+    "shape": [
+     16,
+     8,
+     16
+    ],
+    "latency_cycles": 24.0068,
+    "flop_per_clk_per_sm": 2031.32,
+    "issue_interval_cycles_per_smsp": 8.06567,
+    "saturating_warps": 32,
+    "saturating_ilp": 4
+   },
+   "BF16_F32_m16n8k16": {
+    "shape": [
+     16,
+     8,
+     16
+    ],
+    "latency_cycles": 24.0078,
+    "flop_per_clk_per_sm": 2026.22,
+    "issue_interval_cycles_per_smsp": 8.086,
+    "saturating_warps": 32,
+    "saturating_ilp": 4
+   },
+   "F16_F32_m16n8k8": {
+    "shape": [
+     16,
+     8,
+     8
+    ],
+    "latency_cycles": 17.001,
+    "flop_per_clk_per_sm": 2003.06,
+    "issue_interval_cycles_per_smsp": 4.08975,
+    "saturating_warps": 32,
+    "saturating_ilp": 4
+   },
+   "TF32_F32_m16n8k8": {
+    "shape": [
+     16,
+     8,
+     8
+    ],
+    "latency_cycles": 24.0078,
+    "flop_per_clk_per_sm": 1013.13,
+    "issue_interval_cycles_per_smsp": 8.08585,
+    "saturating_warps": 32,
+    "saturating_ilp": 4
+   },
+   "S8_S32_m16n8k32": {
+    "shape": [
+     16,
+     8,
+     32
+    ],
+    "latency_cycles": 24.0088,
+    "flop_per_clk_per_sm": 4046.21,
+    "issue_interval_cycles_per_smsp": 8.09845,
+    "saturating_warps": 32,
+    "saturating_ilp": 4
+   },
+   "S4_S32_m16n8k64": {
+    "shape": [
+     16,
+     8,
+     64
+    ],
+    "latency_cycles": 24.0078,
+    "flop_per_clk_per_sm": 8092.54,
+    "issue_interval_cycles_per_smsp": 8.09833,
+    "saturating_warps": 32,
+    "saturating_ilp": 4
+   },
+   "F64_F64_m8n8k4": {
+    "shape": [
+     8,
+     8,
+     4
+    ],
+    "latency_cycles": 18.0078,
+    "flop_per_clk_per_sm": 125.957,
+    "issue_interval_cycles_per_smsp": 16.2595,
+    "saturating_warps": 32,
+    "saturating_ilp": 4
+   },
+   "SP_F16_F32_m16n8k32": {
+    "shape": [
+     16,
+     8,
+     32
+    ],
+    "latency_cycles": 23.9961,
+    "flop_per_clk_per_sm": 4045.78,
+    "issue_interval_cycles_per_smsp": 8.0993,
+    "saturating_warps": 32,
+    "saturating_ilp": 4
+   }
+  },
+  "ldmatrix": {
+   "latency_cycles_x1": 24.7178,
+   "ldmatrix_x1": 124.682,
+   "ldmatrix_x2": 126.432,
+   "ldmatrix_x4": 127.183
+  },
+  "l2_partition_map": {
+   "near_cycles": 209.789,
+   "far_cycles": 229.81,
+   "sm_side": {
+    "0": 0,
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 0,
+    "5": 0,
+    "6": 1,
+    "7": 1,
+    "8": 1,
+    "9": 1,
+    "10": 1,
+    "11": 1,
+    "12": 1,
+    "13": 1,
+    "14": 1,
+    "15": 1,
+    "16": 1,
+    "17": 1,
+    "18": 1,
+    "19": 1,
+    "20": 1,
+    "21": 1,
+    "22": 1,
+    "23": 1,
+    "24": 0,
+    "25": 0,
+    "26": 0,
+    "27": 0,
+    "28": 0,
+    "29": 0,
+    "30": 1,
+    "31": 1,
+    "32": 1,
+    "33": 1,
+    "34": 1,
+    "35": 1,
+    "36": 1,
+    "37": 1,
+    "38": 0,
+    "39": 1,
+    "40": 1,
+    "41": 1
+   },
+   "best_single_address_bit": 18,
+   "best_single_bit_accuracy": 0.893066
+  },
+  "launch": {
+   "sync_roundtrip_us": 5.9389,
+   "back_to_back_us_per_kernel": 1.81387,
+   "graph_us_per_kernel": 0.767984
+  },
+  "syncthreads_cycles": {
+   "32": 23.9756,
+   "128": 29.9707,
+   "256": 37.9805,
+   "512": 53.9863,
+   "1024": 86.0293
+  },
+  "atomics": {
+   "global_distinct_Gops": 28.6053,
+   "global_same_address_Gops": 1.07752,
+   "shared_distinct_ops_per_clk_per_sm": 30.0796,
+   "shared_same_address_ops_per_clk_per_sm": 30.0865
+  }
+ },
+ "raw": {
+  "alu": {
+   "bench": "alu",
+   "device": {
+    "name": "NVIDIA A100 80GB PCIe MIG 3g.40gb",
+    "cc_major": 8,
+    "cc_minor": 0,
+    "sm_count": 42,
+    "clock_khz_reported": 1410000
+   },
+   "sm_clock_mhz_measured": 1409.77,
+   "ops": {
+    "OpFADD": {
+     "sass_expected": "FADD",
+     "ptx": "add.f32 %0, %0, %1;",
+     "lat_kernel": "lat_kernel<OpFADD>",
+     "thr_kernel": "thr_kernel<OpFADD>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.07031,
+     "throughput_ptx_ops_per_clk_per_sm": 63.338,
+     "throughput_warp_inst_per_clk_per_smsp": 0.494828,
+     "lat_raw_cycles_n1": 2159,
+     "lat_raw_cycles_n2": 10495,
+     "sass": {
+      "ptx_token": "add.f32",
+      "lat_sass_count": 194,
+      "lat_ptx_count": 194,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "FADD": 194,
+       "NOP": 11,
+       "MOV": 6,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "LDG.E": 2,
+       "CS2R": 2
+      },
+      "thr_sass_count": 535,
+      "thr_ptx_count": 535,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "FADD": 535,
+       "MOV": 12,
+       "BRA": 10,
+       "NOP": 8,
+       "I2F.U32": 7,
+       "S2R": 4,
+       "CS2R": 3,
+       "BAR.SYNC.DEFER_BLOCKING": 3
+      },
+      "latency_cycles": 4.07031,
+      "throughput_sass_inst_per_clk_per_sm": 63.338
+     }
+    },
+    "OpFMUL": {
+     "sass_expected": "FMUL",
+     "ptx": "mul.f32 %0, %0, %1;",
+     "lat_kernel": "lat_kernel<OpFMUL>",
+     "thr_kernel": "thr_kernel<OpFMUL>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.07031,
+     "throughput_ptx_ops_per_clk_per_sm": 63.338,
+     "throughput_warp_inst_per_clk_per_smsp": 0.494828,
+     "lat_raw_cycles_n1": 2159,
+     "lat_raw_cycles_n2": 10495,
+     "sass": {
+      "ptx_token": "mul.f32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "FMUL": 192,
+       "NOP": 11,
+       "MOV": 6,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "LDG.E": 2,
+       "FADD": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "FMUL": 512,
+       "FADD": 23,
+       "MOV": 12,
+       "BRA": 10,
+       "NOP": 8,
+       "I2F.U32": 7,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 4.07031,
+      "throughput_sass_inst_per_clk_per_sm": 63.338
+     }
+    },
+    "OpFFMA": {
+     "sass_expected": "FFMA",
+     "ptx": "fma.rn.f32 %0, %0, %1, %2;",
+     "lat_kernel": "lat_kernel<OpFFMA>",
+     "thr_kernel": "thr_kernel<OpFFMA>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.05469,
+     "throughput_ptx_ops_per_clk_per_sm": 63.3844,
+     "throughput_warp_inst_per_clk_per_smsp": 0.495191,
+     "lat_raw_cycles_n1": 2153,
+     "lat_raw_cycles_n2": 10457,
+     "sass": {
+      "ptx_token": "fma.rn.f32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "FFMA": 192,
+       "NOP": 10,
+       "MOV": 6,
+       "BRA": 5,
+       "LDG.E": 3,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "FADD": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "FFMA": 512,
+       "FADD": 23,
+       "NOP": 15,
+       "MOV": 12,
+       "BRA": 10,
+       "I2F.U32": 7,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 4.05469,
+      "throughput_sass_inst_per_clk_per_sm": 63.3844
+     }
+    },
+    "OpFMNMX": {
+     "sass_expected": "FMNMX,FMNMX3",
+     "ptx": "max.f32 %0, %0, %1;",
+     "lat_kernel": "lat_kernel<OpFMNMX>",
+     "thr_kernel": "thr_kernel<OpFMNMX>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.0625,
+     "throughput_ptx_ops_per_clk_per_sm": 63.2277,
+     "throughput_warp_inst_per_clk_per_smsp": 0.493966,
+     "lat_raw_cycles_n1": 2156,
+     "lat_raw_cycles_n2": 10476,
+     "sass": {
+      "ptx_token": "max.f32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "FMNMX": 192,
+       "NOP": 11,
+       "IMAD.MOV.U32": 7,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "LDG.E": 2,
+       "FADD": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "FMNMX": 512,
+       "FADD": 23,
+       "IMAD.MOV.U32": 12,
+       "BRA": 10,
+       "NOP": 8,
+       "I2F.U32": 7,
+       "S2R": 4,
+       "IMAD": 4
+      },
+      "latency_cycles": 4.0625,
+      "throughput_sass_inst_per_clk_per_sm": 63.2277
+     }
+    },
+    "OpHFMA2": {
+     "sass_expected": "HFMA2",
+     "ptx": "fma.rn.f16x2 %0, %0, %1, %2;",
+     "lat_kernel": "lat_kernel<OpHFMA2>",
+     "thr_kernel": "thr_kernel<OpHFMA2>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 8.03955,
+     "throughput_ptx_ops_per_clk_per_sm": 124.739,
+     "throughput_warp_inst_per_clk_per_smsp": 0.97452,
+     "lat_raw_cycles_n1": 4344,
+     "lat_raw_cycles_n2": 20809,
+     "sass": {
+      "ptx_token": "fma.rn.f16x2",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "HFMA2.MMA": 96,
+       "HFMA2": 96,
+       "NOP": 14,
+       "IMAD.MOV.U32": 6,
+       "BRA": 5,
+       "IADD3": 4,
+       "LDG.E": 3,
+       "ISETP.NE.AND": 3
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "HFMA2.MMA": 256,
+       "HFMA2": 256,
+       "IMAD.MOV.U32": 10,
+       "BRA": 10,
+       "NOP": 10,
+       "IMAD.IADD": 7,
+       "IADD3": 6,
+       "S2R": 4
+      },
+      "latency_cycles": 8.03955,
+      "throughput_sass_inst_per_clk_per_sm": 124.739
+     }
+    },
+    "OpHFMA2BF": {
+     "sass_expected": "HFMA2",
+     "ptx": "fma.rn.bf16x2 %0, %0, %1, %2;",
+     "lat_kernel": "lat_kernel<OpHFMA2BF>",
+     "thr_kernel": "thr_kernel<OpHFMA2BF>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.05518,
+     "throughput_ptx_ops_per_clk_per_sm": 63.6518,
+     "throughput_warp_inst_per_clk_per_smsp": 0.49728,
+     "lat_raw_cycles_n1": 2304,
+     "lat_raw_cycles_n2": 10609,
+     "sass": {
+      "ptx_token": "fma.rn.bf16x2",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "HFMA2.BF16_V2": 192,
+       "NOP": 14,
+       "IMAD.MOV.U32": 6,
+       "BRA": 5,
+       "IADD3": 4,
+       "LDG.E": 3,
+       "ISETP.NE.AND": 3,
+       "CS2R": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "HFMA2.BF16_V2": 512,
+       "IMAD.MOV.U32": 10,
+       "BRA": 10,
+       "NOP": 10,
+       "IMAD.IADD": 7,
+       "IADD3": 6,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 4.05518,
+      "throughput_sass_inst_per_clk_per_sm": 63.6518
+     }
+    },
+    "OpHADD2": {
+     "sass_expected": "HADD2,HFMA2",
+     "ptx": "add.rn.f16x2 %0, %0, %1;",
+     "lat_kernel": "lat_kernel<OpHADD2>",
+     "thr_kernel": "thr_kernel<OpHADD2>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 8.03857,
+     "throughput_ptx_ops_per_clk_per_sm": 124.633,
+     "throughput_warp_inst_per_clk_per_smsp": 0.973695,
+     "lat_raw_cycles_n1": 4347,
+     "lat_raw_cycles_n2": 20810,
+     "sass": {
+      "ptx_token": "add.rn.f16x2",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "HFMA2.MMA": 96,
+       "HADD2": 96,
+       "NOP": 15,
+       "IMAD.MOV.U32": 6,
+       "BRA": 5,
+       "IADD3": 4,
+       "ISETP.NE.AND": 3,
+       "LDG.E": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "HFMA2.MMA": 256,
+       "HADD2": 256,
+       "NOP": 11,
+       "IMAD.MOV.U32": 10,
+       "BRA": 10,
+       "IMAD.IADD": 7,
+       "IADD3": 6,
+       "S2R": 4
+      },
+      "latency_cycles": 8.03857,
+      "throughput_sass_inst_per_clk_per_sm": 124.633
+     }
+    },
+    "OpIADD": {
+     "sass_expected": "IADD3",
+     "ptx": "add.u32 %0, %0, %1;",
+     "lat_kernel": "lat_kernel<OpIADD>",
+     "thr_kernel": "thr_kernel<OpIADD>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 2.05322,
+     "throughput_ptx_ops_per_clk_per_sm": 125.533,
+     "throughput_warp_inst_per_clk_per_smsp": 0.980725,
+     "lat_raw_cycles_n1": 1270,
+     "lat_raw_cycles_n2": 5475,
+     "sass": {
+      "ptx_token": "add.u32",
+      "lat_sass_count": 100,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 0.5208333333333334,
+      "lat_opcodes_top": {
+       "IADD3": 100,
+       "NOP": 15,
+       "IMAD.MOV.U32": 6,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "LDG.E": 2,
+       "CS2R": 2,
+       "LOP3.LUT": 2
+      },
+      "thr_sass_count": 261,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 0.509765625,
+      "thr_opcodes_top": {
+       "IADD3": 261,
+       "IMAD.MOV.U32": 11,
+       "NOP": 11,
+       "BRA": 10,
+       "IMAD.IADD": 8,
+       "S2R": 4,
+       "CS2R": 3,
+       "ISETP.NE.AND": 3
+      },
+      "latency_cycles": 3.9421823999999996,
+      "throughput_sass_inst_per_clk_per_sm": 63.992408203125
+     }
+    },
+    "OpIMAD": {
+     "sass_expected": "IMAD",
+     "ptx": "mad.lo.u32 %0, %0, %1, %2;",
+     "lat_kernel": "lat_kernel<OpIMAD>",
+     "thr_kernel": "thr_kernel<OpIMAD>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.05469,
+     "throughput_ptx_ops_per_clk_per_sm": 63.5782,
+     "throughput_warp_inst_per_clk_per_smsp": 0.496705,
+     "lat_raw_cycles_n1": 2305,
+     "lat_raw_cycles_n2": 10609,
+     "sass": {
+      "ptx_token": "mad.lo.u32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "IMAD": 192,
+       "NOP": 14,
+       "MOV": 6,
+       "BRA": 5,
+       "IADD3": 4,
+       "LDG.E": 3,
+       "ISETP.NE.AND": 3,
+       "CS2R": 2
+      },
+      "thr_sass_count": 513,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.001953125,
+      "thr_opcodes_top": {
+       "IMAD": 512,
+       "IADD3": 13,
+       "MOV": 12,
+       "BRA": 10,
+       "NOP": 10,
+       "S2R": 4,
+       "CS2R": 3,
+       "LDG.E": 3
+      },
+      "latency_cycles": 4.05469,
+      "throughput_sass_inst_per_clk_per_sm": 63.702376171875
+     }
+    },
+    "OpLOP3": {
+     "sass_expected": "LOP3",
+     "ptx": "lop3.b32 %0, %0, %1, %2, 0x6A;",
+     "lat_kernel": "lat_kernel<OpLOP3>",
+     "thr_kernel": "thr_kernel<OpLOP3>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.05273,
+     "throughput_ptx_ops_per_clk_per_sm": 63.3892,
+     "throughput_warp_inst_per_clk_per_smsp": 0.495228,
+     "lat_raw_cycles_n1": 2292,
+     "lat_raw_cycles_n2": 10592,
+     "sass": {
+      "ptx_token": "lop3.b32",
+      "lat_sass_count": 194,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0104166666666667,
+      "lat_opcodes_top": {
+       "LOP3.LUT": 194,
+       "NOP": 14,
+       "IMAD.MOV.U32": 6,
+       "BRA": 5,
+       "IADD3": 4,
+       "LDG.E": 3,
+       "ISETP.NE.AND": 3,
+       "CS2R": 2
+      },
+      "thr_sass_count": 514,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.00390625,
+      "thr_opcodes_top": {
+       "LOP3.LUT": 514,
+       "IMAD.MOV.U32": 11,
+       "BRA": 10,
+       "NOP": 10,
+       "IMAD.IADD": 8,
+       "IADD3": 5,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 4.010949278350515,
+      "throughput_sass_inst_per_clk_per_sm": 63.6368140625
+     }
+    },
+    "OpSHF": {
+     "sass_expected": "SHF",
+     "ptx": "shf.l.wrap.b32 %0, %0, %0, %1;",
+     "lat_kernel": "lat_kernel<OpSHF>",
+     "thr_kernel": "thr_kernel<OpSHF>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.05469,
+     "throughput_ptx_ops_per_clk_per_sm": 63.3801,
+     "throughput_warp_inst_per_clk_per_smsp": 0.495157,
+     "lat_raw_cycles_n1": 2306,
+     "lat_raw_cycles_n2": 10610,
+     "sass": {
+      "ptx_token": "shf.l.wrap.b32",
+      "lat_sass_count": 193,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0052083333333333,
+      "lat_opcodes_top": {
+       "SHF.L.W.U32.HI": 192,
+       "NOP": 15,
+       "IMAD.MOV.U32": 6,
+       "BRA": 5,
+       "IADD3": 4,
+       "ISETP.NE.AND": 3,
+       "LDG.E": 2,
+       "CS2R": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "SHF.L.W.U32.HI": 512,
+       "IMAD.MOV.U32": 11,
+       "NOP": 11,
+       "BRA": 10,
+       "IMAD.IADD": 8,
+       "IADD3": 5,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 4.033681243523317,
+      "throughput_sass_inst_per_clk_per_sm": 63.3801
+     }
+    },
+    "OpPRMT": {
+     "sass_expected": "PRMT",
+     "ptx": "prmt.b32 %0, %0, %1, 0x4321;",
+     "lat_kernel": "lat_kernel<OpPRMT>",
+     "thr_kernel": "thr_kernel<OpPRMT>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.05469,
+     "throughput_ptx_ops_per_clk_per_sm": 63.3803,
+     "throughput_warp_inst_per_clk_per_smsp": 0.495159,
+     "lat_raw_cycles_n1": 2306,
+     "lat_raw_cycles_n2": 10610,
+     "sass": {
+      "ptx_token": "prmt.b32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "PRMT": 192,
+       "NOP": 15,
+       "IMAD.MOV.U32": 6,
+       "BRA": 5,
+       "IADD3": 4,
+       "ISETP.NE.AND": 3,
+       "LDG.E": 2,
+       "CS2R": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "PRMT": 512,
+       "IMAD.MOV.U32": 11,
+       "NOP": 11,
+       "BRA": 10,
+       "IMAD.IADD": 8,
+       "IADD3": 5,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 4.05469,
+      "throughput_sass_inst_per_clk_per_sm": 63.3803
+     }
+    },
+    "OpPOPC": {
+     "sass_expected": "POPC",
+     "ptx": "popc.b32 %0, %0;",
+     "lat_kernel": "lat_kernel<OpPOPC>",
+     "thr_kernel": "thr_kernel<OpPOPC>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 16.9995,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9835,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124871,
+     "lat_raw_cycles_n1": 8931,
+     "lat_raw_cycles_n2": 43746,
+     "sass": {
+      "ptx_token": "popc.b32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "POPC": 192,
+       "NOP": 16,
+       "IMAD.MOV.U32": 6,
+       "BRA": 5,
+       "IADD3": 4,
+       "ISETP.NE.AND": 3,
+       "CS2R": 2,
+       "LOP3.LUT": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "POPC": 512,
+       "IMAD.MOV.U32": 10,
+       "BRA": 10,
+       "NOP": 9,
+       "IMAD.IADD": 7,
+       "IADD3": 6,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 16.9995,
+      "throughput_sass_inst_per_clk_per_sm": 15.9835
+     }
+    },
+    "OpFLO": {
+     "sass_expected": "FLO",
+     "ptx": "bfind.u32 %0, %0;",
+     "lat_kernel": "lat_kernel<OpFLO>",
+     "thr_kernel": "thr_kernel<OpFLO>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 17,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9835,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124871,
+     "lat_raw_cycles_n1": 8931,
+     "lat_raw_cycles_n2": 43747,
+     "sass": {
+      "ptx_token": "bfind.u32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "FLO.U32": 192,
+       "NOP": 16,
+       "IMAD.MOV.U32": 6,
+       "BRA": 5,
+       "IADD3": 4,
+       "ISETP.NE.AND": 3,
+       "CS2R": 2,
+       "LOP3.LUT": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "FLO.U32": 512,
+       "IMAD.MOV.U32": 10,
+       "BRA": 10,
+       "NOP": 9,
+       "IMAD.IADD": 7,
+       "IADD3": 6,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 17.0,
+      "throughput_sass_inst_per_clk_per_sm": 15.9835
+     }
+    },
+    "OpIMNMX": {
+     "sass_expected": "IMNMX,VIMNMX",
+     "ptx": "max.u32 %0, %0, %1;",
+     "lat_kernel": "lat_kernel<OpIMNMX>",
+     "thr_kernel": "thr_kernel<OpIMNMX>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.05273,
+     "throughput_ptx_ops_per_clk_per_sm": 63.3808,
+     "throughput_warp_inst_per_clk_per_smsp": 0.495163,
+     "lat_raw_cycles_n1": 2294,
+     "lat_raw_cycles_n2": 10594,
+     "sass": {
+      "ptx_token": "max.u32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "IMNMX.U32": 192,
+       "NOP": 15,
+       "IMAD.MOV.U32": 6,
+       "BRA": 5,
+       "IADD3": 4,
+       "ISETP.NE.AND": 3,
+       "LDG.E": 2,
+       "CS2R": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "IMNMX.U32": 512,
+       "IMAD.MOV.U32": 11,
+       "NOP": 11,
+       "BRA": 10,
+       "IMAD.IADD": 8,
+       "IADD3": 5,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 4.05273,
+      "throughput_sass_inst_per_clk_per_sm": 63.3808
+     }
+    },
+    "OpEX2": {
+     "sass_expected": "MUFU.EX2",
+     "ptx": "ex2.approx.ftz.f32 %0, %0;",
+     "lat_kernel": "lat_kernel<OpEX2>",
+     "thr_kernel": "thr_kernel<OpEX2>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 17,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9766,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124817,
+     "lat_raw_cycles_n1": 8775,
+     "lat_raw_cycles_n2": 43591,
+     "sass": {
+      "ptx_token": "ex2.approx.ftz.f32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "MUFU.EX2": 192,
+       "NOP": 12,
+       "IMAD.MOV.U32": 7,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "FADD": 2,
+       "CS2R": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "MUFU.EX2": 512,
+       "FADD": 23,
+       "NOP": 14,
+       "BRA": 10,
+       "MOV": 9,
+       "I2F.U32": 7,
+       "S2R": 4,
+       "IMAD": 4
+      },
+      "latency_cycles": 17.0,
+      "throughput_sass_inst_per_clk_per_sm": 15.9766
+     }
+    },
+    "OpRSQ": {
+     "sass_expected": "MUFU.RSQ",
+     "ptx": "rsqrt.approx.ftz.f32 %0, %0;",
+     "lat_kernel": "lat_kernel<OpRSQ>",
+     "thr_kernel": "thr_kernel<OpRSQ>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 17,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9766,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124817,
+     "lat_raw_cycles_n1": 8775,
+     "lat_raw_cycles_n2": 43591,
+     "sass": {
+      "ptx_token": "rsqrt.approx.ftz.f32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "MUFU.RSQ": 192,
+       "NOP": 12,
+       "IMAD.MOV.U32": 7,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "FADD": 2,
+       "CS2R": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "MUFU.RSQ": 512,
+       "FADD": 23,
+       "NOP": 14,
+       "BRA": 10,
+       "MOV": 9,
+       "I2F.U32": 7,
+       "S2R": 4,
+       "IMAD": 4
+      },
+      "latency_cycles": 17.0,
+      "throughput_sass_inst_per_clk_per_sm": 15.9766
+     }
+    },
+    "OpRCP": {
+     "sass_expected": "MUFU.RCP",
+     "ptx": "{.reg .f32 t; add.f32 t, %0, %1; rcp.approx.ftz.f32 %0, t;}",
+     "lat_kernel": "lat_kernel<OpRCP>",
+     "thr_kernel": "thr_kernel<OpRCP>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 23,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9646,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124724,
+     "lat_raw_cycles_n1": 11815,
+     "lat_raw_cycles_n2": 58919,
+     "sass": {
+      "ptx_token": "rcp.approx.ftz.f32",
+      "lat_sass_count": 64,
+      "lat_ptx_count": 64,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "FADD": 66,
+       "MUFU.RCP": 64,
+       "NOP": 16,
+       "MOV": 7,
+       "BRA": 3,
+       "LDG.E": 2,
+       "CS2R": 2,
+       "ISETP.GE.AND": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "FADD": 535,
+       "MUFU.RCP": 512,
+       "MOV": 12,
+       "BRA": 10,
+       "NOP": 8,
+       "I2F.U32": 7,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 23.0,
+      "throughput_sass_inst_per_clk_per_sm": 15.9646,
+      "composite_with": "OpFADD"
+     }
+    },
+    "OpSQRT": {
+     "sass_expected": "MUFU.SQRT",
+     "ptx": "sqrt.approx.ftz.f32 %0, %0;",
+     "lat_kernel": "lat_kernel<OpSQRT>",
+     "thr_kernel": "thr_kernel<OpSQRT>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 17,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9766,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124817,
+     "lat_raw_cycles_n1": 8775,
+     "lat_raw_cycles_n2": 43591,
+     "sass": {
+      "ptx_token": "sqrt.approx.ftz.f32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "MUFU.SQRT": 192,
+       "NOP": 12,
+       "IMAD.MOV.U32": 7,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "FADD": 2,
+       "CS2R": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "MUFU.SQRT": 512,
+       "FADD": 23,
+       "NOP": 14,
+       "BRA": 10,
+       "MOV": 9,
+       "I2F.U32": 7,
+       "S2R": 4,
+       "IMAD": 4
+      },
+      "latency_cycles": 17.0,
+      "throughput_sass_inst_per_clk_per_sm": 15.9766
+     }
+    },
+    "OpLG2": {
+     "sass_expected": "MUFU.LG2",
+     "ptx": "lg2.approx.ftz.f32 %0, %0;",
+     "lat_kernel": "lat_kernel<OpLG2>",
+     "thr_kernel": "thr_kernel<OpLG2>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 17,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9766,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124817,
+     "lat_raw_cycles_n1": 8775,
+     "lat_raw_cycles_n2": 43591,
+     "sass": {
+      "ptx_token": "lg2.approx.ftz.f32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "MUFU.LG2": 192,
+       "NOP": 12,
+       "IMAD.MOV.U32": 7,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "FADD": 2,
+       "CS2R": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "MUFU.LG2": 512,
+       "FADD": 23,
+       "NOP": 14,
+       "BRA": 10,
+       "MOV": 9,
+       "I2F.U32": 7,
+       "S2R": 4,
+       "IMAD": 4
+      },
+      "latency_cycles": 17.0,
+      "throughput_sass_inst_per_clk_per_sm": 15.9766
+     }
+    },
+    "OpTANH": {
+     "sass_expected": "MUFU.TANH",
+     "ptx": "tanh.approx.f32 %0, %0;",
+     "lat_kernel": "lat_kernel<OpTANH>",
+     "thr_kernel": "thr_kernel<OpTANH>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 17,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9766,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124817,
+     "lat_raw_cycles_n1": 8775,
+     "lat_raw_cycles_n2": 43591,
+     "sass": {
+      "ptx_token": "tanh.approx.f32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "MUFU.TANH": 192,
+       "NOP": 12,
+       "IMAD.MOV.U32": 7,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "FADD": 2,
+       "CS2R": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "MUFU.TANH": 512,
+       "FADD": 23,
+       "NOP": 14,
+       "BRA": 10,
+       "MOV": 9,
+       "I2F.U32": 7,
+       "S2R": 4,
+       "IMAD": 4
+      },
+      "latency_cycles": 17.0,
+      "throughput_sass_inst_per_clk_per_sm": 15.9766
+     }
+    },
+    "OpSIN": {
+     "sass_expected": "MUFU.SIN",
+     "ptx": "sin.approx.ftz.f32 %0, %0;",
+     "lat_kernel": "lat_kernel<OpSIN>",
+     "thr_kernel": "thr_kernel<OpSIN>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 22.9844,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9688,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124756,
+     "lat_raw_cycles_n1": 11844,
+     "lat_raw_cycles_n2": 58916,
+     "sass": {
+      "ptx_token": "sin.approx.ftz.f32",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "FMUL.RZ": 192,
+       "MUFU.SIN": 192,
+       "NOP": 11,
+       "MOV": 6,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "FADD": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "FMUL.RZ": 512,
+       "MUFU.SIN": 512,
+       "FADD": 23,
+       "NOP": 14,
+       "MOV": 10,
+       "BRA": 10,
+       "I2F.U32": 7,
+       "S2R": 4
+      },
+      "latency_cycles": 22.9844,
+      "throughput_sass_inst_per_clk_per_sm": 15.9688,
+      "composite_with": "OpFMUL"
+     }
+    },
+    "OpDFMA": {
+     "sass_expected": "DFMA",
+     "ptx": "fma.rn.f64 %0, %0, %1, %2;",
+     "lat_kernel": "lat_kernel<OpDFMA>",
+     "thr_kernel": "thr_kernel<OpDFMA>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 6.04688,
+     "throughput_ptx_ops_per_clk_per_sm": 30.8264,
+     "throughput_warp_inst_per_clk_per_smsp": 0.240831,
+     "lat_raw_cycles_n1": 3174,
+     "lat_raw_cycles_n2": 15558,
+     "sass": {
+      "ptx_token": "fma.rn.f64",
+      "lat_sass_count": 192,
+      "lat_ptx_count": 192,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "DFMA": 192,
+       "NOP": 10,
+       "IMAD.MOV.U32": 7,
+       "BRA": 5,
+       "LDG.E.64": 3,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "DADD": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "DFMA": 512,
+       "DADD": 23,
+       "NOP": 14,
+       "BRA": 10,
+       "IMAD.MOV.U32": 9,
+       "I2F.F64.U32": 7,
+       "S2R": 4,
+       "MOV": 4
+      },
+      "latency_cycles": 6.04688,
+      "throughput_sass_inst_per_clk_per_sm": 30.8264
+     }
+    },
+    "OpDADD": {
+     "sass_expected": "DADD",
+     "ptx": "add.f64 %0, %0, %1;",
+     "lat_kernel": "lat_kernel<OpDADD>",
+     "thr_kernel": "thr_kernel<OpDADD>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 6.05469,
+     "throughput_ptx_ops_per_clk_per_sm": 30.8142,
+     "throughput_warp_inst_per_clk_per_smsp": 0.240736,
+     "lat_raw_cycles_n1": 3176,
+     "lat_raw_cycles_n2": 15576,
+     "sass": {
+      "ptx_token": "add.f64",
+      "lat_sass_count": 194,
+      "lat_ptx_count": 194,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "DADD": 194,
+       "NOP": 11,
+       "IMAD.MOV.U32": 7,
+       "BRA": 5,
+       "ISETP.NE.AND": 3,
+       "IADD3": 3,
+       "LDG.E.64": 2,
+       "CS2R": 2
+      },
+      "thr_sass_count": 535,
+      "thr_ptx_count": 535,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "DADD": 535,
+       "NOP": 15,
+       "BRA": 10,
+       "IMAD.MOV.U32": 9,
+       "I2F.F64.U32": 7,
+       "S2R": 4,
+       "MOV": 4,
+       "IMAD": 4
+      },
+      "latency_cycles": 6.05469,
+      "throughput_sass_inst_per_clk_per_sm": 30.8142
+     }
+    },
+    "OpF2FBF": {
+     "sass_expected": "F2FP",
+     "ptx": "{.reg .f32 t; mov.b32 t, %0; cvt.rn.bf16x2.f32 %0, t, t;}",
+     "lat_kernel": "lat_kernel<OpF2FBF>",
+     "thr_kernel": "thr_kernel<OpF2FBF>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 4.10889,
+     "throughput_ptx_ops_per_clk_per_sm": 63.3959,
+     "throughput_warp_inst_per_clk_per_smsp": 0.49528,
+     "lat_raw_cycles_n1": 2305,
+     "lat_raw_cycles_n2": 10720,
+     "sass": {
+      "ptx_token": "cvt.rn.bf16x2.f32",
+      "lat_sass_count": 64,
+      "lat_ptx_count": 64,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "F2FP.BF16.PACK_AB": 64,
+       "NOP": 13,
+       "IMAD.MOV.U32": 7,
+       "IADD3": 3,
+       "BRA": 3,
+       "CS2R": 2,
+       "ISETP.GE.AND": 2,
+       "EXIT": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "F2FP.BF16.PACK_AB": 512,
+       "IMAD.MOV.U32": 11,
+       "BRA": 10,
+       "NOP": 9,
+       "IMAD.IADD": 8,
+       "IADD3": 5,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 4.10889,
+      "throughput_sass_inst_per_clk_per_sm": 63.3959
+     }
+    },
+    "OpF2I": {
+     "sass_expected": "F2I",
+     "ptx": "{.reg .f32 t; mov.b32 t, %0; cvt.rzi.s32.f32 %0, t;}",
+     "lat_kernel": "lat_kernel<OpF2I>",
+     "thr_kernel": "thr_kernel<OpF2I>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 17,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9836,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124872,
+     "lat_raw_cycles_n1": 8890,
+     "lat_raw_cycles_n2": 43706,
+     "sass": {
+      "ptx_token": "cvt.rzi.s32.f32",
+      "lat_sass_count": 64,
+      "lat_ptx_count": 64,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "F2I.TRUNC.NTZ": 64,
+       "NOP": 13,
+       "IMAD.MOV.U32": 5,
+       "IADD3": 3,
+       "BRA": 3,
+       "CS2R": 2,
+       "ISETP.GE.AND": 2,
+       "EXIT": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "F2I.TRUNC.NTZ": 512,
+       "IMAD.MOV.U32": 10,
+       "BRA": 10,
+       "NOP": 9,
+       "IMAD.IADD": 7,
+       "IADD3": 6,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 17.0,
+      "throughput_sass_inst_per_clk_per_sm": 15.9836
+     }
+    },
+    "OpI2F": {
+     "sass_expected": "I2F",
+     "ptx": "{.reg .f32 t; cvt.rn.f32.s32 t, %0; mov.b32 %0, t;}",
+     "lat_kernel": "lat_kernel<OpI2F>",
+     "thr_kernel": "thr_kernel<OpI2F>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 17,
+     "throughput_ptx_ops_per_clk_per_sm": 15.9835,
+     "throughput_warp_inst_per_clk_per_smsp": 0.124871,
+     "lat_raw_cycles_n1": 8905,
+     "lat_raw_cycles_n2": 43721,
+     "sass": {
+      "ptx_token": "cvt.rn.f32.s32",
+      "lat_sass_count": 64,
+      "lat_ptx_count": 64,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "I2F": 64,
+       "NOP": 13,
+       "IMAD.MOV.U32": 5,
+       "IADD3": 3,
+       "BRA": 3,
+       "CS2R": 2,
+       "ISETP.GE.AND": 2,
+       "EXIT": 2
+      },
+      "thr_sass_count": 512,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 1.0,
+      "thr_opcodes_top": {
+       "I2F": 512,
+       "IMAD.MOV.U32": 10,
+       "BRA": 10,
+       "NOP": 9,
+       "IMAD.IADD": 7,
+       "IADD3": 6,
+       "S2R": 4,
+       "CS2R": 3
+      },
+      "latency_cycles": 17.0,
+      "throughput_sass_inst_per_clk_per_sm": 15.9835
+     }
+    },
+    "OpSHFL": {
+     "sass_expected": "SHFL",
+     "ptx": "{.reg .b32 t; add.u32 t, %0, %1; shfl.sync.bfly.b32 %0, t, %2, 0x1f, 0xffffffff;}",
+     "lat_kernel": "lat_kernel<OpSHFL>",
+     "thr_kernel": "thr_kernel<OpSHFL>",
+     "ptx_ops_per_iter_lat": 64,
+     "ptx_ops_per_iter_thr": 512,
+     "latency_cycles_per_ptx_op": 31,
+     "throughput_ptx_ops_per_clk_per_sm": 35.6956,
+     "throughput_warp_inst_per_clk_per_smsp": 0.278872,
+     "lat_raw_cycles_n1": 16040,
+     "lat_raw_cycles_n2": 79528,
+     "sass": {
+      "ptx_token": "shfl.sync.bfly.b32",
+      "lat_sass_count": 64,
+      "lat_ptx_count": 64,
+      "lat_sass_per_ptx": 1.0,
+      "lat_opcodes_top": {
+       "SHFL.BFLY": 64,
+       "IADD3": 34,
+       "IMAD.IADD": 33,
+       "NOP": 11,
+       "IMAD.MOV.U32": 5,
+       "LDG.E": 3,
+       "BRA": 3,
+       "MOV": 2
+      },
+      "thr_sass_count": 448,
+      "thr_ptx_count": 512,
+      "thr_sass_per_ptx": 0.875,
+      "thr_opcodes_top": {
+       "SHFL.BFLY": 448,
+       "IMAD.IADD": 239,
+       "IADD3": 222,
+       "LEA": 19,
+       "IMAD": 13,
+       "BRA": 10,
+       "NOP": 10,
+       "IMAD.MOV.U32": 6
+      },
+      "latency_cycles": 31.0,
+      "throughput_sass_inst_per_clk_per_sm": 31.233649999999997,
+      "composite_with": "OpIADD"
+     }
+    }
+   }
+  },
+  "cpasync": {
+   "bench": "cpasync",
+   "device": {
+    "name": "NVIDIA A100 80GB PCIe MIG 3g.40gb",
+    "cc_major": 8,
+    "cc_minor": 0,
+    "sm_count": 42,
+    "clock_khz_reported": 1410000
+   },
+   "sm_clock_mhz_measured": 1409.49,
+   "l2_bytes": 20971520,
+   "mem_clock_khz": 1512000,
+   "bus_width_bits": 2560,
+   "dram_peak_gbps_spec": 967.68,
+   "latency": {
+    "lds_hop_cycles": 29.113,
+    "l2": {
+     "buffer_bytes": 5242880,
+     "ld_global_cg": {
+      "hop_cycles": 201.826
+     },
+     "cp_async_cg16": {
+      "hop_cycles": 233.932,
+      "copy_cycles_excl_lds": 204.819
+     },
+     "cp_async_ca16": {
+      "hop_cycles": 236.064,
+      "copy_cycles_excl_lds": 206.951
+     },
+     "cp_async_ca4": {
+      "hop_cycles": 236.073,
+      "copy_cycles_excl_lds": 206.96
+     },
+     "ld_global_ca": {
+      "hop_cycles": 201.982
+     }
+    },
+    "dram": {
+     "buffer_bytes": 335544320,
+     "ld_global_cg": {
+      "hop_cycles": 476.49
+     },
+     "cp_async_cg16": {
+      "hop_cycles": 508.083,
+      "copy_cycles_excl_lds": 478.97
+     },
+     "cp_async_ca16": {
+      "hop_cycles": 509.547,
+      "copy_cycles_excl_lds": 480.434
+     },
+     "cp_async_ca4": {
+      "hop_cycles": 510.299,
+      "copy_cycles_excl_lds": 481.186
+     },
+     "ld_global_ca": {
+      "hop_cycles": 475.494
+     }
+    }
+   },
+   "bandwidth": {
+    "l2": {
+     "buffer_bytes": 10485760,
+     "ld_global_v4_st_shared": {
+      "sweep": [
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 339.125
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 331.492
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 6144,
+        "gbps": 323.834
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 14336,
+        "gbps": 308.079
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 648.069
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 634.731
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 624.971
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 600.421
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1117.65
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1099.37
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 1086.61
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 1071.29
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 571.93
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 562.843
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 550.145
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 534.333
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1025.6
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1014.29
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 988.29
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 985.133
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 1565.97
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 1536.15
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 49152,
+        "gbps": 1448.71
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 114688,
+        "gbps": 1437.59
+       }
+      ],
+      "best_gbps": 1565.97
+     },
+     "cp_async_cg16": {
+      "sweep": [
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 338.862
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 611.058
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 6144,
+        "gbps": 940.764
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 14336,
+        "gbps": 836.719
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 651.209
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 1101.91
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 1517.04
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 1377.89
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1136.05
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1625.7
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 1797.97
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 1741.24
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 567.473
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 1015.47
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 1281.25
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 1174.22
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1037.78
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1588.27
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 1702.79
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 1579.66
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 1585.87
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 1869.79
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 49152,
+        "gbps": 1824.24
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 114688,
+        "gbps": 1675.04
+       }
+      ],
+      "best_gbps": 1869.79
+     },
+     "cp_async_ca16": {
+      "sweep": [
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 329.782
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 591.547
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 6144,
+        "gbps": 925.813
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 14336,
+        "gbps": 834.854
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 633.504
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 1061.53
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 1464.9
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 1321.96
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1096.84
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1543.39
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 1603.82
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 1464.49
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 552.464
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 960.234
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 1241.21
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 1142.24
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 992.594
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1501.4
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 1592.13
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 1492
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 1497.54
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 1732.04
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 49152,
+        "gbps": 1535.7
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 114688,
+        "gbps": 1482.3
+       }
+      ],
+      "best_gbps": 1732.04
+     },
+     "cp_async_ca8": {
+      "sweep": [
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 315.02
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 567.841
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 6144,
+        "gbps": 871.345
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 14336,
+        "gbps": 785.803
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 602.561
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 983.655
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 1238.57
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 1138.52
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1021.41
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1200.57
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 1240.92
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 1108.9
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 522.511
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 899.911
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 1089.32
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 1031.25
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 915.627
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 1275.02
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 1280.63
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 1132.62
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 1287.86
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 1337.13
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 49152,
+        "gbps": 1275.02
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 114688,
+        "gbps": 1146.24
+       }
+      ],
+      "best_gbps": 1337.13
+     },
+     "cp_async_ca4": {
+      "sweep": [
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 291.822
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 509.958
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 6144,
+        "gbps": 695.804
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 14336,
+        "gbps": 663.236
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 550.491
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 797.275
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 849.462
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 810.212
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 832.467
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 843.313
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 816.648
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 761.161
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 456.061
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 732.655
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 810.838
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 754.914
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 750.806
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 861.891
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 865.876
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 773.857
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 870.477
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 865.733
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 49152,
+        "gbps": 845.217
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 114688,
+        "gbps": 770.558
+       }
+      ],
+      "best_gbps": 870.477
+     }
+    },
+    "dram": {
+     "buffer_bytes": 2147483648,
+     "ld_global_v4_st_shared": {
+      "sweep": [
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 179.538
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 177.681
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 6144,
+        "gbps": 175.602
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 14336,
+        "gbps": 169.795
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 343.621
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 340.326
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 334.521
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 324.014
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 593.018
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 589.414
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 583.753
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 566.133
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 320.865
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 318.51
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 312.859
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 302.113
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 567.21
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 563.784
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 555.5
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 541.738
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 807.82
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 804.971
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 49152,
+        "gbps": 797.491
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 114688,
+        "gbps": 785.698
+       }
+      ],
+      "best_gbps": 807.82
+     },
+     "cp_async_cg16": {
+      "sweep": [
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 179.157
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 333.757
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 6144,
+        "gbps": 566.63
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 14336,
+        "gbps": 779.303
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 342.212
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 588.442
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 810.777
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 834.853
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 586.139
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 807.645
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 834.905
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 877.687
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 319.004
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 561.247
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 796.923
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 830.524
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 559.003
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 802.076
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 835.009
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 876.484
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 791.182
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 832.11
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 49152,
+        "gbps": 877.998
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 114688,
+        "gbps": 903.762
+       }
+      ],
+      "best_gbps": 903.762
+     },
+     "cp_async_ca16": {
+      "sweep": [
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 177.181
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 329.149
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 6144,
+        "gbps": 560.277
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 14336,
+        "gbps": 773.768
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 337.741
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 580.01
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 801.482
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 828.464
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 587.942
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 811.915
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 834.013
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 828.883
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 311.802
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 549.775
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 789.655
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 826.79
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 558.603
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 803.189
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 835.998
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 870.775
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 802.91
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 833.713
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 49152,
+        "gbps": 874.314
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 114688,
+        "gbps": 871.374
+       }
+      ],
+      "best_gbps": 874.314
+     },
+     "cp_async_ca8": {
+      "sweep": [
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 173.851
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 320.304
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 6144,
+        "gbps": 547.394
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 14336,
+        "gbps": 759.021
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 328.959
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 563.67
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 787.118
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 825.64
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 573.688
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 797.273
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 829.477
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 826.841
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 301.468
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 531.892
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 775.484
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 825.813
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 537.908
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 786.712
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 832.988
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 832.141
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 792.949
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 834.718
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 49152,
+        "gbps": 832.1
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 114688,
+        "gbps": 834.013
+       }
+      ],
+      "best_gbps": 834.718
+     },
+     "cp_async_ca4": {
+      "sweep": [
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 166.022
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 2048,
+        "gbps": 303.513
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 6144,
+        "gbps": 523.846
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 14336,
+        "gbps": 682.722
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 316.207
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 534.102
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 746.102
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 781.071
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 548.853
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 751.6
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 767.854
+       },
+       {
+        "threads": 128,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 765.515
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 278.109
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 4096,
+        "gbps": 480.282
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 12288,
+        "gbps": 723.109
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 1,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 28672,
+        "gbps": 777.308
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 498.021
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 8192,
+        "gbps": 726.703
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 24576,
+        "gbps": 788.116
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 2,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 57344,
+        "gbps": 782.62
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 1,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 746.093
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 2,
+        "smem_bytes_in_flight_per_sm": 16384,
+        "gbps": 774.974
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 4,
+        "smem_bytes_in_flight_per_sm": 49152,
+        "gbps": 793.315
+       },
+       {
+        "threads": 256,
+        "ctas_per_sm": 4,
+        "stages": 8,
+        "smem_bytes_in_flight_per_sm": 114688,
+        "gbps": 790.791
+       }
+      ],
+      "best_gbps": 793.315
+     }
+    }
+   }
+  },
+  "l2part": {
+   "bench": "l2part",
+   "device": {
+    "name": "NVIDIA A100 80GB PCIe MIG 3g.40gb",
+    "cc_major": 8,
+    "cc_minor": 0,
+    "sm_count": 42,
+    "clock_khz_reported": 1410000
+   },
+   "sm_clock_mhz_measured": 1409.79,
+   "lines": 2048,
+   "window_bytes": 67108864,
+   "cluster_near_cycles": 209.789,
+   "cluster_far_cycles": 229.81,
+   "threshold_cycles": 219.8,
+   "far_minus_near_cycles": 20.0208,
+   "best_single_address_bit": 18,
+   "best_single_bit_accuracy": 0.893066,
+   "sm": [
+    {
+     "smid": 0,
+     "side": 0,
+     "near_mean": 208.809,
+     "far_mean": 220.418,
+     "far_fraction": 0.0385742
+    },
+    {
+     "smid": 1,
+     "side": 0,
+     "near_mean": 210.334,
+     "far_mean": 221.108,
+     "far_fraction": 0.0810547
+    },
+    {
+     "smid": 2,
+     "side": 0,
+     "near_mean": 207.258,
+     "far_mean": 220.629,
+     "far_fraction": 0.0473633
+    },
+    {
+     "smid": 3,
+     "side": 0,
+     "near_mean": 209.561,
+     "far_mean": 221.879,
+     "far_fraction": 0.104492
+    },
+    {
+     "smid": 4,
+     "side": 0,
+     "near_mean": 206.712,
+     "far_mean": 223.137,
+     "far_fraction": 0.188477
+    },
+    {
+     "smid": 5,
+     "side": 0,
+     "near_mean": 208.446,
+     "far_mean": 224.445,
+     "far_fraction": 0.268555
+    },
+    {
+     "smid": 6,
+     "side": 1,
+     "near_mean": 217.776,
+     "far_mean": 229.764,
+     "far_fraction": 0.875977
+    },
+    {
+     "smid": 7,
+     "side": 1,
+     "near_mean": 218.582,
+     "far_mean": 230.926,
+     "far_fraction": 0.94043
+    },
+    {
+     "smid": 8,
+     "side": 1,
+     "near_mean": 215.919,
+     "far_mean": 228.232,
+     "far_fraction": 0.781738
+    },
+    {
+     "smid": 9,
+     "side": 1,
+     "near_mean": 216.893,
+     "far_mean": 229.528,
+     "far_fraction": 0.839844
+    },
+    {
+     "smid": 10,
+     "side": 1,
+     "near_mean": 216.507,
+     "far_mean": 230.278,
+     "far_fraction": 0.818848
+    },
+    {
+     "smid": 11,
+     "side": 1,
+     "near_mean": 216.99,
+     "far_mean": 231.124,
+     "far_fraction": 0.901367
+    },
+    {
+     "smid": 12,
+     "side": 1,
+     "near_mean": null,
+     "far_mean": 238.164,
+     "far_fraction": 1
+    },
+    {
+     "smid": 13,
+     "side": 1,
+     "near_mean": null,
+     "far_mean": 236.185,
+     "far_fraction": 1
+    },
+    {
+     "smid": 14,
+     "side": 1,
+     "near_mean": null,
+     "far_mean": 235.439,
+     "far_fraction": 1
+    },
+    {
+     "smid": 15,
+     "side": 1,
+     "near_mean": 218.373,
+     "far_mean": 233.129,
+     "far_fraction": 0.959473
+    },
+    {
+     "smid": 16,
+     "side": 1,
+     "near_mean": null,
+     "far_mean": 237.718,
+     "far_fraction": 1
+    },
+    {
+     "smid": 17,
+     "side": 1,
+     "near_mean": 219,
+     "far_mean": 234.864,
+     "far_fraction": 0.992188
+    },
+    {
+     "smid": 18,
+     "side": 1,
+     "near_mean": 215.236,
+     "far_mean": 226.351,
+     "far_fraction": 0.721191
+    },
+    {
+     "smid": 19,
+     "side": 1,
+     "near_mean": 216.114,
+     "far_mean": 227.668,
+     "far_fraction": 0.799316
+    },
+    {
+     "smid": 20,
+     "side": 1,
+     "near_mean": 214.081,
+     "far_mean": 225.411,
+     "far_fraction": 0.571289
+    },
+    {
+     "smid": 21,
+     "side": 1,
+     "near_mean": 214.246,
+     "far_mean": 226.143,
+     "far_fraction": 0.712402
+    },
+    {
+     "smid": 22,
+     "side": 1,
+     "near_mean": 214.474,
+     "far_mean": 228.338,
+     "far_fraction": 0.601562
+    },
+    {
+     "smid": 23,
+     "side": 1,
+     "near_mean": 215.515,
+     "far_mean": 229.168,
+     "far_fraction": 0.691895
+    },
+    {
+     "smid": 24,
+     "side": 0,
+     "near_mean": 205.262,
+     "far_mean": null,
+     "far_fraction": 0
+    },
+    {
+     "smid": 25,
+     "side": 0,
+     "near_mean": 207.243,
+     "far_mean": 220,
+     "far_fraction": 0.00146484
+    },
+    {
+     "smid": 26,
+     "side": 0,
+     "near_mean": 203.819,
+     "far_mean": null,
+     "far_fraction": 0
+    },
+    {
+     "smid": 27,
+     "side": 0,
+     "near_mean": 205.832,
+     "far_mean": null,
+     "far_fraction": 0
+    },
+    {
+     "smid": 28,
+     "side": 0,
+     "near_mean": 204.14,
+     "far_mean": 221.315,
+     "far_fraction": 0.0898438
+    },
+    {
+     "smid": 29,
+     "side": 0,
+     "near_mean": 205.971,
+     "far_mean": 222.99,
+     "far_fraction": 0.102539
+    },
+    {
+     "smid": 30,
+     "side": 1,
+     "near_mean": 217.144,
+     "far_mean": 229.111,
+     "far_fraction": 0.847656
+    },
+    {
+     "smid": 31,
+     "side": 1,
+     "near_mean": 216.312,
+     "far_mean": 228.2,
+     "far_fraction": 0.843262
+    },
+    {
+     "smid": 32,
+     "side": 1,
+     "near_mean": 214.733,
+     "far_mean": 226.819,
+     "far_fraction": 0.734863
+    },
+    {
+     "smid": 33,
+     "side": 1,
+     "near_mean": 214.414,
+     "far_mean": 226.222,
+     "far_fraction": 0.703125
+    },
+    {
+     "smid": 34,
+     "side": 1,
+     "near_mean": 215.92,
+     "far_mean": 229.492,
+     "far_fraction": 0.731934
+    },
+    {
+     "smid": 35,
+     "side": 1,
+     "near_mean": 215.503,
+     "far_mean": 229.132,
+     "far_fraction": 0.693359
+    },
+    {
+     "smid": 36,
+     "side": 1,
+     "near_mean": 213.159,
+     "far_mean": 224.742,
+     "far_fraction": 0.601074
+    },
+    {
+     "smid": 37,
+     "side": 1,
+     "near_mean": 213.55,
+     "far_mean": 225.99,
+     "far_fraction": 0.695312
+    },
+    {
+     "smid": 38,
+     "side": 0,
+     "near_mean": 212.798,
+     "far_mean": 224.149,
+     "far_fraction": 0.445312
+    },
+    {
+     "smid": 39,
+     "side": 1,
+     "near_mean": 213.347,
+     "far_mean": 225.529,
+     "far_fraction": 0.611816
+    },
+    {
+     "smid": 40,
+     "side": 1,
+     "near_mean": 212.001,
+     "far_mean": 227.124,
+     "far_fraction": 0.508301
+    },
+    {
+     "smid": 41,
+     "side": 1,
+     "near_mean": 213.388,
+     "far_mean": 228.485,
+     "far_fraction": 0.617676
+    }
+   ],
+   "sms_side0": 13,
+   "sms_side1": 29,
+   "line_home_bits": "00000000000000000000000000000000000000000000000000000000000000001111111100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001111111100000000000000000000000011111111000000000000000000000000000000000000000000000000001000000000000000000000000000000000000011111111000000000000000000000000111111110000000000000000000000000000000000000000111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011111111000000001111111100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111111110000000000000000000000001111111100000000000000000000000000000000000000000000000000000000000000000000000011111111000000000000000000000000000000000000000011111111000000000000000000000000000000000000000000000000000000000000000000000000111111110000000000000000000000000001000000000000000010001000010000000000000000000000000100000000101000110000000100000100000000000000000000100000000000000001000000010000000000000000100010000100000000000000000000000001000000001010001100000001000001000000000000000000001000000000000000000000010001000000100000000010000000000000000000100000000100000001000000001000000000100000000000000000000000000000100000000001000000000100010000001000000000100000000000000000001000000001000000010000000010000000001000000000000000000000000000000000000000010010001010100011010000010000000000001000100000001000000010000000010000000001000000001000000000000000000000000000000100000110000000100010101000110100000100000000000010001000000010000000100000000100000000010000000010000000000000000000000000000001000001100000000000010000100000000010000000000000000000000000000000000110000000000000010001000000000000001000100000001000000010000000000000000000000100001000000000100000000000000000000000000000000001100000000000000100010000000000000010001000100010000000100000000000000000000100"
+  },
+  "mem": {
+   "bench": "mem",
+   "device": {
+    "name": "NVIDIA A100 80GB PCIe MIG 3g.40gb",
+    "cc_major": 8,
+    "cc_minor": 0,
+    "sm_count": 42,
+    "clock_khz_reported": 1410000
+   },
+   "sm_clock_mhz_measured": 1409.29,
+   "l2_bytes": 20971520,
+   "smem_per_sm_bytes": 167936,
+   "smem_per_block_optin_bytes": 166912,
+   "regs_per_sm": 65536,
+   "max_threads_per_sm": 2048,
+   "smem": {
+    "ld_shared_latency_cycles": 29.0608,
+    "bank_conflict_sweep": [
+     {
+      "stride_words": 1,
+      "cycles_per_warp_load_per_sm": 1.00746,
+      "bytes_per_clk_per_sm": 127.052
+     },
+     {
+      "stride_words": 2,
+      "cycles_per_warp_load_per_sm": 2.0055,
+      "bytes_per_clk_per_sm": 63.8245
+     },
+     {
+      "stride_words": 4,
+      "cycles_per_warp_load_per_sm": 4.00549,
+      "bytes_per_clk_per_sm": 31.9561
+     },
+     {
+      "stride_words": 8,
+      "cycles_per_warp_load_per_sm": 8.00575,
+      "bytes_per_clk_per_sm": 15.9885
+     },
+     {
+      "stride_words": 16,
+      "cycles_per_warp_load_per_sm": 16.0059,
+      "bytes_per_clk_per_sm": 7.99705
+     },
+     {
+      "stride_words": 32,
+      "cycles_per_warp_load_per_sm": 32.0064,
+      "bytes_per_clk_per_sm": 3.9992
+     },
+     {
+      "stride_words": 33,
+      "cycles_per_warp_load_per_sm": 1.00753,
+      "bytes_per_clk_per_sm": 127.044
+     }
+    ],
+    "ld_shared_v4_bytes_per_clk_per_sm": 127.121
+   },
+   "bandwidth": {
+    "hbm_read_GBps": 857.682,
+    "hbm_write_GBps": 784.601,
+    "hbm_copy_GBps_rd_plus_wr": 813.907,
+    "hbm_peak_GBps_from_attrs": 967.68,
+    "mem_bus_width_bits": 2560,
+    "mem_clock_khz": 1512000,
+    "l2_read_GBps_fp0.125": 1671.84,
+    "l2_read_bytes_per_clk_per_sm_fp0.125": 28.2451,
+    "l2_read_GBps_fp0.250": 1875.14,
+    "l2_read_bytes_per_clk_per_sm_fp0.250": 31.6798,
+    "l2_read_GBps_fp0.500": 2037.65,
+    "l2_read_bytes_per_clk_per_sm_fp0.500": 34.4254,
+    "l1_read_bytes_per_clk_per_sm": 81.0415,
+    "hbm_read_vs_sms": [
+     {
+      "sms": 1,
+      "GBps": 37.0038,
+      "GBps_per_sm": 37.0038
+     },
+     {
+      "sms": 2,
+      "GBps": 72.4893,
+      "GBps_per_sm": 36.2447
+     },
+     {
+      "sms": 4,
+      "GBps": 140.421,
+      "GBps_per_sm": 35.1052
+     },
+     {
+      "sms": 8,
+      "GBps": 262.99,
+      "GBps_per_sm": 32.8738
+     },
+     {
+      "sms": 16,
+      "GBps": 489.417,
+      "GBps_per_sm": 30.5886
+     },
+     {
+      "sms": 32,
+      "GBps": 767.388,
+      "GBps_per_sm": 23.9809
+     },
+     {
+      "sms": 42,
+      "GBps": 851.216,
+      "GBps_per_sm": 20.267
+     }
+    ]
+   },
+   "latency_sweep": [
+    {
+     "footprint_bytes": 8192,
+     "warmed": true,
+     "ld_ca_cycles": 38.9341,
+     "ld_cg_cycles": 203.248,
+     "ld_cg_first_pass_cycles": 203.24,
+     "ld_weak_noalloc_cycles": 203.173
+    },
+    {
+     "footprint_bytes": 16384,
+     "warmed": true,
+     "ld_ca_cycles": 38.9333,
+     "ld_cg_cycles": 203.2,
+     "ld_cg_first_pass_cycles": 203.178,
+     "ld_weak_noalloc_cycles": 203.124
+    },
+    {
+     "footprint_bytes": 32768,
+     "warmed": true,
+     "ld_ca_cycles": 38.9333,
+     "ld_cg_cycles": 203.205,
+     "ld_cg_first_pass_cycles": 203.246,
+     "ld_weak_noalloc_cycles": 211.814
+    },
+    {
+     "footprint_bytes": 65536,
+     "warmed": true,
+     "ld_ca_cycles": 38.9351,
+     "ld_cg_cycles": 202.673,
+     "ld_cg_first_pass_cycles": 202.594,
+     "ld_weak_noalloc_cycles": 257.887
+    },
+    {
+     "footprint_bytes": 131072,
+     "warmed": true,
+     "ld_ca_cycles": 38.9346,
+     "ld_cg_cycles": 202.247,
+     "ld_cg_first_pass_cycles": 202.348,
+     "ld_weak_noalloc_cycles": 305.523
+    },
+    {
+     "footprint_bytes": 262144,
+     "warmed": true,
+     "ld_ca_cycles": 202.057,
+     "ld_cg_cycles": 201.893,
+     "ld_cg_first_pass_cycles": 202.028,
+     "ld_weak_noalloc_cycles": 271.809
+    },
+    {
+     "footprint_bytes": 524288,
+     "warmed": true,
+     "ld_ca_cycles": 202.045,
+     "ld_cg_cycles": 202.013,
+     "ld_cg_first_pass_cycles": 202.089,
+     "ld_weak_noalloc_cycles": 202.096
+    },
+    {
+     "footprint_bytes": 1048576,
+     "warmed": true,
+     "ld_ca_cycles": 202.007,
+     "ld_cg_cycles": 201.93,
+     "ld_cg_first_pass_cycles": 202.161,
+     "ld_weak_noalloc_cycles": 202.054
+    },
+    {
+     "footprint_bytes": 2097152,
+     "warmed": true,
+     "ld_ca_cycles": 201.955,
+     "ld_cg_cycles": 202.001,
+     "ld_cg_first_pass_cycles": 202.07,
+     "ld_weak_noalloc_cycles": 201.946
+    },
+    {
+     "footprint_bytes": 4194304,
+     "warmed": true,
+     "ld_ca_cycles": 202.127,
+     "ld_cg_cycles": 201.92,
+     "ld_cg_first_pass_cycles": 201.803,
+     "ld_weak_noalloc_cycles": 201.888
+    },
+    {
+     "footprint_bytes": 8388608,
+     "warmed": true,
+     "ld_ca_cycles": 202.329,
+     "ld_cg_cycles": 202.104,
+     "ld_cg_first_pass_cycles": 202.07,
+     "ld_weak_noalloc_cycles": 201.983
+    },
+    {
+     "footprint_bytes": 16777216,
+     "warmed": true,
+     "ld_ca_cycles": 201.985,
+     "ld_cg_cycles": 201.678,
+     "ld_cg_first_pass_cycles": 230.375,
+     "ld_weak_noalloc_cycles": 201.903
+    },
+    {
+     "footprint_bytes": 33554432,
+     "warmed": true,
+     "ld_ca_cycles": 202.394,
+     "ld_cg_cycles": 201.859,
+     "ld_cg_first_pass_cycles": 397.962,
+     "ld_weak_noalloc_cycles": 201.879
+    },
+    {
+     "footprint_bytes": 67108864,
+     "warmed": false,
+     "ld_ca_cycles": 481.212,
+     "ld_cg_cycles": 480.323,
+     "ld_cg_first_pass_cycles": 480.323,
+     "ld_weak_noalloc_cycles": 480.438
+    },
+    {
+     "footprint_bytes": 134217728,
+     "warmed": false,
+     "ld_ca_cycles": 484.549,
+     "ld_cg_cycles": 483.044,
+     "ld_cg_first_pass_cycles": 483.044,
+     "ld_weak_noalloc_cycles": 483.579
+    },
+    {
+     "footprint_bytes": 268435456,
+     "warmed": false,
+     "ld_ca_cycles": 485.46,
+     "ld_cg_cycles": 485.516,
+     "ld_cg_first_pass_cycles": 485.516,
+     "ld_weak_noalloc_cycles": 485.232
+    },
+    {
+     "footprint_bytes": 536870912,
+     "warmed": false,
+     "ld_ca_cycles": 485.283,
+     "ld_cg_cycles": 486.034,
+     "ld_cg_first_pass_cycles": 486.034,
+     "ld_weak_noalloc_cycles": 487.044
+    },
+    {
+     "footprint_bytes": 1073741824,
+     "warmed": false,
+     "ld_ca_cycles": 485.338,
+     "ld_cg_cycles": 484.876,
+     "ld_cg_first_pass_cycles": 484.876,
+     "ld_weak_noalloc_cycles": 485.772
+    },
+    {
+     "footprint_bytes": 2147483648,
+     "warmed": false,
+     "ld_ca_cycles": 486.281,
+     "ld_cg_cycles": 486.792,
+     "ld_cg_first_pass_cycles": 486.792,
+     "ld_weak_noalloc_cycles": 484.506
+    },
+    {
+     "footprint_bytes": 4294967296,
+     "warmed": false,
+     "ld_ca_cycles": 486.464,
+     "ld_cg_cycles": 485.999,
+     "ld_cg_first_pass_cycles": 485.999,
+     "ld_weak_noalloc_cycles": 485.172
+    }
+   ],
+   "l2_hit_latency_distribution": {
+    "footprint_bytes": 5242880,
+    "note": "per-load cycles incl. a compare-and-branch and the clock read; spread reflects near/far L2 partitions",
+    "percentiles": {
+     "p1": 247,
+     "p5": 249,
+     "p10": 252,
+     "p25": 259,
+     "p50": 264,
+     "p75": 268,
+     "p90": 271,
+     "p95": 272,
+     "p99": 276
+    },
+    "split_threshold_cycles": 264,
+    "near_mean_cycles": 256.841,
+    "far_mean_cycles": 268.93,
+    "far_fraction": 0.535645,
+    "hist_8cyc": {
+     "240": 101,
+     "248": 591,
+     "256": 1210,
+     "264": 1890,
+     "272": 301
+    }
+   }
+  },
+  "misc": {
+   "bench": "misc",
+   "device": {
+    "name": "NVIDIA A100 80GB PCIe MIG 3g.40gb",
+    "cc_major": 8,
+    "cc_minor": 0,
+    "sm_count": 42,
+    "clock_khz_reported": 1410000
+   },
+   "sm_clock_mhz_measured": 1409.77,
+   "launch": {
+    "sync_roundtrip_us": 5.9389,
+    "back_to_back_us_per_kernel": 1.81387,
+    "graph_us_per_kernel": 0.767984
+   },
+   "syncthreads_cycles": {
+    "32": 23.9756,
+    "128": 29.9707,
+    "256": 37.9805,
+    "512": 53.9863,
+    "1024": 86.0293
+   },
+   "atomics": {
+    "global_distinct_Gops": 28.6053,
+    "global_same_address_Gops": 1.07752,
+    "shared_distinct_ops_per_clk_per_sm": 30.0796,
+    "shared_same_address_ops_per_clk_per_sm": 30.0865
+   }
+  },
+  "mma_sync": {
+   "bench": "mma_sync",
+   "device": {
+    "name": "NVIDIA A100 80GB PCIe MIG 3g.40gb",
+    "cc_major": 8,
+    "cc_minor": 0,
+    "sm_count": 42,
+    "clock_khz_reported": 1410000
+   },
+   "sm_clock_mhz_measured": 1409.39,
+   "mma": {
+    "F16_F32_m16n8k16": {
+     "sass_expected": "HMMA.16816.F32",
+     "lat_kernel": "mma_lat_kernel<F16_F32_m16n8k16>",
+     "shape": [
+      16,
+      8,
+      16
+     ],
+     "flops_per_mma": 4096,
+     "latency_cycles": 24.0088,
+     "lat_raw_cycles_n1": 6351,
+     "lat_raw_cycles_n2": 30936,
+     "sweep": [
+      {
+       "warps": 1,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 166.507
+      },
+      {
+       "warps": 1,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 318.522
+      },
+      {
+       "warps": 1,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 495.459
+      },
+      {
+       "warps": 2,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 331.461
+      },
+      {
+       "warps": 2,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 634.012
+      },
+      {
+       "warps": 2,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 987.534
+      },
+      {
+       "warps": 4,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 660.937
+      },
+      {
+       "warps": 4,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1264.87
+      },
+      {
+       "warps": 4,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1970.49
+      },
+      {
+       "warps": 8,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1315.45
+      },
+      {
+       "warps": 8,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1981.83
+      },
+      {
+       "warps": 8,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 2009.88
+      },
+      {
+       "warps": 16,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1970.72
+      },
+      {
+       "warps": 16,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1991.89
+      },
+      {
+       "warps": 16,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 2019.25
+      },
+      {
+       "warps": 32,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1993.14
+      },
+      {
+       "warps": 32,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 2009.01
+      },
+      {
+       "warps": 32,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 2026.28
+      }
+     ],
+     "throughput_flops_per_clk_per_sm": 2026.28,
+     "throughput_mma_per_clk_per_smsp": 0.123674,
+     "issue_interval_cycles_per_smsp": 8.08575,
+     "best_warps": 32,
+     "best_ilp": 4
+    },
+    "F16_F16_m16n8k16": {
+     "sass_expected": "HMMA.16816.F16",
+     "lat_kernel": "mma_lat_kernel<F16_F16_m16n8k16>",
+     "shape": [
+      16,
+      8,
+      16
+     ],
+     "flops_per_mma": 4096,
+     "latency_cycles": 24.0068,
+     "lat_raw_cycles_n1": 6369,
+     "lat_raw_cycles_n2": 30952,
+     "sweep": [
+      {
+       "warps": 1,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 166.772
+      },
+      {
+       "warps": 1,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 320.96
+      },
+      {
+       "warps": 1,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 498.195
+      },
+      {
+       "warps": 2,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 331.959
+      },
+      {
+       "warps": 2,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 638.986
+      },
+      {
+       "warps": 2,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 992.852
+      },
+      {
+       "warps": 4,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 661.928
+      },
+      {
+       "warps": 4,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1274.67
+      },
+      {
+       "warps": 4,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1981.72
+      },
+      {
+       "warps": 8,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1320.31
+      },
+      {
+       "warps": 8,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1993.43
+      },
+      {
+       "warps": 8,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 2018.13
+      },
+      {
+       "warps": 16,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1984.06
+      },
+      {
+       "warps": 16,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 2004.96
+      },
+      {
+       "warps": 16,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 2028.41
+      },
+      {
+       "warps": 32,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1999.22
+      },
+      {
+       "warps": 32,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 2014.22
+      },
+      {
+       "warps": 32,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 2031.32
+      }
+     ],
+     "throughput_flops_per_clk_per_sm": 2031.32,
+     "throughput_mma_per_clk_per_smsp": 0.123982,
+     "issue_interval_cycles_per_smsp": 8.06567,
+     "best_warps": 32,
+     "best_ilp": 4
+    },
+    "BF16_F32_m16n8k16": {
+     "sass_expected": "HMMA.16816.F32.BF16",
+     "lat_kernel": "mma_lat_kernel<BF16_F32_m16n8k16>",
+     "shape": [
+      16,
+      8,
+      16
+     ],
+     "flops_per_mma": 4096,
+     "latency_cycles": 24.0078,
+     "lat_raw_cycles_n1": 6351,
+     "lat_raw_cycles_n2": 30935,
+     "sweep": [
+      {
+       "warps": 1,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 166.507
+      },
+      {
+       "warps": 1,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 318.522
+      },
+      {
+       "warps": 1,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 495.459
+      },
+      {
+       "warps": 2,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 331.461
+      },
+      {
+       "warps": 2,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 634.012
+      },
+      {
+       "warps": 2,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 987.534
+      },
+      {
+       "warps": 4,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 660.963
+      },
+      {
+       "warps": 4,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1264.87
+      },
+      {
+       "warps": 4,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1970.54
+      },
+      {
+       "warps": 8,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1315.5
+      },
+      {
+       "warps": 8,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1981.95
+      },
+      {
+       "warps": 8,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 2009.91
+      },
+      {
+       "warps": 16,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1970.89
+      },
+      {
+       "warps": 16,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1993.46
+      },
+      {
+       "warps": 16,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 2019.22
+      },
+      {
+       "warps": 32,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1993.37
+      },
+      {
+       "warps": 32,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 2008.92
+      },
+      {
+       "warps": 32,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 2026.22
+      }
+     ],
+     "throughput_flops_per_clk_per_sm": 2026.22,
+     "throughput_mma_per_clk_per_smsp": 0.123671,
+     "issue_interval_cycles_per_smsp": 8.086,
+     "best_warps": 32,
+     "best_ilp": 4
+    },
+    "F16_F32_m16n8k8": {
+     "sass_expected": "HMMA.1688.F32",
+     "lat_kernel": "mma_lat_kernel<F16_F32_m16n8k8>",
+     "shape": [
+      16,
+      8,
+      8
+     ],
+     "flops_per_mma": 2048,
+     "latency_cycles": 17.001,
+     "lat_raw_cycles_n1": 4559,
+     "lat_raw_cycles_n2": 21968,
+     "sweep": [
+      {
+       "warps": 1,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 116.573
+      },
+      {
+       "warps": 1,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 245.798
+      },
+      {
+       "warps": 1,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 483.103
+      },
+      {
+       "warps": 2,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 231.627
+      },
+      {
+       "warps": 2,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 488.221
+      },
+      {
+       "warps": 2,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 959.685
+      },
+      {
+       "warps": 4,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 461.369
+      },
+      {
+       "warps": 4,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 972.254
+      },
+      {
+       "warps": 4,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1911.5
+      },
+      {
+       "warps": 8,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 917.992
+      },
+      {
+       "warps": 8,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1910.08
+      },
+      {
+       "warps": 8,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1970.43
+      },
+      {
+       "warps": 16,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1802.06
+      },
+      {
+       "warps": 16,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1938.83
+      },
+      {
+       "warps": 16,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1989.71
+      },
+      {
+       "warps": 32,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1955.73
+      },
+      {
+       "warps": 32,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1966.1
+      },
+      {
+       "warps": 32,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 2003.06
+      }
+     ],
+     "throughput_flops_per_clk_per_sm": 2003.06,
+     "throughput_mma_per_clk_per_smsp": 0.244514,
+     "issue_interval_cycles_per_smsp": 4.08975,
+     "best_warps": 32,
+     "best_ilp": 4
+    },
+    "TF32_F32_m16n8k8": {
+     "sass_expected": "HMMA.1688.F32.TF32",
+     "lat_kernel": "mma_lat_kernel<TF32_F32_m16n8k8>",
+     "shape": [
+      16,
+      8,
+      8
+     ],
+     "flops_per_mma": 2048,
+     "latency_cycles": 24.0078,
+     "lat_raw_cycles_n1": 6352,
+     "lat_raw_cycles_n2": 30936,
+     "sweep": [
+      {
+       "warps": 1,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 83.2534
+      },
+      {
+       "warps": 1,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 159.261
+      },
+      {
+       "warps": 1,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 247.729
+      },
+      {
+       "warps": 2,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 165.73
+      },
+      {
+       "warps": 2,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 317.006
+      },
+      {
+       "warps": 2,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 493.738
+      },
+      {
+       "warps": 4,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 330.481
+      },
+      {
+       "warps": 4,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 632.434
+      },
+      {
+       "warps": 4,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 985.272
+      },
+      {
+       "warps": 8,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 657.724
+      },
+      {
+       "warps": 8,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 990.917
+      },
+      {
+       "warps": 8,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1004.95
+      },
+      {
+       "warps": 16,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 985.33
+      },
+      {
+       "warps": 16,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 996.464
+      },
+      {
+       "warps": 16,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1009.66
+      },
+      {
+       "warps": 32,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 996.701
+      },
+      {
+       "warps": 32,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1004.52
+      },
+      {
+       "warps": 32,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1013.13
+      }
+     ],
+     "throughput_flops_per_clk_per_sm": 1013.13,
+     "throughput_mma_per_clk_per_smsp": 0.123673,
+     "issue_interval_cycles_per_smsp": 8.08585,
+     "best_warps": 32,
+     "best_ilp": 4
+    },
+    "S8_S32_m16n8k32": {
+     "sass_expected": "IMMA.16832.S8.S8",
+     "lat_kernel": "mma_lat_kernel<S8_S32_m16n8k32>",
+     "shape": [
+      16,
+      8,
+      32
+     ],
+     "flops_per_mma": 8192,
+     "latency_cycles": 24.0088,
+     "lat_raw_cycles_n1": 6371,
+     "lat_raw_cycles_n2": 30956,
+     "sweep": [
+      {
+       "warps": 1,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 333.437
+      },
+      {
+       "warps": 1,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 640.939
+      },
+      {
+       "warps": 1,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 996.745
+      },
+      {
+       "warps": 2,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 663.708
+      },
+      {
+       "warps": 2,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1276.03
+      },
+      {
+       "warps": 2,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1986.41
+      },
+      {
+       "warps": 4,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1323.39
+      },
+      {
+       "warps": 4,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 2545.47
+      },
+      {
+       "warps": 4,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 3964.84
+      },
+      {
+       "warps": 8,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 2637.72
+      },
+      {
+       "warps": 8,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 3966.01
+      },
+      {
+       "warps": 8,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 4020.18
+      },
+      {
+       "warps": 16,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 3947.35
+      },
+      {
+       "warps": 16,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 3985.68
+      },
+      {
+       "warps": 16,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 4041.24
+      },
+      {
+       "warps": 32,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 3979.42
+      },
+      {
+       "warps": 32,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 4004.38
+      },
+      {
+       "warps": 32,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 4046.21
+      }
+     ],
+     "throughput_flops_per_clk_per_sm": 4046.21,
+     "throughput_mma_per_clk_per_smsp": 0.12348,
+     "issue_interval_cycles_per_smsp": 8.09845,
+     "best_warps": 32,
+     "best_ilp": 4
+    },
+    "S4_S32_m16n8k64": {
+     "sass_expected": "IMMA.16864.S4.S4",
+     "lat_kernel": "mma_lat_kernel<S4_S32_m16n8k64>",
+     "shape": [
+      16,
+      8,
+      64
+     ],
+     "flops_per_mma": 16384,
+     "latency_cycles": 24.0078,
+     "lat_raw_cycles_n1": 6372,
+     "lat_raw_cycles_n2": 30956,
+     "sweep": [
+      {
+       "warps": 1,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 666.874
+      },
+      {
+       "warps": 1,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1281.88
+      },
+      {
+       "warps": 1,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1993.49
+      },
+      {
+       "warps": 2,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1327.42
+      },
+      {
+       "warps": 2,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 2551.09
+      },
+      {
+       "warps": 2,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 3972.82
+      },
+      {
+       "warps": 4,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 2646.87
+      },
+      {
+       "warps": 4,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 5090.95
+      },
+      {
+       "warps": 4,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 7929.68
+      },
+      {
+       "warps": 8,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 5275.44
+      },
+      {
+       "warps": 8,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 7932.02
+      },
+      {
+       "warps": 8,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 8040.48
+      },
+      {
+       "warps": 16,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 7894.7
+      },
+      {
+       "warps": 16,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 7971
+      },
+      {
+       "warps": 16,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 8082.67
+      },
+      {
+       "warps": 32,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 7959.3
+      },
+      {
+       "warps": 32,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 8009.05
+      },
+      {
+       "warps": 32,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 8092.54
+      }
+     ],
+     "throughput_flops_per_clk_per_sm": 8092.54,
+     "throughput_mma_per_clk_per_smsp": 0.123482,
+     "issue_interval_cycles_per_smsp": 8.09833,
+     "best_warps": 32,
+     "best_ilp": 4
+    },
+    "F64_F64_m8n8k4": {
+     "sass_expected": "DMMA.884",
+     "lat_kernel": "mma_lat_kernel<F64_F64_m8n8k4>",
+     "shape": [
+      8,
+      8,
+      4
+     ],
+     "flops_per_mma": 512,
+     "latency_cycles": 18.0078,
+     "lat_raw_cycles_n1": 4945,
+     "lat_raw_cycles_n2": 23385,
+     "sweep": [
+      {
+       "warps": 1,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 25.2159
+      },
+      {
+       "warps": 1,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 29.3818
+      },
+      {
+       "warps": 1,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 30.528
+      },
+      {
+       "warps": 2,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 49.3494
+      },
+      {
+       "warps": 2,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 57.3745
+      },
+      {
+       "warps": 2,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 60.6253
+      },
+      {
+       "warps": 4,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 98.3101
+      },
+      {
+       "warps": 4,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 114.774
+      },
+      {
+       "warps": 4,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 120.609
+      },
+      {
+       "warps": 8,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 117.055
+      },
+      {
+       "warps": 8,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 120.526
+      },
+      {
+       "warps": 8,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 123.868
+      },
+      {
+       "warps": 16,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 121.384
+      },
+      {
+       "warps": 16,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 123.275
+      },
+      {
+       "warps": 16,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 125.192
+      },
+      {
+       "warps": 32,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 123.854
+      },
+      {
+       "warps": 32,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 124.647
+      },
+      {
+       "warps": 32,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 125.957
+      }
+     ],
+     "throughput_flops_per_clk_per_sm": 125.957,
+     "throughput_mma_per_clk_per_smsp": 0.0615024,
+     "issue_interval_cycles_per_smsp": 16.2595,
+     "best_warps": 32,
+     "best_ilp": 4
+    },
+    "SP_F16_F32_m16n8k32": {
+     "sass_expected": "HMMA.SP.16832.F32",
+     "lat_kernel": "mma_lat_kernel<SP_F16_F32_m16n8k32>",
+     "shape": [
+      16,
+      8,
+      32
+     ],
+     "flops_per_mma": 8192,
+     "latency_cycles": 23.9961,
+     "lat_raw_cycles_n1": 6347,
+     "lat_raw_cycles_n2": 30919,
+     "sweep": [
+      {
+       "warps": 1,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 333.146
+      },
+      {
+       "warps": 1,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 638.063
+      },
+      {
+       "warps": 1,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 992.911
+      },
+      {
+       "warps": 2,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 663.131
+      },
+      {
+       "warps": 2,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 1269.94
+      },
+      {
+       "warps": 2,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 1978.91
+      },
+      {
+       "warps": 4,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 1321.77
+      },
+      {
+       "warps": 4,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 2533.17
+      },
+      {
+       "warps": 4,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 3948.74
+      },
+      {
+       "warps": 8,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 2633.68
+      },
+      {
+       "warps": 8,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 3957.82
+      },
+      {
+       "warps": 8,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 4016.57
+      },
+      {
+       "warps": 16,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 3920.94
+      },
+      {
+       "warps": 16,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 3982.66
+      },
+      {
+       "warps": 16,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 4037.02
+      },
+      {
+       "warps": 32,
+       "ilp": 1,
+       "flops_per_clk_per_sm": 3974.47
+      },
+      {
+       "warps": 32,
+       "ilp": 2,
+       "flops_per_clk_per_sm": 4000.59
+      },
+      {
+       "warps": 32,
+       "ilp": 4,
+       "flops_per_clk_per_sm": 4045.78
+      }
+     ],
+     "throughput_flops_per_clk_per_sm": 4045.78,
+     "throughput_mma_per_clk_per_smsp": 0.123467,
+     "issue_interval_cycles_per_smsp": 8.0993,
+     "best_warps": 32,
+     "best_ilp": 4
+    }
+   },
+   "ldmatrix": {
+    "latency_cycles_x1_with_chain": 58.124,
+    "chain_overhead_cycles": 33.4062,
+    "latency_cycles_x1": 24.7178,
+    "ldmatrix_x1": {
+     "sweep": [
+      {
+       "warps": 4,
+       "bytes_per_clk_per_sm": 105.11
+      },
+      {
+       "warps": 8,
+       "bytes_per_clk_per_sm": 118.143
+      },
+      {
+       "warps": 16,
+       "bytes_per_clk_per_sm": 122.669
+      },
+      {
+       "warps": 32,
+       "bytes_per_clk_per_sm": 124.682
+      }
+     ],
+     "throughput_bytes_per_clk_per_sm": 124.682,
+     "throughput_inst_per_clk_per_sm": 0.974078,
+     "best_warps": 32
+    },
+    "ldmatrix_x2": {
+     "sweep": [
+      {
+       "warps": 4,
+       "bytes_per_clk_per_sm": 116.794
+      },
+      {
+       "warps": 8,
+       "bytes_per_clk_per_sm": 122.615
+      },
+      {
+       "warps": 16,
+       "bytes_per_clk_per_sm": 125.424
+      },
+      {
+       "warps": 32,
+       "bytes_per_clk_per_sm": 126.432
+      }
+     ],
+     "throughput_bytes_per_clk_per_sm": 126.432,
+     "throughput_inst_per_clk_per_sm": 0.493873,
+     "best_warps": 32
+    },
+    "ldmatrix_x4": {
+     "sweep": [
+      {
+       "warps": 4,
+       "bytes_per_clk_per_sm": 123.5
+      },
+      {
+       "warps": 8,
+       "bytes_per_clk_per_sm": 125.242
+      },
+      {
+       "warps": 16,
+       "bytes_per_clk_per_sm": 126.664
+      },
+      {
+       "warps": 32,
+       "bytes_per_clk_per_sm": 127.183
+      }
+     ],
+     "throughput_bytes_per_clk_per_sm": 127.183,
+     "throughput_inst_per_clk_per_sm": 0.248404,
+     "best_warps": 32
+    }
+   }
+  },
+  "tc_mma_sync": {
+   "bench": "tc:mma_sync",
+   "device": {
+    "name": "NVIDIA A100 80GB PCIe MIG 3g.40gb",
+    "cc_major": 8,
+    "cc_minor": 0,
+    "sm_count": 42,
+    "clock_khz_reported": 1410000
+   },
+   "sm_clock_mhz_measured": 1409.8,
+   "tc": {
+    "mma_sync_m16n8k16_bf16_f32": {
+     "latency_cycles": 24.0215,
+     "warp_mma_per_clk_per_sm": 0.495325,
+     "flop_per_clk_per_sm": 2028.85
+    },
+    "mma_sync_m16n8k16_f16_f16": {
+     "latency_cycles": 23.9785,
+     "warp_mma_per_clk_per_sm": 0.497189,
+     "flop_per_clk_per_sm": 2036.49
+    },
+    "mma_sync_m16n8k8_tf32_f32": {
+     "latency_cycles": 24.0215,
+     "warp_mma_per_clk_per_sm": 0.495307,
+     "flop_per_clk_per_sm": 1014.39
+    },
+    "mma_sync_m16n8k32_s8_s32": {
+     "latency_cycles": 24.0215,
+     "warp_mma_per_clk_per_sm": 0.495337,
+     "flop_per_clk_per_sm": 4057.8
+    }
+   }
+  }
+ }
+}

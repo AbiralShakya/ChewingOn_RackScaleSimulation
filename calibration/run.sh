@@ -12,6 +12,8 @@ export PATH="${CUDA_HOME:-/usr/local/cuda}/bin:$PATH"
 
 gpu_index="${CUDA_VISIBLE_DEVICES:-0}"
 gpu_index="${gpu_index%%,*}"
+# A MIG UUID is not a valid `nvidia-smi -i`; inside the job only the parent GPU is visible.
+[[ $gpu_index == MIG-* ]] && gpu_index=0
 name=$(nvidia-smi --query-gpu=name --format=csv,noheader -i "$gpu_index" | head -1)
 cc=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader -i "$gpu_index" | head -1 | tr -d '.')
 slug=$(echo "$name" | sed 's/NVIDIA //; s/[^A-Za-z0-9]\+/-/g; s/-$//' | tr 'A-Z' 'a-z')
