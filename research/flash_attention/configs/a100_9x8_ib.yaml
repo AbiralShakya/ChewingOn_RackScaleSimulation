@@ -1,0 +1,18 @@
+# 72 A100 SXM4s as nine DGX A100 nodes: NVLink3 through six NVSwitch2 chips
+# inside a node (12 x 25 GB/s per GPU), one 200G HDR NIC per GPU between nodes.
+name: 9x DGX A100 over 200G IB (calibrated A100 SXM4)
+gpus:
+  - preset: a100_sxm
+    count: 72
+    calibration: research/flash_attention/calibration/a100-sxm4-80gb-sm80.json
+topology:
+  kind: multi_node
+  nodes: 9
+  intra:
+    kind: switched
+    switches: 6
+    switch: {name: NVSwitch2, ports: 36, gbps_per_port_per_dir: 25.0, latency_ns: 100.0, in_network_reduction: false}
+    links_per_gpu_per_switch: [2, 2, 2, 2, 2, 2]
+    link: {gbps_per_dir: 25.0, latency_ns: 20.0}
+  nic: {gbps_per_dir: 25.0, latency_ns: 600.0}
+  leaf: {name: IB HDR leaf, ports: 128, gbps_per_port_per_dir: 25.0, latency_ns: 300.0, in_network_reduction: false}

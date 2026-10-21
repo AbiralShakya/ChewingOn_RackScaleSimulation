@@ -16,7 +16,16 @@ use crate::gpu::*;
 use crate::system::{GpuGroup, SystemSpec, TopologySpec};
 use std::collections::BTreeMap;
 
-pub const GPU_PRESETS: &[&str] = &["h100_sxm", "h200_sxm", "b200", "gb200", "b300", "gb300"];
+pub const GPU_PRESETS: &[&str] = &[
+    "a100_sxm",
+    "a100_pcie",
+    "h100_sxm",
+    "h200_sxm",
+    "b200",
+    "gb200",
+    "b300",
+    "gb300",
+];
 pub const SWITCH_PRESETS: &[&str] = &["nvswitch3", "nvswitch_nvl5", "ib_ndr_leaf"];
 pub const SYSTEM_PRESETS: &[&str] = &[
     "hgx_h100_8",
@@ -33,6 +42,8 @@ fn flops(pairs: &[(&str, f64)]) -> BTreeMap<String, f64> {
 
 pub fn gpu(name: &str) -> Option<GpuSpec> {
     Some(match name {
+        "a100_sxm" => a100_sxm(),
+        "a100_pcie" => a100_pcie(),
         "h100_sxm" => h100_sxm(),
         "h200_sxm" => h200_sxm(),
         "b200" => b200(),
@@ -134,6 +145,7 @@ pub fn h100_sxm() -> GpuSpec {
             tmem_bytes: 0,
             tcgen05_latency: 0,
             hmma_fma_pipe_cycles: 0,
+            sync_flops_per_cycle_per_sm: BTreeMap::new(),
         },
         latency: LatencyTable {
             int_alu: 4,
@@ -153,6 +165,7 @@ pub fn h100_sxm() -> GpuSpec {
             bar: 20,
             misc: 6,
             store_read: 4,
+            dsmem: 190, // est; B300 measured 193 (calibration)
         },
         launch_overhead_ns: 1500.0,
         cta_launch_cycles: 120,
@@ -166,6 +179,61 @@ pub fn h100_sxm() -> GpuSpec {
         tma: TmaSpec::default(),
         power: None,
     }
+}
+
+/// A100 SXM4 80GB (sm_80): HMMA tensor cores issued per SMSP (mma.sync), cp.async,
+/// no TMA, no clusters. Two L2 partitions joined by a crossbar.
+pub fn a100_sxm() -> GpuSpec {
+    let mut g = h100_sxm();
+    g.name = "A100 SXM4 80GB".into();
+    g.arch = Arch::Ampere;
+    g.sm_count = 108;
+    // 312 TFLOPS dense BF16 / (108 SM * 2048 FLOP/clk) => 1410 MHz.
+    g.sm_clock_mhz = 1410.0;
+    g.smem_per_sm_bytes = 164 * 1024;
+    g.l1.size_bytes = 192 * 1024 - 164 * 1024;
+    g.l2.size_bytes = 40 * 1024 * 1024;
+    g.l2.hit_latency = 210;
+    g.l2_bytes_per_cycle = 2300.0;
+    g.hbm = HbmSpec {
+        capacity_gb: 80.0,
+        bw_gbps: 2039.0,
+        efficiency: 0.88,
+        latency_ns: 400.0,
+    };
+    g.nvlink = NvlinkSpec {
+        generation: 3,
+        ports: 12,
+        gbps_per_port_per_dir: 25.0,
+        port_latency_ns: 60.0,
+    };
+    g.pipes.int_lanes = 16;
+    g.pipes.fp64_lanes = 8;
+    g.tensor.flops_per_cycle_per_sm = flops(&[
+        ("fp16", 2048.0),
+        ("bf16", 2048.0),
+        ("tf32", 1024.0),
+        ("int8", 4096.0),
+        ("int4", 8192.0),
+        ("fp64", 128.0),
+    ]);
+    g.tensor.async_mma_overhead = 0;
+    g.notes = vec![
+        "sm_count, clocks, HBM, NVLink, tensor peak: spec (312 TFLOPS dense BF16 @1410 MHz)".into(),
+        "L2 latency/bandwidth: calibration/ A100 80GB PCIe (load calibration.json for measured values)".into(),
+    ];
+    g
+}
+
+/// A100 80GB PCIe: same chip as SXM4 at 1.94 TB/s HBM and a lower boost clock under load.
+pub fn a100_pcie() -> GpuSpec {
+    let mut g = a100_sxm();
+    g.name = "A100 80GB PCIe".into();
+    g.hbm.bw_gbps = 1935.0;
+    g.notes.push(
+        "PCIe: HBM 1935 GB/s (spec); measured clock 1395 MHz comes from calibration.json".into(),
+    );
+    g
 }
 
 pub fn h200_sxm() -> GpuSpec {
@@ -230,6 +298,8 @@ pub fn b200() -> GpuSpec {
             tmem_bytes: 256 * 1024,
             tcgen05_latency: 300, // est
             hmma_fma_pipe_cycles: 0,
+            // Legacy mma.sync path: measured 2037 FLOP/clk/SM BF16 on B300.
+            sync_flops_per_cycle_per_sm: flops(&[("bf16", 2048.0), ("fp16", 2048.0), ("tf32", 1024.0)]),
         },
         latency: LatencyTable {
             int_alu: 4,
@@ -249,6 +319,7 @@ pub fn b200() -> GpuSpec {
             bar: 20,
             misc: 6,
             store_read: 4,
+            dsmem: 190, // est; B300 measured 193 (calibration)
         },
         launch_overhead_ns: 1500.0,
         cta_launch_cycles: 120,

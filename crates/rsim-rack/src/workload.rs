@@ -170,6 +170,14 @@ pub enum KernelSpec {
     Trace {
         path: String,
     },
+    /// Kernel recorded with the NVBit warp_path tool (`.rpath`): exact
+    /// per-warp paths with mbarrier, TMA and UMMA operands.
+    Path {
+        path: String,
+        /// Registers per thread, when the recording does not know them.
+        #[serde(default)]
+        regs: Option<u32>,
+    },
     /// Opaque kernel with a known duration (e.g. measured), occupying `sms`.
     Fixed {
         ns: f64,

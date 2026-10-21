@@ -45,5 +45,6 @@ Instead of `spmd` you can give `"ranks": [{"streams": [...]}, ...]`, one entry p
 | `row_norm` | `rows cols elem_bytes` |
 | `sass` | `path kernel grid block regs smem branch_profile` |
 | `trace` | `path` (Accel-Sim `.traceg`) |
+| `path` | `path` (`.rpath` from the NVBit `warp_path` tool, see `research/flash_attention/`), optional `regs` |
 | `fixed` | `ns sms` |
 | `ref` | `name` from the `kernels` library |

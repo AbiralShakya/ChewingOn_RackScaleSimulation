@@ -79,6 +79,10 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         spec.l2.hit_latency = cyc(l);
         set("l2.hit_latency", &mut took);
     }
+    if let Some(l) = f(mem, &["latency_cycles", "dsmem_remote"]) {
+        spec.latency.dsmem = cyc(l);
+        set("latency.dsmem", &mut took);
+    }
     if let Some(l) = f(mem, &["latency_cycles", "smem"]) {
         spec.latency.lds = cyc(l);
         set("latency.lds", &mut took);
@@ -169,6 +173,39 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
     if let Some(l) = f(tc, &["mma_sync_m16n8k16_bf16_f32", "latency_cycles"]) {
         spec.tensor.hmma_latency = cyc(l);
         set("tensor.hmma_latency", &mut took);
+    }
+    // Synchronous warp MMA (mma.sync): `tensor.mma_sync_*` (B300 suite) or
+    // `warp_mma.*` (Ampere suite).
+    let wm = m.get("warp_mma").unwrap_or(&Value::Null);
+    for (keys, d) in [
+        (["mma_sync_m16n8k16_bf16_f32", "BF16_F32_m16n8k16"], "bf16"),
+        (["mma_sync_m16n8k16_f16_f16", "F16_F32_m16n8k16"], "fp16"),
+        (["mma_sync_m16n8k8_tf32_f32", "TF32_F32_m16n8k8"], "tf32"),
+    ] {
+        let fl = f(tc, &[keys[0], "flop_per_clk_per_sm"])
+            .or_else(|| f(wm, &[keys[1], "flop_per_clk_per_sm"]));
+        if let Some(fl) = fl {
+            spec.tensor
+                .sync_flops_per_cycle_per_sm
+                .insert(d.to_string(), fl);
+            set(&format!("tensor.sync_{d}"), &mut took);
+        }
+    }
+    if let Some(l) = f(wm, &["BF16_F32_m16n8k16", "latency_cycles"]) {
+        spec.tensor.hmma_latency = cyc(l);
+        set("tensor.hmma_latency", &mut took);
+    }
+    // Without `tensor.mma_sync_fp32_pipe_cycles`, derive the FP32-pipe cycles per HMMA
+    // from the Ampere co-issue test: 8 HMMA + 32 FFMA against the FFMA issue interval.
+    if spec.tensor.hmma_fma_pipe_cycles == 0 {
+        if let (Some(both), Some(ffma_ii)) = (
+            f(m, &["hmma_coissue", "ffma", "h8_o32", "cycles"]),
+            f(m, &["sass", "FFMA", "issue_interval_cycles_per_smsp"]),
+        ) {
+            let per = ((both - 32.0 * ffma_ii) / 8.0).max(0.0);
+            spec.tensor.hmma_fma_pipe_cycles = per.round() as u32;
+            set("tensor.hmma_fma_pipe_cycles", &mut took);
+        }
     }
     for (key, dtypes) in [
         ("tcgen05_f16_bf16_m128n256k16", &["bf16", "fp16"][..]),

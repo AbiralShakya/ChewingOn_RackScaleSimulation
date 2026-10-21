@@ -5,7 +5,7 @@
 
 use crate::kernel::KernelLaunch;
 use crate::mem::MemSystem;
-use crate::sm::{Policy, Sm, NEVER};
+use crate::sm::{Policy, RemoteMbar, Sm, NEVER};
 use crate::stats::KernelStats;
 use rsim_core::trace::TraceSink;
 use rsim_hw::GpuSpec;
@@ -98,6 +98,10 @@ pub struct Gpu {
     stepping: Vec<u32>,
     /// Per-SM timeline: CTA start cycle keyed by (sm, kernel id, cta id).
     cta_start: HashMap<(u32, u32, u64), u64>,
+    /// Where each resident CTA of a clustered kernel lives: (kid, cta) -> SM.
+    cta_sm: HashMap<(u32, u64), usize>,
+    /// Cluster mbarrier events for CTAs that are not resident yet.
+    pending_mbar: HashMap<(u32, u64), Vec<RemoteMbar>>,
 }
 
 impl Gpu {
@@ -141,6 +145,8 @@ impl Gpu {
             sm_next: vec![NEVER; spec.sm_count as usize],
             heap: BinaryHeap::new(),
             cta_start: HashMap::new(),
+            cta_sm: HashMap::new(),
+            pending_mbar: HashMap::new(),
             stepping: Vec::new(),
             spec,
         }
@@ -258,6 +264,12 @@ impl Gpu {
                     if self.sms[s].can_fit(&launch) {
                         let cta = self.kernels[ki].next_cta;
                         self.sms[s].launch_cta(kid, &launch, cta, t + lat);
+                        if launch.cluster > 1 {
+                            self.cta_sm.insert((kid, cta), s);
+                            for ev in self.pending_mbar.remove(&(kid, cta)).unwrap_or_default() {
+                                self.sms[s].deliver(&ev);
+                            }
+                        }
                         if self.cfg.per_sm_counters && self.trace.enabled {
                             self.cta_start.insert((s as u32, kid, cta), t + lat);
                         }
@@ -296,6 +308,11 @@ impl Gpu {
         let mut cta_done: Vec<(u32, u64)> = Vec::new();
         loop {
             let Some(t) = self.next_event() else {
+                if !self.kernels.is_empty() && std::env::var_os("RSIM_DEBUG_DEADLOCK").is_some() {
+                    for sm in self.sms.iter_mut().take(4) {
+                        eprint!("{}", sm.debug_dump());
+                    }
+                }
                 self.now = self.now.max(until);
                 break;
             };
@@ -334,6 +351,19 @@ impl Gpu {
                 let before = cta_done.len();
                 self.sms[s].step(t, &mut self.mem, &mut cta_done);
                 self.update_sm(s);
+                if !self.sms[s].outbox.is_empty() {
+                    let evs = std::mem::take(&mut self.sms[s].outbox);
+                    for ev in evs {
+                        match self.cta_sm.get(&(ev.kid, ev.cta)).copied() {
+                            Some(d) if self.sms[d].deliver(&ev) => self.update_sm(d),
+                            _ => self
+                                .pending_mbar
+                                .entry((ev.kid, ev.cta))
+                                .or_default()
+                                .push(ev),
+                        }
+                    }
+                }
                 if self.cfg.per_sm_counters && self.trace.enabled {
                     for i in before..cta_done.len() {
                         let (kid, cta) = cta_done[i];
@@ -343,7 +373,8 @@ impl Gpu {
             }
             if !cta_done.is_empty() {
                 self.dispatch_dirty = true;
-                for (kid, _) in cta_done.drain(..) {
+                for (kid, cta) in cta_done.drain(..) {
+                    self.cta_sm.remove(&(kid, cta));
                     if let Some(k) = self.kernels.iter_mut().find(|k| k.kid == kid) {
                         k.done += 1;
                     }
@@ -399,6 +430,23 @@ impl Gpu {
                 }
                 st.sched.merge(&a.sched);
                 st.warp.merge(&a.warp);
+                if st.warp_by_index.len() < a.warp_by_index.len() {
+                    st.warp_by_index
+                        .resize(a.warp_by_index.len(), Default::default());
+                    st.issued_by_index.resize(a.warp_by_index.len(), 0);
+                }
+                for (i, c) in a.warp_by_index.iter().enumerate() {
+                    st.warp_by_index[i].merge(c);
+                }
+                if st.issued_by_index.len() < a.issued_by_index.len() {
+                    st.issued_by_index.resize(a.issued_by_index.len(), 0);
+                }
+                for (i, n) in a.issued_by_index.iter().enumerate() {
+                    st.issued_by_index[i] += n;
+                }
+                for (k, n) in a.mbar_wait {
+                    *st.mbar_wait.entry(k).or_default() += n;
+                }
                 st.tensor_busy_cycles += a.tensor_busy_cycles;
                 st.tensor_flops += a.tensor_flops;
                 st.dram_read_bytes += a.dram_read_bytes;

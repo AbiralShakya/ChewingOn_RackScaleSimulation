@@ -10,6 +10,8 @@
 //!   including Hopper `HGMMA`/`UTMALDG`/`SYNCS` and Blackwell tcgen05
 //!   (`UTC*MMA`, `LDTM`/`STTM`, `UTCBAR`).
 //! * [`accelsim`] — reader for Accel-Sim/NVBit dynamic per-warp traces.
+//! * [`path`]   — exact per-warp paths recorded with NVBit (warp-specialised
+//!   kernels, mbarrier/TMA/UMMA operands).
 //! * [`walker`] — turns a static program + branch profile into a dynamic
 //!   per-warp instruction stream.
 
@@ -17,9 +19,11 @@ pub mod accelsim;
 pub mod inst;
 pub mod isa;
 pub mod parse;
+pub mod path;
 pub mod walker;
 
 pub use inst::{Ctrl, Inst, MemInfo, MemSpace, Program, Reg, NO_REG};
 pub use isa::OpClass;
 pub use parse::{parse_listing, ParseError};
+pub use path::{MbarRef, PathKernel};
 pub use walker::{AddrGen, BranchProfile, Walker};

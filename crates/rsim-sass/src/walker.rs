@@ -85,6 +85,11 @@ pub struct DynOp {
     pub addrs: Vec<u64>,
     /// Payload for async ops: bytes for TMA, FLOPs for MMA.
     pub payload: u64,
+    /// mbarrier this op waits on or signals (recorded paths only; static
+    /// programs use per-PC `BarOp` annotations instead).
+    pub mbar: Option<crate::path::MbarRef>,
+    /// TMA: bytes per entry of `addrs` (each address starts a contiguous run).
+    pub run_bytes: u32,
 }
 
 /// Per-PC side information attached to a static program.
@@ -219,6 +224,8 @@ impl Walker {
             active,
             addrs,
             payload,
+            mbar: None,
+            run_bytes: 0,
         })
     }
 }

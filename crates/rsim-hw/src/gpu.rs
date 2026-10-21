@@ -114,6 +114,23 @@ pub struct TensorSpec {
     /// minus the MMA's throughput time).
     #[serde(default)]
     pub tcgen05_latency: u32,
+    /// Synchronous warp MMA (`mma.sync` / HMMA) rate per SM per cycle, when it
+    /// differs from the async tensor-core rate above (Hopper and Blackwell keep
+    /// the legacy path at roughly Ampere speed: B300 measures 2037 FLOP/clk/SM
+    /// for BF16 HMMA against 8192 for tcgen05).
+    #[serde(default)]
+    pub sync_flops_per_cycle_per_sm: BTreeMap<String, f64>,
+}
+
+impl TensorSpec {
+    /// FLOP per SM-cycle of a synchronous warp MMA.
+    pub fn sync_flops_per_cycle(&self, dtype: &str) -> f64 {
+        self.sync_flops_per_cycle_per_sm
+            .get(dtype)
+            .or_else(|| self.sync_flops_per_cycle_per_sm.get("bf16"))
+            .copied()
+            .unwrap_or_else(|| self.flops_per_cycle(dtype))
+    }
 }
 
 impl TensorSpec {
@@ -159,6 +176,14 @@ pub struct LatencyTable {
     pub misc: u32,
     /// Extra cycles after the last operand is read for stores/atomics.
     pub store_read: u32,
+    /// Remote (distributed shared memory) access within a cluster, e.g. an
+    /// mbarrier arrive on the peer CTA of a 2-CTA pair.
+    #[serde(default = "default_dsmem")]
+    pub dsmem: u32,
+}
+
+fn default_dsmem() -> u32 {
+    190
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

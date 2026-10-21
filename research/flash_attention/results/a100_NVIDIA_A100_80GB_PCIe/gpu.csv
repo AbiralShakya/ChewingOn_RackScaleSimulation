@@ -1,0 +1,2 @@
+name, driver_version, clocks.max.sm [MHz], clocks.current.sm [MHz], memory.total [MiB]
+NVIDIA A100 80GB PCIe, 610.57.04, 1410 MHz, 1395 MHz, 81920 MiB
