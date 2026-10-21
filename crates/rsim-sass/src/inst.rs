@@ -318,8 +318,17 @@ mod tests {
         // NVFP4 UMMA carries no type modifier on sm_103.
         let m = InstMeta::compute("UTCOMMA.BLOCK16", OpClass::MmaTcgen05, "");
         assert_eq!(m.dtype, "fp4");
-        assert_eq!(InstMeta::compute("UTCQMMA", OpClass::MmaTcgen05, "").dtype, "fp8");
-        assert_eq!(InstMeta::compute("UTCHMMA", OpClass::MmaTcgen05, "").dtype, "bf16");
-        assert_eq!(InstMeta::compute("UTCHMMA.TF32", OpClass::MmaTcgen05, "").dtype, "tf32");
+        assert_eq!(
+            InstMeta::compute("UTCQMMA", OpClass::MmaTcgen05, "").dtype,
+            "fp8"
+        );
+        assert_eq!(
+            InstMeta::compute("UTCHMMA", OpClass::MmaTcgen05, "").dtype,
+            "bf16"
+        );
+        assert_eq!(
+            InstMeta::compute("UTCHMMA.TF32", OpClass::MmaTcgen05, "").dtype,
+            "tf32"
+        );
     }
 }

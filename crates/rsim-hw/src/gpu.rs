@@ -319,33 +319,31 @@ pub struct OpTiming {
 }
 
 impl GpuSpec {
-    /// Fixed kernel cost for a launch shape, from the nearest measured
-    /// point with the same cluster size and prologue (then the nearest
-    /// CTA count, shared-memory size and thread count). `None` without measurements.
-    pub fn kernel_window_cycles(
+    /// The measured kernel-window point nearest to a launch shape: same
+    /// cluster size, then the nearest CTA count (log scale), shared-memory
+    /// size and thread count. Points with the FA4 TMEM prologue are
+    /// diagnostics only: the simulator executes a kernel's own prologue, so
+    /// the fixed cost comes from the prologue-free shapes.
+    pub fn kernel_window_point(
         &self,
         ctas: u64,
         threads: u32,
         smem_bytes: u32,
         cluster: u32,
-        tmem_prologue: bool,
-    ) -> Option<f64> {
+    ) -> Option<&WindowPoint> {
         let d = |p: &WindowPoint| {
+            let c = if p.ctas == 0 { self.sm_count } else { p.ctas } as f64;
             (
-                (p.cluster != cluster.max(1)) as u32 + (p.tmem_prologue != tmem_prologue) as u32,
-                // Wave size next (a 1-CTA kernel rasterises far less), on a log scale.
-                {
-                    let c = if p.ctas == 0 { self.sm_count } else { p.ctas } as f64;
-                    ((c.ln() - (ctas.max(1) as f64).ln()).abs() * 4.0) as u32
-                },
+                (p.cluster != cluster.max(1)) as u32,
+                ((c.ln() - (ctas.max(1) as f64).ln()).abs() * 4.0) as u32,
                 p.smem_bytes.abs_diff(smem_bytes),
                 p.threads.abs_diff(threads),
             )
         };
         self.kernel_window
             .iter()
+            .filter(|p| !p.tmem_prologue)
             .min_by_key(|p| d(p))
-            .map(|p| p.cycles)
     }
 
     pub fn warps_per_smsp(&self) -> u32 {

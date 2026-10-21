@@ -24,6 +24,28 @@ pub enum SchedPolicy {
     Lrr,
 }
 
+/// `calibration/src/bench_window.cu`'s kernel as compiled for sm_103: the
+/// measured window includes running it, so the model's time for it is
+/// subtracted from the measurement.
+const WINDOW_KERNEL_SASS: &str = "\t\tFunction : window
+        /*0000*/                   LDC R1, c[0x0][0x37c] ;
+        /*0010*/                   S2R R0, SR_TID.X ;
+        /*0020*/                   S2UR UR4, SR_CTAID.X ;
+        /*0030*/                   LDCU.64 UR6, c[0x0][0x380] ;
+        /*0040*/                   ISETP.EQ.U32.AND P1, PT, RZ, UR6, PT ;
+        /*0050*/                   LOP3.LUT P0, RZ, R0, UR4, RZ, 0xfc, !PT ;
+        /*0060*/                   ISETP.EQ.U32.OR.EX P0, PT, RZ, UR7, P0, P1 ;
+        /*0070*/               @P0 EXIT ;
+        /*0080*/                   S2UR UR5, SR_CgaCtaId ;
+        /*0090*/                   UMOV UR4, 0x400 ;
+        /*00a0*/                   LDC.64 R2, c[0x0][0x380] ;
+        /*00b0*/                   ULEA UR4, UR5, UR4, 0x18 ;
+        /*00c0*/                   LDS.U8 R5, [UR4] ;
+        /*00d0*/                   LDCU.64 UR4, c[0x0][0x358] ;
+        /*00e0*/                   STG.E desc[UR4][R2.64], R5 ;
+        /*00f0*/                   EXIT ;
+";
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GpuConfig {
@@ -109,6 +131,8 @@ pub struct Gpu {
     cta_sm: HashMap<(u32, u64), usize>,
     /// Cluster mbarrier events for CTAs that are not resident yet.
     pending_mbar: HashMap<(u32, u64), Vec<RemoteMbar>>,
+    /// `empty_kernel_cycles` cache: (ctas, threads, smem, cluster) -> cycles.
+    window_own: HashMap<(u32, u32, u32, u32), u64>,
 }
 
 impl Gpu {
@@ -154,6 +178,7 @@ impl Gpu {
             cta_start: HashMap::new(),
             cta_sm: HashMap::new(),
             pending_mbar: HashMap::new(),
+            window_own: HashMap::new(),
             stepping: Vec::new(),
             spec,
         }
@@ -164,6 +189,40 @@ impl Gpu {
     }
 
     /// Queue a kernel whose CTAs become dispatchable at `at` (cycles).
+    /// Simulated cycles of the empty kernel a window point was measured
+    /// with (`WINDOW_KERNEL_SASS`, same shape), cached per point.
+    fn empty_kernel_cycles(&mut self, p: &rsim_hw::WindowPoint) -> u64 {
+        let key = (p.ctas, p.threads, p.smem_bytes, p.cluster);
+        if let Some(&c) = self.window_own.get(&key) {
+            return c;
+        }
+        let prog = rsim_sass::parse_listing(WINDOW_KERNEL_SASS)
+            .expect("static listing")
+            .remove(0);
+        let ctas = if p.ctas == 0 {
+            self.spec.sm_count
+        } else {
+            p.ctas
+        };
+        let mut k = KernelLaunch::from_program(
+            "window",
+            prog,
+            [ctas, 1, 1],
+            [p.threads, 1, 1],
+            32,
+            p.smem_bytes,
+            Default::default(),
+        );
+        k.cluster = p.cluster.max(1);
+        let mut g = Gpu::new(0, (*self.spec).clone(), GpuConfig::default(), false);
+        g.submit(Arc::new(k), 0, 0);
+        let mut out = vec![];
+        g.advance(u64::MAX / 2, &mut out);
+        let c = out.pop().map_or(0, |d| d.end_cycle - d.start_cycle);
+        self.window_own.insert(key, c);
+        c
+    }
+
     pub fn submit(&mut self, launch: Arc<KernelLaunch>, at: u64, tag: u64) -> u32 {
         assert!(
             crate::sm::Sm::occupancy(&self.spec, &launch) > 0,
@@ -177,22 +236,28 @@ impl Gpu {
         self.next_kid += 1;
         let total = launch.num_ctas();
         // The measured fixed window (rasterisation, smem carveout, cluster
-        // launch, prologue) opens with the launch and delays the first CTA.
-        // What the model already charges for an empty kernel is not counted twice.
+        // launch) opens with the launch and delays the first CTA. The
+        // measurement is of an empty kernel, so what the model itself takes
+        // for that same empty kernel is subtracted: only the residual the
+        // model does not have is charged.
         let at = at.max(self.now);
-        let window = (self.cfg.kernel_window)
-            .then(|| {
-                self.spec.kernel_window_cycles(
+        let window = if self.cfg.kernel_window {
+            self.spec
+                .kernel_window_point(
                     total,
                     launch.threads_per_cta(),
                     launch.smem_per_cta,
                     launch.cluster,
-                    launch.allocs_tmem(),
                 )
-            })
-            .flatten()
-            .map(|c| (c - self.spec.cta_launch_cycles as f64).max(0.0) as u64)
-            .unwrap_or(0);
+                .cloned()
+                .map(|p| {
+                    let own = self.empty_kernel_cycles(&p);
+                    (p.cycles - own as f64).max(0.0) as u64
+                })
+                .unwrap_or(0)
+        } else {
+            0
+        };
         self.kernels.push(ActiveKernel {
             kid,
             tag,
