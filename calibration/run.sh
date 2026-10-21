@@ -37,6 +37,8 @@ run alu ./build/bench_alu && python3 scripts/sass_check.py build/bench_alu build
 run mem ./build/bench_mem
 run misc ./build/bench_misc
 run tma ./build/bench_tma
+run tmat ./build/bench_tmat
+run loaded ./build/bench_loaded
 for c in $(./build/bench_tc --list); do
   run "tc_$c" ./build/bench_tc "$c"
 done

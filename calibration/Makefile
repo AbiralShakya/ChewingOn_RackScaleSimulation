@@ -10,7 +10,7 @@ ARCH      ?= -gencode arch=compute_$(SM)$(SUFFIX),code=sm_$(SM)$(SUFFIX)
 NVFLAGS   ?= -O3 -std=c++17 -lineinfo $(ARCH) -Xptxas -v
 BUILD     := build
 
-BENCHES := alu mem tc tma misc
+BENCHES := alu mem tc tma tmat misc loaded
 BINS    := $(addprefix $(BUILD)/bench_,$(BENCHES))
 
 all: $(BINS) $(addsuffix .ptx,$(BINS))
