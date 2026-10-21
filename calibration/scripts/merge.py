@@ -162,9 +162,9 @@ def model_ampere(raw):
 
 
 def model_power(outdir):
-    """Clock and power while CUTLASS FP4 GEMMs run (scripts/cutlass_fp4.sh)."""
-    log = os.path.join(outdir, "raw", "cutlass_fp4.log")
-    trace = os.path.join(outdir, "raw", "cutlass_fp4.clk.csv")
+    """Clock and power while CUTLASS GEMMs of each dtype run (scripts/cutlass_power.sh)."""
+    log = os.path.join(outdir, "raw", "cutlass_power.log")
+    trace = os.path.join(outdir, "raw", "cutlass_power.clk.csv")
     if not (os.path.exists(log) and os.path.exists(trace)):
         return None
     ts = lambda t: datetime.datetime.strptime(t.strip(), "%Y/%m/%d %H:%M:%S.%f")
@@ -176,27 +176,29 @@ def model_power(outdir):
         num = lambda x: float(x.split()[0])
         samples.append({"t": ts(f[0]), "mhz": num(f[1]), "w": num(f[2]), "cap_w": num(f[3]), "temp_c": num(f[4]),
                         "reasons": f[5], "util": num(f[6]), "max_mhz": num(f[7])})
-    runs, cur = [], None
+    runs, cur, verified = [], None, {}
     for line in open(log):
         p = line.split()
-        if p[:1] == ["BEGIN"]:
-            cur = {"m": int(p[1]), "n": int(p[1]), "k": int(p[1]), "t0": ts(" ".join(p[2:4])), "gflops": []}
+        if p[:1] == ["VERIFY"]:
+            verified[p[1]] = "Passed" in line
+        elif p[:1] == ["BEGIN"]:
+            cur = {"label": p[1], "size": int(p[2]), "t0": ts(" ".join(p[3:5])), "gflops": []}
         elif p[:1] == ["END"] and cur:
-            cur["t1"] = ts(" ".join(p[2:4]))
+            cur["t1"] = ts(" ".join(p[3:5]))
             runs.append(cur)
             cur = None
         elif cur and "GFLOPS" in line:
             cur["gflops"].append(float(line.split(":")[1]))
     med = lambda v: sorted(v)[len(v) // 2] if v else None
+    cap = samples[0]["cap_w"] if samples else 0
     out_runs = []
     for r in runs:
         # GEMM steady state inside the window: host setup and on-GPU data init run
         # far below the cap, so keep samples above half the cap.
-        cap = samples[0]["cap_w"] if samples else 0
         win = [s for s in samples if r["t0"] <= s["t"] <= r["t1"] and s["util"] >= 50 and s["w"] >= 0.5 * cap]
         out_runs.append({
-            "kernel": "cutlass example 89, sm103 ultra FP4 (K=96 UMMA), best of the variants it runs",
-            "m": r["m"], "n": r["n"], "k": r["k"],
+            "gemm": r["label"], "verified": verified.get(r["label"]),
+            "m": r["size"], "n": r["size"], "k": r["size"],
             "tflops": max(r["gflops"]) / 1e3 if r["gflops"] else None,
             "busy_samples": len(win),
             "sm_mhz_median": med([s["mhz"] for s in win]),
@@ -207,7 +209,8 @@ def model_power(outdir):
             "power_capped_fraction": (sum("0x0000000000000004" in s["reasons"] for s in win) / len(win)) if win else None,
         })
     return {
-        "power_cap_w": samples[0]["cap_w"] if samples else None,
+        "source": "CUTLASS examples 70 (fp16, fp8), 72b (nvfp4 K=64), 89 (sm103 ultra nvfp4 K=96)",
+        "power_cap_w": cap or None,
         "max_sm_mhz": samples[0]["max_mhz"] if samples else None,
         "idle_w": med([s["w"] for s in samples if s["util"] == 0]),
         "sample_interval_ms": 100,

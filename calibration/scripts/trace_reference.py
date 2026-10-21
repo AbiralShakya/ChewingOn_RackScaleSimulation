@@ -20,7 +20,10 @@ Needs the Accel-Sim tracer (util/tracer_nvbit) built for this GPU:
   ACCELSIM_TRACER=<...>/tracer_tool/tracer_tool.so
   ACCELSIM_POST=<...>/tracer_tool/traces-processing/post-traces-processing
 
-Usage: trace_reference.py results/<gpu>-sm<cc>
+Usage: trace_reference.py results/<gpu>-sm<cc> [label ...]
+With labels, only those entries are traced. With GPU_LOCK set (a flock file),
+the lock is held per entry rather than for the whole run, so other jobs on a
+shared GPU can interleave.
 """
 import json
 import os
@@ -48,7 +51,17 @@ SIZE = {
     "hmma_bf16_throughput": {"CAL_MAX_CTAS": "1"},
     "cp_async_cg16_dram_stream": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20)},
     "hmma_f16_f32_m16n8k16_w32_ilp4": {"CAL_MAX_CTAS": "1"},
+    # B300 (sm_103): tcgen05 UMMA issue loops (one issuing thread per CTA) and
+    # the bulk-copy stream.
+    "umma_bf16_m128n256k16": {"CAL_MAX_CTAS": "2"},
+    "umma_nvfp4_m128n256k64": {"CAL_MAX_CTAS": "2"},
+    "tma_bulk_stream": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20)},
 }
+
+
+def locked(cmd):
+    lock = os.environ.get("GPU_LOCK")
+    return ["flock", lock] + cmd if lock else cmd
 
 
 def ncu_at(binary, args, regex, skip, env):
@@ -75,7 +88,7 @@ def trace(binary, args, mangled, skip, env, workdir):
         "TRACE_FILE_COMPRESS": "0",
         "TOOL_COMPRESS": "0",
     })
-    p = subprocess.run([binary] + args, env=e, capture_output=True, text=True)
+    p = subprocess.run(locked([binary] + args), env=e, capture_output=True, text=True)
     if p.returncode != 0:
         return None, p.stderr[-2000:]
     tdir = os.path.join(folder, "traces")
@@ -95,7 +108,7 @@ def trace(binary, args, mangled, skip, env, workdir):
     return out, None
 
 
-def main(outdir):
+def main(outdir, only=()):
     ref_path = os.path.join(outdir, "ncu_reference.json")
     doc = json.load(open(ref_path))
     tdir = os.path.join(outdir, "traces")
@@ -104,6 +117,8 @@ def main(outdir):
     for entry in doc["kernels"]:
         label = entry["label"]
         if label not in SIZE or "error" in entry or not entry.get("kernel_mangled"):
+            continue
+        if only and label not in only:
             continue
         binary, args, regex, skip = entry["binary"], entry["args"], entry["kernel"], entry["launch_index"]
         env = SIZE[label]
@@ -136,4 +151,4 @@ def main(outdir):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], tuple(sys.argv[2:]))

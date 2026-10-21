@@ -417,6 +417,7 @@ void run_tc05(Json& j, const DeviceInfo& d, const Tc05Case& c, size_t one_cta_sm
   CK(cudaFuncSetAttribute(kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)one_cta_smem));
   if (CG == 2) CK(cudaFuncSetAttribute(kern, cudaFuncAttributeNonPortableClusterSizeAllowed, 1));
   auto run = [&](int blocks, int iters, int mode) {
+    blocks = std::max(G, cal_grid(blocks) / G * G);  // trace mode caps the grid
     std::vector<double> best;
     for (int r = 0; r < 3; ++r) {
       cudaLaunchConfig_t cfg = {};

@@ -43,6 +43,8 @@ run misc ./build/bench_misc
 run window ./build/bench_window
 # Arch-specific benches: the Makefile builds them only where the feature exists.
 [ -x build/bench_tma ] && run tma ./build/bench_tma
+[ -x build/bench_tmat ] && run tmat ./build/bench_tmat
+run loaded ./build/bench_loaded
 for c in $(./build/bench_tc --list); do
   run "tc_$c" ./build/bench_tc "$c"
 done
