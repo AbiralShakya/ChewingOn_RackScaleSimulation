@@ -4,8 +4,9 @@
 `rsim validate` replays a `.traceg` exactly (real control flow and addresses)
 instead of guessing loop trip counts from the static SASS. A full-size
 reference launch is far too large to trace, so each kernel is re-run with
-CAL_MAX_CTAS (grid cap) and, for streaming kernels, CAL_MAX_BYTES (buffer
-cap); see cal_grid()/cal_bytes() in src/common.cuh. ncu is re-measured at
+CAL_MAX_CTAS (grid cap), CAL_MAX_ITERS (loop cap) and, for streaming kernels,
+CAL_MAX_BYTES (stream length); see cal_grid()/cal_iters()/cal_bytes() in
+src/common.cuh. ncu is re-measured at
 that same size, because the trace and the cycles it is checked against must
 describe the same launch.
 
@@ -20,7 +21,7 @@ Needs the Accel-Sim tracer (util/tracer_nvbit) built for this GPU:
   ACCELSIM_TRACER=<...>/tracer_tool/tracer_tool.so
   ACCELSIM_POST=<...>/tracer_tool/traces-processing/post-traces-processing
 
-Usage: trace_reference.py results/<gpu>-sm<cc>
+Usage: trace_reference.py results/<gpu>-sm<cc> [label ...]   (default: all)
 """
 import json
 import os
@@ -40,11 +41,11 @@ SIZE = {
     "ffma_throughput": {"CAL_MAX_CTAS": "1"},
     "ex2_throughput": {"CAL_MAX_CTAS": "1"},
     "dfma_latency_chain": {},
-    "smem_conflict_free": {"CAL_MAX_CTAS": "1"},
-    "smem_32way_conflict": {"CAL_MAX_CTAS": "1"},
-    "hbm_stream_read": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20)},
-    "hbm_copy": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20)},
-    "l2_pointer_chase": {},
+    "smem_conflict_free": {"CAL_MAX_CTAS": "1", "CAL_MAX_ITERS": "32", "CAL_SECTIONS": "smem"},
+    "smem_32way_conflict": {"CAL_MAX_CTAS": "1", "CAL_MAX_ITERS": "32", "CAL_SECTIONS": "smem"},
+    "hbm_stream_read": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20), "CAL_SECTIONS": "bandwidth"},
+    "hbm_copy": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20), "CAL_SECTIONS": "bandwidth"},
+    "l2_pointer_chase": {"CAL_SECTIONS": "latency"},
     "hmma_bf16_throughput": {"CAL_MAX_CTAS": "1"},
     "cp_async_cg16_dram_stream": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20)},
     "hmma_f16_f32_m16n8k16_w32_ilp4": {"CAL_MAX_CTAS": "1"},
@@ -100,10 +101,11 @@ def main(outdir):
     doc = json.load(open(ref_path))
     tdir = os.path.join(outdir, "traces")
     os.makedirs(tdir, exist_ok=True)
+    only = set(sys.argv[2:])
     work = tempfile.mkdtemp(prefix="caltrace-", dir=os.environ.get("TMPDIR"))
     for entry in doc["kernels"]:
         label = entry["label"]
-        if label not in SIZE or "error" in entry or not entry.get("kernel_mangled"):
+        if label not in SIZE or "error" in entry or not entry.get("kernel_mangled") or (only and label not in only):
             continue
         binary, args, regex, skip = entry["binary"], entry["args"], entry["kernel"], entry["launch_index"]
         env = SIZE[label]
@@ -131,8 +133,8 @@ def main(outdir):
         mb = os.path.getsize(dst) / 2**20
         print(f"{label:32s} traced {mb:6.1f} MB, ncu sm cycles {entry['ncu'].get('sm__cycles_elapsed.avg')}",
               file=sys.stderr)
+        json.dump(doc, open(ref_path, "w"), indent=1)  # after every entry: jobs can time out
     shutil.rmtree(work, ignore_errors=True)
-    json.dump(doc, open(ref_path, "w"), indent=1)
 
 
 if __name__ == "__main__":
