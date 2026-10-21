@@ -415,6 +415,12 @@ function render() {
 
 function kpis(list) { return h("div", { class: "kpis" }, list.map(([v, l]) => h("div", { class: "kpi" }, h("div", { class: "v" }, v), h("div", { class: "l" }, l)))); }
 
+// A run's explanatory note ("Reading this run"); blank lines separate paragraphs.
+function noteCard(text) {
+  return h("div", { class: "card" }, h("h2", {}, "Reading this run"),
+    ...text.split(/\n\s*\n/).map(p => h("p", { class: "sub", style: "max-width:80ch;margin:6px 0 0" }, p.trim())));
+}
+
 function rackView(m) {
   const rk = R.ranks;
   const busy = rk.map(r => r.busy_us * 1e3 / R._makespan_ns);
@@ -427,6 +433,7 @@ function rackView(m) {
     [String(rk.length), `GPUs · ${R.system.gpus.map(g => g.name).join(", ")}`],
   ]));
   m.append(h("div", { class: "note", style: "margin:-6px 0 14px" }, `${R.workload}. ` + (anyDetail ? "Click a GPU or a kernel to zoom in; ranks with captured detail go down to warps and SASS." : "")));
+  if (R.note) m.append(noteCard(R.note));
   if (rk.length > 1) m.append(topologyCard());
   // Gantt of all ranks
   const card = h("div", { class: "card" }, h("h2", {}, "Every GPU, every stream"),
@@ -654,7 +661,7 @@ function kernelView(m) {
     [`${fmtN(k.ctas)} CTAs`, `${k.ctas / Math.max(1, k.ctas) ? Math.round(k.warps / k.ctas) : 0} warps/CTA · ${k.ctas_per_sm} CTA/SM · ${(k.ctas / (g.sm_count * k.ctas_per_sm)).toFixed(2)} waves`],
     [fmtN(k.insts), "warp instructions"],
   ]));
-  if (R.note && R.kind === "kernel") m.append(h("div", { class: "note", style: "margin:-6px 0 14px" }, R.note));
+  if (R.note && R.kind === "kernel") { const [first, ...rest] = R.note.split(/\n\s*\n/); m.append(h("div", { class: "note", style: "margin:-6px 0 14px" }, first)); if (rest.length) m.append(noteCard(rest.join("\n\n"))); }
   const top = h("div", { class: "grid2" });
   const c1 = h("div", { class: "card" }, h("h2", {}, "Scheduler cycles"), h("p", { class: "sub" }, "Every issue slot of every SMSP while the kernel held the SM: issued, or the reason nothing issued."), stackBar(R, sch), famTable(sch, k.sched));
   top.append(c1);

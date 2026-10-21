@@ -53,6 +53,35 @@ def part(name):
     return os.path.join(TMP, name + ".rsviz.json")
 
 
+# Why two-micro-batch overlap loses at this decode batch. Figures are GPU 0's per-kernel times in
+# these two runs (also traced with examples/deepseek_v3_nvl72.py); update them if the model changes.
+DS_NOTES = {
+    False: (
+        "The baseline for the two-micro-batch run in this file. Decode at batch 64 per GPU is "
+        "weight-bandwidth bound: the dense GEMMs (about 950 µs of GPU 0's 1.43 ms step) stream the "
+        "full weights from HBM at about 7 TB/s, close to the B200's peak, and leave the tensor cores "
+        "mostly idle. Open the other run to see what splitting the batch does."
+    ),
+    True: (
+        "Two-micro-batch overlap (TBO) is slower here than the single stream (2.37 ms vs 1.43 ms), "
+        "and the cause is real, not a scheduling bug. Each micro-batch of 32 reads the full weights "
+        "again, and at M=32 a dense decode GEMM takes as long as at M=64 because it is "
+        "weight-bandwidth bound at about 7 TB/s, near B200 HBM peak. GPU 0's dense GEMM time doubles, "
+        "from about 950 µs to 1910 µs, which accounts for the whole makespan gap. Attention barely "
+        "moves (278 to 303 µs) because it is bound by each sequence's KV cache, which is not "
+        "duplicated.\n\n"
+        "The overlap itself cannot help: two bandwidth-bound GEMMs on concurrent streams share the "
+        "same HBM, so running them side by side does not shorten either. The overlap does fill the "
+        "bubbles (mean GPU idle falls from 6.9% to 0.9%), but that saves far less than the duplicated "
+        "weight reads cost. A smaller side effect: the halved "
+        "all-to-alls (1.8 MB) reach a lower bus bandwidth, 161-272 GB/s against 509-722 GB/s for the "
+        "full-size ones.\n\n"
+        "TBO pays off only where each micro-batch's GEMMs are compute or communication bound: in "
+        "prefill, or at much larger decode batches."
+    ),
+}
+
+
 def deepseek():
     par = rs.Parallel(ep=72, comm_sms=20)
     runs = []
@@ -62,7 +91,7 @@ def deepseek():
         name = f"ds_{int(overlap)}"
         rsim("viz", "run", "--system", "configs/gb200_nvl72.yaml", "--workload", workload(name, wl), "--fast",
              "--detail-ranks", "0", "--warp-sms", "0", "--max-warp-events", "60000",
-             "--name", f"DeepSeek-V3 decode, NVL72 EP72, {tag}", "-o", part(name))
+             "--name", f"DeepSeek-V3 decode, NVL72 EP72, {tag}", "--note", DS_NOTES[overlap], "-o", part(name))
         runs.append(part(name))
     rsim("viz", "merge", *runs, "--title", "DeepSeek-V3 decode on GB200 NVL72", "-o",
          os.path.join(OUT, "deepseek_v3_nvl72.html"))

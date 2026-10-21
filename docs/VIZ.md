@@ -37,7 +37,8 @@ rsim viz sass kernel.sass --gpu h100_sxm --grid 528 --block 256 -o k.html
 rsim viz merge fa2.html fa4.html --title "FA2 vs FA4" -o fa.html
 ```
 
-`-o x.json` writes the bundle instead of a page. The bare viewer, `viz/viewer.html`, opens a
+`--note "..."` attaches an explanation that the page shows as a "Reading this run" card (blank
+lines separate paragraphs). `-o x.json` writes the bundle instead of a page. The bare viewer, `viz/viewer.html`, opens a
 bundle by drag-and-drop (`.json` or `.json.gz`) or from `?src=<url>`.
 
 From Python:

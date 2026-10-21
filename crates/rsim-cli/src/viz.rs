@@ -21,6 +21,9 @@ pub struct Out {
     /// Page title.
     #[arg(long)]
     title: Option<String>,
+    /// Explanatory text shown with the run (blank lines separate paragraphs).
+    #[arg(long)]
+    note: Option<String>,
     /// SMs that get per-warp timelines (comma separated).
     #[arg(long, value_delimiter = ',', default_value = "0")]
     warp_sms: Vec<u32>,
@@ -163,6 +166,10 @@ fn kernel_page(
         d.end_cycle - d.start_cycle,
         d.stats.insts_issued
     );
+    let note = match &out.note {
+        Some(n) => format!("{note}\n\n{n}"),
+        None => note,
+    };
     let run = viz::kernel_run(&name, &spec, &d, &note);
     write(&out.out, out.title.as_deref().unwrap_or(&name), vec![run])
 }
@@ -212,7 +219,10 @@ pub fn main(cmd: VizCmd) -> Result<()> {
                 .unwrap_or_else(|| format!("{} on {}", wl.name, sys.name));
             let o = Simulation::new(sys.clone(), wl, cfg).run()?;
             eprint!("{}", o.report.summary());
-            let run = viz::rack_run(&name, &sys, &o, link_bin_ns);
+            let mut run = viz::rack_run(&name, &sys, &o, link_bin_ns);
+            if let Some(n) = &out.note {
+                run["note"] = n.clone().into();
+            }
             write(&out.out, out.title.as_deref().unwrap_or(&name), vec![run])
         }
         VizCmd::Path {
