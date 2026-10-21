@@ -10,8 +10,9 @@
 Hardware inputs (collected on the GPUs by remote/*.sh, copied into results/<gpu>/):
   timing*.jsonl                  fa_bench.py timing sweeps
   ncu_<impl>_*.json              Nsight Compute ground truth (cycles, instructions, stall reasons)
-NVBit recordings (large, not in git; FA_TRACES, default research/flash_attention/traces/):
-  <gpu>_<impl>_<shape>/          warp_path output (.sass, .json, .wp)
+NVBit recordings: raw warp_path output is large and not in git (FA_TRACES, default
+research/flash_attention/traces/); the converted recordings the study replays are committed as
+rpath/<gpu>_<impl>_<shape>.rpath.gz, so validate / whatif / scale run without the raw traces.
 Outputs: results/study.json (everything the write-up shows), results/sim/*.json, figures/*.png.
 Each simulation result is cached in results/sim/; delete a file to re-run it.
 """
@@ -75,6 +76,10 @@ def trace_dir(gpu, impl, shape):
 def rpath_of(gpu, impl, shape, regs):
     d = trace_dir(gpu, impl, shape)
     out = d + ".rpath"
+    # Committed recordings: research/flash_attention/rpath/<name>.rpath.gz (rsim reads gzip).
+    gz = os.path.join(HERE, "rpath", os.path.basename(d) + ".rpath.gz")
+    if not os.path.exists(out) and os.path.exists(gz):
+        return gz
     if not os.path.exists(out):
         if not os.path.isdir(d):
             return None

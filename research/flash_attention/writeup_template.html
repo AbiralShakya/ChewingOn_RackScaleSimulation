@@ -83,12 +83,12 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule);
   <h1>FlashAttention across generations, cycle by cycle</h1>
   <p class="lede">We ran Dao-AILab's FlashAttention-2 and FlashAttention-4 on an A100 and a B300 and recorded the exact
   instruction path of every warp. We then replayed those paths in a cycle-level simulator. The simulator matches
-  Nsight Compute to within 4% on all four kernels, so we can use it to ask what limits each generation and how
+  Nsight Compute to within 6% on all sixteen kernels we validated, so we can use it to ask what limits each generation and how
   long-context attention behaves on 72 GPUs.</p>
   <div class="facts">
     <div class="fact"><b>1.52 PF/s</b><span>FA4 forward on B300, sustained (4×16×4k, d128, BF16); 1.88 PF/s on a single cold call</span></div>
     <div class="fact"><b>4.1×</b><span>FA4 over FA2 on the same B300: FA2 is held to the legacy mma.sync rate</span></div>
-    <div class="fact"><b>±4%</b><span>simulated vs measured SM cycles, 4 kernels on 2 GPU generations</span></div>
+    <div class="fact"><b>±6%</b><span>simulated vs measured SM cycles, 16 kernels on 2 GPU generations</span></div>
     <div class="fact"><b>0.79×</b><span>FA4 with a B200-like exp unit (half-rate MUFU.EX2): why FA4 emulates exp on B200</span></div>
   </div>
 </header>
@@ -175,7 +175,9 @@ that did one more tile.</p>
 {{VAL_ROWS}}
 </tbody></table></div>
 <p class="cap">Shape 4×16×4096, d128. Errors are simulated minus measured, over measured. The acceptance band in
-RESEARCH.md is ±10% with the same dominant stall.</p>
+RESEARCH.md is ±10% with the same dominant stall. The three HMMA kernels moved from +1…+4% to −5…−6% when the
+shared simulator switched to a fractional <code>mma.sync</code> issue interval. That change came from the
+calibration work, not from this study, and the kernels stay inside the band.</p>
 {{FIG_STALLS}}
 <p class="cap">Stall reasons as shares of stalled warp-cycles. For the HMMA kernels, both hardware and simulator
 attribute about half to fixed-latency dependencies (<code>wait</code>) and a third to the math pipe. For FA4,
@@ -194,9 +196,11 @@ chunk of keys, 64 query heads, 8 or 64 KV heads. We recorded and validated those
 </tbody></table></div>
 <p class="cap">All sixteen kernels are inside the ±10% band. The 1024-token FA4 kernels last only 32 µs, and they
 first came out 17–21% fast: the simulator was missing a fixed per-kernel cost (cluster launch, tensor-memory
-allocation, mbarrier setup, pipeline fill and drain). The calibration suite now measures that window directly,
-with almost-empty kernels of the same launch shape under ncu: 8.9–9.1 k cycles on B300 with FA4's prologue, and
-2.9–3.1 k on A100. Charged before the first CTA, it brings those two kernels to +1.9% and +2.8%.</p>
+allocation, mbarrier setup, pipeline fill and drain). The calibration suite now measures that window on
+almost-empty kernels of the same launch shape under ncu, and the simulator charges it along each warp's own exit
+path, with a separately fitted <code>tcgen05.alloc</code> latency (1430 cycles for one CTA, 1990 for a pair). Those
+were fitted on synthetic prologue kernels, so FA4 is an out-of-sample check: its 1024-token steps now land at
+−3.7% and −2.7%.</p>
 
 <section class="col">
 <h2>Where FA4's cycles go on B300</h2>
