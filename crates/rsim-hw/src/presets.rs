@@ -169,6 +169,7 @@ pub fn h100_sxm() -> GpuSpec {
         },
         launch_overhead_ns: 1500.0,
         cta_launch_cycles: 120,
+        kernel_window: Vec::new(),
         notes: vec![
             "sm_count, clocks, HBM, NVLink, tensor peak: spec (989 TFLOPS dense BF16 @1830 MHz)"
                 .into(),
@@ -323,6 +324,7 @@ pub fn b200() -> GpuSpec {
         },
         launch_overhead_ns: 1500.0,
         cta_launch_cycles: 120,
+        kernel_window: Vec::new(),
         notes: vec![
             "sm_count, HBM, NVLink5, dense tensor peaks: spec (2.25 PF BF16, 4.5 PF FP8, 9 PF FP4)".into(),
             "dual-die split, D2D latency, pipe latencies, L2 latency/bandwidth: est (Blackwell ubench data is sparse)".into(),

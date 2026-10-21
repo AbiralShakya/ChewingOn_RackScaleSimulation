@@ -9,6 +9,9 @@ checked by simulating that exact SASS and comparing.
 ```bash
 CUDA_VISIBLE_DEVICES=3 ./run.sh      # build, run all benches, merge, ncu reference set
 NCU=0 ./run.sh                       # skip Nsight Compute
+# Only the kernel-window set, on top of an existing results directory:
+make -s all && ./build/bench_window > results/<dir>/raw/window.json &&
+  NCU_ONLY=window_ python3 scripts/ncu_reference.py results/<dir> && python3 scripts/merge.py results/<dir>
 ```
 
 Output goes to `results/<gpu>-sm<cc>/`:
@@ -33,6 +36,7 @@ copies this directory to della-tridao and runs a command there on GPU 3.
 | `bench_mem` | pointer-chase latency over an 8 KB to 4 GB footprint sweep (L1, L2, DRAM), per-hop L2 latency distribution, smem latency, bank conflicts, DSMEM latency, HBM/L2/L1/smem bandwidth, HBM bandwidth vs SM count | random cyclic permutation of 128 B lines; cold footprints are chased after an L2 flush, each line once |
 | `bench_tc` | `mma.sync` (HMMA/IMMA), `tcgen05.mma` (UMMA) BF16/TF32/FP8/MXFP8/NVFP4/MXFP4 at several shapes, 1-SM and 2-SM (`cta_group::2`), A from smem or TMEM, and the TMEM load rate | UMMA is issued by one thread with the accumulator in TMEM; round trip is MMA + commit + mbarrier wait |
 | `bench_tma` | `cp.async.bulk` global→smem latency (128 B to 64 KB, from L2 and from HBM) and streaming bandwidth (1 SM and all SMs) | 4-stage mbarrier ring |
+| `bench_window` | fixed cost of an almost empty one-wave kernel inside ncu's `sm__cycles_elapsed` window, by launch shape: 128/512 threads, no smem vs the opt-in maximum, clusters of 2, and an FA4-style prologue (TMEM alloc/dealloc, mbarrier init, barrier) | ncu measures launch 2 of 5 of each config (`window_*` in `ncu_reference.json`); `merge.py` turns them into `model.launch.kernel_window`, which the simulator charges before a kernel's first CTA |
 | `bench_misc` | kernel launch (sync, back-to-back, graph), `__syncthreads` vs CTA size, global and shared atomics | |
 | `bench_mma_sync` (sm_80+) | `mma.sync` HMMA f16/bf16/tf32 (incl. f16 accumulate and m16n8k8), IMMA s8/s4, DMMA f64, 2:4 sparse `mma.sp`; `ldmatrix` x1/x2/x4 latency and bandwidth | accumulator-dependent chain for latency; throughput swept over warps (1 to 32) × independent accumulators (1, 2, 4) so the simulator sees how many warps per SMSP saturate the pipe |
 | `bench_cpasync` (sm_80+) | `cp.async` (LDGSTS) .cg/.ca, 4/8/16 B: per-hop latency from L2 and DRAM, and staged global→smem streaming bandwidth vs the `ld.global.v4`→`st.shared` path | random line chase (L2 flushed before each DRAM rep); 1 to 8 stage commit/wait_group ring, swept over CTA size and CTAs per SM |

@@ -22,7 +22,7 @@ pub mod system;
 pub use fabric::{LinkSpec, SwitchSpec};
 pub use gpu::{
     Arch, CacheSpec, DieLink, GpuSpec, HbmSpec, LatencyTable, NvlinkSpec, OpTiming, PipeSpec,
-    PowerRun, PowerSpec, TensorSpec, TmaSpec,
+    PowerRun, PowerSpec, TensorSpec, TmaSpec, WindowPoint,
 };
 pub use system::{Link, NodeId, NodeKind, System, SystemSpec, Topology, TopologySpec};
 

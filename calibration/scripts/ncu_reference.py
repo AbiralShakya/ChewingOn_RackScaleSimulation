@@ -42,9 +42,23 @@ REFERENCE = [
     ("cp_async_cg16_dram_stream", "build/bench_cpasync", [], r"stream_kernel<1, 4>", 68, 1),  # DRAM pass, 256 thr x 4 CTA/SM
     ("hmma_f16_f32_m16n8k16_w32_ilp4", "build/bench_mma_sync", [], r"mma_thr_kernel<F16_F32_m16n8k16, 4>", 17, 1),
 ]
+# Fixed kernel window by launch shape (bench_window; launch 2 of 5 is profiled).
+# merge.py turns these into model.launch.kernel_window. They calibrate the
+# simulator, so `rsim validate` on them only checks the plumbing.
+WINDOW = [
+    ("t128_smem0", "0, 0, 1"),
+    ("t512_smem0", "1, 0, 1"),
+    ("t512_smem_max", "2, 0, 1"),
+    ("t512_smem_max_cluster2", "3, 0, 2"),
+    ("t512_smem_max_cluster2_fa4_prologue", "4, 1, 2"),
+    ("t512_smem_max_fa4_prologue", "5, 1, 1"),
+]
+REFERENCE += [(f"window_{n}", "build/bench_window", [], f"window_kernel<{t}>", 2, 1) for n, t in WINDOW]
 
 # Reference kernels that need hardware newer than sm_80.
-MIN_CC = {"umma_bf16_m128n256k16": 100, "umma_nvfp4_m128n256k64": 100, "tma_bulk_stream": 90}
+MIN_CC = {"umma_bf16_m128n256k16": 100, "umma_nvfp4_m128n256k64": 100, "tma_bulk_stream": 90,
+          "window_t512_smem_max_cluster2": 90, "window_t512_smem_max_cluster2_fa4_prologue": 100,
+          "window_t512_smem_max_fa4_prologue": 100}
 
 
 def gpu_index():
@@ -117,7 +131,15 @@ def main(outdir):
     cc = int(subprocess.run(["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader", "-i",
                              gpu_index()],
                             capture_output=True, text=True).stdout.split()[0].replace(".", ""))
+    # NCU_ONLY=<prefix> re-profiles only the matching labels and keeps the rest
+    # of an existing ncu_reference.json (e.g. NCU_ONLY=window_).
+    only = os.environ.get("NCU_ONLY")
+    ref_path = os.path.join(outdir, "ncu_reference.json")
+    if only and os.path.exists(ref_path):
+        results = [k for k in json.load(open(ref_path))["kernels"] if not k["label"].startswith(only)]
     for label, binary, args, regex, skip, count in REFERENCE:
+        if only and not label.startswith(only):
+            continue
         if cc < MIN_CC.get(label, 0) or not os.access(binary, os.X_OK):
             continue
         rec, err = run_ncu(binary, args, regex, skip, count)
@@ -148,7 +170,7 @@ def main(outdir):
         results.append(entry)
         c = entry["ncu"].get("sm__cycles_elapsed.max")
         print(f"{label:28s} sm cycles {c}", file=sys.stderr)
-    json.dump({"schema": "rackscale-ncu-reference/v1", "kernels": results}, open(os.path.join(outdir, "ncu_reference.json"), "w"), indent=1)
+    json.dump({"schema": "rackscale-ncu-reference/v1", "kernels": results}, open(ref_path, "w"), indent=1)
 
 
 if __name__ == "__main__":

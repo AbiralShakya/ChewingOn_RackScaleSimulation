@@ -162,3 +162,40 @@ fn hmma_blocks_fp32_pipe_not_mufu() {
     );
     assert!(m4 < 1.05 * m0, "MUFU should still overlap: {m0} -> {m4}");
 }
+
+/// A measured kernel window is charged once per kernel, from the nearest
+/// launch shape, before the first CTA starts.
+#[test]
+fn kernel_window_delays_first_cta() {
+    let listing = "\t\tFunction : empty\n        /*0000*/                   EXIT ;\n";
+    let time = |pts: Vec<rsim_hw::WindowPoint>, smem: u32| {
+        let mut spec = presets::b200();
+        spec.kernel_window = pts;
+        let prog = rsim_sass::parse_listing(listing).unwrap().remove(0);
+        let k = KernelLaunch::from_program(
+            "empty",
+            prog,
+            [148, 1, 1],
+            [512, 1, 1],
+            32,
+            smem,
+            Default::default(),
+        );
+        let (d, _) = run(spec, k);
+        d.end_cycle - d.start_cycle
+    };
+    let pt = |smem_bytes, cycles| rsim_hw::WindowPoint {
+        threads: 512,
+        smem_bytes,
+        cluster: 1,
+        tmem_prologue: false,
+        cycles,
+    };
+    let base = time(vec![], 0);
+    let small = time(vec![pt(0, 2000.0), pt(200 << 10, 9000.0)], 0);
+    let big = time(vec![pt(0, 2000.0), pt(200 << 10, 9000.0)], 190 << 10);
+    eprintln!("empty kernel: {base} cycles, window 2000 -> {small}, window 9000 -> {big}");
+    assert!(base < 1000);
+    assert!((2000..2600).contains(&small), "{small}");
+    assert!((9000..9600).contains(&big), "{big}");
+}

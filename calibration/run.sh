@@ -40,6 +40,7 @@ run() {
 run alu ./build/bench_alu && python3 scripts/sass_check.py build/bench_alu build/bench_alu.ptx "$out/raw/alu.json" 2>>"$out/raw/alu.log"
 run mem ./build/bench_mem
 run misc ./build/bench_misc
+run window ./build/bench_window
 # Arch-specific benches: the Makefile builds them only where the feature exists.
 [ -x build/bench_tma ] && run tma ./build/bench_tma
 for c in $(./build/bench_tc --list); do
@@ -53,4 +54,6 @@ done
 python3 scripts/merge.py "$out"
 if [ "${NCU:-1}" = 1 ] && command -v ncu >/dev/null; then
   python3 scripts/ncu_reference.py "$out"
+  # Second merge: model.launch.kernel_window needs the ncu cycles of the window kernels.
+  python3 scripts/merge.py "$out"
 fi

@@ -13,7 +13,7 @@ NVFLAGS   ?= -O3 -std=c++17 -lineinfo $(ARCH) -Xptxas -v -DCAL_SM=$(SM)
 BUILD     := build
 
 # Arch-specific benches only build where the hardware has the feature.
-BENCHES := alu mem tc misc
+BENCHES := alu mem tc misc window
 ifeq ($(shell test $(SM) -ge 80 && echo y),y)
 BENCHES += mma_sync cpasync l2part overlap
 endif

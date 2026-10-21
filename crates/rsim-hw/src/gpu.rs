@@ -50,6 +50,17 @@ pub struct DieLink {
     pub far_fraction: Option<f64>,
 }
 
+/// `sm__cycles_elapsed` of an (almost) empty one-wave kernel of this shape.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct WindowPoint {
+    pub threads: u32,
+    pub smem_bytes: u32,
+    pub cluster: u32,
+    /// FA4-style prologue: TMEM alloc/dealloc, mbarrier init, CTA barrier.
+    pub tmem_prologue: bool,
+    pub cycles: f64,
+}
+
 /// TMA (bulk copy) engine of one SM.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TmaSpec {
@@ -216,6 +227,10 @@ pub struct GpuSpec {
     pub launch_overhead_ns: f64,
     /// Per-CTA dispatch latency from the work distributor, cycles.
     pub cta_launch_cycles: u32,
+    /// Measured fixed cost of a kernel inside the SM-cycle window, by launch
+    /// shape (calibration `bench_window` + ncu). Empty = not modelled.
+    #[serde(default)]
+    pub kernel_window: Vec<WindowPoint>,
     /// Free-form provenance notes.
     #[serde(default)]
     pub notes: Vec<String>,
@@ -301,6 +316,29 @@ pub struct OpTiming {
 }
 
 impl GpuSpec {
+    /// Fixed kernel cost for a launch shape, from the nearest measured
+    /// point with the same cluster size and prologue (then the nearest
+    /// shared-memory size and thread count). `None` without measurements.
+    pub fn kernel_window_cycles(
+        &self,
+        threads: u32,
+        smem_bytes: u32,
+        cluster: u32,
+        tmem_prologue: bool,
+    ) -> Option<f64> {
+        let d = |p: &WindowPoint| {
+            (
+                (p.cluster != cluster.max(1)) as u32 + (p.tmem_prologue != tmem_prologue) as u32,
+                p.smem_bytes.abs_diff(smem_bytes),
+                p.threads.abs_diff(threads),
+            )
+        };
+        self.kernel_window
+            .iter()
+            .min_by_key(|p| d(p))
+            .map(|p| p.cycles)
+    }
+
     pub fn warps_per_smsp(&self) -> u32 {
         self.max_warps_per_sm / self.sub_partitions
     }

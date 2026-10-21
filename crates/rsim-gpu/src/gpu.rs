@@ -169,15 +169,29 @@ impl Gpu {
         let kid = self.next_kid;
         self.next_kid += 1;
         let total = launch.num_ctas();
+        // The measured fixed window (rasterisation, smem carveout, cluster
+        // launch, prologue) opens with the launch and delays the first CTA.
+        // What the model already charges for an empty kernel is not counted twice.
+        let at = at.max(self.now);
+        let window = self
+            .spec
+            .kernel_window_cycles(
+                launch.threads_per_cta(),
+                launch.smem_per_cta,
+                launch.cluster,
+                launch.allocs_tmem(),
+            )
+            .map(|c| (c - self.spec.cta_launch_cycles as f64).max(0.0) as u64)
+            .unwrap_or(0);
         self.kernels.push(ActiveKernel {
             kid,
             tag,
             launch,
-            available_at: at.max(self.now),
+            available_at: at + window,
             next_cta: 0,
             total,
             done: 0,
-            started: None,
+            started: (window > 0).then_some(at),
         });
         self.dispatch_dirty = true;
         kid

@@ -296,6 +296,21 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         spec.launch_overhead_ns = us * 1000.0;
         set("launch_overhead_ns", &mut took);
     }
+    // Fixed kernel window per launch shape (bench_window, measured by ncu).
+    if let Some(pts) = m
+        .get("launch")
+        .and_then(|l| l.get("kernel_window"))
+        .and_then(|w| w.as_array())
+    {
+        let pts: Vec<crate::WindowPoint> = pts
+            .iter()
+            .filter_map(|p| serde_json::from_value(p.clone()).ok())
+            .collect();
+        if !pts.is_empty() {
+            spec.kernel_window = pts;
+            set("kernel_window", &mut took);
+        }
+    }
     if let Some(c) = f(m, &["syncthreads_cycles", "256"]) {
         spec.latency.bar = cyc(c);
         set("latency.bar", &mut took);

@@ -99,6 +99,18 @@ impl KernelLaunch {
         self.threads_per_cta().div_ceil(32)
     }
 
+    /// Whether the kernel allocates tensor memory (`tcgen05.alloc` =
+    /// `UTCATOMSWS`): an FA4/CUTLASS-style prologue.
+    pub fn allocs_tmem(&self) -> bool {
+        let has =
+            |insts: &[Arc<rsim_sass::Inst>]| insts.iter().any(|i| i.base_opcode() == "UTCATOMSWS");
+        match &self.source {
+            KernelSource::Static { roles, .. } => roles.iter().any(|r| has(&r.insts)),
+            KernelSource::Path(p) => has(&p.insts),
+            KernelSource::Trace(_) => false,
+        }
+    }
+
     pub fn from_trace(t: TraceKernel) -> Self {
         let h = t.header.clone();
         Self {

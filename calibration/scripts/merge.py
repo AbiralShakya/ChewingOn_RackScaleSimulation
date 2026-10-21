@@ -215,6 +215,23 @@ def model_power(outdir):
     }
 
 
+def model_window(raw, outdir):
+    """Fixed kernel window per launch shape: bench_window's configs with the
+    `sm__cycles_elapsed.avg` ncu measured for them (ncu_reference.py; run.sh
+    merges again after it)."""
+    ref = os.path.join(outdir, "ncu_reference.json")
+    if "window" not in raw or not os.path.exists(ref):
+        return []
+    ncu = {k["label"]: k.get("ncu", {}) for k in json.load(open(ref))["kernels"]}
+    pts = []
+    for name, c in raw["window"]["window"].items():
+        cyc = ncu.get(f"window_{name}", {}).get("sm__cycles_elapsed.avg")
+        if isinstance(cyc, (int, float)):
+            pts.append({"config": name, "threads": c["threads"], "smem_bytes": c["smem_dynamic"],
+                        "cluster": c["cluster"], "tmem_prologue": c["fa4_prologue"], "cycles": cyc})
+    return pts
+
+
 def main(outdir):
     raw = load_raw(outdir)
     if "alu" not in raw:
@@ -235,6 +252,9 @@ def main(outdir):
         model["launch"] = raw["misc"]["launch"]
         model["syncthreads_cycles"] = raw["misc"]["syncthreads_cycles"]
         model["atomics"] = raw["misc"]["atomics"]
+    window = model_window(raw, outdir)
+    if window:
+        model.setdefault("launch", {})["kernel_window"] = window
     power = model_power(outdir)
     if power:
         model["power"] = power
@@ -246,7 +266,7 @@ def main(outdir):
         "schema": SCHEMA,
         "generated_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "driver": smi,
-        "missing_benches": sorted({"alu", "mem", "misc", "tma"} - set(raw)),
+        "missing_benches": sorted({"alu", "mem", "misc", "tma", "window"} - set(raw)),
         "model": model,
         "raw": raw,
     }
