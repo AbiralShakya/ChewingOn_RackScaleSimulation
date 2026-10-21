@@ -8,6 +8,7 @@
 //! Instruction counts are workload facts, not timing, so this does not fit
 //! the model to the cycle counts it is validated against. Entries with a
 //! `trace_file` (Accel-Sim/NVBit `.traceg`) are replayed exactly instead.
+//! Each kernel is simulated at the SM clock its reference run ran at.
 
 use anyhow::{Context, Result};
 use rsim_gpu::{Gpu, GpuConfig, KernelDone, KernelLaunch};
@@ -68,12 +69,28 @@ fn simulate(gpu: &rsim_hw::GpuSpec, launch: KernelLaunch) -> Option<f64> {
     simulate_done(gpu, launch).map(|d| (d.end_cycle - d.start_cycle) as f64)
 }
 
-pub fn run(reference: &Path, gpu: &rsim_hw::GpuSpec) -> Result<Vec<Row>> {
+/// The SM clock the reference run actually ran at. `ncu --clock-control
+/// none` leaves the clock to the driver, which can sit well away from the
+/// calibration run's clock (A100 PCIe: 1065 MHz under ncu vs 1395 MHz);
+/// cycle counts of memory-bound kernels only compare at the same clock.
+/// Short kernels are skipped: their duration is mostly launch overhead.
+fn run_clock_mhz(k: &Value) -> Option<f64> {
+    let cycles = num(k, "sm__cycles_elapsed.avg")?;
+    let ns = num(k, "gpu__time_duration.sum")?;
+    (ns > 100e3).then(|| cycles / ns * 1e3)
+}
+
+pub fn run(reference: &Path, base: &rsim_hw::GpuSpec) -> Result<Vec<Row>> {
     let doc: Value = serde_json::from_str(&std::fs::read_to_string(reference)?)?;
     let dir = reference.parent().unwrap_or(Path::new("."));
     let mut rows = Vec::new();
     for k in doc["kernels"].as_array().context("no `kernels` array")? {
         let label = k["label"].as_str().unwrap_or("?").to_string();
+        let mut gpu = base.clone();
+        if let Some(mhz) = run_clock_mhz(k) {
+            gpu.sm_clock_mhz = mhz;
+        }
+        let gpu = &gpu;
         // An NVBit warp-path recording (`.rpath`, research/flash_attention/
         // nvbit_warp_path): exact per-warp paths and barrier operands.
         if let (Some(pf), Some(meas)) = (k["path_file"].as_str(), num(k, "sm__cycles_elapsed.avg"))
