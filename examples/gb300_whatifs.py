@@ -12,6 +12,7 @@ two rack workloads (Llama-3-405B FP4 prefill, DeepSeek-V3 FP4 decode).
 
 import copy
 import json
+import os
 
 import rackscale as rs
 from rackscale import lower, models
@@ -86,4 +87,5 @@ for title, wl, n in [(t, w, 1) for t, w in KERNELS.items()] + [(t, w, 72) for t,
         base = base or us
         rows.append({"workload": title, "variant": v, "us": us, "speedup": base / us})
         print(f"{title:<48} {v:<13} {us:10.1f} us  x{base / us:.3f}", flush=True)
+os.makedirs("out", exist_ok=True)
 json.dump(rows, open("out/gb300_whatifs.json", "w"), indent=1)
