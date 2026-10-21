@@ -12,8 +12,8 @@ Pages:
 * ``mamba_vs_attention_b300.html``: Llama-3-8B vs Mamba-2-8B decode on one calibrated B300, plus the
   attention decode kernel alone. Mamba-2's ``selective_state_update`` runs the real Triton SASS.
 * ``flash_attention_b300.html``: FlashAttention-2 vs FlashAttention-4 forward (b4 h16 s4096 d128) on
-  B300, replayed from NVBit recordings of the real kernels. Needs the ``.rpath`` recordings
-  (not in git; see research/flash_attention/README.md), passed with ``--traces DIR``.
+  B300, replayed from NVBit recordings of the real kernels (the committed
+  ``research/flash_attention/rpath/*.rpath.gz``, or raw ``.rpath`` files from ``--traces DIR``).
 """
 
 import argparse
@@ -90,6 +90,8 @@ def flash(traces):
     for impl, regs in (("fa2", 255), ("fa4", 128)):
         p = os.path.join(traces, f"b300_{impl}_s4096.rpath")
         if not os.path.exists(p):
+            p += ".gz"
+        if not os.path.exists(p):
             print(f"skip flash: {p} not found (see research/flash_attention/README.md)")
             return
         rsim("viz", "path", p, "--gpu", "b300", "--calibration", FA_CAL, "--regs", regs, "--warp-sms", "0,1",
@@ -103,7 +105,7 @@ def flash(traces):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("pages", nargs="*", default=["deepseek", "mamba", "flash"])
-    ap.add_argument("--traces", default=os.path.join(ROOT, "research", "flash_attention", "traces"))
+    ap.add_argument("--traces", default=os.path.join(ROOT, "research", "flash_attention", "rpath"))
     a = ap.parse_args()
     os.makedirs(OUT, exist_ok=True)
     for p in a.pages:

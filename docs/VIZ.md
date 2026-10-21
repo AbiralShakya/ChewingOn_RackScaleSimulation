@@ -49,7 +49,7 @@ wl = lower.decode_step(models.DEEPSEEK_V3, rs.Parallel(ep=72, comm_sms=20), 64, 
 rs.viz("gb200_nvl72", wl, "ds.html", detail_ranks=[0], warp_sms=[0])
 ```
 
-The example pages in [`docs/viz/`](viz/) are rebuilt with `python examples/viz_gallery.py`:
+The example pages in [`docs/viz/`](viz/) are rebuilt with `python examples/viz_gallery.py` (about 25 minutes, most of it the two FlashAttention replays; `python examples/viz_gallery.py deepseek` builds one page):
 
 | page | run |
 |---|---|
