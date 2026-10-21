@@ -6,7 +6,8 @@
 //! *input*: every backward branch gets the same per-warp trip count, solved
 //! so the dynamic warp-instruction count matches `smsp__inst_executed.sum`.
 //! Instruction counts are workload facts, not timing, so this does not fit
-//! the model to the cycle counts it is validated against.
+//! the model to the cycle counts it is validated against. Entries with a
+//! `trace_file` (Accel-Sim/NVBit `.traceg`) are replayed exactly instead.
 
 use anyhow::{Context, Result};
 use rsim_gpu::{Gpu, GpuConfig, KernelLaunch};
@@ -55,12 +56,38 @@ fn solve_profile(p: &Program, warps: f64, inst_executed: f64) -> (BranchProfile,
     (prof, trips)
 }
 
+fn simulate(gpu: &rsim_hw::GpuSpec, launch: KernelLaunch) -> Option<f64> {
+    let mut g = Gpu::new(0, gpu.clone(), GpuConfig::default(), false);
+    g.submit(Arc::new(launch), 0, 0);
+    let mut out = vec![];
+    g.advance(u64::MAX / 2, &mut out);
+    out.pop().map(|d| (d.end_cycle - d.start_cycle) as f64)
+}
+
 pub fn run(reference: &Path, gpu: &rsim_hw::GpuSpec) -> Result<Vec<Row>> {
     let doc: Value = serde_json::from_str(&std::fs::read_to_string(reference)?)?;
     let dir = reference.parent().unwrap_or(Path::new("."));
     let mut rows = Vec::new();
     for k in doc["kernels"].as_array().context("no `kernels` array")? {
         let label = k["label"].as_str().unwrap_or("?").to_string();
+        // An Accel-Sim/NVBit trace (exact control flow and addresses) wins
+        // over replaying bare SASS with solved trip counts.
+        if let (Some(tf), Some(meas)) = (k["trace_file"].as_str(), num(k, "sm__cycles_elapsed.avg"))
+        {
+            let src = std::fs::read_to_string(dir.join(tf))?;
+            let t = rsim_sass::accelsim::parse_trace(&src).map_err(anyhow::Error::msg)?;
+            let launch = KernelLaunch::from_trace(t);
+            if let Some(sim) = simulate(gpu, launch) {
+                rows.push(Row {
+                    error_pct: 100.0 * (sim - meas) / meas,
+                    label: format!("{label} (trace)"),
+                    measured_cycles: meas,
+                    simulated_cycles: sim,
+                    trip_count: 0,
+                });
+            }
+            continue;
+        }
         let (Some(sass), Some(mangled)) = (k["sass_file"].as_str(), k["kernel_mangled"].as_str())
         else {
             continue;
