@@ -183,7 +183,7 @@ double thr_point(Ctx& x, int warps, int iters) {
   // CAL_THR_REPS=1 under ncu, which profiles every launch.
   static const int reps = getenv("CAL_THR_REPS") ? atoi(getenv("CAL_THR_REPS")) : 3;
   for (int r = 0; r < reps; ++r) {
-    k<<<x.d.sm_count, 32 * warps, x.one_cta_smem>>>(x.io, iters, x.cyc, x.sink);
+    k<<<cal_grid(x.d.sm_count), 32 * warps, x.one_cta_smem>>>(x.io, iters, x.cyc, x.sink);
     CK(cudaDeviceSynchronize());
     std::vector<uint64_t> h(2 * x.d.sm_count);
     CK(cudaMemcpy(h.data(), x.cyc, h.size() * 8, cudaMemcpyDeviceToHost));

@@ -115,7 +115,7 @@ double mix_point(Ctx& x) {
   const int iters = 32;
   double best = 1e30;
   for (int r = 0; r < 3; ++r) {
-    k<<<x.d.sm_count, 32 * WARPS, x.smem>>>(x.io, iters, x.cyc, x.sink);
+    k<<<cal_grid(x.d.sm_count), 32 * WARPS, x.smem>>>(x.io, iters, x.cyc, x.sink);
     CK(cudaDeviceSynchronize());
     std::vector<uint64_t> h(2 * x.d.sm_count);
     CK(cudaMemcpy(h.data(), x.cyc, h.size() * 8, cudaMemcpyDeviceToHost));

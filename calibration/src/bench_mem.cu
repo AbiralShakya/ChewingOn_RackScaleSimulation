@@ -411,7 +411,7 @@ void run_smem(Json& j, const DeviceInfo& d) {
   j.key("bank_conflict_sweep");
   j.arr();
   for (int stride : {1, 2, 4, 8, 16, 32, 33}) {
-    double span = per_sm_span([&] { smem_bw_kernel<<<d.sm_count, threads, smem>>>(iters, stride, out, sink); });
+    double span = per_sm_span([&] { smem_bw_kernel<<<cal_grid(d.sm_count), threads, smem>>>(iters, stride, out, sink); });
     double warp_loads = (threads / 32.0) * iters * 16;
     j.obj();
     j.kvi("stride_words", stride);
@@ -498,7 +498,7 @@ __global__ void l1_bw_kernel(const uint4* p, int reps, uint64_t* out, uint32_t* 
 }
 
 void run_bandwidth(Json& j, const DeviceInfo& d, double mhz) {
-  size_t bytes = 8ull << 30;
+  size_t bytes = cal_bytes(8ull << 30);
   uint4 *a, *b;
   uint32_t* sink;
   uint64_t* out;
@@ -508,7 +508,7 @@ void run_bandwidth(Json& j, const DeviceInfo& d, double mhz) {
   CK(cudaMalloc(&out, 8 * d.sm_count));
   CK(cudaMemset(a, 1, bytes));
   size_t n = bytes / 16;
-  int grid = d.sm_count * 4, blk = 1024;
+  int grid = cal_grid(d.sm_count * 4), blk = 1024;
 
   j.key("bandwidth");
   j.obj();

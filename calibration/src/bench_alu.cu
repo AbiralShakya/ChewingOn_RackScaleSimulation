@@ -161,7 +161,7 @@ void run_op(Json& j, const DeviceInfo& d, size_t one_cta_smem) {
   CK(cudaFuncSetAttribute(thr_kernel<Op>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)one_cta_smem));
   std::vector<double> per_sm;
   for (int r = 0; r < 3; ++r) {
-    thr_kernel<Op><<<d.sm_count, 1024, one_cta_smem>>>(io, titers, cyc);
+    thr_kernel<Op><<<cal_grid(d.sm_count), 1024, one_cta_smem>>>(io, titers, cyc);
     CK(cudaDeviceSynchronize());
     std::vector<uint64_t> hc(2 * d.sm_count);
     CK(cudaMemcpy(hc.data(), cyc, hc.size() * 8, cudaMemcpyDeviceToHost));

@@ -252,7 +252,7 @@ double stream_gbs(const uint4* buf, size_t bytes, int ctas_per_sm, int threads, 
   int occ = 0;
   CK(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, k, threads, smem));
   if (occ < ctas_per_sm) return NAN;
-  int grid = d.sm_count * ctas_per_sm;
+  int grid = cal_grid(d.sm_count * ctas_per_sm);
   size_t n16 = bytes / 16;
   double ms = time_ms([&] { k<<<grid, threads, smem>>>(buf, n16, passes, sink); }, 5, 1);
   return (double)(n16 / threads) * threads * 16 * passes / (ms * 1e-3) / 1e9;
@@ -294,7 +294,7 @@ void sweep_mode(Json& j, const char* name, const uint4* buf, size_t bytes, int p
 
 void run_bandwidth(Json& j, const DeviceInfo& d, uint32_t* sink) {
   size_t l2b = (size_t)d.l2_bytes / 2;  // comfortably L2-resident
-  size_t drb = 2ull << 30;
+  size_t drb = cal_bytes(2ull << 30);
   uint4* buf;
   CK(cudaMalloc(&buf, drb));
   CK(cudaMemset(buf, 1, drb));
