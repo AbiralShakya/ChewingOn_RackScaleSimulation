@@ -601,23 +601,23 @@
    "overall": 0.12296402372583765
   },
   "a100pcie": {
-   "n": 36,
+   "n": 92,
    "median_abs_err": {
-    "Mamba-2 decode": 0.5512843010058748,
-    "conv1d": 0.4233265093300956,
-    "attention": 0.8419812302350949,
-    "GEMM": 1.2807719782111664,
-    "SSD prefill": 0.22172212359819254
+    "Mamba-2 decode": 0.19617285312513405,
+    "conv1d": 0.3446783062925135,
+    "attention": 0.1979683534692957,
+    "GEMM": 0.3260629906012509,
+    "SSD prefill": 0.6840523962757605
    },
-   "overall_vs_ncu": 0.6568207229291532,
+   "overall_vs_ncu": 0.2614104519057516,
    "count": {
-    "Mamba-2 decode": 3,
-    "conv1d": 6,
-    "attention": 9,
-    "GEMM": 15,
-    "SSD prefill": 3
+    "Mamba-2 decode": 6,
+    "conv1d": 11,
+    "attention": 22,
+    "GEMM": 48,
+    "SSD prefill": 5
    },
-   "overall": 0.6562920890596015
+   "overall": 0.2412774466030415
   }
  },
  "whatif_ssu8": {

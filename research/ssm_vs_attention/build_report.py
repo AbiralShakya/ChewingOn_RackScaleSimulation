@@ -339,9 +339,12 @@ longer than Nsight Compute reports. The simulator's large-GEMM times sit close t
 accumulators and double-buffered <code>ldmatrix</code> fragments (the synthetic kernels had chained every HMMA and every
 exponential through one register); split-K and narrow N tiles for decode-sized GEMMs, as cuBLAS uses; the autotuned SSD
 tile shapes and the L2 reuse of <code>C B^T</code> across heads; a separate, measured <code>mma.sync</code> rate (on B300 it
-is 2037 BF16 FLOP/clk/SM, a quarter of <code>tcgen05</code>); and the real Triton SASS for the state update. Known gaps: small
-kernels under ~10 µs (launch-bound conv1d updates, the split-KV combine) and the A100 SSD <code>chunk_scan</code>, which the
-model still runs slower than the hardware.</p>
+is 2037 BF16 FLOP/clk/SM, a quarter of <code>tcgen05</code>); and the real Triton SASS for the state update.</p>
+<p>The A100 model is the weaker of the two. Its synthetic <code>mma.sync</code> GEMMs land a median 33% from cuBLAS, and it
+runs the SSD scan 60 to 70% slower than the hardware, almost all of it in <code>chunk_scan</code>. The crossovers above come
+from the hardware measurements, and the rack results use only the Blackwell model, so neither depends on the A100
+simulation. Small kernels under about 10 µs (launch-bound conv1d updates, the split-KV combine) are the other known gap on
+both parts.</p>
 </section>
 
 <section id="repro">
