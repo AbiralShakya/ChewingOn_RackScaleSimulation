@@ -534,8 +534,8 @@ void run_bandwidth(Json& j, const DeviceInfo& d, double mhz) {
 
   // L2: footprint well inside L2, many passes
   for (double frac : {0.125, 0.25, 0.5}) {
-    size_t l2b = (size_t)(d.l2_bytes * frac) / 16 * 16;
-    int reps = 32;
+    size_t l2b = cal_bytes((size_t)(d.l2_bytes * frac)) / 16 * 16;
+    int reps = cal_iters(32);
     bw_read_kernel<<<grid, blk>>>(a, l2b / 16, 2, sink);
     ms = time_ms([&] { bw_read_kernel<<<grid, blk>>>(a, l2b / 16, reps, sink); });
     double gbps = (double)l2b * reps / ms / 1e6;
