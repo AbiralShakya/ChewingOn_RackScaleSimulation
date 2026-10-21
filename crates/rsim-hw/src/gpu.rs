@@ -53,6 +53,9 @@ pub struct DieLink {
 /// `sm__cycles_elapsed` of an (almost) empty one-wave kernel of this shape.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct WindowPoint {
+    /// CTAs launched; 0 = one per SM (a full wave, the original configs).
+    #[serde(default)]
+    pub ctas: u32,
     pub threads: u32,
     pub smem_bytes: u32,
     pub cluster: u32,
@@ -318,9 +321,10 @@ pub struct OpTiming {
 impl GpuSpec {
     /// Fixed kernel cost for a launch shape, from the nearest measured
     /// point with the same cluster size and prologue (then the nearest
-    /// shared-memory size and thread count). `None` without measurements.
+    /// CTA count, shared-memory size and thread count). `None` without measurements.
     pub fn kernel_window_cycles(
         &self,
+        ctas: u64,
         threads: u32,
         smem_bytes: u32,
         cluster: u32,
@@ -329,6 +333,11 @@ impl GpuSpec {
         let d = |p: &WindowPoint| {
             (
                 (p.cluster != cluster.max(1)) as u32 + (p.tmem_prologue != tmem_prologue) as u32,
+                // Wave size next (a 1-CTA kernel rasterises far less), on a log scale.
+                {
+                    let c = if p.ctas == 0 { self.sm_count } else { p.ctas } as f64;
+                    ((c.ln() - (ctas.max(1) as f64).ln()).abs() * 4.0) as u32
+                },
                 p.smem_bytes.abs_diff(smem_bytes),
                 p.threads.abs_diff(threads),
             )

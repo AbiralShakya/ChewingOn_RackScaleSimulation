@@ -193,6 +193,7 @@ fn kernel_window_delays_first_cta() {
         d.end_cycle - d.start_cycle
     };
     let pt = |smem_bytes, cycles| rsim_hw::WindowPoint {
+        ctas: 0,
         threads: 512,
         smem_bytes,
         cluster: 1,

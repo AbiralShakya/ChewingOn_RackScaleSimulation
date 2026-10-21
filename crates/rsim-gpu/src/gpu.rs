@@ -183,6 +183,7 @@ impl Gpu {
         let window = (self.cfg.kernel_window)
             .then(|| {
                 self.spec.kernel_window_cycles(
+                    total,
                     launch.threads_per_cta(),
                     launch.smem_per_cta,
                     launch.cluster,

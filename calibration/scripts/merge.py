@@ -253,7 +253,7 @@ def model_window(raw, outdir):
     for name, c in raw["window"]["window"].items():
         cyc = ncu.get(f"window_{name}", {}).get("sm__cycles_elapsed.avg")
         if isinstance(cyc, (int, float)):
-            pts.append({"config": name, "threads": c["threads"], "smem_bytes": c["smem_dynamic"],
+            pts.append({"config": name, "ctas": c["grid"], "threads": c["threads"], "smem_bytes": c["smem_dynamic"],
                         "cluster": c["cluster"], "tmem_prologue": c["fa4_prologue"], "cycles": cyc})
     return pts
 

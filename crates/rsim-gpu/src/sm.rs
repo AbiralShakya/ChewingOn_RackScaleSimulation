@@ -976,8 +976,16 @@ impl Sm {
                 let rate =
                     spec.tensor.sync_flops_per_cycle(mma_dtype(&inst)) / spec.sub_partitions as f64;
                 let flops = mma_flops(&inst, op.payload);
-                let ii = (flops / rate).ceil().max(1.0) as u64;
+                // Measured rates give fractional intervals (A100: 8.09 cycles
+                // per m16n8k16); carry the fraction instead of rounding up.
+                let exact = (flops / rate).max(1.0);
                 let sps = &mut self.smsps[sp];
+                let debt = &mut sps.pipe_debt[Pipe::Tensor as usize];
+                *debt += (exact - exact.floor()) as f32;
+                let ii = exact.floor() as u64 + (*debt >= 1.0) as u64;
+                if *debt >= 1.0 {
+                    *debt -= 1.0;
+                }
                 sps.pipe_free[Pipe::Tensor as usize] = c + ii;
                 let hold = spec.tensor.hmma_fma_pipe_cycles as u64;
                 if hold > 0 {

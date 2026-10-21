@@ -113,6 +113,15 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         f(mem, &["l2_partitions", "far_mean_cycles"]),
         f(mem, &["l2_partitions", "far_fraction"]),
     ) {
+        // The pointer chase measures the mean L2 hit latency directly; the
+        // partition bench gives the near/far split. Scale the split so its
+        // mean is the chase's (they disagree by 20-40%: the partition bench
+        // times one 8-load chain per line, not a random chase).
+        let mean = near + frac * (far - near);
+        let s = f(mem, &["latency_cycles", "l2_hit_repeat"])
+            .filter(|_| mean > 0.0)
+            .map_or(1.0, |r| r / mean);
+        let (near, far) = (near * s, far * s);
         spec.l2.hit_latency = cyc(near);
         let d = spec.d2d.get_or_insert(DieLink {
             // Single-die parts: the far partition is on-die; no BW limit.

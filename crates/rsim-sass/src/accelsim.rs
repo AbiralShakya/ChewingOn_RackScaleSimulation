@@ -106,7 +106,8 @@ pub fn parse_trace(src: &str) -> Result<TraceKernel, String> {
                 .map_err(|_| format!("line {}: bad warp", ln + 1))?;
             continue;
         }
-        if line.starts_with("insts =") {
+        // Tracer v6 adds `cluster id/cta/rank = ...` per thread block.
+        if line.starts_with("insts =") || line.starts_with("cluster ") {
             continue;
         }
         let toks: Vec<&str> = line.split_whitespace().collect();

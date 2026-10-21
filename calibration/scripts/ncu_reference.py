@@ -52,6 +52,8 @@ WINDOW = [
     ("t512_smem_max_cluster2", "3, 0, 2"),
     ("t512_smem_max_cluster2_fa4_prologue", "4, 1, 2"),
     ("t512_smem_max_fa4_prologue", "5, 1, 1"),
+    ("g1_t128_smem0", "6, 0, 1"),
+    ("g1_t512_smem_max", "7, 0, 1"),
 ]
 REFERENCE += [(f"window_{n}", "build/bench_window", [], f"window_kernel<{t}>", 2, 1) for n, t in WINDOW]
 

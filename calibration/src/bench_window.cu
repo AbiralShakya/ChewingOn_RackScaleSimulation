@@ -66,6 +66,7 @@ struct Config {
   int cluster;
   bool prologue;
   void (*kern)(uint32_t*);
+  int ctas = 0;  // 0 = one CTA per SM (a full wave)
 };
 
 template <int TAG, int P, int C>
@@ -83,6 +84,9 @@ int main() {
       {"t512_smem0", 512, 0, 1, false, K<1, 0, 1>()},
       {"t512_smem_max", 512, -1, 1, false, K<2, 0, 1>()},
   };
+  // A single CTA: how much of the window is rasterising a full wave.
+  cfgs.push_back({"g1_t128_smem0", 128, 0, 1, false, K<6, 0, 1>(), 1});
+  cfgs.push_back({"g1_t512_smem_max", 512, -1, 1, false, K<7, 0, 1>(), 1});
   // Thread block clusters are sm_90+.
   if (d.p.major >= 9) cfgs.push_back({"t512_smem_max_cluster2", 512, -1, 2, false, K<3, 0, 2>()});
   if (tc05) {
@@ -102,7 +106,7 @@ int main() {
     int smem = c.smem < 0 ? optin - 1024 : c.smem;  // static smem of the prologue
     CK(cudaFuncSetAttribute(c.kern, cudaFuncAttributeMaxDynamicSharedMemorySize, smem));
     if (c.cluster > 1) CK(cudaFuncSetAttribute(c.kern, cudaFuncAttributeNonPortableClusterSizeAllowed, 1));
-    int grid = cal_grid(d.sm_count / c.cluster * c.cluster);
+    int grid = c.ctas > 0 ? c.ctas : cal_grid(d.sm_count / c.cluster * c.cluster);
     cudaLaunchConfig_t cfg = {};
     cfg.gridDim = dim3(grid);
     cfg.blockDim = dim3(c.threads);
