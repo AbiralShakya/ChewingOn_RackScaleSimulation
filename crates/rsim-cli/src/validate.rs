@@ -87,7 +87,13 @@ fn simulate_done(gpu: &rsim_hw::GpuSpec, launch: KernelLaunch) -> Option<KernelD
 }
 
 fn simulate(gpu: &rsim_hw::GpuSpec, launch: KernelLaunch) -> Option<f64> {
-    simulate_done(gpu, launch).map(|d| (d.end_cycle - d.start_cycle) as f64)
+    let d = simulate_done(gpu, launch)?;
+    // RSIM_VALIDATE_STATS=1: dump each kernel's simulated stats (stall
+    // counts, cache hits, class mix) to stderr for digging into a miss.
+    if std::env::var_os("RSIM_VALIDATE_STATS").is_some() {
+        eprintln!("{}", serde_json::to_string(&d.stats).unwrap_or_default());
+    }
+    Some((d.end_cycle - d.start_cycle) as f64)
 }
 
 /// The SM clock the reference run actually ran at. `ncu --clock-control

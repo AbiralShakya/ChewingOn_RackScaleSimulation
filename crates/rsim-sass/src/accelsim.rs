@@ -19,7 +19,7 @@
 //! every active thread, `1` = base + stride, `2` = base + per-thread deltas.
 
 use crate::inst::{Inst, Reg};
-use crate::isa::{classify, mem_info};
+use crate::isa::{classify, mem_info, OpClass};
 use crate::parse::{parse_inst, parse_reg};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -129,6 +129,11 @@ pub fn parse_trace(src: &str) -> Result<TraceKernel, String> {
         i += nsrc;
         let width: u32 = toks.get(i).map(|t| t.parse().unwrap_or(0)).unwrap_or(0);
         i += 1;
+        // Without memory operands the next field is the first immediate
+        // (`DEPBAR.LE SB0, 0x3` is traced as `DEPBAR.LE 0 0 3 0`).
+        let imm1: Option<u64> = (width == 0)
+            .then(|| toks.get(i).and_then(|t| t.parse().ok()))
+            .flatten();
         let mut addrs = vec![];
         if width > 0 {
             let active = mask.count_ones() as usize;
@@ -178,6 +183,9 @@ pub fn parse_trace(src: &str) -> Result<TraceKernel, String> {
                 let class = classify(opcode);
                 inst.class = class;
                 inst.meta = crate::inst::InstMeta::compute(opcode, class, &inst.operands);
+                if class == OpClass::DepBar && inst.meta.imm_last.is_none() {
+                    inst.meta.imm_last = imm1;
+                }
                 inst.mem = mem_info(opcode, class).map(|mut m| {
                     if width > 0 {
                         m.width = width;

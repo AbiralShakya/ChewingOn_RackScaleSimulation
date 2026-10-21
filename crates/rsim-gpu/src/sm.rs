@@ -686,10 +686,12 @@ impl Sm {
                 }
             }
             // A CTA cannot retire (and free its shared memory) while its
-            // async copies are still landing.
+            // async copies are still landing: its last warp waits for them.
+            // Other warps exit freely (a recorded EXIT may even have no lanes
+            // active while the warp goes on).
             OpClass::Exit if inst.guard.is_none() => {
                 let cta = self.ctas[cta_idx].as_ref().unwrap();
-                if cta.async_tail > c {
+                if cta.live == 1 && cta.async_tail > c {
                     return (Stall::Drain, cta.async_tail);
                 }
             }
