@@ -101,6 +101,10 @@ all-to-all routes every inter-node message over the network, including those bet
 different rails, which then cross the spine; NCCL's PXN would first move such data over NVLink
 to the GPU on the matching rail. The 42 GB/s is therefore a pessimistic number.
 
+To see collectives inside a real workload, open the DeepSeek-V3 NVL72 page of the viewer
+([`docs/viz/deepseek_v3_nvl72.html`](../viz/deepseek_v3_nvl72.html), figure in chapter 6.3):
+the fabric view colours every NVLink by utilisation over time.
+
 ## 4.4 Worked example: the all-reduce of a TP layer
 
 In tensor parallelism (chapter 5) each transformer layer ends its attention block and its MLP

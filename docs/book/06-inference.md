@@ -90,6 +90,13 @@ Fast mode (each distinct kernel simulated once, cycle level, then reused across 
 layers; the fabric and all dependencies still exact) is within 1% of a full co-simulation of
 all 72 GPUs on this workload: 1729 vs 1712 µs at batch 32, 12 s against 6.5 minutes.
 
+![DeepSeek-V3 decode on NVL72 in the rsim viewer: fabric, every GPU's streams, bubble anatomy](../img/viz_ds_rack.png)
+
+*Rack level, single-stream schedule: the NVL72 fabric, every GPU's streams, and the bubble
+anatomy, where 72% of scheduler cycles are mbarrier or TMA waits. One GPU opened up
+([`viz_ds_gpu.png`](../img/viz_ds_gpu.png)) shows its streams and one bar per CTA on all 148
+SMs. Interactive version: [`docs/viz/deepseek_v3_nvl72.html`](../viz/deepseek_v3_nvl72.html).*
+
 ## 6.4 Two-micro-batch overlap, and when it pays
 
 DeepSeek runs two micro-batches per step on separate streams, so one micro-batch's
@@ -217,6 +224,7 @@ B300's measured copy bandwidth.
 | number | command |
 |---|---|
 | DeepSeek-V3 decode on NVL72, both schedules | `python examples/deepseek_v3_nvl72.py --layers 4` |
+| the viewer figures (interactive: `docs/viz/deepseek_v3_nvl72.html`, `docs/viz/mamba_vs_attention_b300.html`) | `python examples/viz_gallery.py deepseek` / `mamba` |
 | FP4 decode table | `python examples/gb300_deepseek_fp4.py` |
 | FP4 prefill table | `python examples/gb300_fp4.py` |
 | Mamba vs attention, single GPU (measured) | `research/ssm_vs_attention/results/summary.json` |

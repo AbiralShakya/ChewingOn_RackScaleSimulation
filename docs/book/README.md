@@ -27,6 +27,15 @@ reproduce its numbers. The scripts live in [`scripts/`](scripts/).
 | 8 | [Asynchronous RL across mixed hardware](08-async-rl.md) | find the bottleneck when rollout and training run on different GPUs |
 | 9 | [How far to trust the numbers](09-validation.md) | know which results are measured, which are calibrated simulation, and which rest on presets |
 
+## Seeing it
+
+Chapters 3, 4 and 6 include figures from `rsim viz`, the simulator's rack-to-SASS viewer. It
+goes from the rack fabric to every GPU's streams, from there to the 148 SMs of one GPU, then
+to a kernel's stall anatomy, the timeline of each warp, and the SASS listing ranked by stall.
+The interactive pages are in [`docs/viz/`](../viz/), and [`docs/VIZ.md`](../VIZ.md) explains
+each view. To see any simulation this way, add `rsim viz run ...` or call `rs.viz()` from
+Python.
+
 ## The three kinds of number in this guide
 
 Every number is one of these, and the text says which:

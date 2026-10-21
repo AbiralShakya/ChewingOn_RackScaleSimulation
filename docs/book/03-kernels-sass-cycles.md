@@ -148,6 +148,13 @@ core is busy **91%** of the kernel in the leader CTA. The softmax warpgroups spe
 of their cycles waiting for *S*; the correction warpgroup is idle almost all the time because
 FA4 rescales lazily (only when the running max grows enough to matter).
 
+![FA4 on B300 in the rsim viewer: scheduler-cycle anatomy by warp role, and the CTA timeline over 148 SMs](../img/viz_fa4_kernel.png)
+
+*The simulated FA4 replay in `rsim viz` (251.5 µs, 511 k cycles): stall anatomy per warp role
+above, one bar per CTA on each of the 148 SMs below.* The same view of FA2
+([`viz_fa2_warps.png`](../img/viz_fa2_warps.png)) is dominated by fixed-latency `wait` stalls
+(54%), which is the `mma.sync` dependency chain of chapter 2.
+
 **The clock drops.** Nsight counted 510 k SM cycles in FA4's 290 µs, an effective 1.76 GHz
 against the 2.03 GHz the chip holds on lighter kernels. FA4 keeps the tensor core busy enough
 to hit the power limit. All kernel comparisons in this study are therefore in cycles.
@@ -186,6 +193,14 @@ per slice and a die-to-die hop for far lines, then HBM. TMA copies reserve their
 mbarrier and stream through the same L2 and HBM. `tcgen05.mma` goes into an SM-wide queue
 whose rate comes from `TensorSpec.flops_per_cycle_per_sm[dtype]` and the instruction shape;
 `UTCBAR` arrives on its mbarrier `tcgen05_latency` cycles after the MMAs before it retire.
+
+![FA4 SM 0, 16 warps cycle by cycle, above the SASS listing ranked by stall samples](../img/viz_fa4_warps.png)
+
+*Warp level: FA4 on SM 0, each of the 16 warps cycle by cycle, above the SASS listing ranked by
+stall samples. The hottest instruction is the mbarrier wait `SYNCS.PHASECHK.TRANS64.TRYWAIT`,
+the softmax warps waiting for S. This is the Nsight "source" view, for a kernel that the
+simulator replays rather than one sampled on hardware; [`docs/VIZ.md`](../VIZ.md) explains every
+view.*
 
 ## 3.5 Recording what really ran: `.rpath`
 
@@ -275,6 +290,7 @@ window that matches each kernel's launch shape and adds it to kernels timed alon
 | FA timing, validation, roles | `research/flash_attention/results/study.json`; write-up `research/flash_attention/writeup.html` |
 | FA replay (recordings in `research/flash_attention/rpath/`) | `python research/flash_attention/run_study.py all` |
 | launch and kernel window | `calibration.json`, `model.launch` |
+| the viewer figures (interactive: `docs/viz/flash_attention_b300.html`) | `python examples/viz_gallery.py flash` (about 20 min) |
 | validation of microbenchmark kernels | `rsim validate calibration/results/b300-sxm6-ac-sm103/ncu_reference.json --gpu b300` |
 
 Next: [4. Networks and collectives](04-networks-collectives.md).
