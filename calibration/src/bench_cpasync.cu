@@ -295,15 +295,15 @@ void sweep_mode(Json& j, const char* name, const uint4* buf, size_t bytes, int p
 void run_bandwidth(Json& j, const DeviceInfo& d, uint32_t* sink) {
   size_t l2b = (size_t)d.l2_bytes / 2;  // comfortably L2-resident
   const size_t alloc = 2ull << 30;
-  size_t drb = cal_bytes(alloc);  // trace mode shortens the DRAM stream only
+  size_t drb = cal_bytes(alloc);  // trace mode shortens the streams, not the buffer
   uint4* buf;
   CK(cudaMalloc(&buf, alloc));
   CK(cudaMemset(buf, 1, alloc));
   j.key("bandwidth");
   j.obj();
   for (int level = 0; level < 2; ++level) {
-    size_t bytes = level == 0 ? l2b : drb;
-    int passes = level == 0 ? 16 : 1;
+    size_t bytes = cal_bytes(level == 0 ? l2b : drb);
+    int passes = level == 0 && cal_bytes(l2b) == l2b ? 16 : 1;  // one pass in trace mode
     fprintf(stderr, "%s stream (%zu MB)\n", level == 0 ? "L2" : "DRAM", bytes >> 20);
     j.key(level == 0 ? "l2" : "dram");
     j.obj();

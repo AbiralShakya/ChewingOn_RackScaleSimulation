@@ -1,0 +1,5 @@
+t128_smem0                             back-to-back   2.40 us/kernel
+t512_smem0                             back-to-back   2.39 us/kernel
+t512_smem_max                          back-to-back   2.37 us/kernel
+g1_t128_smem0                          back-to-back   1.96 us/kernel
+g1_t512_smem_max                       back-to-back   1.97 us/kernel
