@@ -74,6 +74,28 @@ pub fn run(reference: &Path, gpu: &rsim_hw::GpuSpec) -> Result<Vec<Row>> {
     let mut rows = Vec::new();
     for k in doc["kernels"].as_array().context("no `kernels` array")? {
         let label = k["label"].as_str().unwrap_or("?").to_string();
+        // An NVBit warp-path recording (`.rpath`, research/flash_attention/
+        // nvbit_warp_path): exact per-warp paths and barrier operands.
+        if let (Some(pf), Some(meas)) = (k["path_file"].as_str(), num(k, "sm__cycles_elapsed.avg"))
+        {
+            let p = rsim_sass::PathKernel::from_file(&dir.join(pf).to_string_lossy())
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            let mut launch = KernelLaunch::from_path(p);
+            if let Some(r) = num(k, "launch__registers_per_thread") {
+                launch.regs_per_thread = r as u32;
+            }
+            if let Some(sim) = simulate(gpu, launch) {
+                eprintln!("  {label:<26} ncu {meas:>12.0}  sim {sim:>12.0}  (path)");
+                rows.push(Row {
+                    error_pct: 100.0 * (sim - meas) / meas,
+                    label: format!("{label} (path)"),
+                    measured_cycles: meas,
+                    simulated_cycles: sim,
+                    trip_count: 0,
+                });
+            }
+            continue;
+        }
         // An Accel-Sim/NVBit trace (exact control flow and addresses) wins
         // over replaying bare SASS with solved trip counts.
         if let (Some(tf), Some(meas)) = (k["trace_file"].as_str(), num(k, "sm__cycles_elapsed.avg"))
