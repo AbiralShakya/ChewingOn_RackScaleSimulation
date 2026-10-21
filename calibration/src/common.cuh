@@ -178,8 +178,9 @@ inline void emit_header(Json& j, const char* bench) {
   j.end_obj();
 }
 
-// Trace mode (scripts/trace_reference.py): CAL_MAX_CTAS caps the grid and
-// CAL_MAX_BYTES the streamed buffer of the reference kernels, so an NVBit /
+// Trace mode (scripts/trace_reference.py): CAL_MAX_CTAS caps the grid,
+// CAL_MAX_BYTES the streamed bytes and CAL_MAX_ITERS the loop count of the
+// reference kernels, so an NVBit /
 // Accel-Sim trace of them stays small. Measured rates are meaningless then.
 inline int cal_grid(int g) {
   static const int cap = getenv("CAL_MAX_CTAS") ? atoi(getenv("CAL_MAX_CTAS")) : 0;
@@ -188,6 +189,11 @@ inline int cal_grid(int g) {
 inline size_t cal_bytes(size_t b) {
   static const size_t cap = getenv("CAL_MAX_BYTES") ? strtoull(getenv("CAL_MAX_BYTES"), nullptr, 0) : 0;
   return cap > 0 && b > cap ? cap : b;
+}
+
+inline int cal_iters(int n) {
+  static const int cap = getenv("CAL_MAX_ITERS") ? atoi(getenv("CAL_MAX_ITERS")) : 0;
+  return cap > 0 && n > cap ? cap : n;
 }
 
 // Median of a vector (copies).

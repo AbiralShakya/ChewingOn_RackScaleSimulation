@@ -82,8 +82,9 @@ int main() {
       {"t128_smem0", 128, 0, 1, false, K<0, 0, 1>()},
       {"t512_smem0", 512, 0, 1, false, K<1, 0, 1>()},
       {"t512_smem_max", 512, -1, 1, false, K<2, 0, 1>()},
-      {"t512_smem_max_cluster2", 512, -1, 2, false, K<3, 0, 2>()},
   };
+  // Thread block clusters are sm_90+.
+  if (d.p.major >= 9) cfgs.push_back({"t512_smem_max_cluster2", 512, -1, 2, false, K<3, 0, 2>()});
   if (tc05) {
     cfgs.push_back({"t512_smem_max_cluster2_fa4_prologue", 512, -1, 2, true, K<4, 1, 2>()});
     cfgs.push_back({"t512_smem_max_fa4_prologue", 512, -1, 1, true, K<5, 1, 1>()});
@@ -112,7 +113,7 @@ int main() {
     attr[0].val.clusterDim.y = 1;
     attr[0].val.clusterDim.z = 1;
     cfg.attrs = attr;
-    cfg.numAttrs = 1;
+    cfg.numAttrs = c.cluster > 1 ? 1 : 0;  // no cluster attribute before sm_90
     auto launch = [&] { CK(cudaLaunchKernelEx(&cfg, c.kern, (uint32_t*)nullptr)); };
     for (int i = 0; i < LAUNCHES; ++i) launch();
     CK(cudaDeviceSynchronize());
