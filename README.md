@@ -39,6 +39,7 @@ MoE layer's all-to-all (red ticks), and the LM head's partial second wave. Rende
 - [Architecture](#architecture)
 - [Hardware calibration](#hardware-calibration)
 - [What you can answer with this](#what-you-can-answer-with-this)
+- [Research agenda](#research-agenda)
 - [How it compares](#how-it-compares)
 - [Status and roadmap](#status-and-roadmap)
 - [Citation](#citation) · [License](#license)
@@ -487,6 +488,18 @@ The B300 data lands on `main` with the calibration merge, and the A100 data is o
 - In async RL with separate samplers and trainers, is the bottleneck rollout, training or
   weight sync, and what does a faster interconnect buy?
 - Is wave quantisation or tail effect costing me a whole extra wave on 148 SMs?
+
+---
+
+## Research agenda
+
+rackscale is also the instrument for a research program in the style of the
+[Dao AI Lab](https://dao-lab.ai/publications/): simulate a baseline and a researched idea
+(FlashAttention generations, Mamba and hybrids, low precision, MoE kernels and routing,
+decode-efficient attention, async RL) side by side at cycle level, validate both with real
+kernels on the single GPUs we have (B300 and A100), then carry the comparison to NVL72 and
+other systems with the simulator alone. The prioritized list of studies, the method, and the
+simulator work each one needs are in [RESEARCH.md](RESEARCH.md).
 
 ---
 
