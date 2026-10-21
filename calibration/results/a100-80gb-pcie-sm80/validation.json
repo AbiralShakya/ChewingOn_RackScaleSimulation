@@ -1,79 +1,114 @@
 [
   {
-    "label": "ffma_throughput",
-    "measured_cycles": 137027.35,
-    "simulated_cycles": 135597.0,
-    "error_pct": -1.0438427073135441,
-    "trip_count": 15
+    "label": "ffma_throughput (trace)",
+    "measured_cycles": 136026.87,
+    "simulated_cycles": 137260.0,
+    "error_pct": 0.9065341281468909,
+    "trip_count": 0
   },
   {
-    "label": "ex2_throughput",
-    "measured_cycles": 529453.43,
-    "simulated_cycles": 528739.0,
-    "error_pct": -0.1349372691758841,
-    "trip_count": 15
+    "label": "ex2_throughput (trace)",
+    "measured_cycles": 528957.74,
+    "simulated_cycles": 529908.0,
+    "error_pct": 0.1796476217551915,
+    "trip_count": 0
   },
   {
-    "label": "dfma_latency_chain",
-    "measured_cycles": 6747.72,
-    "simulated_cycles": 4066.0,
-    "error_pct": -39.74260935545636,
-    "trip_count": 2
+    "label": "dfma_latency_chain (trace)",
+    "measured_cycles": 6736.17,
+    "simulated_cycles": 6827.0,
+    "error_pct": 1.3483923357041157,
+    "trip_count": 0
   },
   {
-    "label": "smem_conflict_free",
-    "measured_cycles": 137801.46,
-    "simulated_cycles": 152488.0,
-    "error_pct": 10.65775355355452,
-    "trip_count": 129
+    "label": "smem_conflict_free (trace)",
+    "measured_cycles": 22536.7,
+    "simulated_cycles": 23424.0,
+    "error_pct": 3.937133653108038,
+    "trip_count": 0
   },
   {
-    "label": "smem_32way_conflict",
-    "measured_cycles": 4200898.65,
-    "simulated_cycles": 152488.0,
-    "error_pct": -96.37011000015438,
-    "trip_count": 129
+    "label": "smem_32way_conflict (trace)",
+    "measured_cycles": 529906.07,
+    "simulated_cycles": 529442.0,
+    "error_pct": -0.08757589812095355,
+    "trip_count": 0
   },
   {
-    "label": "hbm_stream_read",
-    "measured_cycles": 5406974.28,
-    "simulated_cycles": 5385383.0,
-    "error_pct": -0.3993227798376037,
-    "trip_count": 1212
+    "label": "hbm_stream_read (trace)",
+    "measured_cycles": 27373.89,
+    "simulated_cycles": 25227.0,
+    "error_pct": -7.842838558933346,
+    "trip_count": 0
   },
   {
-    "label": "hbm_copy",
-    "measured_cycles": 11572832.63,
-    "simulated_cycles": 10757826.0,
-    "error_pct": -7.042412657790255,
-    "trip_count": 1212
+    "label": "hbm_copy (trace)",
+    "measured_cycles": 32723.74,
+    "simulated_cycles": 25577.0,
+    "error_pct": -21.839618576605243,
+    "trip_count": 0
   },
   {
-    "label": "l2_pointer_chase",
-    "measured_cycles": 2046814.11,
-    "simulated_cycles": 2453229.0,
-    "error_pct": 19.855974610219974,
-    "trip_count": 251
+    "label": "l2_pointer_chase (trace)",
+    "measured_cycles": 2236494.46,
+    "simulated_cycles": 2501254.0,
+    "error_pct": 11.838148707061857,
+    "trip_count": 0
   },
   {
-    "label": "hmma_bf16_throughput",
-    "measured_cycles": 136042.57,
-    "simulated_cycles": 151297.0,
-    "error_pct": 11.212982818539809,
-    "trip_count": 31
+    "label": "hmma_bf16_throughput (trace)",
+    "measured_cycles": 135648.5,
+    "simulated_cycles": 135981.0,
+    "error_pct": 0.24511881812183695,
+    "trip_count": 0
   },
   {
-    "label": "cp_async_cg16_dram_stream",
-    "measured_cycles": 1399149.89,
-    "simulated_cycles": 1245290.0,
-    "error_pct": -10.996669556254613,
-    "trip_count": 111
+    "label": "cp_async_cg16_dram_stream (trace)",
+    "measured_cycles": 34081.85,
+    "simulated_cycles": 32815.0,
+    "error_pct": -3.717081085680497,
+    "trip_count": 0
   },
   {
-    "label": "hmma_f16_f32_m16n8k16_w32_ilp4",
-    "measured_cycles": 136953.61,
-    "simulated_cycles": 150607.0,
-    "error_pct": 9.969353856389777,
-    "trip_count": 15
+    "label": "hmma_f16_f32_m16n8k16_w32_ilp4 (trace)",
+    "measured_cycles": 135586.17,
+    "simulated_cycles": 137047.0,
+    "error_pct": 1.077418146703301,
+    "trip_count": 0
+  },
+  {
+    "label": "window_t128_smem0",
+    "measured_cycles": 2907.02,
+    "simulated_cycles": 2921.0,
+    "error_pct": 0.4809048441359199,
+    "trip_count": 0
+  },
+  {
+    "label": "window_t512_smem0",
+    "measured_cycles": 3213.87,
+    "simulated_cycles": 3198.0,
+    "error_pct": -0.4937971977709083,
+    "trip_count": 0
+  },
+  {
+    "label": "window_t512_smem_max",
+    "measured_cycles": 2910.41,
+    "simulated_cycles": 2895.0,
+    "error_pct": -0.5294786645180526,
+    "trip_count": 0
+  },
+  {
+    "label": "window_g1_t128_smem0",
+    "measured_cycles": 2787.13,
+    "simulated_cycles": 2801.0,
+    "error_pct": 0.49764453039506196,
+    "trip_count": 0
+  },
+  {
+    "label": "window_g1_t512_smem_max",
+    "measured_cycles": 2777.43,
+    "simulated_cycles": 2762.0,
+    "error_pct": -0.5555495548042556,
+    "trip_count": 0
   }
 ]

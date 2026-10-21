@@ -46,40 +46,57 @@ Real GEMMs on B300 hit the 1100 W board cap and the SM clock drops (measured wit
 
 ## Validation against ncu
 
-`rsim validate calibration/results/<gpu>/ncu_reference.json --gpu <preset> [--calibration <calibration.json>]` replays each reference kernel's SASS. It compares simulated SM cycles with `sm__cycles_elapsed.avg`. Loop trip counts are solved from `smsp__inst_executed.sum`, an instruction count rather than a timing, so the timing is not fitted. For streaming kernels (more than 64 MB of DRAM traffic), the main-loop trip count is pinned to the measured DRAM bytes instead. Both are workload facts, not timings.
+`rsim validate calibration/results/<gpu>/ncu_reference.json --gpu <preset> [--calibration <calibration.json>]` replays each reference kernel and compares simulated SM cycles with ncu's `sm__cycles_elapsed.avg`. Every non-window reference now has an exact recording: an NVBit warp path (`path_file`, `.rpath.gz`) on B300, and an Accel-Sim trace (`trace_file`, `.traceg`) on both A100s. The A100 traces run at a reduced size (`trace_env`), and their `ncu` entry is re-measured at that size; the full-size numbers stay in `ncu_full_size`. A kernel with neither is walked from its static SASS. Loop trips are then solved from `smsp__inst_executed.sum`, an instruction count rather than a timing. When that count stops at the first guarded EXIT, the walk takes the exit.
 
-Each kernel is simulated at the SM clock its ncu run actually ran at (`sm__cycles_elapsed.avg / gpu__time_duration.sum`, for kernels longer than 100 us). `ncu --clock-control none` leaves the clock to the driver, and it can sit far from the calibration run's clock: the A100 PCIe ran at 1065 MHz under ncu but 1395 MHz in the microbenchmarks. Memory-bound cycle counts only compare at the same clock.
+Each kernel is simulated at the SM clock its ncu run actually ran at (`sm__cycles_elapsed.avg / gpu__time_duration.sum`, for kernels longer than 100 us). `ncu --clock-control none` leaves the clock to the driver, and memory-bound cycle counts only compare at the same clock.
 
-Results (simulated vs measured cycles; saved as `validation.json` next to each reference). B300 uses the `b300` preset; the A100s use `a100_sxm` / `a100_pcie` plus their own `calibration.json`:
+Validation charges the measured **kernel window**, the fixed cost of an almost empty kernel inside ncu's window, by launch shape (`calibration/src/bench_window.cu`, `model.launch.kernel_window`). It charges the measured cost minus the model's own time for that empty kernel. The `window_*` rows check this. They aren't independent: the six plain shapes test that the subtraction is consistent, and the two FA4-prologue shapes are the points `tensor.tmem_alloc_latency` is fitted to (1430 cycles for `cta_group::1`, 1990 for `cta_group::2`). The FlashAttention study's 16 recorded kernels are the out-of-sample check, and all are within ±6% (research/flash_attention).
 
-| kernel | B300 | A100 SXM4 | A100 PCIe |
+Results (simulated vs measured cycles; saved as `validation.json` next to each reference):
+
+| kernel | B300 (path) | A100 SXM4 (trace) | A100 PCIe (trace) |
 |---|---|---|---|
-| hbm_stream_read | +0.7% | +0.2% | −0.4% |
-| hbm_copy | −5.0% | −6.3% | −7.0% |
-| cp_async_cg16_dram_stream | n/a | −3.4% | −11.0% |
-| tma_bulk_stream | +6.9% | n/a | n/a |
-| ffma_throughput | −18.2% | −0.8% | −1.0% |
-| ex2_throughput | −7.9% | −0.1% | −0.1% |
-| dfma_latency_chain | −2.2% | −42.5% | −39.7% |
-| smem_conflict_free | +5.2% | +11.0% | +10.7% |
-| l2_pointer_chase | +9.6% | +25.9% | +19.9% |
-| hmma_bf16_throughput | +5.2% | +11.2% | +11.2% |
-| hmma_f16_f32_m16n8k16_w32_ilp4 | n/a | +10.2% | +10.0% |
-| smem_32way_conflict | −96.5% | −96.4% | −96.4% |
-| umma_bf16_m128n256k16 | −99.5% | n/a | n/a |
-| umma_nvfp4_m128n256k64 | −99.5% | n/a | n/a |
+| hbm_stream_read | +0.3% | −4.3% | −7.8% |
+| hbm_copy | −5.1% | −23.5% | −21.8% |
+| cp_async_cg16_dram_stream | n/a | −3.1% | −3.7% |
+| tma_bulk_stream | −6.2% | n/a | n/a |
+| ffma_throughput | −7.0% | +0.8% | +0.9% |
+| ex2_throughput | +0.1% | +0.1% | +0.2% |
+| dfma_latency_chain | +3.2% | −2.3% | +1.3% |
+| smem_conflict_free | +10.0% | +6.4% | +3.9% |
+| smem_32way_conflict | −0.3% | −0.0% | −0.1% |
+| l2_pointer_chase | −3.7% | +16.3% | +11.8% |
+| hmma_bf16_throughput | −0.1% | +0.5% | +0.2% |
+| hmma_f16_f32_m16n8k16_w32_ilp4 | n/a | +0.6% | +1.1% |
+| umma_bf16_m128n256k16 | −0.1% | n/a | n/a |
+| umma_nvfp4_m128n256k64 | −0.0% | n/a | n/a |
+| window_* (plain shapes) | +0.2% | ±0.5% | ±0.6% |
+| window_* (FA4 prologue, fit points) | 0.0%, −0.1% | n/a | n/a |
 
-`--only a,b` restricts the run to some labels and `--max-error N` fails when any |error| exceeds N%; CI runs the fast kernels this way.
+B300: 11 of 12 kernels within 7%, and smem_conflict_free at +10.0%. A100: 9 of 11 within 8% on both boards.
 
-B300: 8 of 12 within 10%. A100: 8 of 11 within about 11% on both boards. What the remaining misses need:
+`--only a,b` restricts the run to some labels, and `--max-error N` fails when any |error| exceeds N%. CI runs the fast kernels this way. `RSIM_VALIDATE_STATS=1` dumps each kernel's simulated stats (stalls, cache hits, instruction mix) to stderr.
 
-- **smem_32way_conflict** (−96% everywhere): bank conflicts need addresses, and bare SASS has none. A `.traceg` or `.rpath` recording fixes it; `rsim validate` replays `trace_file` / `path_file` entries exactly.
-- **umma_*** (−99.5%): the kernel picks its mode (latency vs throughput loop) and its issuing thread from runtime arguments, so the static walker takes the wrong path. Needs a `.rpath` recording of the throughput launch.
-- **dfma_latency_chain on A100** (−40%): a 7k-cycle kernel, so fixed launch and drain costs dominate. Not yet modelled at this granularity.
-- **l2_pointer_chase on A100** (+20-26%): the A100 near/far L2 split is applied, but the chase still runs slow. Open.
-- **ffma_throughput on B300** (−18%): the simulated 67k cycles match ncu's `smsp__cycles_active.avg` (70k). The gap is about 12k cycles in which the SMs sit idle inside the kernel window. It is probably launch and shared-memory carveout cost (the kernel asks for 118 KB of dynamic smem), which the model does not have yet. The A100 version is within 1%.
+What the remaining misses need:
 
-Two model fixes came out of the A100 data. `DEPBAR.LE SB0, N` (`cp.async.wait_group N`) now waits on LDGDEPBAR commit groups. CTAs now drain their async copies before retiring. Together these took cp_async_cg16_dram_stream from −76% to −3%. The FlashAttention-thread merge (HMMA rate from `sync_flops_per_cycle_per_sm`) took B300 hmma from −76% to +5%.
+- **hbm_copy on A100** (about −23%): at the traced size (2 CTAs, 1 MB) each warp keeps one 512 B load in flight. The model's round trip is about 680 cycles; the hardware's is about 940. The model has no per-SM limit on the SM-to-L2 path, and stores share it with loads. The read-only stream is within 8%.
+- **l2_pointer_chase on A100** (+12–16%): the chase runs slow even with the near/far L2 split scaled to the measured mean.
+- **smem_conflict_free on B300** (+10%) and **ffma_throughput on B300** (−7%): open.
+- **tma_bulk_stream on B300** (−6%): 4 KB chunks, 4 stages. HBM latency under load now comes from the measured loaded-latency probe (`raw/loaded`: 417 ns idle, 471 ns at 5.4 TB/s), which took this from −10.6% to −6.2%. The rest is probably in the TMA engine.
+
+Model fixes behind this table:
+
+- Kernel window, from measured `window_*` points, with the model's own empty-kernel time subtracted along the path every warp really takes.
+- `tcgen05.alloc` latency (`UTCATOMSWS.FIND_AND_SET`).
+- HBM latency rising with load. It uses the measured probe when the calibration has one, and otherwise the per-SM read sweep. Points above 80% utilisation are left to the bandwidth server, which queues there already.
+- Trace replay:
+  - warps retire when their stream ends rather than at an EXIT, because a recorded EXIT can have no lanes active;
+  - only a CTA's last warp waits for its outstanding copies;
+  - `DEPBAR.LE`'s count is read from the trace's immediate field (cp.async went from +216% to −3%).
+- Earlier fixes:
+  - `cp.async.wait_group` waits on LDGDEPBAR commit groups;
+  - the fractional `mma.sync` issue interval;
+  - the SMEM port rate from `pipes.l1_bytes_per_cycle`.
 
 `ncu_reference.json` holds reference kernels with their SASS and measured cycle counts. These
 form the end-to-end regression set: `rsim sass <file>` should land within tolerance of `ncu`.

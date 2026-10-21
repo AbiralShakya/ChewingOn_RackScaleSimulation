@@ -45,9 +45,9 @@ jobs:
       - name: B300
         run: >
           target/release/rsim validate calibration/results/b300-sxm6-ac-sm103/ncu_reference.json
-          --gpu b300 --only dfma_latency_chain,l2_pointer_chase,hmma_bf16_throughput --max-error 12
+          --gpu b300 --only dfma_latency_chain,l2_pointer_chase,hmma_bf16_throughput,window_t128_smem0,window_t512_smem_max_fa4_prologue --max-error 12
       - name: A100 SXM4
         run: >
           target/release/rsim validate calibration/results/a100-sxm4-80gb-sm80/ncu_reference.json
           --gpu a100_sxm --calibration calibration/results/a100-sxm4-80gb-sm80/calibration.json
-          --only hmma_bf16_throughput,hmma_f16_f32_m16n8k16_w32_ilp4 --max-error 12
+          --only hmma_bf16_throughput,hmma_f16_f32_m16n8k16_w32_ilp4,dfma_latency_chain,window_t128_smem0 --max-error 12
