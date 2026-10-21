@@ -55,6 +55,9 @@ enum Cmd {
         reference: PathBuf,
         #[arg(long, default_value = "b300")]
         gpu: String,
+        /// Apply a rackscale-calibration/v1 JSON on top of the preset.
+        #[arg(long)]
+        calibration: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },
@@ -288,9 +291,13 @@ fn main() -> Result<()> {
         Cmd::Validate {
             reference,
             gpu,
+            calibration,
             json,
         } => {
-            let g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            if let Some(c) = &calibration {
+                rsim_hw::calibration::apply_file(&mut g, c)?;
+            }
             let rows = validate::run(&reference, &g)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&rows)?);
