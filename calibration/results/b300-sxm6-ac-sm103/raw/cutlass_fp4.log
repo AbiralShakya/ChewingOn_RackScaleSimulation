@@ -1,0 +1,20 @@
+  Disposition: Passed
+  Disposition: Passed
+  Problem Size: 4096x4096x4096 (batch: 1)
+  Avg runtime: 0.0345713 ms
+  GFLOPS: 3.97552e+06
+  Problem Size: 4096x4096x4096 (batch: 1)
+  Avg runtime: 0.0301466 ms
+  GFLOPS: 4.55903e+06
+  Problem Size: 8192x8192x8192 (batch: 1)
+  Avg runtime: 0.183098 ms
+  GFLOPS: 6.00504e+06
+  Problem Size: 8192x8192x8192 (batch: 1)
+  Avg runtime: 0.164902 ms
+  GFLOPS: 6.66766e+06
+  Problem Size: 16384x16384x16384 (batch: 1)
+  Avg runtime: 1.98372 ms
+  GFLOPS: 4.43413e+06
+  Problem Size: 16384x16384x16384 (batch: 1)
+  Avg runtime: 1.71176 ms
+  GFLOPS: 5.13861e+06

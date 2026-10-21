@@ -86,6 +86,7 @@ functions, which matters for softmax. FP64 is about 1.2 TFLOP/s for the whole ch
 | `tcgen05.mma kind::f8f6f4` (E4M3) | 128×256×32 | 128 | 16384 | 4.92 PFLOP/s |
 | `tcgen05.mma kind::mxf8f6f4.block_scale` | 128×256×32 | 128 | 16384 | 4.92 PFLOP/s |
 | `tcgen05.mma kind::mxf4nvf4.block_scale.scale_vec::4X` (NVFP4) | 128×256×64 | 128 | 32768 | 9.85 PFLOP/s |
+| `tcgen05.mma.cta_group::2 kind::mxf4nvf4.block_scale.block16`, K=96 | 256×256×96 | 128 | 49152 | 14.8 PFLOP/s |
 | `mma.sync` m16n8k16 BF16 (HMMA) | | lat 20 | 2037 | 1/4 of UMMA |
 | `mma.sync` m16n8k8 TF32 | | lat 21 | 1018 | |
 | `mma.sync` m16n8k32 S8 (IMMA) | | lat 74 | 504 | |
@@ -96,24 +97,32 @@ at N ≥ 128. A `tcgen05.ld 32x32b.x32` plus `wait::ld` takes 182 cycles.
 The SASS opcodes are UTCHMMA (f16/tf32), UTCQMMA (f8f6f4/mxf8) and
 UTCOMMA.BLOCK16 (NVFP4).
 
-**NVFP4 is at the B200 rate, not 1.5× it.** Every block-scaled FP4 variant measures
-32768 FLOP/clk/SM, which is 2× FP8 and about 9.9 dense PFLOP/s at 2.03 GHz. That holds for
-NVFP4 (`mxf4nvf4`, UE4M3 scales, `scale_vec::4X`) and MXFP4 (`mxf4`, UE8M0, `scale_vec::2X`),
-on one SM (`cta_group::1`) and on an SM pair (`cta_group::2`, M=256). The 1.5× B300 FP4
-figure would need about 49k FLOP/clk/SM. Three checks rule out the obvious causes:
+**B300's 1.5× FP4 needs K=96 UMMA on an SM pair.** The standard block-scaled FP4 MMA
+(`mxf4nvf4`/`mxf4`, K=64) runs at 32768 FLOP/clk/SM, the B200 rate, whether it is issued
+on one SM, on a pair, or with A in TMEM. sm_103 adds a K=96 form, which CUTLASS calls
+"ultra" FP4. It is selected by bit 31 (`k_size`) of the block-scaled instruction
+descriptor and spelled `.block_scale.block16` / `.block32` in PTX. Only that form, issued
+on an SM pair, reaches 1.5×:
 
-| variant | BF16 | FP8 | NVFP4 |
+| FP4 UMMA | cycles/MMA | FLOP/clk/SM | chip at 2.03 GHz |
 |---|---|---|---|
-| 1 SM, A and B in smem | 8192 | 16384 | 32768 |
-| 2-SM pair (`cta_group::2`, 256×256) | 8192 | 16384 | 32768 |
-| 1 SM, A from TMEM (`[a_tmem]`) | 8192 | 16384 | 32768 |
+| K=64, 1 SM (128×256) | 128 | 32768 | 9.85 PF |
+| K=64, SM pair (256×256) | 128 | 32768 | 9.85 PF |
+| K=64, 1 SM, A from TMEM | 128 | 32768 | 9.85 PF |
+| K=96, 1 SM (128×256) | 144 | 43691 | 13.1 PF |
+| **K=96, SM pair (256×256)** | **128** | **49152** | **14.8 PF** |
 
-The shared-memory operand path isn't the limit, since moving A to TMEM changes
-nothing. The pair path gives exactly 2× per pair, so the per-SM rate is the same.
-Every kind takes 128 cycles for a 128×256 MMA. The remaining explanations are a
-shape or path that unlocks the higher FP4 rate and that these benches don't
-exercise, or that this part (B300 SXM6 AC) runs at the B200 FP4 rate. Running
-CUTLASS's NVFP4 GEMM on the same GPU would settle it.
+BF16 and FP8 are unchanged across the pair and TMEM-A variants (8192 and 16384 FLOP/clk/SM).
+This is a simulator rule: FP4 throughput depends on K and on `cta_group`, not just on the dtype.
+
+**FP4 GEMMs hit the 1100 W power cap, so the clock falls.** CUTLASS example 89 (ultra FP4,
+which passes verification) reaches 4.6 PF at 4096³, 6.7 PF at 8192³ and 5.1 PF at 16384³. Under
+load the SM clock drops from 2032 MHz to about 1470 MHz at 8192³ and to about 1125 MHz at 16384³,
+at 1100–1125 W against a 1100 W limit (`clocks_event_reasons` 0x4, software power cap).
+At 1125 MHz the K=96 pair peak is 8.2 PF, so the 16k GEMM runs at about 63% of the
+power-limited peak. The 14.8 PF peak is only reachable for bursts. A rack-scale model has
+to carry a power-dependent clock (`scripts/cutlass_fp4.sh` writes the clock/power trace
+to `raw/cutlass_fp4.clk.csv`).
 
 **Memory:**
 
@@ -153,7 +162,7 @@ cycles at 32 threads and 77 at 1024.
 ## Not covered yet
 
 * TMEM stores and `tcgen05.cp`, TMA tensor maps (2-D/5-D, multicast), sparse UMMA
-* A CUTLASS NVFP4 GEMM run to cross-check the FP4 ceiling
+* The clock/power curve for BF16 and FP8 GEMMs (only FP4 is traced so far)
 * `mma.sync` with FP8 (ptxas lowers it on sm_103a; not timed)
 * NVLink/NVSwitch: these benches cover a single GPU; fabric calibration is a separate step
 * Hopper (H100/H200) and A100 runs; the A100 work is in progress on its own branch
