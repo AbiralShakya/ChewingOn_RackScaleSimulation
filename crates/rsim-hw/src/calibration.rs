@@ -289,14 +289,23 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         let runs: Vec<PowerRun> = runs
             .iter()
             .filter_map(|r| {
-                let kernel = r.get("kernel").and_then(Value::as_str).unwrap_or("");
+                // Older files name the run in `kernel`, newer ones in `gemm`
+                // (e.g. "nvfp4_ultra_k96").
+                let kernel = r
+                    .get("kernel")
+                    .or_else(|| r.get("gemm"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_ascii_lowercase();
                 let dtype = r
                     .get("dtype")
                     .and_then(Value::as_str)
                     .map(str::to_string)
                     .unwrap_or_else(|| {
-                        if kernel.to_ascii_lowercase().contains("fp4") {
+                        if kernel.contains("fp4") {
                             "fp4".into()
+                        } else if kernel.contains("fp8") {
+                            "fp8".into()
                         } else {
                             "bf16".into()
                         }
@@ -449,6 +458,9 @@ mod tests {
             .power
             .as_ref()
             .expect("B300 calibration has a power model");
+        // The measured runs are CUTLASS NVFP4 GEMMs: only FP4 is throttled.
+        assert!(p.runs.iter().all(|r| r.dtype == "fp4"));
+        assert!(p.sustained_mhz("bf16", 1e15).is_none());
         for r in &p.runs {
             let f = p.sustained_mhz(&r.dtype, r.flops).unwrap();
             // Runs drawing less than the cap keep f_max; capped runs land
