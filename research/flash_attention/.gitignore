@@ -3,3 +3,6 @@ traces/
 *.wp
 results/sim/cal/
 __pycache__/
+# full rack reports (per-rank detail, ~1.4 MB each); the summary is in results/study.json
+results/sim/ring/ring_*_n[0-9]*.json
+!results/sim/ring/*.workload.json
