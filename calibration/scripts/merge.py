@@ -161,6 +161,17 @@ def model_ampere(raw):
     return m
 
 
+# Power-sweep GEMM label -> (operand dtype, UMMA K). The dtype is written
+# explicitly into every run so loaders need not parse labels.
+POWER_GEMM_DTYPE = {
+    "fp16_dense": ("fp16", 16),
+    "bf16_dense": ("bf16", 16),
+    "fp8_dense": ("fp8", 32),
+    "nvfp4_k64": ("fp4", 64),
+    "nvfp4_ultra_k96": ("fp4", 96),
+}
+
+
 def _power_runs(log, trace, legacy_label=None):
     """Runs of one power sweep: BEGIN/END windows in `log` over the nvidia-smi
     `trace`. Old FP4-only logs (cutlass_fp4.log) have no label on BEGIN/END;
@@ -198,8 +209,9 @@ def _power_runs(log, trace, legacy_label=None):
         # GEMM steady state inside the window: host setup and on-GPU data init run
         # far below the cap, so keep samples above half the cap.
         win = [s for s in samples if r["t0"] <= s["t"] <= r["t1"] and s["util"] >= 50 and s["w"] >= 0.5 * cap]
+        dtype, umma_k = POWER_GEMM_DTYPE.get(r["label"], (None, None))
         out.append({
-            "gemm": r["label"], "verified": verified.get(r["label"]),
+            "gemm": r["label"], "dtype": dtype, "umma_k": umma_k, "verified": verified.get(r["label"]),
             "m": r["size"], "n": r["size"], "k": r["size"],
             "tflops": max(r["gflops"]) / 1e3 if r["gflops"] else None,
             "busy_samples": len(win),

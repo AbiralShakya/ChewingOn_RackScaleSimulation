@@ -1,7 +1,7 @@
 {
  "schema": "rackscale-calibration/v1",
- "generated_utc": "2026-10-21T17:03:58+00:00",
- "driver": "610.57.04",
+ "generated_utc": "2026-10-21T17:42:38+00:00",
+ "driver": null,
  "missing_benches": [],
  "model": {
   "device": {
@@ -1017,6 +1017,8 @@
    "runs": [
     {
      "gemm": "nvfp4_ultra_k96",
+     "dtype": "fp4",
+     "umma_k": 96,
      "verified": true,
      "m": 4096,
      "n": 4096,
@@ -1032,6 +1034,8 @@
     },
     {
      "gemm": "nvfp4_ultra_k96",
+     "dtype": "fp4",
+     "umma_k": 96,
      "verified": true,
      "m": 8192,
      "n": 8192,
@@ -1047,6 +1051,8 @@
     },
     {
      "gemm": "nvfp4_ultra_k96",
+     "dtype": "fp4",
+     "umma_k": 96,
      "verified": true,
      "m": 16384,
      "n": 16384,
