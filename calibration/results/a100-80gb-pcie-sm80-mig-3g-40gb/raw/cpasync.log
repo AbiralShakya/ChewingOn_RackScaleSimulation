@@ -1,0 +1,14 @@
+L2   chase  ld.ca  202.0  ld.cg  201.8  cp.cg16  233.9  cp.ca16  236.1  cp.ca4  236.1  (lds 29.1)
+DRAM chase  ld.ca  475.5  ld.cg  476.5  cp.cg16  508.1  cp.ca16  509.5  cp.ca4  510.3  (lds 29.1)
+L2 stream (10 MB)
+  ld_global_v4_st_shared best   1566.0 GB/s
+  cp_async_cg16    best   1869.8 GB/s
+  cp_async_ca16    best   1732.0 GB/s
+  cp_async_ca8     best   1337.1 GB/s
+  cp_async_ca4     best    870.5 GB/s
+DRAM stream (2048 MB)
+  ld_global_v4_st_shared best    807.8 GB/s
+  cp_async_cg16    best    903.8 GB/s
+  cp_async_ca16    best    874.3 GB/s
+  cp_async_ca8     best    834.7 GB/s
+  cp_async_ca4     best    793.3 GB/s

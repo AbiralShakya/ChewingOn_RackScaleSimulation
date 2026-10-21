@@ -106,7 +106,7 @@ void run_mma_sync(Json& j, const DeviceInfo& d, size_t one_cta_smem) {
     CK(cudaFuncSetAttribute(kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)one_cta_smem));
     std::vector<double> best;
     for (int r = 0; r < 3; ++r) {
-      kern<<<blocks, threads, one_cta_smem>>>(iters, out, sink);
+      kern<<<cal_grid(blocks), threads, one_cta_smem>>>(iters, out, sink);
       CK(cudaDeviceSynchronize());
       std::vector<uint64_t> h(blocks);
       CK(cudaMemcpy(h.data(), out, 8 * blocks, cudaMemcpyDeviceToHost));
