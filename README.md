@@ -64,8 +64,8 @@ python examples/deepseek_v3_nvl72.py --layers 4      # fast mode, both schedules
 
 | schedule | step time | MFU | GPU idle |
 |---|---|---|---|
-| single stream | 1899 µs | 10.2% | 5.2% |
-| two-micro-batch overlap (DeepSeek style) | 2456 µs | 7.9% | 0.9% |
+| single stream | 1435 µs | 13.6% | 6.9% |
+| two-micro-batch overlap (DeepSeek style) | 2372 µs | 8.2% | 0.9% |
 
 What the model shows:
 
@@ -74,7 +74,7 @@ What the model shows:
   With M=64 against a 128-row UMMA tile, half the tensor work is padding (tensor-core
   utilisation about 35%).
 - **MLA attention is compute heavy.** 128 query heads share one 576-wide latent, so the kernel
-  runs at about 980 TFLOPS rather than at HBM speed. It is the largest single kernel.
+  runs at about 1100 TFLOPS rather than at HBM speed. It is the largest single kernel.
 - **Two-micro-batch overlap loses at this size.** Each half-batch reads the full weights again,
   while the all-to-all it hides is only about 10 µs per layer on NVLink5 (509 to 722 GB/s
   busbw). Overlap pays off only when dispatch and combine are a large part of the step, for
@@ -82,7 +82,7 @@ What the model shows:
 - **Bubble anatomy.** About 60% of scheduler cycles are `async_wait`: warps parked on
   mbarriers while TMA and UMMA work is in flight, the expected signature of a warp-specialised
   kernel. The bubbles that matter are the ~11% `tma_wait` (tensor core starved by loads) and
-  the 5% of wall time the GPU sits idle between kernels.
+  the 7% of wall time the GPU sits idle between kernels.
 
 ### Fast mode vs exact co-simulation
 
