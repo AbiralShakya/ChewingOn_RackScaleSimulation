@@ -15,7 +15,7 @@ BUILD     := build
 # Arch-specific benches only build where the hardware has the feature.
 BENCHES := alu mem tc misc
 ifeq ($(shell test $(SM) -ge 80 && echo y),y)
-BENCHES += mma_sync cpasync l2part
+BENCHES += mma_sync cpasync l2part overlap
 endif
 ifeq ($(shell test $(SM) -ge 90 && echo y),y)
 BENCHES += tma

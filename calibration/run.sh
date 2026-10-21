@@ -46,7 +46,7 @@ for c in $(./build/bench_tc --list); do
   run "tc_$c" ./build/bench_tc "$c"
 done
 
-for b in mma_sync cpasync l2part; do
+for b in mma_sync cpasync l2part overlap; do
   [ -x "build/bench_$b" ] && run "$b" "./build/bench_$b"
 done
 

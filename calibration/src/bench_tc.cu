@@ -146,7 +146,7 @@ __host__ __device__ constexpr uint64_t smem_desc(uint32_t addr, uint32_t lbo, ui
          ((uint64_t)((sbo >> 4) & 0x3FFF) << 32) | (1ull << 46) | ((uint64_t)(swz & 7) << 61);
 }
 
-enum Kind { KIND_F16 = 0, KIND_TF32 = 1, KIND_F8F6F4 = 2, KIND_MXF8 = 3, KIND_NVFP4 = 4, KIND_I8 = 5, KIND_MXF4 = 6 };
+enum Kind { KIND_F16 = 0, KIND_TF32 = 1, KIND_F8F6F4 = 2, KIND_MXF8 = 3, KIND_NVFP4 = 4, KIND_I8 = 5, KIND_MXF4 = 6, KIND_NVFP4_K96 = 7, KIND_MXF4_K96 = 8 };
 
 // Instruction descriptor (PTX ISA, tcgen05 "Instruction descriptor"):
 // [4,6) D fmt, [7,10) A fmt, [10,13) B fmt, [15]/[16] A/B transpose (0 = K-major),
@@ -162,6 +162,9 @@ __host__ __device__ constexpr uint32_t make_idesc(int kind, int M, int N) {
     case KIND_MXF8: d = (1u << 23); break;                           // E4M3 x E4M3, UE8M0 scales
     case KIND_NVFP4: d = (1u << 7) | (1u << 10); break;              // E2M1 x E2M1, UE4M3 scales
     case KIND_MXF4: d = (1u << 7) | (1u << 10) | (1u << 23); break;  // E2M1 x E2M1, UE8M0 scales
+    // sm_103 "ultra" FP4: bit 31 (k_size) selects K = 96 instead of 64.
+    case KIND_NVFP4_K96: d = (1u << 7) | (1u << 10) | (1u << 31); break;
+    case KIND_MXF4_K96: d = (1u << 7) | (1u << 10) | (1u << 23) | (1u << 31); break;
   }
   return d | ((uint32_t)(N >> 3) << 17) | ((uint32_t)(M >> 4) << 24);
 }
@@ -218,12 +221,15 @@ __device__ __forceinline__ void umma(uint32_t tmem_d, uint64_t ad, uint64_t bd, 
     else if constexpr (KIND == KIND_MXF8) UMMA_SCALED("1", "mxf8f6f4.block_scale.scale_vec::1X");
     else if constexpr (KIND == KIND_NVFP4) UMMA_SCALED("1", "mxf4nvf4.block_scale.scale_vec::4X");
     else if constexpr (KIND == KIND_MXF4) UMMA_SCALED("1", "mxf4.block_scale.scale_vec::2X");
+    else if constexpr (KIND == KIND_NVFP4_K96) UMMA_SCALED("1", "mxf4nvf4.block_scale.block16");
+    else if constexpr (KIND == KIND_MXF4_K96) UMMA_SCALED("1", "mxf4nvf4.block_scale.block32");
   } else {
     if constexpr (KIND == KIND_F16) UMMA_PLAIN("2", "f16");
     else if constexpr (KIND == KIND_TF32) UMMA_PLAIN("2", "tf32");
     else if constexpr (KIND == KIND_F8F6F4) UMMA_PLAIN("2", "f8f6f4");
     else if constexpr (KIND == KIND_MXF8) UMMA_SCALED("2", "mxf8f6f4.block_scale.scale_vec::1X");
     else if constexpr (KIND == KIND_NVFP4) UMMA_SCALED("2", "mxf4nvf4.block_scale.scale_vec::4X");
+    else if constexpr (KIND == KIND_NVFP4_K96) UMMA_SCALED("2", "mxf4nvf4.block_scale.block16");
   }
 #endif
 }
@@ -262,7 +268,7 @@ __global__ void tc05_kernel(int M, int N, int iters, int mode, uint64_t* out) {
   __shared__ uint32_t tmem_slot;
   __shared__ __align__(8) uint64_t mbar_storage;
   uint8_t* A = (uint8_t*)(((uintptr_t)smem + 1023) & ~(uintptr_t)1023);
-  uint8_t* B = A + 16 * 1024;
+  uint8_t* B = A + 16 * 1024;  // B spans up to 32 x 384 B = 12 KB
   uint32_t mbar = smem_u32(&mbar_storage);
   const int warp = threadIdx.x / 32;
   constexpr int G = CG == 2 ? 2 : 1;  // CTAs per MMA; CG 3 is the one-SM A-from-TMEM variant
@@ -277,7 +283,7 @@ __global__ void tc05_kernel(int M, int N, int iters, int mode, uint64_t* out) {
     }
   }
   if (threadIdx.x == 0) mbar_init(mbar, 1);
-  for (int i = threadIdx.x; i < 32 * 1024 / 4; i += blockDim.x) ((uint32_t*)A)[i] = 0x38383838u ^ i;
+  for (int i = threadIdx.x; i < 28 * 1024 / 4; i += blockDim.x) ((uint32_t*)A)[i] = 0x38383838u ^ i;
   asm volatile("fence.proxy.async.shared::cta;" ::: "memory");  // make generic-proxy writes visible to UMMA
   asm volatile("tcgen05.fence::before_thread_sync;" ::: "memory");
   if constexpr (G == 1) __syncthreads();
@@ -287,9 +293,10 @@ __global__ void tc05_kernel(int M, int N, int iters, int mode, uint64_t* out) {
   if (threadIdx.x == 0) {
     uint64_t t0 = clk64();
     if (leader) {
-      // K-major, no swizzle: core matrix (8 rows x 16 B) at (mi, ki) -> mi*256 + ki*128.
-      uint64_t ad = smem_desc(smem_u32(A), 128, 256, 0);
-      uint64_t bd = smem_desc(smem_u32(B), 128, 256, 0);
+      // K-major, no swizzle: core matrix (8 rows x 16 B) at (mi, ki) -> mi*384 + ki*128
+      // (room for the three 16 B K-slices of a K=96 FP4 row).
+      uint64_t ad = smem_desc(smem_u32(A), 128, 384, 0);
+      uint64_t bd = smem_desc(smem_u32(B), 128, 384, 0);
       uint32_t idesc = make_idesc(KIND, M, N);
       uint32_t tsfa = tmem + 256, tsfb = tmem + 384;  // scale factors (block-scaled kinds only)
       uint32_t phase = 0;
@@ -387,11 +394,14 @@ static const Tc05Case TC05_CASES[] = {
     {"tcgen05_mxf8_e4m3_m128n256k32", KIND_MXF8, 128, 256, 32},
     {"tcgen05_nvfp4_m128n256k64", KIND_NVFP4, 128, 256, 64},
     {"tcgen05_mxf4_m128n256k64", KIND_MXF4, 128, 256, 64},
+    {"tcgen05_nvfp4_k96_m128n256k96", KIND_NVFP4_K96, 128, 256, 96},
+    {"tcgen05_mxf4_k96_m128n256k96", KIND_MXF4_K96, 128, 256, 96},
     // 2-SM UMMA (cta_group::2): M = 256 across a CTA pair
     {"tcgen05x2_f16_bf16_m256n256k16", KIND_F16, 256, 256, 16, 2},
     {"tcgen05x2_f8f6f4_e4m3_m256n256k32", KIND_F8F6F4, 256, 256, 32, 2},
     {"tcgen05x2_mxf8_e4m3_m256n256k32", KIND_MXF8, 256, 256, 32, 2},
     {"tcgen05x2_nvfp4_m256n256k64", KIND_NVFP4, 256, 256, 64, 2},
+    {"tcgen05x2_nvfp4_k96_m256n256k96", KIND_NVFP4_K96, 256, 256, 96, 2},
     // A operand from TMEM ("ts"): halves the smem operand traffic per MMA
     {"tcgen05ts_f16_bf16_m128n256k16", KIND_F16, 128, 256, 16, 3},
     {"tcgen05ts_f8f6f4_e4m3_m128n256k32", KIND_F8F6F4, 128, 256, 32, 3},
@@ -530,6 +540,9 @@ int main(int argc, char** argv) {
         case KIND_MXF8 * 4 + 1: run_tc05<KIND_MXF8, 1>(j, d, c, one_cta_smem); break;
         case KIND_NVFP4 * 4 + 1: run_tc05<KIND_NVFP4, 1>(j, d, c, one_cta_smem); break;
         case KIND_MXF4 * 4 + 1: run_tc05<KIND_MXF4, 1>(j, d, c, one_cta_smem); break;
+        case KIND_NVFP4_K96 * 4 + 1: run_tc05<KIND_NVFP4_K96, 1>(j, d, c, one_cta_smem); break;
+        case KIND_MXF4_K96 * 4 + 1: run_tc05<KIND_MXF4_K96, 1>(j, d, c, one_cta_smem); break;
+        case KIND_NVFP4_K96 * 4 + 2: run_tc05<KIND_NVFP4_K96, 2>(j, d, c, one_cta_smem); break;
         case KIND_F16 * 4 + 2: run_tc05<KIND_F16, 2>(j, d, c, one_cta_smem); break;
         case KIND_F8F6F4 * 4 + 2: run_tc05<KIND_F8F6F4, 2>(j, d, c, one_cta_smem); break;
         case KIND_MXF8 * 4 + 2: run_tc05<KIND_MXF8, 2>(j, d, c, one_cta_smem); break;
