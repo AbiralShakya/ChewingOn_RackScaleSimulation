@@ -666,6 +666,11 @@ impl Sm {
                     let b = inst.meta.sb.unwrap_or(0) as usize;
                     let mut pend: Vec<u64> =
                         w.sb[b].iter().map(|x| x.0).filter(|&t| t > c).collect();
+                    // `cp.async.wait_group N` is `DEPBAR.LE SB0, N`: LDGDEPBAR
+                    // commit groups count on SB0.
+                    if b == 0 {
+                        pend.extend(w.async_groups.iter().copied().filter(|&t| t > c));
+                    }
                     if pend.len() > n {
                         pend.sort_unstable();
                         return (Stall::LongScoreboard, pend[pend.len() - n - 1]);
@@ -677,6 +682,14 @@ impl Sm {
                         pend.sort_unstable();
                         return (Stall::AsyncWait, pend[pend.len() - n - 1]);
                     }
+                }
+            }
+            // A CTA cannot retire (and free its shared memory) while its
+            // async copies are still landing.
+            OpClass::Exit if inst.guard.is_none() => {
+                let cta = self.ctas[cta_idx].as_ref().unwrap();
+                if cta.async_tail > c {
+                    return (Stall::Drain, cta.async_tail);
                 }
             }
             OpClass::AsyncBarrier

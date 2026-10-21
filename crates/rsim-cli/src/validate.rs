@@ -209,9 +209,11 @@ pub fn run(reference: &Path, base: &rsim_hw::GpuSpec) -> Result<Vec<Row>> {
         }
         let sim = (d.end_cycle - d.start_cycle) as f64;
         eprintln!(
-            "  {label:<26} ncu {meas:>12.0}  sim {sim:>12.0}  ({:+.1}%, {:.1} s)",
+            "  {label:<26} ncu {meas:>12.0}  sim {sim:>12.0}  ({:+.1}%, {:.1} s, DRAM ncu {:.3} GB sim {:.3} GB)",
             100.0 * (sim - meas) / meas,
-            t0.elapsed().as_secs_f64()
+            t0.elapsed().as_secs_f64(),
+            ncu_bytes / 1e9,
+            (d.stats.dram_read_bytes + d.stats.dram_write_bytes) as f64 / 1e9
         );
         rows.push(Row {
             error_pct: 100.0 * (sim - meas) / meas,
