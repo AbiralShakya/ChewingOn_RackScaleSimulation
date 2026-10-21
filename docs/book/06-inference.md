@@ -104,9 +104,17 @@ all-to-all overlaps the other's compute. The simulator models exactly that
 (`lower.decode_step(..., overlap=True)`).
 
 On NVL72 at batch 64 it loses: the step goes from 1435 to 2372 µs. Each half-batch reads all
-the weights again, and a weight-bound GEMM at half the batch costs almost the same as at the
-full batch (section 6.2), so the GEMM time nearly doubles. What it hides, about 10 µs of
-all-to-all per MoE layer, is small on NVLink5.
+the weights again. The dense decode GEMMs stream weights at about 7.0 TB/s, so a GEMM with
+*M* = 32 takes as long as one with *M* = 64 (section 6.2). The dense GEMM time per GPU
+roughly doubles, from about 928 to 1883 µs. The two streams cannot hide each other either,
+because two bandwidth-bound GEMMs running at once share the same HBM. GPU idle time is under
+1% in both runs, so no idle gap is being filled. The all-to-alls get worse too. Each is
+halved to 1.8 MB, and at that size the fabric reaches only 161 to 272 GB/s busbw, against
+509 to 722 for the full-batch messages. What overlap hides, about 10 µs of all-to-all per
+MoE layer, is small on NVLink5.
+
+**The rule.** Splitting a batch helps only if each half is compute bound or communication
+bound. If each half is bound by weight bandwidth, splitting doubles the dominant cost.
 
 Overlap pays when the communication it hides is comparable to the compute: over InfiniBand
 (the 175 µs dispatch of chapter 4), at larger EP degrees across racks, or when the weights are
@@ -203,6 +211,9 @@ B300's measured copy bandwidth.
 3. A decode step on B300 is 80% weight streaming at batch 32. Roughly what throughput gain do
    you expect from batch 64? From FP8 weights at batch 32?
 4. Why does FP4 help decode on GB300 but not prefill?
+5. On NVL72 the single-stream step spends about 928 µs per GPU in dense GEMMs at batch 64.
+   Predict the dense GEMM time with two-micro-batch overlap. At what batch per micro-batch
+   would overlap stop doubling it? Use the B300 BF16 critical batch from chapter 1.
 
 <details><summary>Answers</summary>
 
@@ -216,6 +227,11 @@ B300's measured copy bandwidth.
    halves, so time drops to 60%: about **1.7×**.
 4. Decode GEMMs are bound by weight bytes, which FP4 cuts 4×. Prefill GEMMs are compute bound,
    and on GB300 large FP4 GEMMs hit the power cap, so the extra FP4 FLOPs do not arrive.
+5. Each half-batch reads every weight, so the time is about 2 × 928 ≈ **1860 µs**; the
+   simulator gives 1883. A GEMM stops being weight bound near the critical batch, *M* ≈ 361
+   on B300 BF16. Once each micro-batch's GEMMs reach a few hundred tokens they cost time in
+   proportion to *M*, and overlap no longer doubles anything. That is prefill, or very large
+   decode batches.
 
 </details>
 
