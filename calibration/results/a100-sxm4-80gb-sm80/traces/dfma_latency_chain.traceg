@@ -1,0 +1,587 @@
+-kernel name = _Z10lat_kernelI6OpDFMAEvPNT_1TEiPm
+-kernel id = 289
+-grid dim = (1,1,1)
+-block dim = (32,1,1)
+-shmem = 0
+-nregs = 19
+-binary version = 80
+-cuda stream id = 0
+-shmem base_addr = 0x000014d24d000000
+-local mem base_addr = 0x000014d24b000000
+-nvbit version = 1.8.1
+-accelsim tracer version = 6
+-enable lineinfo = 0
+
+#traces format = [line_num] PC mask dest_num [reg_dests] opcode src_num [reg_srcs] mem_width [adrrescompress?] [mem_addresses] immediate1 immediate2 Val|NoVal [dest_val_num] [dest_val] ... [src_val1_num] [src_val1] ... [...] [src_valX_num] [src_valX] ...
+
+
+#BEGIN_TB
+
+thread block = 0,0,0
+cluster id = 0,0,0
+cluster cta = 0,0,0
+cluster rank = 0
+
+warp = 0
+insts = 559
+0000 ffffffff 1 R1 IMAD.MOV.U32 2 R255 R255 0 0 0 NoVal 
+0010 ffffffff 1 R2 IMAD.MOV.U32 2 R255 R255 0 0 0 NoVal 
+0020 ffffffff 1 UR4 ULDC.64 0 0 0 0 NoVal 
+0030 ffffffff 1 R3 IMAD.MOV.U32 2 R255 R255 0 0 0 NoVal 
+0040 ffffffff 1 R10 LDG.E.64 1 R2 8 0 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0x000014d1a0e00000 0 0 NoVal 
+0050 ffffffff 1 R0 S2R 0 0 0 0 NoVal 
+0060 ffffffff 1 R4 LDG.E.64 1 R2 8 0 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0x000014d1a0e00008 0 0 NoVal 
+0070 ffffffff 1 R6 LDG.E.64 1 R2 8 0 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0x000014d1a0e00010 0 0 NoVal 
+0080 ffffffff 1 R8 I2F.F64.U32 1 R0 0 0 0 NoVal 
+0090 ffffffff 0 NOP 0 0 0 0 NoVal 
+00a0 ffffffff 1 R10 DADD 2 R8 R10 0 0 0 NoVal 
+00b0 ffffffff 1 R8 CS2R 0 0 0 0 NoVal 
+00c0 ffffffff 1 R14 SHF.R.U32.HI 2 R255 R9 0 31 0 NoVal 
+00d0 ffffffff 1 R15 IMAD.MOV.U32 3 R255 R255 R255 0 0 0 NoVal 
+00e0 ffffffff 1 R16 IMAD.MOV.U32 2 R255 R255 0 0 0 NoVal 
+00f0 ffffffff 1 R12 I2F.F64.U64 1 R14 0 0 0 NoVal 
+0100 ffffffff 0 ISETP.GE.AND 1 R16 0 1 0 NoVal 
+0110 ffffffff 1 R12 DADD 2 R10 R12 0 0 0 NoVal 
+0120 00000000 0 BRA 0 0 3520 0 NoVal 
+0130 ffffffff 0 ISETP.NE.AND 1 R16 0 1 0 NoVal 
+0140 ffffffff 0 LOP3.LUT 3 R255 R16 R255 0 1 192 NoVal 
+0150 00000000 0 BRA 0 0 2480 0 NoVal 
+0160 ffffffff 1 R10 LOP3.LUT 2 R16 R255 0 1 192 NoVal 
+0170 ffffffff 1 R10 IADD3 2 R10 R255 0 0 0 NoVal 
+0180 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0190 ffffffff 1 R10 IADD3 2 R10 R255 0 -2 0 NoVal 
+01a0 ffffffff 0 ISETP.NE.AND 2 R10 R255 0 0 0 NoVal 
+01b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0200 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0210 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0220 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0230 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0240 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0250 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0260 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0270 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0280 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0290 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0300 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0310 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0320 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0330 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0340 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0350 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0360 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0370 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0380 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0390 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0400 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0410 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0420 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0430 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0440 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0450 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0460 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0470 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0480 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0490 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0500 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0510 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0520 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0530 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0540 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0550 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0560 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0570 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0580 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0590 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0600 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0610 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0620 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0630 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0640 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0650 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0660 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0670 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0680 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0690 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0700 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0710 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0720 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0730 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0740 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0750 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0760 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0770 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0780 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0790 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0800 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0810 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0820 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0830 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0840 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0850 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0860 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0870 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0880 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0890 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0900 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0910 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0920 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0930 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0940 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0950 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0960 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0970 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0980 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0990 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+09a0 ffffffff 0 BRA 0 0 384 0 NoVal 
+0180 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0190 ffffffff 1 R10 IADD3 2 R10 R255 0 -2 0 NoVal 
+01a0 ffffffff 0 ISETP.NE.AND 2 R10 R255 0 0 0 NoVal 
+01b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0200 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0210 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0220 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0230 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0240 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0250 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0260 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0270 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0280 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0290 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0300 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0310 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0320 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0330 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0340 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0350 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0360 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0370 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0380 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0390 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0400 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0410 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0420 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0430 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0440 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0450 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0460 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0470 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0480 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0490 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0500 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0510 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0520 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0530 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0540 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0550 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0560 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0570 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0580 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0590 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0600 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0610 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0620 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0630 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0640 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0650 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0660 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0670 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0680 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0690 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0700 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0710 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0720 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0730 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0740 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0750 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0760 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0770 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0780 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0790 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0800 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0810 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0820 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0830 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0840 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0850 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0860 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0870 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0880 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0890 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0900 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0910 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0920 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0930 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0940 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0950 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0960 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0970 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0980 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0990 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+09a0 ffffffff 0 BRA 0 0 384 0 NoVal 
+0180 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0190 ffffffff 1 R10 IADD3 2 R10 R255 0 -2 0 NoVal 
+01a0 ffffffff 0 ISETP.NE.AND 2 R10 R255 0 0 0 NoVal 
+01b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0200 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0210 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0220 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0230 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0240 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0250 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0260 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0270 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0280 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0290 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0300 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0310 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0320 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0330 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0340 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0350 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0360 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0370 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0380 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0390 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0400 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0410 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0420 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0430 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0440 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0450 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0460 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0470 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0480 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0490 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0500 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0510 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0520 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0530 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0540 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0550 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0560 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0570 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0580 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0590 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0600 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0610 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0620 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0630 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0640 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0650 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0660 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0670 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0680 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0690 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0700 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0710 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0720 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0730 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0740 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0750 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0760 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0770 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0780 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0790 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0800 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0810 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0820 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0830 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0840 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0850 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0860 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0870 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0880 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0890 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0900 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0910 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0920 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0930 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0940 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0950 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0960 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0970 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0980 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0990 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+09a0 ffffffff 0 BRA 0 0 384 0 NoVal 
+0180 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0190 ffffffff 1 R10 IADD3 2 R10 R255 0 -2 0 NoVal 
+01a0 ffffffff 0 ISETP.NE.AND 2 R10 R255 0 0 0 NoVal 
+01b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+01f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0200 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0210 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0220 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0230 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0240 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0250 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0260 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0270 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0280 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0290 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+02f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0300 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0310 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0320 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0330 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0340 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0350 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0360 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0370 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0380 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0390 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+03f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0400 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0410 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0420 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0430 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0440 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0450 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0460 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0470 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0480 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0490 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+04f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0500 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0510 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0520 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0530 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0540 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0550 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0560 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0570 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0580 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0590 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+05f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0600 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0610 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0620 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0630 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0640 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0650 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0660 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0670 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0680 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0690 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+06f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0700 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0710 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0720 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0730 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0740 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0750 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0760 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0770 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0780 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0790 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+07f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0800 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0810 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0820 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0830 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0840 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0850 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0860 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0870 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0880 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0890 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08a0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08b0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08c0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08d0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08e0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+08f0 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0900 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0910 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0920 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0930 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0940 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0950 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0960 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0970 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0980 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+0990 ffffffff 1 R12 DFMA 3 R4 R12 R6 0 0 0 NoVal 
+09a0 00000000 0 BRA 0 0 384 0 NoVal 
+09b0 ffffffff 0 BRA 0 0 3520 0 NoVal 
+0dc0 ffffffff 1 R4 CS2R 0 0 0 0 NoVal 
+0dd0 ffffffff 0 ISETP.NE.AND 2 R0 R255 0 0 0 NoVal 
+0de0 fffffffe 0 EXIT 0 0 0 0 NoVal 
+0df0 00000001 1 R6 IADD3 3 R8 R4 R255 0 0 0 NoVal 
+0e00 00000001 1 R4 IMAD.MOV.U32 2 R255 R255 0 0 0 NoVal 
+0e10 00000001 0 STG.E.64 2 R2 R12 8 0 0x000014d1a0e00018 0 0 NoVal 
+0e20 00000001 1 R7 IMAD.X 2 R5 R9 0 1 0 NoVal 
+0e30 00000001 1 R5 IMAD.MOV.U32 2 R255 R255 0 0 0 NoVal 
+0e40 00000001 0 STG.E.64 2 R4 R6 8 0 0x000014d1a0e00200 0 0 NoVal 
+0e50 00000001 0 EXIT 0 0 0 0 NoVal 
+
+#END_TB

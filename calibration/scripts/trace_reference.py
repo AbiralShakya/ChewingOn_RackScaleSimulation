@@ -46,8 +46,8 @@ SIZE = {
     "dfma_latency_chain": {},
     "smem_conflict_free": {"CAL_MAX_CTAS": "1", "CAL_MAX_ITERS": "32", "CAL_SECTIONS": "smem"},
     "smem_32way_conflict": {"CAL_MAX_CTAS": "1", "CAL_MAX_ITERS": "32", "CAL_SECTIONS": "smem"},
-    "hbm_stream_read": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20), "CAL_SECTIONS": "bandwidth"},
-    "hbm_copy": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20), "CAL_SECTIONS": "bandwidth"},
+    "hbm_stream_read": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20), "CAL_MAX_ITERS": "1", "CAL_SECTIONS": "bandwidth"},
+    "hbm_copy": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20), "CAL_MAX_ITERS": "1", "CAL_SECTIONS": "bandwidth"},
     "l2_pointer_chase": {"CAL_SECTIONS": "latency"},
     "hmma_bf16_throughput": {"CAL_MAX_CTAS": "1"},
     "cp_async_cg16_dram_stream": {"CAL_MAX_CTAS": "2", "CAL_MAX_BYTES": str(1 << 20)},
@@ -89,7 +89,10 @@ def trace(binary, args, mangled, skip, env, workdir):
         "TRACE_FILE_COMPRESS": "0",
         "TOOL_COMPRESS": "0",
     })
-    p = subprocess.run(locked([binary] + args), env=e, capture_output=True, text=True)
+    try:
+        p = subprocess.run(locked([binary] + args), env=e, capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        return None, "tracer run timed out after 900 s"
     if p.returncode != 0:
         return None, p.stderr[-2000:]
     tdir = os.path.join(folder, "traces")
