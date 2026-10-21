@@ -26,7 +26,7 @@ except ImportError as e:  # pragma: no cover - only when the extension is not bu
     _native = None
     _IMPORT_ERROR = e
 
-__all__ = ["simulate", "kernel", "presets", "Report", "Parallel", "lower", "models", "capture"]
+__all__ = ["simulate", "viz", "kernel", "presets", "Report", "Parallel", "lower", "models", "capture"]
 
 
 def _need_native():
@@ -106,6 +106,34 @@ def simulate(system: Union[str, os.PathLike], workload: Union[dict, str], *, tra
     cfg.setdefault("trace", trace is not None)
     out = nat.simulate(_system_yaml(system), wl, json.dumps(cfg), trace)
     return Report(json.loads(out))
+
+
+def viz(system: Union[str, os.PathLike], workload: Union[dict, str], out: str, *, name: Optional[str] = None,
+        fast: bool = True, detail_ranks=(0,), warp_sms=(0,), max_warp_events: int = 400_000,
+        link_bin_ns: float = 1000.0, launch_gap_ns: Optional[float] = None, config: Optional[dict] = None) -> Report:
+    """Simulate and write a zoomable viewer (``out`` ending in .html) or an rsviz/1 bundle (.json).
+
+    The page goes from the rack's links down to per-warp timelines and per-instruction stall samples
+    for the ranks in ``detail_ranks`` and the SMs in ``warp_sms``. See docs/VIZ.md.
+    """
+    nat = _need_native()
+    if isinstance(workload, dict):
+        wl = json.dumps(workload)
+    elif os.path.exists(workload):
+        with open(workload) as f:
+            wl = f.read()
+    else:
+        wl = workload
+    cfg = dict(config or {})
+    cfg.update(trace=False, memoize_kernels=fast, detail_ranks=list(detail_ranks))
+    if launch_gap_ns is not None:
+        cfg["launch_gap_ns"] = launch_gap_ns
+    cfg.setdefault("gpu", {})["detail"] = {"ctas": True, "pc_stats": True, "warp_sms": list(warp_sms),
+                                           "max_warp_events": max_warp_events}
+    cfg.setdefault("net", {})["link_bin_ns"] = link_bin_ns
+    title = name or (json.loads(wl).get("name", "run") if wl.lstrip().startswith("{") else "run")
+    rep = nat.viz(_system_yaml(system), wl, json.dumps(cfg), title, os.fspath(out))
+    return Report(json.loads(rep))
 
 
 def kernel(gpu: str, kind: str, *dims: int, dtype: str = "bf16") -> dict:

@@ -35,6 +35,9 @@ pub struct RunConfig {
     /// ignores cross-kernel L2 reuse and the CTA-level interleaving of
     /// concurrent kernels (they share SMs as fixed blocks instead).
     pub memoize_kernels: bool,
+    /// Ranks whose kernels carry visualiser capture (`gpu.detail`); empty =
+    /// all ranks. Other ranks run with capture off.
+    pub detail_ranks: Vec<usize>,
 }
 
 impl Default for RunConfig {
@@ -47,6 +50,7 @@ impl Default for RunConfig {
             horizon_ns: None,
             base_dir: None,
             memoize_kernels: false,
+            detail_ranks: Vec::new(),
         }
     }
 }
@@ -105,6 +109,9 @@ pub struct Span {
     pub kind: &'static str,
     pub start: Time,
     pub end: Time,
+    /// Index into the rank's `kernels` for kernel spans.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kernel: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -118,6 +125,8 @@ enum Local {
 #[derive(Default)]
 pub struct KernelMemo {
     map: Mutex<HashMap<(usize, u32), Arc<std::sync::OnceLock<KernelDone>>>>,
+    /// Capture applied to every memoized run (shared by all ranks).
+    detail: rsim_gpu::DetailConfig,
 }
 
 impl KernelMemo {
@@ -136,7 +145,9 @@ impl KernelMemo {
             .or_default()
             .clone();
         cell.get_or_init(|| {
-            let mut g = Gpu::new(0, (**spec).clone(), cfg.clone(), false);
+            let mut cfg = cfg.clone();
+            cfg.detail = self.detail.clone();
+            let mut g = Gpu::new(0, (**spec).clone(), cfg, false);
             g.reserve_sms(reserved);
             g.submit(k.clone(), 0, 0);
             let mut out = Vec::new();
@@ -322,6 +333,7 @@ impl RankLp {
     }
 
     fn finish_op(&mut self, s: usize, end: Time, kind: &'static str) {
+        let kernel = (kind == "kernel").then_some(self.kernels.len());
         let st = &mut self.streams[s];
         let label = match &st.ops[st.pc] {
             FlatOp::Kernel { label, .. }
@@ -336,6 +348,7 @@ impl RankLp {
             kind,
             start: st.op_start,
             end,
+            kernel,
         });
         st.pc += 1;
         st.busy = false;
@@ -814,6 +827,29 @@ pub struct Simulation {
 pub struct Outcome {
     pub report: Report,
     pub trace: TraceSink,
+    /// What each rank ran, for the visualiser.
+    pub ranks: Vec<RankOutcome>,
+    /// Per-direction link usage, in fabric channel order.
+    pub links: Vec<LinkUse>,
+}
+
+/// One rank's op spans and finished kernels.
+pub struct RankOutcome {
+    pub rank: usize,
+    pub spans: Vec<Span>,
+    pub kernels: Vec<KernelDone>,
+    pub busy_us: f64,
+}
+
+/// One direction of a fabric link.
+#[derive(Clone, Debug, Serialize)]
+pub struct LinkUse {
+    pub from: usize,
+    pub to: usize,
+    pub bytes: u64,
+    pub busy_ps: f64,
+    /// Busy fraction per `NetConfig::link_bin_ns` bin (empty when binning is off).
+    pub bins: Vec<f32>,
 }
 
 impl Simulation {
@@ -843,10 +879,12 @@ impl Simulation {
             cache: &cache,
             lib: &self.workload.kernels,
         };
-        let memo = self
-            .cfg
-            .memoize_kernels
-            .then(|| Arc::new(KernelMemo::default()));
+        let memo = self.cfg.memoize_kernels.then(|| {
+            Arc::new(KernelMemo {
+                map: Default::default(),
+                detail: self.cfg.gpu.detail.clone(),
+            })
+        });
         let net = NetEngine::new(&self.system, self.cfg.net.clone(), self.cfg.trace);
         let lookahead = net.lookahead();
         let mut lps: Vec<Lp> = Vec::with_capacity(world + 1);
@@ -863,7 +901,11 @@ impl Simulation {
             }
             let clock = Clock::from_mhz(spec.sm_clock_mhz);
             let gap = self.cfg.launch_gap_ns.unwrap_or(spec.launch_overhead_ns);
-            let mut gpu = Gpu::new(rank, spec, self.cfg.gpu.clone(), self.cfg.trace);
+            let mut gcfg = self.cfg.gpu.clone();
+            if !self.cfg.detail_ranks.is_empty() && !self.cfg.detail_ranks.contains(&rank) {
+                gcfg.detail = Default::default();
+            }
+            let mut gpu = Gpu::new(rank, spec, gcfg, self.cfg.trace);
             for s in 0..final_streams.len() {
                 gpu.trace
                     .name_thread(rank as u64 + 1, s as u64 + 1, &format!("stream {s}"));

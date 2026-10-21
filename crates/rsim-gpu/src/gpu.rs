@@ -3,6 +3,7 @@
 //! Time inside a [`Gpu`] is in SM clock cycles. The rack layer converts to
 //! global picoseconds with the GPU's [`rsim_core::Clock`].
 
+use crate::detail::{DetailConfig, KernelDetail, WarpTrace};
 use crate::kernel::KernelLaunch;
 use crate::mem::MemSystem;
 use crate::sm::{Policy, RemoteMbar, Sm, NEVER};
@@ -57,6 +58,8 @@ pub struct GpuConfig {
     /// and the measured back-to-back launch gap (`launch_overhead_ns`)
     /// already covers them.
     pub kernel_window: bool,
+    /// Visualiser capture (`rsim viz`); all off by default.
+    pub detail: DetailConfig,
 }
 
 impl Default for GpuConfig {
@@ -67,6 +70,7 @@ impl Default for GpuConfig {
             sample_interval: 2000,
             per_sm_counters: false,
             kernel_window: false,
+            detail: DetailConfig::default(),
         }
     }
 }
@@ -88,6 +92,9 @@ pub struct KernelDone {
     pub start_cycle: u64,
     pub end_cycle: u64,
     pub stats: KernelStats,
+    /// Visualiser capture, when `GpuConfig::detail` asks for it.
+    #[serde(skip)]
+    pub detail: Option<Arc<KernelDetail>>,
 }
 
 /// Perfetto thread id of SM 0's track (streams use small tids).
@@ -126,6 +133,8 @@ pub struct Gpu {
     pending_mbar: HashMap<(u32, u64), Vec<RemoteMbar>>,
     /// `empty_kernel_cycles` cache: (ctas, threads, smem, cluster) -> cycles.
     window_own: HashMap<(u32, u32, u32, u32), u64>,
+    /// Finished CTAs for the visualiser: (kid, sm, cta, start, end).
+    cta_log: Vec<(u32, u32, u64, u64, u64)>,
 }
 
 impl Gpu {
@@ -136,7 +145,17 @@ impl Gpu {
             SchedPolicy::Lrr => Policy::Lrr,
         };
         let sms = (0..spec.sm_count)
-            .map(|i| Sm::new(i, spec.clone(), policy, cfg.use_control_bits))
+            .map(|i| {
+                let mut sm = Sm::new(i, spec.clone(), policy, cfg.use_control_bits);
+                sm.pc_stats = cfg.detail.pc_stats;
+                if cfg.detail.warp_sms.contains(&i) {
+                    sm.wtrace = Some(Box::new(WarpTrace::new(
+                        spec.max_warps_per_sm as usize,
+                        cfg.detail.max_warp_events,
+                    )));
+                }
+                sm
+            })
             .collect();
         let mem = MemSystem::new(&spec);
         let mut trace = TraceSink::new(trace_enabled);
@@ -172,6 +191,7 @@ impl Gpu {
             cta_sm: HashMap::new(),
             pending_mbar: HashMap::new(),
             window_own: HashMap::new(),
+            cta_log: Vec::new(),
             stepping: Vec::new(),
             spec,
         }
@@ -352,7 +372,7 @@ impl Gpu {
                                 self.sms[s].deliver(&ev);
                             }
                         }
-                        if self.cfg.per_sm_counters && self.trace.enabled {
+                        if self.cta_timeline() {
                             self.cta_start.insert((s as u32, kid, cta), t + lat);
                         }
                         self.update_sm(s);
@@ -446,7 +466,7 @@ impl Gpu {
                         }
                     }
                 }
-                if self.cfg.per_sm_counters && self.trace.enabled {
+                if self.cta_timeline() {
                     for i in before..cta_done.len() {
                         let (kid, cta) = cta_done[i];
                         self.trace_cta(s, kid, cta, t);
@@ -529,6 +549,15 @@ impl Gpu {
                 for (k, n) in a.mbar_wait {
                     *st.mbar_wait.entry(k).or_default() += n;
                 }
+                for (pc, p) in a.pc {
+                    let e = st.pc.entry(pc).or_insert_with(|| crate::detail::PcStat {
+                        text: p.text.clone(),
+                        class: p.class.clone(),
+                        ..Default::default()
+                    });
+                    e.issued += p.issued;
+                    e.stalls.merge(&p.stalls);
+                }
                 st.tensor_busy_cycles += a.tensor_busy_cycles;
                 st.tensor_flops += a.tensor_flops;
                 st.dram_read_bytes += a.dram_read_bytes;
@@ -544,18 +573,56 @@ impl Gpu {
         st.start_cycle = start;
         st.end_cycle = end;
         st.ctas_per_sm = Sm::occupancy(&self.spec, &k.launch);
+        let detail = self.cfg.detail.enabled().then(|| {
+            let mut d = KernelDetail::default();
+            if let crate::kernel::KernelSource::Static { roles, .. } = &k.launch.source {
+                d.roles = roles.iter().map(|r| r.name.clone()).collect();
+            }
+            let kid = k.kid;
+            self.cta_log.retain(|&(id, sm, cta, s0, s1)| {
+                if id != kid {
+                    return true;
+                }
+                d.ctas.extend_from_slice(&[
+                    sm as u64,
+                    cta,
+                    s0.saturating_sub(start),
+                    s1.saturating_sub(start),
+                ]);
+                false
+            });
+            for sm in &mut self.sms {
+                let id = sm.id;
+                if let Some(t) = sm.wtrace.as_mut().and_then(|t| t.take(kid, start, id)) {
+                    d.warps.push(t);
+                }
+            }
+            Arc::new(d)
+        });
         KernelDone {
             tag: k.tag,
             start_cycle: start,
             end_cycle: end,
             stats: st,
+            detail,
         }
+    }
+
+    /// Whether CTA start/end times are tracked (Perfetto per-SM tracks or `rsim viz`).
+    fn cta_timeline(&self) -> bool {
+        (self.cfg.per_sm_counters && self.trace.enabled) || self.cfg.detail.ctas
     }
 
     fn trace_cta(&mut self, s: usize, kid: u32, cta: u64, end: u64) {
         let Some(start) = self.cta_start.remove(&(s as u32, kid, cta)) else {
             return;
         };
+        if self.cfg.detail.ctas {
+            self.cta_log.push((kid, s as u32, cta, start, end));
+        }
+        if !(self.cfg.per_sm_counters && self.trace.enabled) {
+            return;
+        }
         let name = self
             .kernels
             .iter()

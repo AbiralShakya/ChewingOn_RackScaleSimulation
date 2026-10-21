@@ -443,6 +443,7 @@ dependencies = [
 name = "rsim-rack"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "rayon",
  "rsim-core",
  "rsim-gpu",

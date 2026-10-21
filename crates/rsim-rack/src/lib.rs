@@ -13,6 +13,7 @@
 
 pub mod report;
 pub mod sim;
+pub mod viz;
 pub mod workload;
 
 pub use report::Report;

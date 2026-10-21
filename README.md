@@ -338,6 +338,22 @@ rackscale decode deepseek-v3 --system hgx_b200_8 --ep 8 --batch 32 --context 409
 python docs/img/plot_per_sm.py out/deepseek_v3_ep8_b200_per_sm.json per_sm.png   # static PNG, needs matplotlib
 ```
 
+### 7b. Zoom from the rack to one SASS instruction
+
+`rsim viz` writes one self-contained HTML page that zooms from the NVLink fabric and every GPU's
+streams, through one GPU's SMs and one kernel's warp roles, down to every warp of an SM cycle by
+cycle and the SASS listing with per-instruction stall samples (Nsight-style, at rack scale):
+
+```bash
+rsim viz run --system configs/gb200_nvl72.yaml --workload wl.json --fast --detail-ranks 0 -o ds.html
+rsim viz path fa4.rpath --gpu b300 --calibration research/flash_attention/calibration/b300-sxm6-ac-sm103.json -o fa4.html
+```
+
+Example pages (DeepSeek-V3 on NVL72, Mamba-2 vs attention, FlashAttention-2 vs 4 on B300) are in
+[`docs/viz/`](docs/viz/); the guide is [docs/VIZ.md](docs/VIZ.md).
+
+![SM 0 of a FlashAttention-4 replay: every warp, every cycle, and the SASS hot spots](docs/img/viz_fa4_warps.png)
+
 ### 8. Async RL on heterogeneous hardware
 
 ```python

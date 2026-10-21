@@ -2,6 +2,7 @@
 //! CTA slots, MIO/LSU, L1, shared memory banks, tensor engine, TMA unit and
 //! barrier state.
 
+use crate::detail::{PcStat, WarpTrace};
 use crate::kernel::{BarOp, InstStream, KernelLaunch, KernelSource};
 use crate::mem::{Cache, MemSystem, Server};
 use crate::pipes::{mma_dtype, mma_flops, mma_shape, timing, Pipe, Sb, NUM_PIPES};
@@ -145,6 +146,9 @@ pub struct Sm {
     scratch_el: Vec<usize>,
     /// mbarrier events for CTAs on other SMs, drained by the GPU each step.
     pub outbox: Vec<RemoteMbar>,
+    /// Visualiser capture: per-PC statistics, warp timeline (see `detail`).
+    pub pc_stats: bool,
+    pub wtrace: Option<Box<WarpTrace>>,
 }
 
 impl Sm {
@@ -182,6 +186,8 @@ impl Sm {
             scratch_ws: Vec::with_capacity(16),
             scratch_el: Vec::with_capacity(16),
             outbox: Vec::new(),
+            pc_stats: false,
+            wtrace: None,
             spec,
             policy,
         }
@@ -291,6 +297,9 @@ impl Sm {
                 age: self.age,
             });
             let sp = ws % nsp;
+            if let Some(t) = &mut self.wtrace {
+                t.begin(ws, sp, kid, cta_id, w, role, at);
+            }
             self.smsps[sp].warps.push(ws);
             self.smsps[sp].next_eval = self.smsps[sp].next_eval.min(at);
             if self.smsps[sp].warps.len() == 1 {
@@ -400,6 +409,7 @@ impl Sm {
         if dt == 0 {
             return;
         }
+        let t0 = s.last_eval;
         s.last_eval = c;
         if s.warps.is_empty() {
             self.idle_sched_cycles += dt;
@@ -430,6 +440,16 @@ impl Sm {
                     st.warp_by_index.resize(i + 1, StallCounts::default());
                 }
                 st.warp_by_index[i].add(w.state, dt);
+                if self.pc_stats {
+                    if let Some(op) = &w.next {
+                        pc_entry(&mut st.pc, w.role, &op.inst)
+                            .stalls
+                            .add(w.state, dt);
+                    }
+                }
+                if let Some(t) = &mut self.wtrace {
+                    t.state(ws, w.state, t0, c);
+                }
             }
         }
     }
@@ -902,6 +922,9 @@ impl Sm {
         w.wait_bar = u32::MAX;
         let t = timing(&spec, &inst);
         self.issued_total += 1;
+        if let Some(tr) = &mut self.wtrace {
+            tr.issue(ws, c, inst.pc);
+        }
         {
             let st = self.acc.get(kid);
             st.insts_issued += 1;
@@ -910,6 +933,9 @@ impl Sm {
             }
             st.issued_by_index[widx] += 1;
             st.class_counts[inst.class as usize] += 1;
+            if self.pc_stats {
+                pc_entry(&mut st.pc, role, &inst).issued += 1;
+            }
             if inst.class == OpClass::Misc {
                 *st.unknown_opcodes
                     .entry(inst.base_opcode().to_string())
@@ -1232,6 +1258,9 @@ impl Sm {
     }
 
     fn exit_warp(&mut self, ws: usize, sp: usize, c: u64, done: &mut Vec<(u32, u64)>) {
+        if let Some(tr) = &mut self.wtrace {
+            tr.end(ws, c);
+        }
         let w = self.warps[ws].as_mut().unwrap();
         w.exited = true;
         w.state = Stall::Drain;
@@ -1374,6 +1403,24 @@ impl Sm {
 }
 
 /// Shared-memory wavefronts for a warp access (32 banks x 4 B).
+/// The per-PC record for `inst`, created on first touch.
+fn pc_entry<'a>(
+    m: &'a mut std::collections::BTreeMap<u64, PcStat>,
+    role: Option<usize>,
+    inst: &rsim_sass::Inst,
+) -> &'a mut PcStat {
+    let key = ((role.unwrap_or(0) as u64) << 32) | inst.pc as u64;
+    m.entry(key).or_insert_with(|| PcStat {
+        text: if inst.operands.is_empty() {
+            inst.opcode.to_string()
+        } else {
+            format!("{} {}", inst.opcode, inst.operands)
+        },
+        class: format!("{:?}", inst.class),
+        ..Default::default()
+    })
+}
+
 pub fn bank_wavefronts(addrs: &[u64], width: u32, active: u32) -> u32 {
     if addrs.is_empty() {
         // Unknown pattern: assume conflict-free.

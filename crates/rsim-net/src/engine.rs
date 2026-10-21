@@ -20,6 +20,8 @@ pub struct NetConfig {
     pub step_overhead_ns: f64,
     /// Allow NVLink SHARP (NVLS) all-reduce when available.
     pub nvls: bool,
+    /// Record per-link busy time in bins of this many ns (0 = off; `rsim viz`).
+    pub link_bin_ns: f64,
 }
 
 impl Default for NetConfig {
@@ -29,6 +31,7 @@ impl Default for NetConfig {
             link_efficiency: 0.85,
             step_overhead_ns: 400.0,
             nvls: true,
+            link_bin_ns: 0.0,
         }
     }
 }
@@ -106,7 +109,10 @@ pub struct NetEngine {
 
 impl NetEngine {
     pub fn new(sys: &System, cfg: NetConfig, trace: bool) -> Self {
-        let fabric = Fabric::new(sys, cfg.link_efficiency);
+        let mut fabric = Fabric::new(sys, cfg.link_efficiency);
+        for c in &mut fabric.channels {
+            c.bin_ps = cfg.link_bin_ns * 1000.0;
+        }
         // NVLink islands: connected components of GPUs through non-scale-out switches.
         let n = sys.topology.nodes.len();
         let mut parent: Vec<usize> = (0..n).collect();
