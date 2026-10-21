@@ -124,7 +124,7 @@ pub fn dtype(name: &str) -> Dtype {
             bytes: 1.0,
             sass: "E4M3",
         },
-        "fp4" | "nvfp4" => Dtype {
+        "fp4" | "nvfp4" | "fp4_k64" => Dtype {
             name: "fp4",
             bytes: 0.5,
             sass: "E2M1",
@@ -383,11 +383,17 @@ fn gemm_hopper(m: u64, n: u64, k: u64, dt: Dtype) -> KernelLaunch {
 }
 
 /// Blackwell tcgen05 GEMM.
-fn gemm_blackwell(m: u64, n: u64, k: u64, dt: Dtype) -> KernelLaunch {
+fn gemm_blackwell(m: u64, n: u64, k: u64, dt: Dtype, ultra_fp4: bool) -> KernelLaunch {
     let (tm, tn, kb) = (
         128u64,
         if n >= 256 { 256 } else { 128 },
-        if dt.bytes <= 1.0 { 128 } else { 64u64 },
+        if ultra_fp4 {
+            192
+        } else if dt.bytes <= 1.0 {
+            128
+        } else {
+            64u64
+        },
     );
     let k_iters = k.div_ceil(kb).max(1);
     let tiles_m = m.div_ceil(tm);
@@ -427,7 +433,15 @@ fn gemm_blackwell(m: u64, n: u64, k: u64, dt: Dtype) -> KernelLaunch {
     let top = mma.here();
     let w = mma.op("SYNCS.PHASECHK.TRANS64.TRYWAIT P2, [UR4], R3");
     mma.bar(w, BarOp::Wait(FULL));
-    let ukk = if dt.bytes <= 1.0 { 32 } else { 16 };
+    let ukk = if ultra_fp4 {
+        96
+    } else if dt.name == "fp4" {
+        64
+    } else if dt.bytes <= 1.0 {
+        32
+    } else {
+        16
+    };
     for _ in 0..(kb / ukk) {
         let pc = mma.op(&mma_opcode(Arch::Blackwell, tm, tn, ukk, dt));
         mma.single_thread(pc);
@@ -563,7 +577,14 @@ pub fn gemm(g: &GpuSpec, m: u64, n: u64, k: u64, dtype_name: &str) -> KernelLaun
     let dt = dtype(dtype_name);
     match g.arch {
         Arch::Hopper => gemm_hopper(m, n, k, dt),
-        Arch::Blackwell => gemm_blackwell(m, n, k, dt),
+        Arch::Blackwell => {
+            // Blackwell Ultra: the best FP4 kernels use the K=96 UMMA
+            // (`fp4_k64` forces the K=64 form).
+            let ultra = dt.name == "fp4"
+                && dtype_name != "fp4_k64"
+                && g.tensor.flops_per_cycle_per_sm.contains_key("fp4_k96");
+            gemm_blackwell(m, n, k, dt, ultra)
+        }
         Arch::Ampere => gemm_mma_sync(m, n, k, dt),
     }
 }

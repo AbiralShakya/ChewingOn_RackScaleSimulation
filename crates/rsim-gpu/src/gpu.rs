@@ -489,3 +489,35 @@ impl Gpu {
         }
     }
 }
+
+/// Power-capped clock (DVFS) for a finished kernel: the factor by which its
+/// wall time stretches when the board power cap pulls the SM clock below
+/// `sm_clock_mhz`. Only the tensor-bound part of the kernel scales (memory
+/// time is set by HBM/L2, not the SM clock). 1.0 when the GPU has no power
+/// model or no measured run for the kernel's dtype.
+pub fn dvfs_stretch(spec: &GpuSpec, launch: &KernelLaunch, d: &KernelDone) -> f64 {
+    let Some(p) = &spec.power else {
+        return 1.0;
+    };
+    let name = launch.name.to_ascii_lowercase();
+    let Some(dtype) = ["fp4", "fp8", "bf16", "fp16", "tf32"]
+        .into_iter()
+        .find(|t| name.contains(t))
+    else {
+        return 1.0;
+    };
+    let flops = if launch.flops > 0.0 {
+        launch.flops
+    } else {
+        d.stats.tensor_flops
+    };
+    let Some(mhz) = p.sustained_mhz(dtype, flops) else {
+        return 1.0;
+    };
+    let cycles = (d.end_cycle - d.start_cycle).max(1) as f64;
+    let slots = cycles * spec.sm_count as f64 * spec.sub_partitions as f64;
+    // Kernels at >= 70% tensor utilisation count as fully tensor-bound
+    // (the measured CUTLASS runs this is fitted to sit around there).
+    let w = (d.stats.tensor_busy_cycles as f64 / slots / 0.7).min(1.0);
+    1.0 + w * (spec.sm_clock_mhz / mhz - 1.0).max(0.0)
+}

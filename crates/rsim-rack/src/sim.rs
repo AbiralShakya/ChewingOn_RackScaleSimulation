@@ -306,7 +306,8 @@ impl RankLp {
             let c = self.cyc(start);
             let mut d = memo.get(&self.gpu.spec, &self.gpu.cfg, &k, n - held);
             self.memo_held += held;
-            let dur = d.end_cycle - d.start_cycle;
+            let dur = ((d.end_cycle - d.start_cycle) as f64
+                * rsim_gpu::dvfs_stretch(&self.gpu.spec, &k, &d)) as u64;
             d.tag = tag;
             d.start_cycle = c;
             d.end_cycle = c + dur;
@@ -354,9 +355,19 @@ impl LogicalProcess for RankLp {
             let tc = self.cyc(target);
             self.gpu.advance_to_completion(tc, &mut done);
             if !done.is_empty() {
-                for d in done.drain(..) {
+                for mut d in done.drain(..) {
                     let s = (d.tag >> 32) as usize;
-                    let end = self.ps(d.end_cycle);
+                    let mut end = self.ps(d.end_cycle);
+                    if let FlatOp::Kernel { k, .. } = &self.streams[s].ops[self.streams[s].pc] {
+                        let x = rsim_gpu::dvfs_stretch(&self.gpu.spec, k, &d);
+                        if x > 1.0 {
+                            // Power-capped clock: stretch this kernel's span.
+                            let start = self.streams[s].op_start;
+                            end = start + ((end - start) as f64 * x) as Time;
+                            let cyc = (d.end_cycle - d.start_cycle) as f64 * x;
+                            d.end_cycle = d.start_cycle + cyc as u64;
+                        }
+                    }
                     self.finish_op(s, end, "kernel");
                     self.kernels.push(d);
                 }

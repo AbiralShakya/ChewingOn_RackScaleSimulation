@@ -104,13 +104,23 @@ fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> 
     let peak = gpu.peak_tensor_tflops("bf16");
     let hbm = gpu.hbm.bw_gbps;
     let (flops, bytes, name) = (k.flops, k.bytes, k.name.clone());
+    let spec = gpu.clone();
+    let launch = Arc::new(k);
     let mut g = Gpu::new(0, gpu, GpuConfig::default(), false);
-    g.submit(Arc::new(k), 0, 0);
+    g.submit(launch.clone(), 0, 0);
     let mut out = vec![];
     let t0 = std::time::Instant::now();
     g.advance(u64::MAX / 2, &mut out);
     let wall = t0.elapsed().as_secs_f64();
-    let d = out.pop().context("kernel did not finish")?;
+    let mut d = out.pop().context("kernel did not finish")?;
+    let stretch = rsim_gpu::dvfs_stretch(&spec, &launch, &d);
+    if stretch > 1.0 {
+        d.end_cycle = d.start_cycle + ((d.end_cycle - d.start_cycle) as f64 * stretch) as u64;
+        eprintln!(
+            "  power cap: sustained SM clock {:.0} MHz (x{stretch:.3} on time)",
+            spec.sm_clock_mhz / stretch
+        );
+    }
     if json {
         println!("{}", serde_json::to_string_pretty(&d)?);
         return Ok(());

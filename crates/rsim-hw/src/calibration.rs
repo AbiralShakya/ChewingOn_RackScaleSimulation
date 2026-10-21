@@ -5,7 +5,7 @@
 //! value alone. Every value taken is recorded in `spec.notes` with a
 //! `calibrated` tag so reports show provenance.
 
-use crate::gpu::{DieLink, GpuSpec, OpTiming};
+use crate::gpu::{DieLink, GpuSpec, OpTiming, PowerRun, PowerSpec};
 use serde_json::Value;
 use std::path::Path;
 
@@ -179,6 +179,60 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         }
     }
 
+    // Blackwell Ultra K=96 FP4 UMMA (2-SM, cta_group::2), per-SM rate.
+    if let Some(fl) = [
+        "tcgen05x2_nvfp4_k96_m256n256k96",
+        "tcgen05_nvfp4_k96_m128n256k96",
+    ]
+    .iter()
+    .find_map(|k| f(tc, &[k, "flop_per_clk_per_sm_allsm"]))
+    {
+        spec.tensor
+            .flops_per_cycle_per_sm
+            .insert("fp4_k96".into(), fl);
+        set("tensor.fp4_k96", &mut took);
+    }
+
+    // Power-capped clocks from steady-state GEMM runs.
+    if let (Some(cap), Some(idle), Some(runs)) = (
+        f(m, &["power", "power_cap_w"]),
+        f(m, &["power", "idle_w"]),
+        m.pointer("/power/runs").and_then(Value::as_array),
+    ) {
+        let runs: Vec<PowerRun> = runs
+            .iter()
+            .filter_map(|r| {
+                let kernel = r.get("kernel").and_then(Value::as_str).unwrap_or("");
+                let dtype = r
+                    .get("dtype")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                    .unwrap_or_else(|| {
+                        if kernel.to_ascii_lowercase().contains("fp4") {
+                            "fp4".into()
+                        } else {
+                            "bf16".into()
+                        }
+                    });
+                Some(PowerRun {
+                    dtype,
+                    flops: 2.0 * f(r, &["m"])? * f(r, &["n"])? * f(r, &["k"])?,
+                    sm_mhz: f(r, &["sm_mhz_median"])?,
+                    board_w: f(r, &["board_w_median"])?,
+                })
+            })
+            .collect();
+        if !runs.is_empty() {
+            spec.power = Some(PowerSpec {
+                cap_w: cap,
+                idle_w: idle,
+                max_mhz: f(m, &["power", "max_sm_mhz"]).unwrap_or(spec.sm_clock_mhz),
+                runs,
+            });
+            set("power", &mut took);
+        }
+    }
+
     // tcgen05 pipeline latency: round trip minus throughput time, median
     // over the single-CTA shapes measured.
     if let Some(t) = tc.as_object() {
@@ -283,6 +337,28 @@ mod tests {
         assert!((g.tma.bytes_per_cycle - 100.0).abs() < 1e-6);
         assert_eq!(g.tma.issue_latency, 10);
         assert_eq!(g.tensor.tcgen05_latency, 300);
+    }
+
+    #[test]
+    fn power_cap_reproduces_measured_clocks() {
+        let g = crate::presets::b300();
+        let p = g
+            .power
+            .as_ref()
+            .expect("B300 calibration has a power model");
+        for r in &p.runs {
+            let f = p.sustained_mhz(&r.dtype, r.flops).unwrap();
+            // Runs drawing less than the cap keep f_max; capped runs land
+            // near their measured clock.
+            assert!(f <= p.max_mhz + 1e-9);
+            assert!(
+                (f - r.sm_mhz).abs() / r.sm_mhz < 0.05,
+                "{} vs {}",
+                f,
+                r.sm_mhz
+            );
+        }
+        assert!(g.tensor.mma_rate("fp4", 96) > g.tensor.mma_rate("fp4", 64));
     }
 
     #[test]

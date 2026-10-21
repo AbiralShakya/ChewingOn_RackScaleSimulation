@@ -4,7 +4,7 @@
 
 use crate::kernel::{BarOp, InstStream, KernelLaunch, KernelSource};
 use crate::mem::{Cache, MemSystem, Server};
-use crate::pipes::{mma_dtype, mma_flops, timing, Pipe, Sb, NUM_PIPES};
+use crate::pipes::{mma_dtype, mma_flops, mma_shape, timing, Pipe, Sb, NUM_PIPES};
 use crate::stats::{AccMap, Stall};
 use rsim_hw::GpuSpec;
 use rsim_sass::inst::flags;
@@ -761,7 +761,8 @@ impl Sm {
                 cta_ref.async_tail = cta_ref.async_tail.max(fin);
             }
             OpClass::MmaTcgen05 => {
-                let rate = spec.tensor.flops_per_cycle(mma_dtype(&inst));
+                let k_ext = mma_shape(&inst).map(|s| s.2).unwrap_or(0);
+                let rate = spec.tensor.mma_rate(mma_dtype(&inst), k_ext);
                 let flops = mma_flops(&inst, op.payload);
                 let dur = (flops / rate).ceil().max(1.0) as u64;
                 let start = self.tensor_tail.max(c + t.lat as u64);

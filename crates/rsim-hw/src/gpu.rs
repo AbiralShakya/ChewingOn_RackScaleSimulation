@@ -112,6 +112,17 @@ pub struct TensorSpec {
 }
 
 impl TensorSpec {
+    /// Rate for one MMA instruction of K-extent `k`. Blackwell Ultra's
+    /// K=96 FP4 UMMA (`fp4_k96`) runs faster than the K=64 form.
+    pub fn mma_rate(&self, dtype: &str, k: u64) -> f64 {
+        if dtype == "fp4" && k > 0 && k.is_multiple_of(96) {
+            if let Some(r) = self.flops_per_cycle_per_sm.get("fp4_k96") {
+                return *r;
+            }
+        }
+        self.flops_per_cycle(dtype)
+    }
+
     pub fn flops_per_cycle(&self, dtype: &str) -> f64 {
         self.flops_per_cycle_per_sm
             .get(dtype)
@@ -185,6 +196,66 @@ pub struct GpuSpec {
     pub opcode_timing: BTreeMap<String, OpTiming>,
     #[serde(default)]
     pub tma: TmaSpec,
+    /// Board power model for power-capped clocks (DVFS). `None` = the SM
+    /// clock is always `sm_clock_mhz`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub power: Option<PowerSpec>,
+}
+
+/// Power-capped clock model fitted to measured steady-state runs.
+///
+/// Dynamic power is taken as `P_dyn(f) = D * (f / f_max)^3` (frequency
+/// times voltage squared, with voltage tracking frequency). Each measured
+/// run gives the `D` its kernel needs at `f_max`; a kernel's sustained
+/// clock is the largest `f <= f_max` with `idle + P_dyn(f) <= cap`, with `D`
+/// interpolated in log(FLOPs) between the runs of its dtype.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PowerSpec {
+    pub cap_w: f64,
+    pub idle_w: f64,
+    pub max_mhz: f64,
+    pub runs: Vec<PowerRun>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PowerRun {
+    pub dtype: String,
+    /// FLOPs of the measured kernel (2*m*n*k for a GEMM).
+    pub flops: f64,
+    pub sm_mhz: f64,
+    pub board_w: f64,
+}
+
+impl PowerSpec {
+    /// Sustained SM clock for a tensor-bound kernel, or `None` when no
+    /// measured run covers `dtype`.
+    pub fn sustained_mhz(&self, dtype: &str, flops: f64) -> Option<f64> {
+        let mut pts: Vec<(f64, f64)> = self
+            .runs
+            .iter()
+            .filter(|r| r.dtype == dtype && r.flops > 0.0)
+            .map(|r| {
+                let d = (r.board_w - self.idle_w).max(1.0) / (r.sm_mhz / self.max_mhz).powi(3);
+                (r.flops.ln(), d)
+            })
+            .collect();
+        if pts.is_empty() || flops <= 0.0 {
+            return None;
+        }
+        pts.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let x = flops.ln();
+        let d = if x <= pts[0].0 {
+            pts[0].1
+        } else if x >= pts[pts.len() - 1].0 {
+            pts[pts.len() - 1].1
+        } else {
+            let i = pts.iter().position(|p| p.0 >= x).unwrap();
+            let (a, b) = (pts[i - 1], pts[i]);
+            a.1 + (b.1 - a.1) * (x - a.0) / (b.0 - a.0)
+        };
+        let budget = (self.cap_w - self.idle_w).max(1.0);
+        Some(self.max_mhz * (budget / d).cbrt().min(1.0))
+    }
 }
 
 /// Measured timing of one SASS opcode on one SMSP.

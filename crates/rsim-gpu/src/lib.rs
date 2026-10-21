@@ -30,6 +30,6 @@ pub mod sm;
 pub mod stats;
 pub mod synth;
 
-pub use gpu::{Gpu, GpuConfig, KernelDone, SchedPolicy};
+pub use gpu::{dvfs_stretch, Gpu, GpuConfig, KernelDone, SchedPolicy};
 pub use kernel::{BarInit, BarOp, KernelLaunch, KernelSource, WarpRole};
 pub use stats::{KernelStats, Stall, StallCounts};
