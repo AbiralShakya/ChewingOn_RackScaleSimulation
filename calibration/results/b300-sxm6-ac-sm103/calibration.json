@@ -1,7 +1,7 @@
 {
  "schema": "rackscale-calibration/v1",
- "generated_utc": "2026-10-21T16:35:17+00:00",
- "driver": null,
+ "generated_utc": "2026-10-21T17:03:58+00:00",
+ "driver": "610.57.04",
  "missing_benches": [],
  "model": {
   "device": {
@@ -923,51 +923,75 @@
    "kernel_window": [
     {
      "config": "t128_smem0",
+     "ctas": 148,
      "threads": 128,
      "smem_bytes": 0,
      "cluster": 1,
      "tmem_prologue": false,
-     "cycles": 7093.11
+     "cycles": 6947.43
     },
     {
      "config": "t512_smem0",
+     "ctas": 148,
      "threads": 512,
      "smem_bytes": 0,
      "cluster": 1,
      "tmem_prologue": false,
-     "cycles": 6779.36
+     "cycles": 6247.28
     },
     {
      "config": "t512_smem_max",
+     "ctas": 148,
      "threads": 512,
      "smem_bytes": 231424,
      "cluster": 1,
      "tmem_prologue": false,
-     "cycles": 7232.58
+     "cycles": 6818.23
+    },
+    {
+     "config": "g1_t128_smem0",
+     "ctas": 1,
+     "threads": 128,
+     "smem_bytes": 0,
+     "cluster": 1,
+     "tmem_prologue": false,
+     "cycles": 6702.15
+    },
+    {
+     "config": "g1_t512_smem_max",
+     "ctas": 1,
+     "threads": 512,
+     "smem_bytes": 231424,
+     "cluster": 1,
+     "tmem_prologue": false,
+     "cycles": 6984.47
     },
     {
      "config": "t512_smem_max_cluster2",
+     "ctas": 148,
      "threads": 512,
      "smem_bytes": 231424,
      "cluster": 2,
      "tmem_prologue": false,
-     "cycles": 7029.97
+     "cycles": 6475.93
     },
     {
      "config": "t512_smem_max_cluster2_fa4_prologue",
+     "ctas": 148,
      "threads": 512,
      "smem_bytes": 231424,
      "cluster": 2,
      "tmem_prologue": true,
-     "cycles": 9109.81
+     "cycles": 9188.31
     },
     {
      "config": "t512_smem_max_fa4_prologue",
+     "ctas": 148,
      "threads": 512,
      "smem_bytes": 231424,
      "cluster": 1,
      "tmem_prologue": true,
-     "cycles": 8895.26
+     "cycles": 8713.3
     }
    ]
   },
@@ -2376,6 +2400,231 @@
     }
    }
   },
+  "loaded": {
+   "bench": "loaded",
+   "device": {
+    "name": "NVIDIA B300 SXM6 AC",
+    "cc_major": 10,
+    "cc_minor": 3,
+    "sm_count": 148,
+    "clock_khz_reported": 2032000
+   },
+   "sm_clock_mhz_measured": 2032.45,
+   "hbm": [
+    {
+     "load_ctas": 0,
+     "threads_per_cta": 0,
+     "load_GBps": 0,
+     "probe_latency_cycles": 847.409,
+     "probe_latency_ns": 416.94
+    },
+    {
+     "load_ctas": 8,
+     "threads_per_cta": 256,
+     "load_GBps": 203.561,
+     "probe_latency_cycles": 856.831,
+     "probe_latency_ns": 421.576
+    },
+    {
+     "load_ctas": 8,
+     "threads_per_cta": 1024,
+     "load_GBps": 771.875,
+     "probe_latency_cycles": 847.638,
+     "probe_latency_ns": 417.053
+    },
+    {
+     "load_ctas": 16,
+     "threads_per_cta": 256,
+     "load_GBps": 406.386,
+     "probe_latency_cycles": 853.813,
+     "probe_latency_ns": 420.091
+    },
+    {
+     "load_ctas": 16,
+     "threads_per_cta": 1024,
+     "load_GBps": 1534.18,
+     "probe_latency_cycles": 841.321,
+     "probe_latency_ns": 413.944
+    },
+    {
+     "load_ctas": 32,
+     "threads_per_cta": 256,
+     "load_GBps": 820.436,
+     "probe_latency_cycles": 842.464,
+     "probe_latency_ns": 414.507
+    },
+    {
+     "load_ctas": 32,
+     "threads_per_cta": 1024,
+     "load_GBps": 2981.93,
+     "probe_latency_cycles": 873.055,
+     "probe_latency_ns": 429.558
+    },
+    {
+     "load_ctas": 64,
+     "threads_per_cta": 256,
+     "load_GBps": 1629.5,
+     "probe_latency_cycles": 849.476,
+     "probe_latency_ns": 417.957
+    },
+    {
+     "load_ctas": 64,
+     "threads_per_cta": 1024,
+     "load_GBps": 5434.85,
+     "probe_latency_cycles": 958.251,
+     "probe_latency_ns": 471.476
+    },
+    {
+     "load_ctas": 96,
+     "threads_per_cta": 256,
+     "load_GBps": 2381.9,
+     "probe_latency_cycles": 852.245,
+     "probe_latency_ns": 419.319
+    },
+    {
+     "load_ctas": 96,
+     "threads_per_cta": 1024,
+     "load_GBps": 6124.12,
+     "probe_latency_cycles": 1139.72,
+     "probe_latency_ns": 560.761
+    },
+    {
+     "load_ctas": 128,
+     "threads_per_cta": 256,
+     "load_GBps": 3145.26,
+     "probe_latency_cycles": 872.775,
+     "probe_latency_ns": 429.421
+    },
+    {
+     "load_ctas": 128,
+     "threads_per_cta": 1024,
+     "load_GBps": 7067.37,
+     "probe_latency_cycles": 1430.78,
+     "probe_latency_ns": 703.968
+    },
+    {
+     "load_ctas": 147,
+     "threads_per_cta": 256,
+     "load_GBps": 3517.03,
+     "probe_latency_cycles": 882.326,
+     "probe_latency_ns": 434.12
+    },
+    {
+     "load_ctas": 147,
+     "threads_per_cta": 1024,
+     "load_GBps": 5961.31,
+     "probe_latency_cycles": 1591.74,
+     "probe_latency_ns": 783.164
+    }
+   ],
+   "l2": [
+    {
+     "load_ctas": 0,
+     "threads_per_cta": 0,
+     "load_GBps": 0,
+     "probe_latency_cycles": 393.065,
+     "probe_latency_ns": 193.395
+    },
+    {
+     "load_ctas": 8,
+     "threads_per_cta": 256,
+     "load_GBps": 496.837,
+     "probe_latency_cycles": 438.526,
+     "probe_latency_ns": 215.762
+    },
+    {
+     "load_ctas": 8,
+     "threads_per_cta": 1024,
+     "load_GBps": 1017.13,
+     "probe_latency_cycles": 428.263,
+     "probe_latency_ns": 210.713
+    },
+    {
+     "load_ctas": 16,
+     "threads_per_cta": 256,
+     "load_GBps": 1027.23,
+     "probe_latency_cycles": 415.958,
+     "probe_latency_ns": 204.659
+    },
+    {
+     "load_ctas": 16,
+     "threads_per_cta": 1024,
+     "load_GBps": 2020.34,
+     "probe_latency_cycles": 404.832,
+     "probe_latency_ns": 199.184
+    },
+    {
+     "load_ctas": 32,
+     "threads_per_cta": 256,
+     "load_GBps": 2040.57,
+     "probe_latency_cycles": 404.369,
+     "probe_latency_ns": 198.957
+    },
+    {
+     "load_ctas": 32,
+     "threads_per_cta": 1024,
+     "load_GBps": 3965.67,
+     "probe_latency_cycles": 395.344,
+     "probe_latency_ns": 194.516
+    },
+    {
+     "load_ctas": 64,
+     "threads_per_cta": 256,
+     "load_GBps": 4032.86,
+     "probe_latency_cycles": 407.232,
+     "probe_latency_ns": 200.365
+    },
+    {
+     "load_ctas": 64,
+     "threads_per_cta": 1024,
+     "load_GBps": 7751.32,
+     "probe_latency_cycles": 424.81,
+     "probe_latency_ns": 209.014
+    },
+    {
+     "load_ctas": 96,
+     "threads_per_cta": 256,
+     "load_GBps": 5824.02,
+     "probe_latency_cycles": 410.133,
+     "probe_latency_ns": 201.792
+    },
+    {
+     "load_ctas": 96,
+     "threads_per_cta": 1024,
+     "load_GBps": 9244.92,
+     "probe_latency_cycles": 459.805,
+     "probe_latency_ns": 226.232
+    },
+    {
+     "load_ctas": 128,
+     "threads_per_cta": 256,
+     "load_GBps": 7316.3,
+     "probe_latency_cycles": 416.18,
+     "probe_latency_ns": 204.768
+    },
+    {
+     "load_ctas": 128,
+     "threads_per_cta": 1024,
+     "load_GBps": 9068.05,
+     "probe_latency_cycles": 442.256,
+     "probe_latency_ns": 217.598
+    },
+    {
+     "load_ctas": 147,
+     "threads_per_cta": 256,
+     "load_GBps": 7828.46,
+     "probe_latency_cycles": 409.259,
+     "probe_latency_ns": 201.363
+    },
+    {
+     "load_ctas": 147,
+     "threads_per_cta": 1024,
+     "load_GBps": 8541.28,
+     "probe_latency_cycles": 442.984,
+     "probe_latency_ns": 217.956
+    }
+   ]
+  },
   "mem": {
    "bench": "mem",
    "device": {
@@ -2729,51 +2978,75 @@
     "kernel_window": [
      {
       "config": "t128_smem0",
+      "ctas": 148,
       "threads": 128,
       "smem_bytes": 0,
       "cluster": 1,
       "tmem_prologue": false,
-      "cycles": 7093.11
+      "cycles": 6947.43
      },
      {
       "config": "t512_smem0",
+      "ctas": 148,
       "threads": 512,
       "smem_bytes": 0,
       "cluster": 1,
       "tmem_prologue": false,
-      "cycles": 6779.36
+      "cycles": 6247.28
      },
      {
       "config": "t512_smem_max",
+      "ctas": 148,
       "threads": 512,
       "smem_bytes": 231424,
       "cluster": 1,
       "tmem_prologue": false,
-      "cycles": 7232.58
+      "cycles": 6818.23
+     },
+     {
+      "config": "g1_t128_smem0",
+      "ctas": 1,
+      "threads": 128,
+      "smem_bytes": 0,
+      "cluster": 1,
+      "tmem_prologue": false,
+      "cycles": 6702.15
+     },
+     {
+      "config": "g1_t512_smem_max",
+      "ctas": 1,
+      "threads": 512,
+      "smem_bytes": 231424,
+      "cluster": 1,
+      "tmem_prologue": false,
+      "cycles": 6984.47
      },
      {
       "config": "t512_smem_max_cluster2",
+      "ctas": 148,
       "threads": 512,
       "smem_bytes": 231424,
       "cluster": 2,
       "tmem_prologue": false,
-      "cycles": 7029.97
+      "cycles": 6475.93
      },
      {
       "config": "t512_smem_max_cluster2_fa4_prologue",
+      "ctas": 148,
       "threads": 512,
       "smem_bytes": 231424,
       "cluster": 2,
       "tmem_prologue": true,
-      "cycles": 9109.81
+      "cycles": 9188.31
      },
      {
       "config": "t512_smem_max_fa4_prologue",
+      "ctas": 148,
       "threads": 512,
       "smem_bytes": 231424,
       "cluster": 1,
       "tmem_prologue": true,
-      "cycles": 8895.26
+      "cycles": 8713.3
      }
     ]
    },
@@ -3415,7 +3688,7 @@
     "sm_count": 148,
     "clock_khz_reported": 2032000
    },
-   "sm_clock_mhz_measured": 2029.59,
+   "sm_clock_mhz_measured": 2032.44,
    "window": {
     "t128_smem0": {
      "grid": 148,
@@ -3423,7 +3696,7 @@
      "smem_dynamic": 0,
      "cluster": 1,
      "fa4_prologue": false,
-     "back_to_back_us": 2.39712
+     "back_to_back_us": 2.88352
     },
     "t512_smem0": {
      "grid": 148,
@@ -3431,7 +3704,7 @@
      "smem_dynamic": 0,
      "cluster": 1,
      "fa4_prologue": false,
-     "back_to_back_us": 2.4272
+     "back_to_back_us": 3.83232
     },
     "t512_smem_max": {
      "grid": 148,
@@ -3439,7 +3712,23 @@
      "smem_dynamic": 231424,
      "cluster": 1,
      "fa4_prologue": false,
-     "back_to_back_us": 2.36736
+     "back_to_back_us": 3.73248
+    },
+    "g1_t128_smem0": {
+     "grid": 1,
+     "threads": 128,
+     "smem_dynamic": 0,
+     "cluster": 1,
+     "fa4_prologue": false,
+     "back_to_back_us": 3.83296
+    },
+    "g1_t512_smem_max": {
+     "grid": 1,
+     "threads": 512,
+     "smem_dynamic": 231424,
+     "cluster": 1,
+     "fa4_prologue": false,
+     "back_to_back_us": 3.42656
     },
     "t512_smem_max_cluster2": {
      "grid": 148,
@@ -3447,7 +3736,7 @@
      "smem_dynamic": 231424,
      "cluster": 2,
      "fa4_prologue": false,
-     "back_to_back_us": 2.36608
+     "back_to_back_us": 3.19424
     },
     "t512_smem_max_cluster2_fa4_prologue": {
      "grid": 148,
@@ -3455,7 +3744,7 @@
      "smem_dynamic": 231424,
      "cluster": 2,
      "fa4_prologue": true,
-     "back_to_back_us": 2.16544
+     "back_to_back_us": 3.22016
     },
     "t512_smem_max_fa4_prologue": {
      "grid": 148,
@@ -3463,7 +3752,7 @@
      "smem_dynamic": 231424,
      "cluster": 1,
      "fa4_prologue": true,
-     "back_to_back_us": 2.1888
+     "back_to_back_us": 3.15424
     }
    }
   }
