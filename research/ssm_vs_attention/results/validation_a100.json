@@ -1,0 +1,3292 @@
+{
+ "gpu": "a100",
+ "device": "NVIDIA A100 80GB PCIe",
+ "cases": {
+  "ssm_state_update_b1": {
+   "kind": "ssm_state_update",
+   "batch": 1,
+   "nheads": 128,
+   "headdim": 64,
+   "d_state": 128,
+   "ngroups": 8,
+   "state_bytes": 2097152,
+   "min_bytes": 4194304,
+   "footprint_bytes": 6410240,
+   "copies": 27,
+   "us_median": 7.39555557568868,
+   "us_min": 7.319703698158264,
+   "graphed": true,
+   "measured_us": 7.39555557568868,
+   "ncu_us": 7.584,
+   "ncu_kernels": [
+    {
+     "ns": 7584.0,
+     "cycles": 10478.0,
+     "insts": 1763328.0,
+     "dram_read": 2172032.0,
+     "dram_write": 128.0,
+     "grid": 2048.0,
+     "block": 128.0,
+     "regs": 32.0,
+     "smem": 256.0,
+     "warps_active_pct": 64.97,
+     "stalls": {
+      "barrier": 1.22,
+      "branch_resolving": 0.05,
+      "dispatch_stall": 0.88,
+      "drain": 0.03,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 4.13,
+      "math_pipe_throttle": 2.67,
+      "membar": 0.0,
+      "mio_throttle": 0.2,
+      "misc": 0.0,
+      "no_instruction": 0.2,
+      "not_selected": 3.43,
+      "selected": 1.0,
+      "short_scoreboard": 0.64,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.0
+     },
+     "kernel": "_selective_scan_update_kernel"
+    }
+   ],
+   "sim_us": 2.901003090292466,
+   "sim": {
+    "us": 2.901003090292466,
+    "kernels": [
+     {
+      "name": "selective_state_update_b1_h128_p64_n128",
+      "us": 2.901003090292466,
+      "tflops": 0.0,
+      "gbps": 1558.975243816115,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "lg_throttle": 0.01208054279767784,
+     "long_scoreboard": 0.037146040659719895,
+     "math_pipe_throttle": 0.07428957602230216,
+     "mio_throttle": 0.007599818867016949,
+     "selected": 0.4563749477802128,
+     "short_scoreboard": 0.11677440488232306,
+     "wait": 0.2957346689907473
+    }
+   },
+   "err_vs_measured": -0.6077369630175049,
+   "err_vs_ncu": -0.6174837697399174
+  },
+  "conv1d_update_b1": {
+   "kind": "conv1d_update",
+   "batch": 1,
+   "dim": 10240,
+   "width": 4,
+   "footprint_bytes": 184320,
+   "copies": 32,
+   "us_median": 2.7199999894946814,
+   "us_min": 2.687999978661537,
+   "graphed": true,
+   "measured_us": 2.7199999894946814,
+   "ncu_us": 4.704,
+   "ncu_kernels": [
+    {
+     "ns": 4704.0,
+     "cycles": 6568.0,
+     "insts": 48320.0,
+     "dram_read": 192000.0,
+     "dram_write": 0.0,
+     "grid": 160.0,
+     "block": 64.0,
+     "regs": 32.0,
+     "smem": 0.0,
+     "warps_active_pct": 4.57,
+     "stalls": {
+      "barrier": 0.0,
+      "branch_resolving": 0.08,
+      "dispatch_stall": 0.02,
+      "drain": 0.14,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 11.13,
+      "math_pipe_throttle": 0.02,
+      "membar": 0.0,
+      "mio_throttle": 0.0,
+      "misc": 0.01,
+      "no_instruction": 0.83,
+      "not_selected": 0.04,
+      "selected": 1.0,
+      "short_scoreboard": 0.4,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.21
+     },
+     "kernel": "void causal_conv1d_update_kernel<Causal_conv1d_update_kernel_traits<64, 4, c10::BFloat16, c10::BFloat16>, 0>(ConvParamsBase)"
+    }
+   ],
+   "sim_us": 0.7421003950698722,
+   "sim": {
+    "us": 0.7421003950698722,
+    "kernels": [
+     {
+      "name": "causal_conv1d_update_b1_d10240_w4",
+      "us": 0.7421003950698722,
+      "tflops": 0.0,
+      "gbps": 524.3495389371981,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "long_scoreboard": 0.7632751551391806,
+     "selected": 0.04947149332577065,
+     "short_scoreboard": 0.10690303260446359,
+     "wait": 0.08035031893058513
+    }
+   },
+   "err_vs_measured": -0.7271689713470408,
+   "err_vs_ncu": -0.8422405622725612
+  },
+  "attn_decode_b1_ctx1024": {
+   "kind": "attn_decode",
+   "impl": "fa2",
+   "batch": 1,
+   "context": 1024,
+   "hq": 32,
+   "hkv": 8,
+   "d": 128,
+   "kv_bytes": 4194304,
+   "footprint_bytes": 4203008,
+   "copies": 32,
+   "us_median": 13.279999606311321,
+   "us_min": 13.248000293970108,
+   "graphed": true,
+   "measured_us": 13.279999606311321,
+   "ncu_us": 18.624,
+   "ncu_kernels": [
+    {
+     "ns": 9664.0,
+     "cycles": 13449.0,
+     "insts": 415488.0,
+     "dram_read": 4250752.0,
+     "dram_write": 0.0,
+     "grid": 64.0,
+     "block": 128.0,
+     "regs": 244.0,
+     "smem": 81920.0,
+     "warps_active_pct": 6.08,
+     "stalls": {
+      "barrier": 0.04,
+      "branch_resolving": 0.02,
+      "dispatch_stall": 0.04,
+      "drain": 0.02,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 1.2,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.16,
+      "misc": 0.0,
+      "no_instruction": 0.39,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.55,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.6
+     },
+     "kernel": "void flash::flash_fwd_splitkv_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 64, 128, 4, cutlass::bfloat16_t>>, 0, 0, 0, 0, 1, 0, 1, 0>(flash::Flash_fwd_params)"
+    },
+    {
+     "ns": 8960.0,
+     "cycles": 12572.0,
+     "insts": 20312.0,
+     "dram_read": 154112.0,
+     "dram_write": 0.0,
+     "grid": 8.0,
+     "block": 128.0,
+     "regs": 52.0,
+     "smem": 160.0,
+     "warps_active_pct": 6.16,
+     "stalls": {
+      "barrier": 0.81,
+      "branch_resolving": 0.13,
+      "dispatch_stall": 0.05,
+      "drain": 0.04,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 7.3,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.0,
+      "misc": 0.0,
+      "no_instruction": 0.36,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 1.01,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.12
+     },
+     "kernel": "void flash::flash_fwd_splitkv_combine_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 64, 128, 4, cutlass::bfloat16_t>>, 4, 3, 1>(flash::Flash_fwd_params)"
+    }
+   ],
+   "sim_us": 12.994285468455354,
+   "sim": {
+    "us": 12.994285468455354,
+    "kernels": [
+     {
+      "name": "fa2_fwd_splitkv_b1_hq32_hkv8_sq1_skv1024_d128",
+      "us": 12.994285468455354,
+      "tflops": 20.657962044288478,
+      "gbps": 564.8661496485131,
+      "tensor_util": 0.075337048685832
+     }
+    ],
+    "sched": {
+     "async_wait": 0.14091877912291262,
+     "barrier": 0.07569995318038927,
+     "lg_throttle": 0.03886027690455488,
+     "long_scoreboard": 0.043964060375002785,
+     "math_pipe_throttle": 5.7075334983167234e-05,
+     "mio_throttle": 0.00025683900742425254,
+     "selected": 0.042406973892493253,
+     "short_scoreboard": 0.6136597329052683,
+     "wait": 0.04417630927697144
+    }
+   },
+   "err_vs_measured": -0.021514619452261186,
+   "err_vs_ncu": -0.3022827819772683
+  },
+  "attn_decode_b1_ctx16384": {
+   "kind": "attn_decode",
+   "impl": "fa2",
+   "batch": 1,
+   "context": 16384,
+   "hq": 32,
+   "hkv": 8,
+   "d": 128,
+   "kv_bytes": 67108864,
+   "footprint_bytes": 67117568,
+   "copies": 3,
+   "us_median": 58.99377663930257,
+   "us_min": 58.25422207514445,
+   "graphed": true,
+   "measured_us": 58.99377663930257,
+   "ncu_us": 65.696,
+   "ncu_kernels": [
+    {
+     "ns": 48928.0,
+     "cycles": 68162.0,
+     "insts": 4168192.0,
+     "dram_read": 67167872.0,
+     "dram_write": 2465536.0,
+     "grid": 208.0,
+     "block": 128.0,
+     "regs": 244.0,
+     "smem": 81920.0,
+     "warps_active_pct": 11.02,
+     "stalls": {
+      "barrier": 0.15,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.07,
+      "drain": 0.01,
+      "lg_throttle": 0.1,
+      "long_scoreboard": 5.43,
+      "math_pipe_throttle": 0.33,
+      "membar": 0.0,
+      "mio_throttle": 0.35,
+      "misc": 0.0,
+      "no_instruction": 0.09,
+      "not_selected": 0.14,
+      "selected": 1.0,
+      "short_scoreboard": 0.54,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.03
+     },
+     "kernel": "void flash::flash_fwd_splitkv_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 64, 128, 4, cutlass::bfloat16_t>>, 0, 0, 0, 0, 1, 0, 1, 0>(flash::Flash_fwd_params)"
+    },
+    {
+     "ns": 16768.0,
+     "cycles": 23610.0,
+     "insts": 26536.0,
+     "dram_read": 451328.0,
+     "dram_write": 0.0,
+     "grid": 8.0,
+     "block": 128.0,
+     "regs": 52.0,
+     "smem": 640.0,
+     "warps_active_pct": 6.25,
+     "stalls": {
+      "barrier": 0.06,
+      "branch_resolving": 0.12,
+      "dispatch_stall": 0.04,
+      "drain": 0.03,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 18.86,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.0,
+      "misc": 0.0,
+      "no_instruction": 0.25,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.92,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.96
+     },
+     "kernel": "void flash::flash_fwd_splitkv_combine_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 64, 128, 4, cutlass::bfloat16_t>>, 4, 5, 1>(flash::Flash_fwd_params)"
+    }
+   ],
+   "sim_us": 99.23280442248816,
+   "sim": {
+    "us": 99.23280442248816,
+    "kernels": [
+     {
+      "name": "fa2_fwd_splitkv_b1_hq32_hkv8_sq1_skv16384_d128",
+      "us": 99.23280442248816,
+      "tflops": 45.648697992187806,
+      "gbps": 797.238296956481,
+      "tensor_util": 0.1664751912947348
+     }
+    ],
+    "sched": {
+     "async_wait": 0.04347731414298848,
+     "barrier": 0.026866481650719788,
+     "branch_resolving": 0.00037005016783830946,
+     "lg_throttle": 0.02666852194287851,
+     "long_scoreboard": 0.015788704369387917,
+     "math_pipe_throttle": 7.401003356766189e-05,
+     "mio_throttle": 0.0004070551846221404,
+     "selected": 0.047544045563865996,
+     "short_scoreboard": 0.7932432402798786,
+     "wait": 0.04556057666425266
+    }
+   },
+   "err_vs_measured": 0.6820893673109534,
+   "err_vs_ncu": 0.510484723917562
+  },
+  "ssm_state_update_b8": {
+   "kind": "ssm_state_update",
+   "batch": 8,
+   "nheads": 128,
+   "headdim": 64,
+   "d_state": 128,
+   "ngroups": 8,
+   "state_bytes": 16777216,
+   "min_bytes": 33554432,
+   "footprint_bytes": 21463040,
+   "copies": 8,
+   "us_median": 34.17599946260452,
+   "us_min": 34.04799848794937,
+   "graphed": true,
+   "measured_us": 34.17599946260452,
+   "ncu_us": 34.304,
+   "ncu_kernels": [
+    {
+     "ns": 34304.0,
+     "cycles": 47470.0,
+     "insts": 14106624.0,
+     "dram_read": 17168512.0,
+     "dram_write": 828032.0,
+     "grid": 16384.0,
+     "block": 128.0,
+     "regs": 32.0,
+     "smem": 256.0,
+     "warps_active_pct": 88.38,
+     "stalls": {
+      "barrier": 1.38,
+      "branch_resolving": 0.05,
+      "dispatch_stall": 1.19,
+      "drain": 0.03,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 3.18,
+      "math_pipe_throttle": 3.87,
+      "membar": 0.0,
+      "mio_throttle": 0.07,
+      "misc": 0.0,
+      "no_instruction": 0.06,
+      "not_selected": 5.08,
+      "selected": 1.0,
+      "short_scoreboard": 0.65,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.1
+     },
+     "kernel": "_selective_scan_update_kernel"
+    }
+   ],
+   "sim_us": 15.335307487685435,
+   "sim": {
+    "us": 15.335307487685435,
+    "kernels": [
+     {
+      "name": "selective_state_update_b8_h128_p64_n128",
+      "us": 15.335307487685435,
+      "tflops": 0.0,
+      "gbps": 2359.26563774827,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "lg_throttle": 0.008135437280451336,
+     "long_scoreboard": 0.009760248059579297,
+     "math_pipe_throttle": 0.09924392004489072,
+     "mio_throttle": 0.004871865495710696,
+     "selected": 0.6508921225637883,
+     "short_scoreboard": 0.021986338152597176,
+     "wait": 0.20511006840298254
+    }
+   },
+   "err_vs_measured": -0.5512843010058748,
+   "err_vs_ncu": -0.5529586203449908
+  },
+  "conv1d_update_b8": {
+   "kind": "conv1d_update",
+   "batch": 8,
+   "dim": 10240,
+   "width": 4,
+   "footprint_bytes": 757760,
+   "copies": 32,
+   "us_median": 4.9600000493228436,
+   "us_min": 4.896000027656555,
+   "graphed": true,
+   "measured_us": 4.9600000493228436,
+   "ncu_us": 6.432,
+   "ncu_kernels": [
+    {
+     "ns": 6432.0,
+     "cycles": 8946.0,
+     "insts": 386560.0,
+     "dram_read": 765440.0,
+     "dram_write": 128.0,
+     "grid": 1280.0,
+     "block": 64.0,
+     "regs": 32.0,
+     "smem": 0.0,
+     "warps_active_pct": 26.55,
+     "stalls": {
+      "barrier": 0.0,
+      "branch_resolving": 0.09,
+      "dispatch_stall": 0.17,
+      "drain": 0.23,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 14.12,
+      "math_pipe_throttle": 0.69,
+      "membar": 0.0,
+      "mio_throttle": 0.01,
+      "misc": 0.01,
+      "no_instruction": 0.42,
+      "not_selected": 0.7,
+      "selected": 1.0,
+      "short_scoreboard": 0.44,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.28
+     },
+     "kernel": "void causal_conv1d_update_kernel<Causal_conv1d_update_kernel_traits<64, 4, c10::BFloat16, c10::BFloat16>, 0>(ConvParamsBase)"
+    }
+   ],
+   "sim_us": 1.6283188378779514,
+   "sim": {
+    "us": 1.6283188378779514,
+    "kernels": [
+     {
+      "name": "causal_conv1d_update_b8_d10240_w4",
+      "us": 1.6283188378779514,
+      "tflops": 0.0,
+      "gbps": 1471.5545532364597,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "long_scoreboard": 0.29546093073957946,
+     "selected": 0.10494888536761704,
+     "short_scoreboard": 0.2220336718499289,
+     "wait": 0.3775565120428746
+    }
+   },
+   "err_vs_measured": -0.6717099149827115,
+   "err_vs_ncu": -0.7468409766980797
+  },
+  "attn_decode_b8_ctx1024": {
+   "kind": "attn_decode",
+   "impl": "fa2",
+   "batch": 8,
+   "context": 1024,
+   "hq": 32,
+   "hkv": 8,
+   "d": 128,
+   "kv_bytes": 33554432,
+   "footprint_bytes": 33620480,
+   "copies": 5,
+   "us_median": 33.94559919834137,
+   "us_min": 33.17759931087494,
+   "graphed": true,
+   "measured_us": 33.94559919834137,
+   "ncu_us": 36.864,
+   "ncu_kernels": [
+    {
+     "ns": 29984.0,
+     "cycles": 41723.0,
+     "insts": 2357248.0,
+     "dram_read": 33670528.0,
+     "dram_write": 2393344.0,
+     "grid": 192.0,
+     "block": 128.0,
+     "regs": 244.0,
+     "smem": 81920.0,
+     "warps_active_pct": 10.1,
+     "stalls": {
+      "barrier": 0.12,
+      "branch_resolving": 0.02,
+      "dispatch_stall": 0.09,
+      "drain": 0.02,
+      "lg_throttle": 0.09,
+      "long_scoreboard": 3.92,
+      "math_pipe_throttle": 0.34,
+      "membar": 0.0,
+      "mio_throttle": 0.46,
+      "misc": 0.0,
+      "no_instruction": 0.12,
+      "not_selected": 0.16,
+      "selected": 1.0,
+      "short_scoreboard": 0.6,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.92
+     },
+     "kernel": "void flash::flash_fwd_splitkv_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 64, 128, 4, cutlass::bfloat16_t>>, 0, 0, 0, 0, 1, 0, 1, 0>(flash::Flash_fwd_params)"
+    },
+    {
+     "ns": 6880.0,
+     "cycles": 9657.0,
+     "insts": 146048.0,
+     "dram_read": 418048.0,
+     "dram_write": 0.0,
+     "grid": 64.0,
+     "block": 128.0,
+     "regs": 56.0,
+     "smem": 80.0,
+     "warps_active_pct": 6.31,
+     "stalls": {
+      "barrier": 0.67,
+      "branch_resolving": 0.16,
+      "dispatch_stall": 0.05,
+      "drain": 0.04,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 3.26,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.0,
+      "misc": 0.0,
+      "no_instruction": 0.42,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 1.01,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.23
+     },
+     "kernel": "void flash::flash_fwd_splitkv_combine_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 64, 128, 4, cutlass::bfloat16_t>>, 4, 2, 1>(flash::Flash_fwd_params)"
+    }
+   ],
+   "sim_us": 62.52715657242828,
+   "sim": {
+    "us": 62.52715657242828,
+    "kernels": [
+     {
+      "name": "fa2_fwd_splitkv_b8_hq32_hkv8_sq1_skv1024_d128",
+      "us": 62.52715657242828,
+      "tflops": 38.63791728961035,
+      "gbps": 687.5671045460176,
+      "tensor_util": 0.14090773570625875
+     }
+    ],
+    "sched": {
+     "async_wait": 0.06716208688446709,
+     "barrier": 0.03521268006380146,
+     "branch_resolving": 0.00035136185659605023,
+     "lg_throttle": 0.029233550470080683,
+     "long_scoreboard": 0.022587565352695325,
+     "math_pipe_throttle": 7.027237131921005e-05,
+     "mio_throttle": 0.0003747859803691203,
+     "selected": 0.046332916823132494,
+     "short_scoreboard": 0.7535599178106057,
+     "wait": 0.04511486238693285
+    }
+   },
+   "err_vs_measured": 0.8419812302350949,
+   "err_vs_ncu": 0.696157676118389
+  },
+  "attn_decode_b8_ctx16384": {
+   "kind": "attn_decode",
+   "impl": "fa2",
+   "batch": 8,
+   "context": 16384,
+   "hq": 32,
+   "hkv": 8,
+   "d": 128,
+   "kv_bytes": 536870912,
+   "footprint_bytes": 536936960,
+   "copies": 1,
+   "us_median": 333.0048084259033,
+   "us_min": 330.0352096557617,
+   "graphed": true,
+   "measured_us": 333.0048084259033,
+   "ncu_us": 333.024,
+   "ncu_kernels": [
+    {
+     "ns": 326144.0,
+     "cycles": 458420.0,
+     "insts": 28776448.0,
+     "dram_read": 536988032.0,
+     "dram_write": 2476032.0,
+     "grid": 192.0,
+     "block": 128.0,
+     "regs": 244.0,
+     "smem": 81920.0,
+     "warps_active_pct": 10.91,
+     "stalls": {
+      "barrier": 0.07,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.05,
+      "drain": 0.0,
+      "lg_throttle": 0.12,
+      "long_scoreboard": 6.63,
+      "math_pipe_throttle": 0.3,
+      "membar": 0.0,
+      "mio_throttle": 0.34,
+      "misc": 0.0,
+      "no_instruction": 0.06,
+      "not_selected": 0.1,
+      "selected": 1.0,
+      "short_scoreboard": 0.5,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.18
+     },
+     "kernel": "void flash::flash_fwd_splitkv_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 64, 128, 4, cutlass::bfloat16_t>>, 0, 0, 0, 0, 1, 0, 1, 0>(flash::Flash_fwd_params)"
+    },
+    {
+     "ns": 6880.0,
+     "cycles": 9661.0,
+     "insts": 146048.0,
+     "dram_read": 418048.0,
+     "dram_write": 0.0,
+     "grid": 64.0,
+     "block": 128.0,
+     "regs": 56.0,
+     "smem": 80.0,
+     "warps_active_pct": 6.2,
+     "stalls": {
+      "barrier": 0.66,
+      "branch_resolving": 0.16,
+      "dispatch_stall": 0.05,
+      "drain": 0.04,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 3.31,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.0,
+      "misc": 0.0,
+      "no_instruction": 0.42,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 1.01,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.23
+     },
+     "kernel": "void flash::flash_fwd_splitkv_combine_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 64, 128, 4, cutlass::bfloat16_t>>, 4, 2, 1>(flash::Flash_fwd_params)"
+    }
+   ],
+   "sim_us": 772.6584402268604,
+   "sim": {
+    "us": 772.6584402268604,
+    "kernels": [
+     {
+      "name": "fa2_fwd_splitkv_b8_hq32_hkv8_sq1_skv16384_d128",
+      "us": 772.6584402268604,
+      "tflops": 44.8169230039509,
+      "gbps": 712.4783362728386,
+      "tensor_util": 0.16344181013883385
+     }
+    ],
+    "sched": {
+     "async_wait": 0.0054379274340169885,
+     "barrier": 0.016425315572607683,
+     "branch_resolving": 0.0003998691513445649,
+     "lg_throttle": 0.022798140569699237,
+     "long_scoreboard": 0.0017934344546363076,
+     "math_pipe_throttle": 7.997383026891298e-05,
+     "mio_throttle": 0.00045752470339889746,
+     "selected": 0.04958005505369028,
+     "short_scoreboard": 0.8565945814049026,
+     "wait": 0.04643317782543445
+    }
+   },
+   "err_vs_measured": 1.320262112367618,
+   "err_vs_ncu": 1.3201283998356286
+  },
+  "gemm_mamba_in_proj_m8": {
+   "kind": "gemm",
+   "m": 8,
+   "n": 18560,
+   "k": 4096,
+   "footprint_bytes": 153157632,
+   "copies": 2,
+   "us_median": 109.87520217895508,
+   "us_min": 109.26079750061035,
+   "graphed": true,
+   "measured_us": 109.87520217895508,
+   "ncu_us": 124.768,
+   "ncu_kernels": [
+    {
+     "ns": 118976.0,
+     "cycles": 167153.0,
+     "insts": 6718720.0,
+     "dram_read": 152147840.0,
+     "dram_write": 25224320.0,
+     "grid": 435.0,
+     "block": 128.0,
+     "regs": 158.0,
+     "smem": 98304.0,
+     "warps_active_pct": 5.18,
+     "stalls": {
+      "barrier": 0.02,
+      "branch_resolving": 0.08,
+      "dispatch_stall": 0.09,
+      "drain": 0.0,
+      "lg_throttle": 0.01,
+      "long_scoreboard": 4.2,
+      "math_pipe_throttle": 0.01,
+      "membar": 0.0,
+      "mio_throttle": 0.06,
+      "misc": 0.0,
+      "no_instruction": 0.06,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.11,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.58
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_64x4_tn"
+    },
+    {
+     "ns": 5792.0,
+     "cycles": 8070.0,
+     "insts": 501120.0,
+     "dram_read": 899328.0,
+     "dram_write": 0.0,
+     "grid": 580.0,
+     "block": 512.0,
+     "regs": 32.0,
+     "smem": 0.0,
+     "warps_active_pct": 56.54,
+     "stalls": {
+      "barrier": 0.0,
+      "branch_resolving": 0.37,
+      "dispatch_stall": 0.1,
+      "drain": 0.03,
+      "lg_throttle": 0.14,
+      "long_scoreboard": 11.13,
+      "math_pipe_throttle": 0.77,
+      "membar": 0.0,
+      "mio_throttle": 0.52,
+      "misc": 0.01,
+      "no_instruction": 3.89,
+      "not_selected": 2.46,
+      "selected": 1.0,
+      "short_scoreboard": 0.0,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.76
+     },
+     "kernel": "void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, 0, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, 1, 0, 0>(cublasLt::cublasSplitKParams<T6>, const T4 *, const T10 *, T9 *, T5 *, const T6 *, const T6 *, const T11 *, const T4 *, T11 *, void *, long, T6 *, int *, T6 *, T6 *, const T6 *, const T6 *, const T6 *, const T6 *, const T6 *)"
+    }
+   ],
+   "sim_us": 169.56384572915846,
+   "sim": {
+    "us": 169.56384572915846,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_8x18560x4096",
+      "us": 169.56384572915846,
+      "tflops": 114.77429328352015,
+      "gbps": 34.20502746360295,
+      "tensor_util": 0.41856774169905014
+     }
+    ],
+    "sched": {
+     "barrier": 0.07193644936931623,
+     "branch_resolving": 0.003917955012038229,
+     "lg_throttle": 0.04394196813511046,
+     "math_pipe_throttle": 0.07778883380729243,
+     "mio_throttle": 0.00021592810177800258,
+     "selected": 0.08284446028832033,
+     "short_scoreboard": 0.7192885478936945,
+     "wait": 6.585739244989047e-05
+    }
+   },
+   "err_vs_measured": 0.5432403523862259,
+   "err_vs_ncu": 0.3590331313250068
+  },
+  "gemm_mamba_out_proj_m8": {
+   "kind": "gemm",
+   "m": 8,
+   "n": 4096,
+   "k": 8192,
+   "footprint_bytes": 67239936,
+   "copies": 3,
+   "us_median": 49.607111348046196,
+   "us_min": 49.1520000828637,
+   "graphed": true,
+   "measured_us": 49.607111348046196,
+   "ncu_us": 52.448,
+   "ncu_kernels": [
+    {
+     "ns": 52448.0,
+     "cycles": 73346.0,
+     "insts": 2991616.0,
+     "dram_read": 67256704.0,
+     "dram_write": 2295424.0,
+     "grid": 64.0,
+     "block": 128.0,
+     "regs": 146.0,
+     "smem": 98304.0,
+     "warps_active_pct": 5.84,
+     "stalls": {
+      "barrier": 0.02,
+      "branch_resolving": 0.05,
+      "dispatch_stall": 0.12,
+      "drain": 0.0,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 1.61,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.02,
+      "misc": 0.0,
+      "no_instruction": 0.05,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.2,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.13
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+    }
+   ],
+   "sim_us": 269.57460080734785,
+   "sim": {
+    "us": 269.57460080734785,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_8x4096x8192",
+      "us": 269.57460080734785,
+      "tflops": 31.864777194416835,
+      "gbps": 11.669229929596009,
+      "tensor_util": 0.11620692620658044
+     }
+    ],
+    "sched": {
+     "barrier": 0.07530579818916372,
+     "branch_resolving": 0.0037472919960185023,
+     "lg_throttle": 0.034234626255529116,
+     "math_pipe_throttle": 0.0003466511239214559,
+     "selected": 0.06699615157370295,
+     "short_scoreboard": 0.819356173716792,
+     "wait": 1.3307144872224795e-05
+    }
+   },
+   "err_vs_measured": 4.434192668788912,
+   "err_vs_ncu": 4.139845195381098
+  },
+  "gemm_attn_qkv_m8": {
+   "kind": "gemm",
+   "m": 8,
+   "n": 6144,
+   "k": 4096,
+   "footprint_bytes": 50397184,
+   "copies": 4,
+   "us_median": 36.607999354600906,
+   "us_min": 34.304000437259674,
+   "graphed": true,
+   "measured_us": 36.607999354600906,
+   "ncu_us": 37.376,
+   "ncu_kernels": [
+    {
+     "ns": 37376.0,
+     "cycles": 52064.0,
+     "insts": 2384256.0,
+     "dram_read": 50413824.0,
+     "dram_write": 2470272.0,
+     "grid": 96.0,
+     "block": 128.0,
+     "regs": 146.0,
+     "smem": 81920.0,
+     "warps_active_pct": 5.65,
+     "stalls": {
+      "barrier": 0.03,
+      "branch_resolving": 0.07,
+      "dispatch_stall": 0.11,
+      "drain": 0.0,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 3.01,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.03,
+      "misc": 0.0,
+      "no_instruction": 0.06,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.2,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.14
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_tn"
+    }
+   ],
+   "sim_us": 135.1332554187669,
+   "sim": {
+    "us": 135.1332554187669,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_8x6144x4096",
+      "us": 135.1332554187669,
+      "tflops": 47.674800137356065,
+      "gbps": 19.398925837140325,
+      "tensor_util": 0.17386413680764476
+     }
+    ],
+    "sched": {
+     "barrier": 0.07518542328576439,
+     "branch_resolving": 0.003740343644072299,
+     "lg_throttle": 0.034509186156478126,
+     "math_pipe_throttle": 0.0006920167040346831,
+     "selected": 0.06709772710367765,
+     "short_scoreboard": 0.8187487381653189,
+     "wait": 2.6564940653922578e-05
+    }
+   },
+   "err_vs_measured": 2.6913586593413035,
+   "err_vs_ncu": 2.615508760133961
+  },
+  "gemm_attn_o_m8": {
+   "kind": "gemm",
+   "m": 8,
+   "n": 4096,
+   "k": 4096,
+   "footprint_bytes": 33619968,
+   "copies": 5,
+   "us_median": 25.548800826072693,
+   "us_min": 24.883200228214264,
+   "graphed": true,
+   "measured_us": 25.548800826072693,
+   "ncu_us": 28.288,
+   "ncu_kernels": [
+    {
+     "ns": 28288.0,
+     "cycles": 39414.0,
+     "insts": 1598976.0,
+     "dram_read": 33636608.0,
+     "dram_write": 2427136.0,
+     "grid": 64.0,
+     "block": 128.0,
+     "regs": 146.0,
+     "smem": 98304.0,
+     "warps_active_pct": 5.59,
+     "stalls": {
+      "barrier": 0.02,
+      "branch_resolving": 0.07,
+      "dispatch_stall": 0.11,
+      "drain": 0.0,
+      "lg_throttle": 0.01,
+      "long_scoreboard": 1.16,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.03,
+      "misc": 0.0,
+      "no_instruction": 0.07,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.21,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.14
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+    }
+   ],
+   "sim_us": 135.12178333536485,
+   "sim": {
+    "us": 135.12178333536485,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_8x4096x4096",
+      "us": 135.12178333536485,
+      "tflops": 31.785898542651164,
+      "gbps": 15.520458272778889,
+      "tensor_util": 0.1159192654578772
+     }
+    ],
+    "sched": {
+     "barrier": 0.07518542328576439,
+     "branch_resolving": 0.003740343644072299,
+     "lg_throttle": 0.034509186156478126,
+     "math_pipe_throttle": 0.0006920167040346831,
+     "selected": 0.06709772710367765,
+     "short_scoreboard": 0.8187487381653189,
+     "wait": 2.6564940653922578e-05
+    }
+   },
+   "err_vs_measured": 4.288772034947031,
+   "err_vs_ncu": 3.7766467525227956
+  },
+  "gemm_mlp_gate_up_m8": {
+   "kind": "gemm",
+   "m": 8,
+   "n": 28672,
+   "k": 4096,
+   "footprint_bytes": 234946560,
+   "copies": 1,
+   "us_median": 154.21439409255981,
+   "us_min": 151.04000568389893,
+   "graphed": true,
+   "measured_us": 154.21439409255981,
+   "ncu_us": 153.088,
+   "ncu_kernels": [
+    {
+     "ns": 153088.0,
+     "cycles": 214953.0,
+     "insts": 11126528.0,
+     "dram_read": 235091712.0,
+     "dram_write": 2557312.0,
+     "grid": 448.0,
+     "block": 128.0,
+     "regs": 146.0,
+     "smem": 81920.0,
+     "warps_active_pct": 11.91,
+     "stalls": {
+      "barrier": 0.08,
+      "branch_resolving": 0.07,
+      "dispatch_stall": 0.15,
+      "drain": 0.0,
+      "lg_throttle": 0.02,
+      "long_scoreboard": 8.74,
+      "math_pipe_throttle": 0.88,
+      "membar": 0.0,
+      "mio_throttle": 0.07,
+      "misc": 0.0,
+      "no_instruction": 0.05,
+      "not_selected": 0.13,
+      "selected": 1.0,
+      "short_scoreboard": 0.24,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.16
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_tn"
+    }
+   ],
+   "sim_us": 304.4411302870172,
+   "sim": {
+    "us": 304.4411302870172,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_8x28672x4096",
+      "us": 304.4411302870172,
+      "tflops": 98.7539727094559,
+      "gbps": 27.554121849736575,
+      "tensor_util": 0.36014360148311786
+     }
+    ],
+    "sched": {
+     "barrier": 0.0674199066459608,
+     "branch_resolving": 0.004164550927988891,
+     "lg_throttle": 0.05702738592405843,
+     "math_pipe_throttle": 0.1847943279945166,
+     "mio_throttle": 0.0005173258642206507,
+     "selected": 0.10470175116544508,
+     "short_scoreboard": 0.5812548020482817,
+     "wait": 0.00011994942952776713
+    }
+   },
+   "err_vs_measured": 0.9741421161003361,
+   "err_vs_ncu": 0.9886675003071252
+  },
+  "gemm_mlp_down_m8": {
+   "kind": "gemm",
+   "m": 8,
+   "n": 4096,
+   "k": 14336,
+   "footprint_bytes": 117669888,
+   "copies": 2,
+   "us_median": 79.82079982757568,
+   "us_min": 78.438401222229,
+   "graphed": true,
+   "measured_us": 79.82079982757568,
+   "ncu_us": 84.0,
+   "ncu_kernels": [
+    {
+     "ns": 84000.0,
+     "cycles": 117809.0,
+     "insts": 5080576.0,
+     "dram_read": 117686272.0,
+     "dram_write": 2459008.0,
+     "grid": 64.0,
+     "block": 128.0,
+     "regs": 146.0,
+     "smem": 98304.0,
+     "warps_active_pct": 5.96,
+     "stalls": {
+      "barrier": 0.02,
+      "branch_resolving": 0.05,
+      "dispatch_stall": 0.12,
+      "drain": 0.0,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 1.67,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.01,
+      "misc": 0.0,
+      "no_instruction": 0.04,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.2,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.13
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x6_tn"
+    }
+   ],
+   "sim_us": 471.2538270153224,
+   "sim": {
+    "us": 471.2538270153224,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_8x4096x14336",
+      "us": 471.2538270153224,
+      "tflops": 31.898702300641975,
+      "gbps": 10.012846006758432,
+      "tensor_util": 0.11633064689954503
+     }
+    ],
+    "sched": {
+     "barrier": 0.0753575244513849,
+     "branch_resolving": 0.003750277770167636,
+     "lg_throttle": 0.034116645206067414,
+     "math_pipe_throttle": 0.00019824418813487607,
+     "selected": 0.06695250358437668,
+     "short_scoreboard": 0.8196171946582894,
+     "wait": 7.610141579073937e-06
+    }
+   },
+   "err_vs_measured": 4.903897580997659,
+   "err_vs_ncu": 4.610164607325267
+  },
+  "ssm_state_update_b64": {
+   "kind": "ssm_state_update",
+   "batch": 64,
+   "nheads": 128,
+   "headdim": 64,
+   "d_state": 128,
+   "ngroups": 8,
+   "state_bytes": 134217728,
+   "min_bytes": 268435456,
+   "footprint_bytes": 141885440,
+   "copies": 2,
+   "us_median": 251.0848045349121,
+   "us_min": 247.80800342559814,
+   "graphed": true,
+   "measured_us": 251.0848045349121,
+   "ncu_us": 247.072,
+   "ncu_kernels": [
+    {
+     "ns": 247072.0,
+     "cycles": 347070.0,
+     "insts": 112852992.0,
+     "dram_read": 137134848.0,
+     "dram_write": 117685120.0,
+     "grid": 131072.0,
+     "block": 128.0,
+     "regs": 32.0,
+     "smem": 256.0,
+     "warps_active_pct": 93.46,
+     "stalls": {
+      "barrier": 1.39,
+      "branch_resolving": 0.05,
+      "dispatch_stall": 1.07,
+      "drain": 0.03,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 5.47,
+      "math_pipe_throttle": 3.22,
+      "membar": 0.0,
+      "mio_throttle": 0.06,
+      "misc": 0.0,
+      "no_instruction": 0.04,
+      "not_selected": 4.4,
+      "selected": 1.0,
+      "short_scoreboard": 0.66,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.1
+     },
+     "kernel": "_selective_scan_update_kernel"
+    }
+   ],
+   "sim_us": 150.77329012181917,
+   "sim": {
+    "us": 150.77329012181917,
+    "kernels": [
+     {
+      "name": "selective_state_update_b64_h128_p64_n128",
+      "us": 150.77329012181917,
+      "tflops": 0.0,
+      "gbps": 1919.7023542176698,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "lg_throttle": 0.011477989017122962,
+     "long_scoreboard": 0.06074972807561373,
+     "math_pipe_throttle": 0.07918919097806734,
+     "mio_throttle": 0.004375809430095024,
+     "selected": 0.5147390739347514,
+     "short_scoreboard": 0.06751260339193957,
+     "wait": 0.26195560517241
+    }
+   },
+   "err_vs_measured": -0.39951248582685583,
+   "err_vs_ncu": -0.389759705179789
+  },
+  "conv1d_update_b64": {
+   "kind": "conv1d_update",
+   "batch": 64,
+   "dim": 10240,
+   "width": 4,
+   "footprint_bytes": 5345280,
+   "copies": 32,
+   "us_median": 17.93600060045719,
+   "us_min": 17.855999991297722,
+   "graphed": true,
+   "measured_us": 17.93600060045719,
+   "ncu_us": 16.384,
+   "ncu_kernels": [
+    {
+     "ns": 16384.0,
+     "cycles": 22672.0,
+     "insts": 3092480.0,
+     "dram_read": 5352960.0,
+     "dram_write": 128.0,
+     "grid": 10240.0,
+     "block": 64.0,
+     "regs": 32.0,
+     "smem": 0.0,
+     "warps_active_pct": 74.08,
+     "stalls": {
+      "barrier": 0.0,
+      "branch_resolving": 0.09,
+      "dispatch_stall": 0.14,
+      "drain": 0.34,
+      "lg_throttle": 0.01,
+      "long_scoreboard": 24.64,
+      "math_pipe_throttle": 0.79,
+      "membar": 0.0,
+      "mio_throttle": 0.01,
+      "misc": 0.0,
+      "no_instruction": 0.13,
+      "not_selected": 0.98,
+      "selected": 1.0,
+      "short_scoreboard": 0.44,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.37
+     },
+     "kernel": "void causal_conv1d_update_kernel<Causal_conv1d_update_kernel_traits<64, 4, c10::BFloat16, c10::BFloat16>, 0>(ConvParamsBase)"
+    }
+   ],
+   "sim_us": 8.54240010324875,
+   "sim": {
+    "us": 8.54240010324875,
+    "kernels": [
+     {
+      "name": "causal_conv1d_update_b64_d10240_w4",
+      "us": 8.54240010324875,
+      "tflops": 0.0,
+      "gbps": 2160.1048624475407,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "lg_throttle": 0.0009087586613862357,
+     "long_scoreboard": 0.3068009826568342,
+     "math_pipe_throttle": 0.0009847062125699626,
+     "selected": 0.13570260224840916,
+     "short_scoreboard": 0.21174579108918232,
+     "wait": 0.34385715913161813
+    }
+   },
+   "err_vs_measured": -0.5237288237473072,
+   "err_vs_ncu": -0.4786132749481964
+  },
+  "attn_decode_b64_ctx1024": {
+   "kind": "attn_decode",
+   "impl": "fa2",
+   "batch": 64,
+   "context": 1024,
+   "hq": 32,
+   "hkv": 8,
+   "d": 128,
+   "kv_bytes": 268435456,
+   "footprint_bytes": 268960256,
+   "copies": 1,
+   "us_median": 202.64959335327148,
+   "us_min": 201.52320861816406,
+   "graphed": true,
+   "measured_us": 202.64959335327148,
+   "ncu_us": 199.104,
+   "ncu_kernels": [
+    {
+     "ns": 199104.0,
+     "cycles": 275718.0,
+     "insts": 32719360.0,
+     "dram_read": 269021568.0,
+     "dram_write": 12135680.0,
+     "grid": 512.0,
+     "block": 128.0,
+     "regs": 255.0,
+     "smem": 65536.0,
+     "warps_active_pct": 11.35,
+     "stalls": {
+      "barrier": 0.08,
+      "branch_resolving": 0.02,
+      "dispatch_stall": 0.12,
+      "drain": 0.0,
+      "lg_throttle": 0.02,
+      "long_scoreboard": 0.55,
+      "math_pipe_throttle": 0.69,
+      "membar": 0.0,
+      "mio_throttle": 0.09,
+      "misc": 0.0,
+      "no_instruction": 0.04,
+      "not_selected": 0.22,
+      "selected": 1.0,
+      "short_scoreboard": 0.97,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.24
+     },
+     "kernel": "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t>>, 0, 0, 0, 0, 0, 1, 0, 0>(flash::Flash_fwd_params)"
+    }
+   ],
+   "sim_us": 370.1374498992608,
+   "sim": {
+    "us": 370.1374498992608,
+    "kernels": [
+     {
+      "name": "fa2_fwd_splitkv_b64_hq32_hkv8_sq1_skv1024_d128",
+      "us": 370.1374498992608,
+      "tflops": 46.41483640381646,
+      "gbps": 770.5588074852342,
+      "tensor_util": 0.16926920392256378
+     }
+    ],
+    "sched": {
+     "async_wait": 0.01610773215805443,
+     "barrier": 0.019400003340128605,
+     "branch_resolving": 0.0003895548624302601,
+     "lg_throttle": 0.024779726507378547,
+     "long_scoreboard": 0.007955740290620862,
+     "math_pipe_throttle": 7.791097248605202e-05,
+     "mio_throttle": 0.00043581450234385344,
+     "selected": 0.04922999573962412,
+     "short_scoreboard": 0.8348185049059376,
+     "wait": 0.04680501672099575
+    }
+   },
+   "err_vs_measured": 0.826489971060608,
+   "err_vs_ncu": 0.8590156395615396
+  },
+  "attn_decode_b64_ctx16384": {
+   "kind": "attn_decode",
+   "impl": "fa2",
+   "batch": 64,
+   "context": 16384,
+   "hq": 32,
+   "hkv": 8,
+   "d": 128,
+   "kv_bytes": 4294967296,
+   "footprint_bytes": 4295492096,
+   "copies": 1,
+   "us_median": 3469.5167541503906,
+   "us_min": 3269.734573364258,
+   "graphed": true,
+   "measured_us": 3469.5167541503906,
+   "ncu_us": 2886.208,
+   "ncu_kernels": [
+    {
+     "ns": 2886208.0,
+     "cycles": 3893902.0,
+     "insts": 491799040.0,
+     "dram_read": 4295558784.0,
+     "dram_write": 29058176.0,
+     "grid": 512.0,
+     "block": 128.0,
+     "regs": 255.0,
+     "smem": 65536.0,
+     "warps_active_pct": 11.38,
+     "stalls": {
+      "barrier": 0.08,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.12,
+      "drain": 0.0,
+      "lg_throttle": 0.02,
+      "long_scoreboard": 0.08,
+      "math_pipe_throttle": 0.83,
+      "membar": 0.0,
+      "mio_throttle": 0.08,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.23,
+      "selected": 1.0,
+      "short_scoreboard": 1.04,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.32
+     },
+     "kernel": "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t>>, 0, 0, 0, 0, 0, 1, 0, 0>(flash::Flash_fwd_params)"
+    }
+   ],
+   "sim_us": 5693.040747406234,
+   "sim": {
+    "us": 5693.040747406234,
+    "kernels": [
+     {
+      "name": "fa2_fwd_splitkv_b64_hq32_hkv8_sq1_skv16384_d128",
+      "us": 5693.040747406234,
+      "tflops": 48.28314412982819,
+      "gbps": 757.3710962747707,
+      "tensor_util": 0.17608269258194378
+     }
+    ],
+    "sched": {
+     "async_wait": 0.0010419049131523866,
+     "barrier": 0.015088442997128243,
+     "branch_resolving": 0.00040316451366423925,
+     "lg_throttle": 0.022409908658212123,
+     "long_scoreboard": 0.0005146053345825856,
+     "math_pipe_throttle": 8.063290273284785e-05,
+     "mio_throttle": 0.0004628517600231247,
+     "selected": 0.049825464387926566,
+     "short_scoreboard": 0.8636037435370426,
+     "wait": 0.046569280995535235
+    }
+   },
+   "err_vs_measured": 0.6408742631364914,
+   "err_vs_ncu": 0.9724984295678738
+  },
+  "gemm_mamba_in_proj_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 18560,
+   "k": 4096,
+   "footprint_bytes": 155189248,
+   "copies": 2,
+   "us_median": 215.0399923324585,
+   "us_min": 214.83519077301025,
+   "graphed": true,
+   "measured_us": 215.0399923324585,
+   "ncu_us": 219.424,
+   "ncu_kernels": [
+    {
+     "ns": 219424.0,
+     "cycles": 296599.0,
+     "insts": 17300416.0,
+     "dram_read": 156273792.0,
+     "dram_write": 33701248.0,
+     "grid": 146.0,
+     "block": 256.0,
+     "regs": 238.0,
+     "smem": 147456.0,
+     "warps_active_pct": 12.53,
+     "stalls": {
+      "barrier": 0.56,
+      "branch_resolving": 0.05,
+      "dispatch_stall": 0.01,
+      "drain": 0.0,
+      "lg_throttle": 0.04,
+      "long_scoreboard": 0.45,
+      "math_pipe_throttle": 3.47,
+      "membar": 0.0,
+      "mio_throttle": 0.07,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.5,
+      "selected": 1.0,
+      "short_scoreboard": 0.03,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 3.76
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_64x3_tn"
+    }
+   ],
+   "sim_us": 304.4884526310506,
+   "sim": {
+    "us": 304.4884526310506,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_256x18560x4096",
+      "us": 304.4884526310506,
+      "tflops": 127.8312552862662,
+      "gbps": 34.652532497792386,
+      "tensor_util": 0.4661848774059047
+     }
+    ],
+    "sched": {
+     "barrier": 0.06982453937427238,
+     "branch_resolving": 0.004031445012458281,
+     "lg_throttle": 0.0498991511167216,
+     "math_pipe_throttle": 0.1268248875732227,
+     "mio_throttle": 0.0003640596001381842,
+     "selected": 0.09287144551553629,
+     "short_scoreboard": 0.6560964331566542,
+     "wait": 8.803865099632774e-05
+    }
+   },
+   "err_vs_measured": 0.41596197678570435,
+   "err_vs_ncu": 0.3876715975966649
+  },
+  "gemm_mamba_out_proj_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 4096,
+   "k": 8192,
+   "footprint_bytes": 71303168,
+   "copies": 3,
+   "us_median": 89.77066808276706,
+   "us_min": 89.54311079449124,
+   "graphed": true,
+   "measured_us": 89.77066808276706,
+   "ncu_us": 94.528,
+   "ncu_kernels": [
+    {
+     "ns": 94528.0,
+     "cycles": 131392.0,
+     "insts": 8106455.0,
+     "dram_read": 71326208.0,
+     "dram_write": 23029248.0,
+     "grid": 96.0,
+     "block": 256.0,
+     "regs": 238.0,
+     "smem": 147456.0,
+     "warps_active_pct": 12.45,
+     "stalls": {
+      "barrier": 0.53,
+      "branch_resolving": 0.07,
+      "dispatch_stall": 0.02,
+      "drain": 0.0,
+      "lg_throttle": 0.05,
+      "long_scoreboard": 1.73,
+      "math_pipe_throttle": 3.27,
+      "membar": 0.01,
+      "mio_throttle": 0.13,
+      "misc": 0.0,
+      "no_instruction": 0.04,
+      "not_selected": 0.48,
+      "selected": 1.0,
+      "short_scoreboard": 0.03,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 3.66
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_64x3_tn"
+    }
+   ],
+   "sim_us": 269.59754497415196,
+   "sim": {
+    "us": 269.59754497415196,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_256x4096x8192",
+      "us": 269.59754497415196,
+      "tflops": 63.72413066909472,
+      "gbps": 15.557649089134452,
+      "tensor_util": 0.23239407277385496
+     }
+    ],
+    "sched": {
+     "barrier": 0.07530579818916372,
+     "branch_resolving": 0.0037472919960185023,
+     "lg_throttle": 0.034234626255529116,
+     "math_pipe_throttle": 0.0003466511239214559,
+     "selected": 0.06699615157370295,
+     "short_scoreboard": 0.819356173716792,
+     "wait": 1.3307144872224795e-05
+    }
+   },
+   "err_vs_measured": 2.0031807797797327,
+   "err_vs_ncu": 1.8520390252004901
+  },
+  "gemm_attn_qkv_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 6144,
+   "k": 4096,
+   "footprint_bytes": 52428800,
+   "copies": 4,
+   "us_median": 59.26400050520897,
+   "us_min": 58.88000130653381,
+   "graphed": true,
+   "measured_us": 59.26400050520897,
+   "ncu_us": 65.856,
+   "ncu_kernels": [
+    {
+     "ns": 65856.0,
+     "cycles": 91465.0,
+     "insts": 6024192.0,
+     "dram_read": 52453632.0,
+     "dram_write": 19733376.0,
+     "grid": 96.0,
+     "block": 128.0,
+     "regs": 246.0,
+     "smem": 98304.0,
+     "warps_active_pct": 5.4,
+     "stalls": {
+      "barrier": 0.01,
+      "branch_resolving": 0.04,
+      "dispatch_stall": 0.02,
+      "drain": 0.0,
+      "lg_throttle": 0.01,
+      "long_scoreboard": 0.07,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.03,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.02,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 3.5
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_128x128_ldg8_f2f_stages_64x3_tn"
+    }
+   ],
+   "sim_us": 135.16767166897301,
+   "sim": {
+    "us": 135.16767166897301,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_256x6144x4096",
+      "us": 135.16767166897301,
+      "tflops": 95.3253224599093,
+      "gbps": 31.03037840491839,
+      "tensor_util": 0.34763973540847776
+     }
+    ],
+    "sched": {
+     "barrier": 0.07518542328576439,
+     "branch_resolving": 0.003740343644072299,
+     "lg_throttle": 0.034509186156478126,
+     "math_pipe_throttle": 0.0006920167040346831,
+     "selected": 0.06709772710367765,
+     "short_scoreboard": 0.8187487381653189,
+     "wait": 2.6564940653922578e-05
+    }
+   },
+   "err_vs_measured": 1.2807719782111664,
+   "err_vs_ncu": 1.052473148520606
+  },
+  "gemm_attn_o_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 4096,
+   "k": 4096,
+   "footprint_bytes": 35651584,
+   "copies": 5,
+   "us_median": 55.244797468185425,
+   "us_min": 55.09120225906372,
+   "graphed": true,
+   "measured_us": 55.244797468185425,
+   "ncu_us": 56.512,
+   "ncu_kernels": [
+    {
+     "ns": 56512.0,
+     "cycles": 78396.0,
+     "insts": 4016128.0,
+     "dram_read": 35673472.0,
+     "dram_write": 2296192.0,
+     "grid": 64.0,
+     "block": 128.0,
+     "regs": 246.0,
+     "smem": 98304.0,
+     "warps_active_pct": 6.23,
+     "stalls": {
+      "barrier": 0.01,
+      "branch_resolving": 0.04,
+      "dispatch_stall": 0.03,
+      "drain": 0.0,
+      "lg_throttle": 0.01,
+      "long_scoreboard": 0.04,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.04,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.02,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 3.5
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_128x128_ldg8_f2f_stages_64x3_tn"
+    }
+   ],
+   "sim_us": 135.14472750216893,
+   "sim": {
+    "us": 135.14472750216893,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_256x4096x4096",
+      "us": 135.14472750216893,
+      "tflops": 63.561004197238404,
+      "gbps": 23.276734935512113,
+      "tensor_util": 0.23179917057944488
+     }
+    ],
+    "sched": {
+     "barrier": 0.07518542328576439,
+     "branch_resolving": 0.003740343644072299,
+     "lg_throttle": 0.034509186156478126,
+     "math_pipe_throttle": 0.0006920167040346831,
+     "selected": 0.06709772710367765,
+     "short_scoreboard": 0.8187487381653189,
+     "wait": 2.6564940653922578e-05
+    }
+   },
+   "err_vs_measured": 1.4462887673721054,
+   "err_vs_ncu": 1.391434164463635
+  },
+  "gemm_mlp_gate_up_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 28672,
+   "k": 4096,
+   "footprint_bytes": 236978176,
+   "copies": 1,
+   "us_median": 342.0672059059143,
+   "us_min": 325.73440074920654,
+   "graphed": true,
+   "measured_us": 342.0672059059143,
+   "ncu_us": 325.216,
+   "ncu_kernels": [
+    {
+     "ns": 325216.0,
+     "cycles": 430966.0,
+     "insts": 26543104.0,
+     "dram_read": 240896896.0,
+     "dram_write": 9543808.0,
+     "grid": 224.0,
+     "block": 256.0,
+     "regs": 238.0,
+     "smem": 147456.0,
+     "warps_active_pct": 12.5,
+     "stalls": {
+      "barrier": 0.61,
+      "branch_resolving": 0.05,
+      "dispatch_stall": 0.01,
+      "drain": 0.0,
+      "lg_throttle": 0.03,
+      "long_scoreboard": 0.12,
+      "math_pipe_throttle": 3.47,
+      "membar": 0.0,
+      "mio_throttle": 0.05,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.5,
+      "selected": 1.0,
+      "short_scoreboard": 0.03,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 3.76
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_64x3_tn"
+    }
+   ],
+   "sim_us": 491.6791545074533,
+   "sim": {
+    "us": 491.6791545074533,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_256x28672x4096",
+      "us": 491.6791545074533,
+      "tflops": 122.29426770031698,
+      "gbps": 31.989641732435036,
+      "tensor_util": 0.445992164182732
+     }
+    ],
+    "sched": {
+     "async_wait": 0.002855882248657922,
+     "barrier": 0.050457523818769355,
+     "branch_resolving": 0.004647041948602766,
+     "lg_throttle": 0.05199209931102898,
+     "math_pipe_throttle": 0.17487303987772693,
+     "mio_throttle": 0.006116369304546352,
+     "selected": 0.10728153084783992,
+     "short_scoreboard": 0.6016739690225644,
+     "wait": 0.00010254362026333608
+    }
+   },
+   "err_vs_measured": 0.43737588993751664,
+   "err_vs_ncu": 0.5118541354283099
+  },
+  "gemm_mlp_down_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 4096,
+   "k": 14336,
+   "footprint_bytes": 124780544,
+   "copies": 2,
+   "us_median": 139.7760033607483,
+   "us_min": 139.26399946212769,
+   "graphed": true,
+   "measured_us": 139.7760033607483,
+   "ncu_us": 141.376,
+   "ncu_kernels": [
+    {
+     "ns": 141376.0,
+     "cycles": 194768.0,
+     "insts": 13380032.0,
+     "dram_read": 124803072.0,
+     "dram_write": 2476928.0,
+     "grid": 96.0,
+     "block": 256.0,
+     "regs": 238.0,
+     "smem": 147456.0,
+     "warps_active_pct": 12.24,
+     "stalls": {
+      "barrier": 0.62,
+      "branch_resolving": 0.05,
+      "dispatch_stall": 0.01,
+      "drain": 0.0,
+      "lg_throttle": 0.04,
+      "long_scoreboard": 0.52,
+      "math_pipe_throttle": 3.44,
+      "membar": 0.01,
+      "mio_throttle": 0.07,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.49,
+      "selected": 1.0,
+      "short_scoreboard": 0.02,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 3.76
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_64x3_tn"
+    }
+   ],
+   "sim_us": 471.2767711821265,
+   "sim": {
+    "us": 471.2767711821265,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_256x4096x14336",
+      "us": 471.2767711821265,
+      "tflops": 63.79429861689782,
+      "gbps": 12.237327092387625,
+      "tensor_util": 0.23264996665576324
+     }
+    ],
+    "sched": {
+     "barrier": 0.0753575244513849,
+     "branch_resolving": 0.003750277770167636,
+     "lg_throttle": 0.034116645206067414,
+     "math_pipe_throttle": 0.00019824418813487607,
+     "selected": 0.06695250358437668,
+     "short_scoreboard": 0.8196171946582894,
+     "wait": 7.610141579073937e-06
+    }
+   },
+   "err_vs_measured": 2.371657221918178,
+   "err_vs_ncu": 2.333499117121198
+  },
+  "ssd_prefill_L1024": {
+   "kind": "ssd_prefill",
+   "batch": 1,
+   "seqlen": 1024,
+   "nheads": 128,
+   "headdim": 64,
+   "d_state": 128,
+   "ngroups": 8,
+   "chunk": 256,
+   "footprint_bytes": 38012416,
+   "copies": 5,
+   "us_median": 195.89120149612427,
+   "us_min": 195.37919759750366,
+   "graphed": true,
+   "measured_us": 195.89120149612427,
+   "ncu_us": 230.848,
+   "ncu_kernels": [
+    {
+     "ns": 34656.0,
+     "cycles": 48762.0,
+     "insts": 206912.0,
+     "dram_read": 367488.0,
+     "dram_write": 0.0,
+     "grid": 8.0,
+     "block": 128.0,
+     "regs": 255.0,
+     "smem": 33280.0,
+     "warps_active_pct": 6.14,
+     "stalls": {
+      "barrier": 0.02,
+      "branch_resolving": 0.02,
+      "dispatch_stall": 0.01,
+      "drain": 0.01,
+      "lg_throttle": 0.06,
+      "long_scoreboard": 0.36,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.01,
+      "misc": 0.0,
+      "no_instruction": 2.79,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.72,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.93
+     },
+     "kernel": "_chunk_cumsum_fwd_kernel"
+    },
+    {
+     "ns": 34944.0,
+     "cycles": 48321.0,
+     "insts": 6709248.0,
+     "dram_read": 19944320.0,
+     "dram_write": 4554624.0,
+     "grid": 1024.0,
+     "block": 64.0,
+     "regs": 199.0,
+     "smem": 29440.0,
+     "warps_active_pct": 11.05,
+     "stalls": {
+      "barrier": 0.41,
+      "branch_resolving": 0.02,
+      "dispatch_stall": 0.21,
+      "drain": 0.04,
+      "lg_throttle": 0.26,
+      "long_scoreboard": 0.32,
+      "math_pipe_throttle": 0.26,
+      "membar": 0.0,
+      "mio_throttle": 0.42,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.3,
+      "selected": 1.0,
+      "short_scoreboard": 0.4,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 0.99
+     },
+     "kernel": "_chunk_state_fwd_kernel"
+    },
+    {
+     "ns": 15200.0,
+     "cycles": 21006.0,
+     "insts": 1458176.0,
+     "dram_read": 16815232.0,
+     "dram_write": 2496896.0,
+     "grid": 2048.0,
+     "block": 128.0,
+     "regs": 25.0,
+     "smem": 0.0,
+     "warps_active_pct": 71.94,
+     "stalls": {
+      "barrier": 0.0,
+      "branch_resolving": 0.36,
+      "dispatch_stall": 0.62,
+      "drain": 0.04,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 47.01,
+      "math_pipe_throttle": 1.03,
+      "membar": 0.0,
+      "mio_throttle": 0.01,
+      "misc": 0.01,
+      "no_instruction": 0.3,
+      "not_selected": 1.31,
+      "selected": 1.0,
+      "short_scoreboard": 0.41,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.44
+     },
+     "kernel": "_state_passing_fwd_kernel"
+    },
+    {
+     "ns": 15072.0,
+     "cycles": 20907.0,
+     "insts": 754688.0,
+     "dram_read": 4216448.0,
+     "dram_write": 1280.0,
+     "grid": 64.0,
+     "block": 256.0,
+     "regs": 255.0,
+     "smem": 98304.0,
+     "warps_active_pct": 12.42,
+     "stalls": {
+      "barrier": 0.75,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.1,
+      "drain": 0.13,
+      "lg_throttle": 1.1,
+      "long_scoreboard": 1.53,
+      "math_pipe_throttle": 1.32,
+      "membar": 0.0,
+      "mio_throttle": 2.29,
+      "misc": 0.0,
+      "no_instruction": 0.13,
+      "not_selected": 0.47,
+      "selected": 1.0,
+      "short_scoreboard": 0.29,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.89
+     },
+     "kernel": "_bmm_chunk_fwd_kernel"
+    },
+    {
+     "ns": 130976.0,
+     "cycles": 183532.0,
+     "insts": 27762688.0,
+     "dram_read": 49846400.0,
+     "dram_write": 24998656.0,
+     "grid": 4096.0,
+     "block": 64.0,
+     "regs": 233.0,
+     "smem": 35840.0,
+     "warps_active_pct": 11.61,
+     "stalls": {
+      "barrier": 0.3,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.11,
+      "drain": 0.02,
+      "lg_throttle": 0.04,
+      "long_scoreboard": 0.93,
+      "math_pipe_throttle": 0.18,
+      "membar": 0.0,
+      "mio_throttle": 0.25,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.21,
+      "selected": 1.0,
+      "short_scoreboard": 0.44,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.41
+     },
+     "kernel": "_chunk_scan_fwd_kernel"
+    }
+   ],
+   "sim_us": 246.38163319447332,
+   "sim": {
+    "us": 246.38163319447332,
+    "kernels": [
+     {
+      "name": "ssd_chunk_scan_b1_l1024_h128_p64_n128_g8",
+      "us": 180.04861295341615,
+      "tflops": 26.836297868343692,
+      "gbps": 1540.4593428984679,
+      "tensor_util": 0.09786868011086687
+     },
+     {
+      "name": "ssd_chunk_state_b1_l1024_h128_p64_n128_g8",
+      "us": 39.151352630333626,
+      "tflops": 54.85081622278807,
+      "gbps": 858.8683082675261,
+      "tensor_util": 0.20003418552975363
+     },
+     {
+      "name": "ssd_state_passing_b1_l1024_h128_p64_n128_g8",
+      "us": 18.59553018950448,
+      "tflops": 0.0,
+      "gbps": 2030.0999011744743,
+      "tensor_util": 0.0
+     },
+     {
+      "name": "ssd_bmm_chunk_b1_l1024_h128_p64_n128_g8",
+      "us": 7.20016634520933,
+      "tflops": 46.45666891051185,
+      "gbps": 2177.6563551802433,
+      "tensor_util": 0.16942176193321384
+     },
+     {
+      "name": "ssd_chunk_cumsum_b1_l1024_h128_p64_n128_g8",
+      "us": 1.3859710760097226,
+      "tflops": 0.0,
+      "gbps": 945.7051613036731,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.12032269453255072,
+     "barrier": 0.018434685104781606,
+     "branch_resolving": 0.0029387732493783006,
+     "lg_throttle": 0.0241324262844041,
+     "long_scoreboard": 0.10170961221844217,
+     "math_pipe_throttle": 0.008194065721100553,
+     "mio_throttle": 0.007083005263782344,
+     "selected": 0.11024889838246442,
+     "short_scoreboard": 0.4710570275748495,
+     "wait": 0.13587881166824628
+    }
+   },
+   "err_vs_measured": 0.25774731745339774,
+   "err_vs_ncu": 0.06728944237971879
+  },
+  "conv1d_fwd_L1024": {
+   "kind": "conv1d_fwd",
+   "batch": 1,
+   "seqlen": 1024,
+   "dim": 10240,
+   "width": 4,
+   "footprint_bytes": 21073920,
+   "copies": 8,
+   "us_median": 34.94400158524513,
+   "us_min": 33.79200026392937,
+   "graphed": true,
+   "measured_us": 34.94400158524513,
+   "ncu_us": 27.84,
+   "ncu_kernels": [
+    {
+     "ns": 27840.0,
+     "cycles": 38459.0,
+     "insts": 6246240.0,
+     "dram_read": 21088256.0,
+     "dram_write": 5341184.0,
+     "grid": 2560.0,
+     "block": 128.0,
+     "regs": 48.0,
+     "smem": 9648.0,
+     "warps_active_pct": 50.27,
+     "stalls": {
+      "barrier": 2.43,
+      "branch_resolving": 0.07,
+      "dispatch_stall": 0.25,
+      "drain": 0.19,
+      "lg_throttle": 0.05,
+      "long_scoreboard": 6.11,
+      "math_pipe_throttle": 1.1,
+      "membar": 0.0,
+      "mio_throttle": 2.82,
+      "misc": 0.0,
+      "no_instruction": 0.09,
+      "not_selected": 2.22,
+      "selected": 1.0,
+      "short_scoreboard": 0.78,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.15
+     },
+     "kernel": "void causal_conv1d_channellast_fwd_kernel<Causal_conv1d_channellast_fwd_kernel_traits<128, 4, 64, 1, c10::BFloat16, c10::BFloat16>, 0>(ConvParamsBase)"
+    }
+   ],
+   "sim_us": 23.659738006295306,
+   "sim": {
+    "us": 23.659738006295306,
+    "kernels": [
+     {
+      "name": "causal_conv1d_fwd_b1_l1024_d10240_w4",
+      "us": 23.659738006295306,
+      "tflops": 0.0,
+      "gbps": 1772.9332416461605,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "barrier": 0.004996507316723684,
+     "lg_throttle": 0.0023952284573086637,
+     "long_scoreboard": 0.27075732120148305,
+     "math_pipe_throttle": 0.07560652683992763,
+     "mio_throttle": 0.00039318658093174044,
+     "selected": 0.27581866704877217,
+     "short_scoreboard": 0.1661064999731332,
+     "wait": 0.20392606258171983
+    }
+   },
+   "err_vs_measured": -0.32292419491288393,
+   "err_vs_ncu": -0.1501530888543352
+  },
+  "attn_prefill_L1024": {
+   "kind": "attn_prefill",
+   "impl": "fa2",
+   "batch": 1,
+   "seqlen": 1024,
+   "hq": 32,
+   "hkv": 8,
+   "d": 128,
+   "footprint_bytes": 12582912,
+   "copies": 14,
+   "us_median": 85.54057138306754,
+   "us_min": 84.84571320669991,
+   "graphed": true,
+   "measured_us": 85.54057138306754,
+   "ncu_us": 85.376,
+   "ncu_kernels": [
+    {
+     "ns": 85376.0,
+     "cycles": 119025.0,
+     "insts": 9877632.0,
+     "dram_read": 12655872.0,
+     "dram_write": 2014848.0,
+     "grid": 256.0,
+     "block": 128.0,
+     "regs": 255.0,
+     "smem": 65536.0,
+     "warps_active_pct": 10.87,
+     "stalls": {
+      "barrier": 0.14,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.13,
+      "drain": 0.03,
+      "lg_throttle": 0.12,
+      "long_scoreboard": 0.56,
+      "math_pipe_throttle": 0.76,
+      "membar": 0.0,
+      "mio_throttle": 0.13,
+      "misc": 0.0,
+      "no_instruction": 0.04,
+      "not_selected": 0.26,
+      "selected": 1.0,
+      "short_scoreboard": 0.37,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.16
+     },
+     "kernel": "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t>>, 0, 1, 0, 0, 1, 1, 0, 0>(flash::Flash_fwd_params)"
+    }
+   ],
+   "sim_us": 213.26101140755293,
+   "sim": {
+    "us": 213.26101140755293,
+    "kernels": [
+     {
+      "name": "fa2_fwd_b1_hq32_hkv8_sq1024_skv1024_d128",
+      "us": 213.26101140755293,
+      "tflops": 40.278973335562895,
+      "gbps": 98.33733724502662,
+      "tensor_util": 0.1468924654179821
+     }
+    ],
+    "sched": {
+     "async_wait": 0.009874175988010176,
+     "barrier": 0.011875206639131976,
+     "branch_resolving": 0.00040318870290453754,
+     "lg_throttle": 0.013209814400506632,
+     "long_scoreboard": 0.02540701092393329,
+     "math_pipe_throttle": 8.06377405809075e-05,
+     "mio_throttle": 0.0002746723038537162,
+     "selected": 0.05417848195279723,
+     "short_scoreboard": 0.8188359367288253,
+     "wait": 0.06586087461945621
+    }
+   },
+   "err_vs_measured": 1.4930978126452779,
+   "err_vs_ncu": 1.4979035256694262
+  },
+  "ssd_prefill_L4096": {
+   "kind": "ssd_prefill",
+   "batch": 1,
+   "seqlen": 4096,
+   "nheads": 128,
+   "headdim": 64,
+   "d_state": 128,
+   "ngroups": 8,
+   "chunk": 256,
+   "footprint_bytes": 152045056,
+   "copies": 2,
+   "us_median": 764.1087770462036,
+   "us_min": 722.0223903656006,
+   "graphed": true,
+   "measured_us": 764.1087770462036,
+   "ncu_us": 756.032,
+   "ncu_kernels": [
+    {
+     "ns": 33952.0,
+     "cycles": 47754.0,
+     "insts": 827648.0,
+     "dram_read": 1153920.0,
+     "dram_write": 128.0,
+     "grid": 32.0,
+     "block": 128.0,
+     "regs": 255.0,
+     "smem": 33280.0,
+     "warps_active_pct": 6.29,
+     "stalls": {
+      "barrier": 0.02,
+      "branch_resolving": 0.02,
+      "dispatch_stall": 0.01,
+      "drain": 0.01,
+      "lg_throttle": 0.08,
+      "long_scoreboard": 0.36,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.01,
+      "misc": 0.0,
+      "no_instruction": 2.65,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.72,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.93
+     },
+     "kernel": "_chunk_cumsum_fwd_kernel"
+    },
+    {
+     "ns": 122016.0,
+     "cycles": 170373.0,
+     "insts": 26836992.0,
+     "dram_read": 79732096.0,
+     "dram_write": 55020672.0,
+     "grid": 4096.0,
+     "block": 64.0,
+     "regs": 199.0,
+     "smem": 29440.0,
+     "warps_active_pct": 12.06,
+     "stalls": {
+      "barrier": 0.4,
+      "branch_resolving": 0.02,
+      "dispatch_stall": 0.21,
+      "drain": 0.03,
+      "lg_throttle": 0.22,
+      "long_scoreboard": 0.61,
+      "math_pipe_throttle": 0.25,
+      "membar": 0.0,
+      "mio_throttle": 0.49,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.3,
+      "selected": 1.0,
+      "short_scoreboard": 0.45,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.0
+     },
+     "kernel": "_chunk_state_fwd_kernel"
+    },
+    {
+     "ns": 62528.0,
+     "cycles": 87646.0,
+     "insts": 4800512.0,
+     "dram_read": 67246336.0,
+     "dram_write": 27652352.0,
+     "grid": 2048.0,
+     "block": 128.0,
+     "regs": 25.0,
+     "smem": 0.0,
+     "warps_active_pct": 79.9,
+     "stalls": {
+      "barrier": 0.0,
+      "branch_resolving": 0.42,
+      "dispatch_stall": 0.35,
+      "drain": 0.01,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 82.04,
+      "math_pipe_throttle": 0.65,
+      "membar": 0.0,
+      "mio_throttle": 0.01,
+      "misc": 0.0,
+      "no_instruction": 0.15,
+      "not_selected": 0.91,
+      "selected": 1.0,
+      "short_scoreboard": 0.46,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.92
+     },
+     "kernel": "_state_passing_fwd_kernel"
+    },
+    {
+     "ns": 43296.0,
+     "cycles": 60316.0,
+     "insts": 3018752.0,
+     "dram_read": 16801152.0,
+     "dram_write": 16265472.0,
+     "grid": 256.0,
+     "block": 256.0,
+     "regs": 255.0,
+     "smem": 98304.0,
+     "warps_active_pct": 12.26,
+     "stalls": {
+      "barrier": 0.77,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.1,
+      "drain": 0.22,
+      "lg_throttle": 1.71,
+      "long_scoreboard": 2.25,
+      "math_pipe_throttle": 1.33,
+      "membar": 0.0,
+      "mio_throttle": 2.67,
+      "misc": 0.0,
+      "no_instruction": 0.05,
+      "not_selected": 0.46,
+      "selected": 1.0,
+      "short_scoreboard": 0.35,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.9
+     },
+     "kernel": "_bmm_chunk_fwd_kernel"
+    },
+    {
+     "ns": 494240.0,
+     "cycles": 695347.0,
+     "insts": 111050752.0,
+     "dram_read": 201533440.0,
+     "dram_write": 126482304.0,
+     "grid": 16384.0,
+     "block": 64.0,
+     "regs": 233.0,
+     "smem": 35840.0,
+     "warps_active_pct": 11.77,
+     "stalls": {
+      "barrier": 0.34,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.11,
+      "drain": 0.02,
+      "lg_throttle": 0.04,
+      "long_scoreboard": 0.96,
+      "math_pipe_throttle": 0.18,
+      "membar": 0.0,
+      "mio_throttle": 0.23,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.21,
+      "selected": 1.0,
+      "short_scoreboard": 0.45,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.41
+     },
+     "kernel": "_chunk_scan_fwd_kernel"
+    }
+   ],
+   "sim_us": 933.5285977529057,
+   "sim": {
+    "us": 933.5285977529057,
+    "kernels": [
+     {
+      "name": "ssd_chunk_scan_b1_l4096_h128_p64_n128_g8",
+      "us": 670.4041758383584,
+      "tflops": 28.829404005174386,
+      "gbps": 1654.8253963553605,
+      "tensor_util": 0.10513729323662094
+     },
+     {
+      "name": "ssd_chunk_state_b1_l4096_h128_p64_n128_g8",
+      "us": 144.85011006030015,
+      "tflops": 59.302230342966716,
+      "gbps": 927.0904381370252,
+      "tensor_util": 0.21626794574161431
+     },
+     {
+      "name": "ssd_state_passing_b1_l4096_h128_p64_n128_g8",
+      "us": 84.4546099850146,
+      "tflops": 0.0,
+      "gbps": 1638.9183257676505,
+      "tensor_util": 0.0
+     },
+     {
+      "name": "ssd_bmm_chunk_b1_l4096_h128_p64_n128_g8",
+      "us": 31.944016232998017,
+      "tflops": 41.983722216326086,
+      "gbps": 1967.9869788902854,
+      "tensor_util": 0.1531094750703298
+     },
+     {
+      "name": "ssd_chunk_cumsum_b1_l4096_h128_p64_n128_g8",
+      "us": 1.8756856362345755,
+      "tflops": 0.0,
+      "gbps": 2795.180545565749,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.09676045422804001,
+     "barrier": 0.01604194435894091,
+     "branch_resolving": 0.003014692968623257,
+     "lg_throttle": 0.023391464311339344,
+     "long_scoreboard": 0.10952202483423427,
+     "math_pipe_throttle": 0.008516681306165877,
+     "mio_throttle": 0.00783132117139682,
+     "selected": 0.11478656715907243,
+     "short_scoreboard": 0.48135804946378524,
+     "wait": 0.13877680019840183
+    }
+   },
+   "err_vs_measured": 0.22172212359819254,
+   "err_vs_ncu": 0.2347739219410101
+  },
+  "conv1d_fwd_L4096": {
+   "kind": "conv1d_fwd",
+   "batch": 1,
+   "seqlen": 4096,
+   "dim": 10240,
+   "width": 4,
+   "footprint_bytes": 83988480,
+   "copies": 2,
+   "us_median": 124.21120405197144,
+   "us_min": 123.0847954750061,
+   "graphed": true,
+   "measured_us": 124.21120405197144,
+   "ncu_us": 115.648,
+   "ncu_kernels": [
+    {
+     "ns": 115648.0,
+     "cycles": 161670.0,
+     "insts": 24985440.0,
+     "dram_read": 84010112.0,
+     "dram_write": 68386560.0,
+     "grid": 10240.0,
+     "block": 128.0,
+     "regs": 48.0,
+     "smem": 9648.0,
+     "warps_active_pct": 59.06,
+     "stalls": {
+      "barrier": 4.29,
+      "branch_resolving": 0.07,
+      "dispatch_stall": 0.24,
+      "drain": 0.39,
+      "lg_throttle": 0.03,
+      "long_scoreboard": 10.43,
+      "math_pipe_throttle": 1.01,
+      "membar": 0.0,
+      "mio_throttle": 3.34,
+      "misc": 0.0,
+      "no_instruction": 0.06,
+      "not_selected": 2.15,
+      "selected": 1.0,
+      "short_scoreboard": 1.04,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.15
+     },
+     "kernel": "void causal_conv1d_channellast_fwd_kernel<Causal_conv1d_channellast_fwd_kernel_traits<128, 4, 64, 1, c10::BFloat16, c10::BFloat16>, 0>(ConvParamsBase)"
+    }
+   ],
+   "sim_us": 97.03088141450787,
+   "sim": {
+    "us": 97.03088141450787,
+    "kernels": [
+     {
+      "name": "causal_conv1d_fwd_b1_l4096_d10240_w4",
+      "us": 97.03088141450787,
+      "tflops": 0.0,
+      "gbps": 1729.1016380988415,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "barrier": 0.0040712994666231815,
+     "lg_throttle": 0.0041493757322992215,
+     "long_scoreboard": 0.15503162114635796,
+     "math_pipe_throttle": 0.05507031599203581,
+     "mio_throttle": 0.0006458111264060779,
+     "selected": 0.26566851870952113,
+     "short_scoreboard": 0.2675816459777501,
+     "wait": 0.24778141184900657
+    }
+   },
+   "err_vs_measured": -0.21882343742591037,
+   "err_vs_ncu": -0.16098089535047833
+  },
+  "attn_prefill_L4096": {
+   "kind": "attn_prefill",
+   "impl": "fa2",
+   "batch": 1,
+   "seqlen": 4096,
+   "hq": 32,
+   "hkv": 8,
+   "d": 128,
+   "footprint_bytes": 50331648,
+   "copies": 4,
+   "us_median": 849.7280180454254,
+   "us_min": 773.1199860572815,
+   "graphed": true,
+   "measured_us": 849.7280180454254,
+   "ncu_us": 778.88,
+   "ncu_kernels": [
+    {
+     "ns": 778880.0,
+     "cycles": 1077674.0,
+     "insts": 129363072.0,
+     "dram_read": 50781696.0,
+     "dram_write": 34208512.0,
+     "grid": 1024.0,
+     "block": 128.0,
+     "regs": 255.0,
+     "smem": 65536.0,
+     "warps_active_pct": 11.98,
+     "stalls": {
+      "barrier": 0.17,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.15,
+      "drain": 0.01,
+      "lg_throttle": 0.03,
+      "long_scoreboard": 0.16,
+      "math_pipe_throttle": 1.14,
+      "membar": 0.0,
+      "mio_throttle": 0.11,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.34,
+      "selected": 1.0,
+      "short_scoreboard": 0.33,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.31
+     },
+     "kernel": "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t>>, 0, 1, 0, 0, 1, 1, 0, 0>(flash::Flash_fwd_params)"
+    }
+   ],
+   "sim_us": 2741.526073894557,
+   "sim": {
+    "us": 2741.526073894557,
+    "kernels": [
+     {
+      "name": "fa2_fwd_b1_hq32_hkv8_sq4096_skv4096_d128",
+      "us": 2741.526073894557,
+      "tflops": 50.132280258329615,
+      "gbps": 30.598315587359387,
+      "tensor_util": 0.18282626478141728
+     }
+    ],
+    "sched": {
+     "async_wait": 0.0015507796312891032,
+     "barrier": 0.010175931904108116,
+     "branch_resolving": 0.0004186031031004088,
+     "lg_throttle": 0.011542146376629255,
+     "long_scoreboard": 0.005995124469565752,
+     "math_pipe_throttle": 8.372062062008175e-05,
+     "mio_throttle": 0.00029105997012450295,
+     "selected": 0.05481346008160415,
+     "short_scoreboard": 0.8498113921429286,
+     "wait": 0.06531778170003004
+    }
+   },
+   "err_vs_measured": 2.2263571586126027,
+   "err_vs_ncu": 2.5198311343140882
+  },
+  "gemm_mamba_in_proj_m4096": {
+   "kind": "gemm",
+   "m": 4096,
+   "n": 18560,
+   "k": 4096,
+   "footprint_bytes": 186646528,
+   "copies": 1,
+   "us_median": 2727.1167755126953,
+   "us_min": 2470.502471923828,
+   "graphed": true,
+   "measured_us": 2727.1167755126953,
+   "ncu_us": 2346.496,
+   "ncu_kernels": [
+    {
+     "ns": 2346496.0,
+     "cycles": 3140218.0,
+     "insts": 274910720.0,
+     "dram_read": 692752128.0,
+     "dram_write": 150120192.0,
+     "grid": 2320.0,
+     "block": 256.0,
+     "regs": 238.0,
+     "smem": 147456.0,
+     "warps_active_pct": 12.49,
+     "stalls": {
+      "barrier": 0.6,
+      "branch_resolving": 0.05,
+      "dispatch_stall": 0.01,
+      "drain": 0.0,
+      "lg_throttle": 0.02,
+      "long_scoreboard": 0.05,
+      "math_pipe_throttle": 3.47,
+      "membar": 0.0,
+      "mio_throttle": 0.04,
+      "misc": 0.0,
+      "no_instruction": 0.02,
+      "not_selected": 0.5,
+      "selected": 1.0,
+      "short_scoreboard": 0.03,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 3.76
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_128x256_ldg8_f2f_stages_64x3_tn"
+    }
+   ],
+   "sim_us": 3568.610228796363,
+   "sim": {
+    "us": 3568.610228796363,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_4096x18560x4096",
+      "us": 3568.610228796363,
+      "tflops": 174.5133870027747,
+      "gbps": 42.89964052802584,
+      "tensor_util": 0.636428874482924
+     }
+    ],
+    "sched": {
+     "async_wait": 0.0005774974777421602,
+     "barrier": 0.043560095862988826,
+     "branch_resolving": 0.005029627672732498,
+     "lg_throttle": 0.049440233454149975,
+     "math_pipe_throttle": 0.1831583773470594,
+     "mio_throttle": 0.01228959308378825,
+     "selected": 0.10992260924378948,
+     "short_scoreboard": 0.595948838354421,
+     "wait": 7.312750332837385e-05
+    }
+   },
+   "err_vs_measured": 0.30856524401140395,
+   "err_vs_ncu": 0.520825191603294
+  },
+  "gemm_mamba_out_proj_m4096": {
+   "kind": "gemm",
+   "m": 4096,
+   "n": 4096,
+   "k": 8192,
+   "footprint_bytes": 134217728,
+   "copies": 2,
+   "us_median": 1219.9935913085938,
+   "us_min": 1034.8544120788574,
+   "graphed": true,
+   "measured_us": 1219.9935913085938,
+   "ncu_us": 1040.576,
+   "ncu_kernels": [
+    {
+     "ns": 1040576.0,
+     "cycles": 1397206.0,
+     "insts": 116768768.0,
+     "dram_read": 335565696.0,
+     "dram_write": 30752000.0,
+     "grid": 512.0,
+     "block": 256.0,
+     "regs": 238.0,
+     "smem": 147456.0,
+     "warps_active_pct": 12.49,
+     "stalls": {
+      "barrier": 0.61,
+      "branch_resolving": 0.03,
+      "dispatch_stall": 0.01,
+      "drain": 0.0,
+      "lg_throttle": 0.01,
+      "long_scoreboard": 0.05,
+      "math_pipe_throttle": 3.6,
+      "membar": 0.0,
+      "mio_throttle": 0.02,
+      "misc": 0.0,
+      "no_instruction": 0.02,
+      "not_selected": 0.51,
+      "selected": 1.0,
+      "short_scoreboard": 0.02,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 3.83
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_64x3_tn"
+    }
+   ],
+   "sim_us": 1632.083115244248,
+   "sim": {
+    "us": 1632.083115244248,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_4096x4096x8192",
+      "us": 1632.083115244248,
+      "tflops": 168.42151259120365,
+      "gbps": 21.8442208408391,
+      "tensor_util": 0.614212557203002
+     }
+    ],
+    "sched": {
+     "async_wait": 0.0006527869377752109,
+     "barrier": 0.04323042372802188,
+     "branch_resolving": 0.005050943346560544,
+     "lg_throttle": 0.048939700549957346,
+     "math_pipe_throttle": 0.18273176967575427,
+     "mio_throttle": 0.012384946052181375,
+     "selected": 0.10970959018588211,
+     "short_scoreboard": 0.5972593103256613,
+     "wait": 4.0529198206015875e-05
+    }
+   },
+   "err_vs_measured": 0.3377800726753304,
+   "err_vs_ncu": 0.5684420121588887
+  },
+  "gemm_attn_qkv_m4096": {
+   "kind": "gemm",
+   "m": 4096,
+   "n": 6144,
+   "k": 4096,
+   "footprint_bytes": 83886080,
+   "copies": 2,
+   "us_median": 968.3455944061279,
+   "us_min": 844.0832138061523,
+   "graphed": true,
+   "measured_us": 968.3455944061279,
+   "ncu_us": 847.232,
+   "ncu_kernels": [
+    {
+     "ns": 847232.0,
+     "cycles": 1139826.0,
+     "insts": 91004928.0,
+     "dram_read": 244225536.0,
+     "dram_write": 46571520.0,
+     "grid": 768.0,
+     "block": 256.0,
+     "regs": 238.0,
+     "smem": 147456.0,
+     "warps_active_pct": 12.5,
+     "stalls": {
+      "barrier": 0.61,
+      "branch_resolving": 0.05,
+      "dispatch_stall": 0.01,
+      "drain": 0.0,
+      "lg_throttle": 0.02,
+      "long_scoreboard": 0.08,
+      "math_pipe_throttle": 3.47,
+      "membar": 0.0,
+      "mio_throttle": 0.04,
+      "misc": 0.0,
+      "no_instruction": 0.02,
+      "not_selected": 0.5,
+      "selected": 1.0,
+      "short_scoreboard": 0.03,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 3.76
+     },
+     "kernel": "ampere_bf16_s16816gemm_bf16_128x256_ldg8_f2f_stages_64x3_tn"
+    }
+   ],
+   "sim_us": 1301.6283188378782,
+   "sim": {
+    "us": 1301.6283188378782,
+    "kernels": [
+     {
+      "name": "mma_sync_gemm_bf16_4096x6144x4096",
+      "us": 1301.6283188378782,
+      "tflops": 158.38502222513313,
+      "gbps": 39.47380619828045,
+      "tensor_util": 0.577610710335315
+     }
+    ],
+    "sched": {
+     "async_wait": 0.0017345136817578837,
+     "barrier": 0.04469095007416998,
+     "branch_resolving": 0.004933431629474709,
+     "lg_throttle": 0.04994181424514871,
+     "math_pipe_throttle": 0.17994188134258052,
+     "mio_throttle": 0.010627999398861094,
+     "selected": 0.10929147433102396,
+     "short_scoreboard": 0.5987588817338075,
+     "wait": 7.905356317559537e-05
+    }
+   },
+   "err_vs_measured": 0.34417745726012994,
+   "err_vs_ncu": 0.5363304488473974
+  },
+  "ssd_prefill_L8192": {
+   "kind": "ssd_prefill",
+   "batch": 1,
+   "seqlen": 8192,
+   "nheads": 128,
+   "headdim": 64,
+   "d_state": 128,
+   "ngroups": 8,
+   "chunk": 256,
+   "footprint_bytes": 304088576,
+   "copies": 1,
+   "us_median": 1514.137601852417,
+   "us_min": 1433.3951950073242,
+   "graphed": true,
+   "measured_us": 1514.137601852417,
+   "ncu_us": 1454.016,
+   "ncu_kernels": [
+    {
+     "ns": 35392.0,
+     "cycles": 49701.0,
+     "insts": 1655296.0,
+     "dram_read": 2202496.0,
+     "dram_write": 29312.0,
+     "grid": 64.0,
+     "block": 128.0,
+     "regs": 255.0,
+     "smem": 33280.0,
+     "warps_active_pct": 6.1,
+     "stalls": {
+      "barrier": 0.02,
+      "branch_resolving": 0.02,
+      "dispatch_stall": 0.01,
+      "drain": 0.01,
+      "lg_throttle": 0.08,
+      "long_scoreboard": 0.42,
+      "math_pipe_throttle": 0.0,
+      "membar": 0.0,
+      "mio_throttle": 0.01,
+      "misc": 0.0,
+      "no_instruction": 2.54,
+      "not_selected": 0.0,
+      "selected": 1.0,
+      "short_scoreboard": 0.72,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.93
+     },
+     "kernel": "_chunk_cumsum_fwd_kernel"
+    },
+    {
+     "ns": 241536.0,
+     "cycles": 335055.0,
+     "insts": 53673984.0,
+     "dram_read": 160043008.0,
+     "dram_write": 130601600.0,
+     "grid": 8192.0,
+     "block": 64.0,
+     "regs": 199.0,
+     "smem": 29440.0,
+     "warps_active_pct": 12.0,
+     "stalls": {
+      "barrier": 0.4,
+      "branch_resolving": 0.02,
+      "dispatch_stall": 0.21,
+      "drain": 0.03,
+      "lg_throttle": 0.21,
+      "long_scoreboard": 0.68,
+      "math_pipe_throttle": 0.24,
+      "membar": 0.0,
+      "mio_throttle": 0.47,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.3,
+      "selected": 1.0,
+      "short_scoreboard": 0.46,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.0
+     },
+     "kernel": "_chunk_state_fwd_kernel"
+    },
+    {
+     "ns": 126144.0,
+     "cycles": 177326.0,
+     "insts": 9256960.0,
+     "dram_read": 134486400.0,
+     "dram_write": 62955776.0,
+     "grid": 2048.0,
+     "block": 128.0,
+     "regs": 25.0,
+     "smem": 0.0,
+     "warps_active_pct": 83.76,
+     "stalls": {
+      "barrier": 0.0,
+      "branch_resolving": 0.43,
+      "dispatch_stall": 0.32,
+      "drain": 0.0,
+      "lg_throttle": 0.0,
+      "long_scoreboard": 93.06,
+      "math_pipe_throttle": 0.58,
+      "membar": 0.0,
+      "mio_throttle": 0.0,
+      "misc": 0.0,
+      "no_instruction": 0.12,
+      "not_selected": 0.87,
+      "selected": 1.0,
+      "short_scoreboard": 0.47,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 3.03
+     },
+     "kernel": "_state_passing_fwd_kernel"
+    },
+    {
+     "ns": 73984.0,
+     "cycles": 103349.0,
+     "insts": 6037504.0,
+     "dram_read": 33579520.0,
+     "dram_write": 60203392.0,
+     "grid": 512.0,
+     "block": 256.0,
+     "regs": 255.0,
+     "smem": 98304.0,
+     "warps_active_pct": 12.02,
+     "stalls": {
+      "barrier": 0.79,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.1,
+      "drain": 0.2,
+      "lg_throttle": 1.59,
+      "long_scoreboard": 2.12,
+      "math_pipe_throttle": 1.34,
+      "membar": 0.0,
+      "mio_throttle": 2.6,
+      "misc": 0.0,
+      "no_instruction": 0.04,
+      "not_selected": 0.46,
+      "selected": 1.0,
+      "short_scoreboard": 0.34,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.9
+     },
+     "kernel": "_bmm_chunk_fwd_kernel"
+    },
+    {
+     "ns": 976960.0,
+     "cycles": 1375911.0,
+     "insts": 222101504.0,
+     "dram_read": 442630016.0,
+     "dram_write": 277787008.0,
+     "grid": 32768.0,
+     "block": 64.0,
+     "regs": 233.0,
+     "smem": 35840.0,
+     "warps_active_pct": 11.83,
+     "stalls": {
+      "barrier": 0.3,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.11,
+      "drain": 0.02,
+      "lg_throttle": 0.04,
+      "long_scoreboard": 1.0,
+      "math_pipe_throttle": 0.18,
+      "membar": 0.0,
+      "mio_throttle": 0.24,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.21,
+      "selected": 1.0,
+      "short_scoreboard": 0.46,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.41
+     },
+     "kernel": "_chunk_scan_fwd_kernel"
+    }
+   ],
+   "sim_us": 1840.5667209200612,
+   "sim": {
+    "us": 1840.5667209200612,
+    "kernels": [
+     {
+      "name": "ssd_chunk_scan_b1_l8192_h128_p64_n128_g8",
+      "us": 1321.5431386186178,
+      "tflops": 29.24967375972681,
+      "gbps": 1678.9427444035325,
+      "tensor_util": 0.10666996537978876
+     },
+     {
+      "name": "ssd_chunk_state_b1_l8192_h128_p64_n128_g8",
+      "us": 280.93985043271266,
+      "tflops": 61.15141428864224,
+      "gbps": 955.7450806157866,
+      "tensor_util": 0.22301169232444498
+     },
+     {
+      "name": "ssd_state_passing_b1_l8192_h128_p64_n128_g8",
+      "us": 163.43273415597733,
+      "tflops": 0.0,
+      "gbps": 1668.1606986994707,
+      "tensor_util": 0.0
+     },
+     {
+      "name": "ssd_bmm_chunk_b1_l8192_h128_p64_n128_g8",
+      "us": 71.29613032286746,
+      "tflops": 37.65077498377248,
+      "gbps": 1764.8800773643347,
+      "tensor_util": 0.13730774903790713
+     },
+     {
+      "name": "ssd_chunk_cumsum_b1_l8192_h128_p64_n128_g8",
+      "us": 3.3548673898859245,
+      "tflops": 0.0,
+      "gbps": 3125.5363569993588,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.09484065943036062,
+     "barrier": 0.015862385164599847,
+     "branch_resolving": 0.0030799802560198567,
+     "lg_throttle": 0.023280022982827872,
+     "long_scoreboard": 0.10732304588376335,
+     "math_pipe_throttle": 0.008637155620533361,
+     "mio_throttle": 0.008085236841020766,
+     "selected": 0.11600551438810795,
+     "short_scoreboard": 0.48310554409214485,
+     "wait": 0.13978045534062156
+    }
+   },
+   "err_vs_measured": 0.21558748601731192,
+   "err_vs_ncu": 0.2658503901745657
+  },
+  "conv1d_fwd_L8192": {
+   "kind": "conv1d_fwd",
+   "batch": 1,
+   "seqlen": 8192,
+   "dim": 10240,
+   "width": 4,
+   "footprint_bytes": 167874560,
+   "copies": 1,
+   "us_median": 240.69119691848755,
+   "us_min": 239.61598873138428,
+   "graphed": true,
+   "measured_us": 240.69119691848755,
+   "ncu_us": 233.472,
+   "ncu_kernels": [
+    {
+     "ns": 233472.0,
+     "cycles": 327616.0,
+     "insts": 49971040.0,
+     "dram_read": 167901568.0,
+     "dram_write": 169052288.0,
+     "grid": 20480.0,
+     "block": 128.0,
+     "regs": 48.0,
+     "smem": 9648.0,
+     "warps_active_pct": 58.06,
+     "stalls": {
+      "barrier": 4.83,
+      "branch_resolving": 0.07,
+      "dispatch_stall": 0.19,
+      "drain": 0.38,
+      "lg_throttle": 0.03,
+      "long_scoreboard": 11.81,
+      "math_pipe_throttle": 0.81,
+      "membar": 0.0,
+      "mio_throttle": 2.75,
+      "misc": 0.0,
+      "no_instruction": 0.05,
+      "not_selected": 1.62,
+      "selected": 1.0,
+      "short_scoreboard": 0.95,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 1.15
+     },
+     "kernel": "void causal_conv1d_channellast_fwd_kernel<Causal_conv1d_channellast_fwd_kernel_traits<128, 4, 64, 1, c10::BFloat16, c10::BFloat16>, 0>(ConvParamsBase)"
+    }
+   ],
+   "sim_us": 195.5359255461787,
+   "sim": {
+    "us": 195.5359255461787,
+    "kernels": [
+     {
+      "name": "causal_conv1d_fwd_b1_l8192_d10240_w4",
+      "us": 195.5359255461787,
+      "tflops": 0.0,
+      "gbps": 1716.0448396515008,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "barrier": 0.0034970442353502713,
+     "lg_throttle": 0.0043905132253610575,
+     "long_scoreboard": 0.10687905208148571,
+     "math_pipe_throttle": 0.04646928674372912,
+     "mio_throttle": 0.0007342530816913526,
+     "selected": 0.26230674419716093,
+     "short_scoreboard": 0.30254363423697955,
+     "wait": 0.273179472198242
+    }
+   },
+   "err_vs_measured": -0.18760665928135767,
+   "err_vs_ncu": -0.16248661275793796
+  },
+  "attn_prefill_L8192": {
+   "kind": "attn_prefill",
+   "impl": "fa2",
+   "batch": 1,
+   "seqlen": 8192,
+   "hq": 32,
+   "hkv": 8,
+   "d": 128,
+   "footprint_bytes": 100663296,
+   "copies": 2,
+   "us_median": 3050.444793701172,
+   "us_min": 2915.430450439453,
+   "graphed": true,
+   "measured_us": 3050.444793701172,
+   "ncu_us": 2699.68,
+   "ncu_kernels": [
+    {
+     "ns": 2699680.0,
+     "cycles": 3722898.0,
+     "insts": 498326656.0,
+     "dram_read": 102161280.0,
+     "dram_write": 82960640.0,
+     "grid": 2048.0,
+     "block": 128.0,
+     "regs": 255.0,
+     "smem": 65536.0,
+     "warps_active_pct": 12.23,
+     "stalls": {
+      "barrier": 0.17,
+      "branch_resolving": 0.01,
+      "dispatch_stall": 0.15,
+      "drain": 0.0,
+      "lg_throttle": 0.02,
+      "long_scoreboard": 0.12,
+      "math_pipe_throttle": 1.23,
+      "membar": 0.0,
+      "mio_throttle": 0.11,
+      "misc": 0.0,
+      "no_instruction": 0.03,
+      "not_selected": 0.35,
+      "selected": 1.0,
+      "short_scoreboard": 0.32,
+      "sleeping": 0.0,
+      "tex_throttle": 0.0,
+      "wait": 2.34
+     },
+     "kernel": "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, 0, 0, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t>>, 0, 1, 0, 0, 1, 1, 0, 0>(flash::Flash_fwd_params)"
+    }
+   ],
+   "sim_us": 10361.79652826076,
+   "sim": {
+    "us": 10361.79652826076,
+    "kernels": [
+     {
+      "name": "fa2_fwd_b1_hq32_hkv8_sq8192_skv8192_d128",
+      "us": 10361.79652826076,
+      "tflops": 53.05603255078366,
+      "gbps": 19.952728413081722,
+      "tensor_util": 0.19348883005913897
+     }
+    ],
+    "sched": {
+     "async_wait": 0.0006003536571523088,
+     "barrier": 0.010013066850426825,
+     "branch_resolving": 0.000420940895959594,
+     "lg_throttle": 0.011207510889719654,
+     "long_scoreboard": 0.002829744117649651,
+     "math_pipe_throttle": 8.41881791919188e-05,
+     "mio_throttle": 0.0002936720469468105,
+     "selected": 0.0548788538704322,
+     "short_scoreboard": 0.8545021261561766,
+     "wait": 0.0651695433363444
+    }
+   },
+   "err_vs_measured": 2.396814966019616,
+   "err_vs_ncu": 2.8381573105926483
+  }
+ }
+}

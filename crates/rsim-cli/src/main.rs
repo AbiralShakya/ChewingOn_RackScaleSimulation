@@ -41,7 +41,8 @@ enum Cmd {
     Kernel {
         #[arg(long, default_value = "h100_sxm")]
         gpu: String,
-        /// gemm M N K | attention B HQ HKV SQ SKV D | elementwise N | rownorm ROWS COLS
+        /// gemm M N K | attention B HQ HKV SQ SKV D | elementwise N | rownorm ROWS COLS |
+        /// ssm_update B H P N G | conv1d B DIM L [W] | ssd_<stage> B L H P N G [CHUNK]
         kind: String,
         dims: Vec<u64>,
         #[arg(long, default_value = "bf16")]
@@ -280,6 +281,45 @@ fn main() -> Result<()> {
                 "rownorm" => {
                     need(2)?;
                     synth::row_norm("rmsnorm", dims[0], dims[1], 2.0)
+                }
+                "ssm_update" => {
+                    need(5)?;
+                    rsim_gpu::synth_ssm::ssm_state_update(
+                        &g,
+                        dims[0],
+                        dims[1],
+                        dims[2],
+                        dims[3],
+                        dims[4],
+                        2.0,
+                    )
+                }
+                "conv1d" => {
+                    need(3)?;
+                    rsim_gpu::synth_ssm::conv1d(
+                        &g,
+                        dims[0],
+                        dims[1],
+                        dims[2],
+                        dims.get(3).copied().unwrap_or(4),
+                    )
+                }
+                s if s.starts_with("ssd_") => {
+                    need(6)?;
+                    rsim_gpu::synth_ssm::ssd(
+                        &g,
+                        &s[4..],
+                        rsim_gpu::synth_ssm::SsdShape {
+                            batch: dims[0],
+                            seqlen: dims[1],
+                            heads: dims[2],
+                            headdim: dims[3],
+                            d_state: dims[4],
+                            groups: dims[5],
+                            chunk: dims.get(6).copied().unwrap_or(256),
+                        },
+                        None,
+                    )
                 }
                 _ => bail!("unknown kernel kind {kind}"),
             };

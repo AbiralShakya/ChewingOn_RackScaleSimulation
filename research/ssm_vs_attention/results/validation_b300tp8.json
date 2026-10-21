@@ -1,0 +1,1428 @@
+{
+ "gpu": "b300tp8",
+ "device": "NVIDIA B300 SXM6 AC",
+ "cases": {
+  "tp8_ssm_state_update_b16": {
+   "kind": "ssm_state_update",
+   "batch": 16,
+   "nheads": 32,
+   "headdim": 64,
+   "d_state": 128,
+   "ngroups": 1,
+   "state_bytes": 8388608,
+   "min_bytes": 16777216,
+   "footprint_bytes": 9658368,
+   "copies": 32,
+   "us_median": 10.232999920845032,
+   "us_min": 10.173999704420567,
+   "graphed": true,
+   "measured_us": 10.232999920845032,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 9.067963,
+   "sim": {
+    "us": 9.067963,
+    "kernel_us": 8.513946359776227,
+    "kernels": [
+     {
+      "name": "selective_state_update_b16_h32_p64_n128",
+      "us": 8.513946359776227,
+      "tflops": 0.0,
+      "gbps": 2370.908994137772,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "barrier": 0.025040648804287233,
+     "lg_throttle": 0.004802517274907856,
+     "long_scoreboard": 0.0032941928534675397,
+     "math_pipe_throttle": 0.003723954973411099,
+     "mio_throttle": 0.01270400228932752,
+     "selected": 0.8643262439519476,
+     "short_scoreboard": 0.028601710898703725,
+     "wait": 0.057506728953947504
+    }
+   },
+   "err_vs_measured": -0.11385096548977824,
+   "err_vs_ncu": null
+  },
+  "tp8_conv1d_update_b16": {
+   "kind": "conv1d_update",
+   "batch": 16,
+   "dim": 2304,
+   "width": 4,
+   "footprint_bytes": 317952,
+   "copies": 32,
+   "us_median": 2.7194999856874347,
+   "us_min": 2.662000013515353,
+   "graphed": true,
+   "measured_us": 2.7194999856874347,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 1.562169,
+   "sim": {
+    "us": 1.562169,
+    "kernel_us": 1.0081528023105346,
+    "kernels": [
+     {
+      "name": "causal_conv1d_update_b16_d2304_w4",
+      "us": 1.0081528023105346,
+      "tflops": 0.0,
+      "gbps": 1046.698474260615,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "long_scoreboard": 0.7062009158421715,
+     "math_pipe_throttle": 1.1863240562792132e-05,
+     "selected": 0.044396991482193275,
+     "short_scoreboard": 0.07752864972595915,
+     "wait": 0.17186157970911334
+    }
+   },
+   "err_vs_measured": -0.4255675645443642,
+   "err_vs_ncu": null
+  },
+  "tp8_attn_decode_b16_ctx4096": {
+   "kind": "attn_decode",
+   "impl": "fa4",
+   "batch": 16,
+   "context": 4096,
+   "hq": 8,
+   "hkv": 1,
+   "d": 128,
+   "kv_bytes": 33554432,
+   "footprint_bytes": 33587200,
+   "copies": 16,
+   "us_median": 15.491999685764313,
+   "us_min": 15.363999642431736,
+   "graphed": true,
+   "measured_us": 15.491999685764313,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 12.048631,
+   "sim": {
+    "us": 12.048631,
+    "kernel_us": 10.940598200184013,
+    "kernels": [
+     {
+      "name": "sm100_fmha_decode_b16_hq8_hkv1_sq1_skv4096_d128",
+      "us": 10.185344636715653,
+      "tflops": 474.39123371264395,
+      "gbps": 4220.928945793924,
+      "tensor_util": 0.19251713913807533
+     },
+     {
+      "name": "elementwise",
+      "us": 0.7552535634683605,
+      "tflops": 0.0,
+      "gbps": 694.1880520130294,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6373655615344235,
+     "branch_resolving": 0.0017417430493566436,
+     "lg_throttle": 0.0134581284784851,
+     "long_scoreboard": 0.02869903145316265,
+     "math_pipe_throttle": 0.09517955863561228,
+     "selected": 0.11149835120573838,
+     "short_scoreboard": 0.052776303064779255,
+     "tensor_wait": 0.054878304078190866,
+     "wait": 0.004403018500251306
+    }
+   },
+   "err_vs_measured": -0.22226754167368357,
+   "err_vs_ncu": null
+  },
+  "tp8_attn_decode_b16_ctx16384": {
+   "kind": "attn_decode",
+   "impl": "fa4",
+   "batch": 16,
+   "context": 16384,
+   "hq": 8,
+   "hkv": 1,
+   "d": 128,
+   "kv_bytes": 134217728,
+   "footprint_bytes": 134250496,
+   "copies": 4,
+   "us_median": 31.841998919844627,
+   "us_min": 31.511999666690826,
+   "graphed": true,
+   "measured_us": 31.841998919844627,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 27.054314,
+   "sim": {
+    "us": 27.054314,
+    "kernel_us": 25.946281052729983,
+    "kernels": [
+     {
+      "name": "sm100_fmha_decode_b16_hq8_hkv1_sq1_skv16384_d128",
+      "us": 25.19102748926162,
+      "tflops": 767.2316200773797,
+      "gbps": 5711.727640380476,
+      "tensor_util": 0.31135743255120585
+     },
+     {
+      "name": "elementwise",
+      "us": 0.7552535634683605,
+      "tflops": 0.0,
+      "gbps": 694.1880520130294,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.5171646648838811,
+     "branch_resolving": 0.002466471749215752,
+     "lg_throttle": 0.005056197174561532,
+     "long_scoreboard": 0.010782179853470046,
+     "math_pipe_throttle": 0.14302998364144773,
+     "selected": 0.15587094731880607,
+     "short_scoreboard": 0.041210771965808045,
+     "tensor_wait": 0.10429847719838452,
+     "tma_wait": 0.015083509434149574,
+     "wait": 0.0050367967802756085
+    }
+   },
+   "err_vs_measured": -0.15035754921971423,
+   "err_vs_ncu": null
+  },
+  "tp8_attn_decode_b16_ctx65536": {
+   "kind": "attn_decode",
+   "impl": "fa4",
+   "batch": 16,
+   "context": 65536,
+   "hq": 8,
+   "hkv": 1,
+   "d": 128,
+   "kv_bytes": 536870912,
+   "footprint_bytes": 536903680,
+   "copies": 1,
+   "us_median": 88.468798995018,
+   "us_min": 87.74399757385254,
+   "graphed": true,
+   "measured_us": 88.468798995018,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 86.288827,
+   "sim": {
+    "us": 86.288827,
+    "kernel_us": 85.18079343446023,
+    "kernels": [
+     {
+      "name": "sm100_fmha_decode_b16_hq8_hkv1_sq1_skv65536_d128",
+      "us": 84.42553987099187,
+      "tflops": 829.8632632146517,
+      "gbps": 6577.2339608194,
+      "tensor_util": 0.3367745648661092
+     },
+     {
+      "name": "elementwise",
+      "us": 0.7552535634683605,
+      "tflops": 0.0,
+      "gbps": 694.1880520130294,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6020136710069269,
+     "branch_resolving": 0.0025833841186836772,
+     "lg_throttle": 0.0014828714031275192,
+     "long_scoreboard": 0.003162176160480709,
+     "math_pipe_throttle": 0.1520654248038132,
+     "selected": 0.16271214130768208,
+     "short_scoreboard": 0.03403507981287809,
+     "tensor_wait": 0.02325395290729463,
+     "tma_wait": 0.013741979637731418,
+     "wait": 0.004949318841381722
+    }
+   },
+   "err_vs_measured": -0.02464113924662603,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mamba_in_proj_m16": {
+   "kind": "gemm",
+   "m": 16,
+   "n": 4384,
+   "k": 8192,
+   "footprint_bytes": 72089600,
+   "copies": 8,
+   "us_median": 15.966000035405159,
+   "us_min": 15.839999541640282,
+   "graphed": true,
+   "measured_us": 15.966000035405159,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 15.280231,
+   "sim": {
+    "us": 15.280231,
+    "kernel_us": 14.7262144329694,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_16x4384x8192_tile128x128_splitk4",
+      "us": 14.7262144329694,
+      "tflops": 637.9943061922086,
+      "gbps": 6372.822589754763,
+      "tensor_util": 0.2589104306444768
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6861841696126597,
+     "branch_resolving": 0.0030507040351999,
+     "lg_throttle": 0.09225462947460068,
+     "selected": 0.007739045344108466,
+     "short_scoreboard": 0.011515550644238318,
+     "tensor_wait": 0.055529045604557105,
+     "tma_wait": 0.14372685528463583
+    }
+   },
+   "err_vs_measured": -0.0429518372719806,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mamba_out_proj_m16": {
+   "kind": "gemm",
+   "m": 16,
+   "n": 8192,
+   "k": 2048,
+   "footprint_bytes": 33619968,
+   "copies": 16,
+   "us_median": 7.419000146910548,
+   "us_min": 7.304000202566385,
+   "graphed": true,
+   "measured_us": 7.419000146910548,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 9.219506,
+   "sim": {
+    "us": 9.219506,
+    "kernel_us": 8.665489094335351,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_16x8192x2048_tile128x128_splitk2",
+      "us": 8.665489094335351,
+      "tflops": 495.64049406139463,
+      "gbps": 5868.790029779697,
+      "tensor_util": 0.20114050002762243
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6498970594805267,
+     "branch_resolving": 0.002858587223142922,
+     "lg_throttle": 0.16879798661002057,
+     "selected": 0.01062007901236669,
+     "short_scoreboard": 0.021069964450817248,
+     "tensor_wait": 0.0482924265987027,
+     "tma_wait": 0.0984638966244232
+    }
+   },
+   "err_vs_measured": 0.24268847788596237,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_attn_qkv_m16": {
+   "kind": "gemm",
+   "m": 16,
+   "n": 1280,
+   "k": 8192,
+   "footprint_bytes": 21233664,
+   "copies": 25,
+   "us_median": 10.34175992012024,
+   "us_min": 10.292479991912842,
+   "graphed": true,
+   "measured_us": 10.34175992012024,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 7.863493,
+   "sim": {
+    "us": 7.863493,
+    "kernel_us": 7.309476833150464,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_16x1280x8192_tile128x128_splitk14",
+      "us": 7.309476833150464,
+      "tflops": 401.67208502315566,
+      "gbps": 5962.320012062468,
+      "tensor_util": 0.16300630194006607
+     }
+    ],
+    "sched": {
+     "async_wait": 0.635981522655741,
+     "branch_resolving": 0.002210544413813914,
+     "lg_throttle": 0.20300166200191114,
+     "selected": 0.011175530092059233,
+     "short_scoreboard": 0.025339388743533572,
+     "tensor_wait": 0.04201686446555703,
+     "tma_wait": 0.08027448762738408
+    }
+   },
+   "err_vs_measured": -0.23963686444690024,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_attn_o_m16": {
+   "kind": "gemm",
+   "m": 16,
+   "n": 8192,
+   "k": 1024,
+   "footprint_bytes": 16809984,
+   "copies": 32,
+   "us_median": 4.877000115811825,
+   "us_min": 4.803000018000603,
+   "graphed": true,
+   "measured_us": 4.877000115811825,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 6.720527,
+   "sim": {
+    "us": 6.720527,
+    "kernel_us": 6.166510039706164,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_16x8192x1024_tile128x128_splitk2",
+      "us": 6.166510039706164,
+      "tflops": 348.2494367433687,
+      "gbps": 5483.908366686348,
+      "tensor_util": 0.14132635787467032
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6075341993519056,
+     "branch_resolving": 0.002284147642242131,
+     "lg_throttle": 0.2574338217699711,
+     "selected": 0.01349723606779441,
+     "short_scoreboard": 0.03213380433063361,
+     "tensor_wait": 0.03149118502325921,
+     "tma_wait": 0.055625605814194
+    }
+   },
+   "err_vs_measured": 0.3780042732029547,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mlp_gate_up_m16": {
+   "kind": "gemm",
+   "m": 16,
+   "n": 7168,
+   "k": 8192,
+   "footprint_bytes": 117702656,
+   "copies": 5,
+   "us_median": 23.598399758338928,
+   "us_min": 23.363199830055237,
+   "graphed": true,
+   "measured_us": 23.598399758338928,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 21.781808,
+   "sim": {
+    "us": 21.781808,
+    "kernel_us": 21.22779136304817,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_16x7168x8192_tile128x128_splitk2",
+      "us": 21.22779136304817,
+      "tflops": 708.1464707707327,
+      "gbps": 6322.736346167255,
+      "tensor_util": 0.2873795360352008
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6873247932004343,
+     "branch_resolving": 0.0040105929304270534,
+     "lg_throttle": 0.061390274037195734,
+     "selected": 0.007724849969592688,
+     "short_scoreboard": 0.007662952133297875,
+     "tensor_wait": 0.07896649624865952,
+     "tma_wait": 0.15292004148039287
+    }
+   },
+   "err_vs_measured": -0.07697944678206414,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mlp_down_m16": {
+   "kind": "gemm",
+   "m": 16,
+   "n": 8192,
+   "k": 3584,
+   "footprint_bytes": 58834944,
+   "copies": 10,
+   "us_median": 11.292800307273865,
+   "us_min": 11.110399663448334,
+   "graphed": true,
+   "measured_us": 11.292800307273865,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 12.96822,
+   "sim": {
+    "us": 12.96822,
+    "kernel_us": 12.41420368721186,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_16x8192x3584_tile128x128_splitk2",
+      "us": 12.41420368721186,
+      "tflops": 605.4510589142816,
+      "gbps": 6155.447254238041,
+      "tensor_util": 0.24570375139119938
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6735101009924138,
+     "branch_resolving": 0.0032272360829876216,
+     "lg_throttle": 0.1111469877729068,
+     "selected": 0.008741142414082205,
+     "short_scoreboard": 0.013873761934145858,
+     "tensor_wait": 0.059278761195211145,
+     "tma_wait": 0.13022200960825253
+    }
+   },
+   "err_vs_measured": 0.14836175679534258,
+   "err_vs_ncu": null
+  },
+  "tp8_ssm_state_update_b64": {
+   "kind": "ssm_state_update",
+   "batch": 64,
+   "nheads": 32,
+   "headdim": 64,
+   "d_state": 128,
+   "ngroups": 1,
+   "state_bytes": 33554432,
+   "min_bytes": 67108864,
+   "footprint_bytes": 35438592,
+   "copies": 15,
+   "us_median": 35.084799925486244,
+   "us_min": 34.95466709136963,
+   "graphed": true,
+   "measured_us": 35.084799925486244,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 31.60404,
+   "sim": {
+    "us": 31.60404,
+    "kernel_us": 31.050023863060474,
+    "kernels": [
+     {
+      "name": "selective_state_update_b64_h32_p64_n128",
+      "us": 31.050023863060474,
+      "tflops": 0.0,
+      "gbps": 2600.354072386265,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "barrier": 0.010240828269187485,
+     "lg_throttle": 0.004679290844277224,
+     "long_scoreboard": 0.001020128985855778,
+     "math_pipe_throttle": 0.005264144533976195,
+     "mio_throttle": 0.01332306040215421,
+     "selected": 0.9141028707491257,
+     "short_scoreboard": 0.012565236342274225,
+     "wait": 0.03880443987314927
+    }
+   },
+   "err_vs_measured": -0.09920991235175192,
+   "err_vs_ncu": null
+  },
+  "tp8_conv1d_update_b64": {
+   "kind": "conv1d_update",
+   "batch": 64,
+   "dim": 2304,
+   "width": 4,
+   "footprint_bytes": 1202688,
+   "copies": 32,
+   "us_median": 3.4354999661445618,
+   "us_min": 3.389999968931079,
+   "graphed": true,
+   "measured_us": 3.4354999661445618,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 2.411891,
+   "sim": {
+    "us": 2.411891,
+    "kernel_us": 1.8578745639456216,
+    "kernels": [
+     {
+      "name": "causal_conv1d_update_b64_d2304_w4",
+      "us": 1.8578745639456216,
+      "tflops": 0.0,
+      "gbps": 2234.7084569491526,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "long_scoreboard": 0.3519759542230128,
+     "math_pipe_throttle": 3.6432995435159986e-05,
+     "selected": 0.08115556889050814,
+     "short_scoreboard": 0.1286063307687362,
+     "wait": 0.43822571312230774
+    }
+   },
+   "err_vs_measured": -0.29795050974583237,
+   "err_vs_ncu": null
+  },
+  "tp8_attn_decode_b64_ctx4096": {
+   "kind": "attn_decode",
+   "impl": "fa4",
+   "batch": 64,
+   "context": 4096,
+   "hq": 8,
+   "hkv": 1,
+   "d": 128,
+   "kv_bytes": 134217728,
+   "footprint_bytes": 134348800,
+   "copies": 4,
+   "us_median": 30.180000700056553,
+   "us_min": 29.972000047564507,
+   "graphed": true,
+   "measured_us": 30.180000700056553,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 27.08482,
+   "sim": {
+    "us": 27.08482,
+    "kernel_us": 25.976786408387987,
+    "kernels": [
+     {
+      "name": "sm100_fmha_decode_b64_hq8_hkv1_sq1_skv4096_d128",
+      "us": 25.105415684673027,
+      "tflops": 684.3092900663817,
+      "gbps": 5680.301724183832,
+      "tensor_util": 0.27770594700531004
+     },
+     {
+      "name": "elementwise",
+      "us": 0.8713707237149618,
+      "tflops": 0.0,
+      "gbps": 2406.727633743648,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.5171276105206187,
+     "branch_resolving": 0.0023769688394620183,
+     "lg_throttle": 0.004880289944720694,
+     "long_scoreboard": 0.026419409860638454,
+     "math_pipe_throttle": 0.13784478886153614,
+     "selected": 0.1515893686278845,
+     "short_scoreboard": 0.04051519132078934,
+     "tensor_wait": 0.09566875120113291,
+     "tma_wait": 0.015250801857476843,
+     "wait": 0.008326818965740383
+    }
+   },
+   "err_vs_measured": -0.10255734354740265,
+   "err_vs_ncu": null
+  },
+  "tp8_attn_decode_b64_ctx16384": {
+   "kind": "attn_decode",
+   "impl": "fa4",
+   "batch": 64,
+   "context": 16384,
+   "hq": 8,
+   "hkv": 1,
+   "d": 128,
+   "kv_bytes": 536870912,
+   "footprint_bytes": 537001984,
+   "copies": 1,
+   "us_median": 84.63039994239807,
+   "us_min": 84.20799970626831,
+   "graphed": true,
+   "measured_us": 84.63039994239807,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 89.048085,
+   "sim": {
+    "us": 89.048085,
+    "kernel_us": 87.94005205591336,
+    "kernels": [
+     {
+      "name": "sm100_fmha_decode_b64_hq8_hkv1_sq1_skv16384_d128",
+      "us": 87.0686813321984,
+      "tflops": 789.2559722342692,
+      "gbps": 6262.407006253356,
+      "tensor_util": 0.32029534068966486
+     },
+     {
+      "name": "elementwise",
+      "us": 0.8713707237149618,
+      "tflops": 0.0,
+      "gbps": 2406.727633743648,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.5148088213809913,
+     "branch_resolving": 0.002688321379767019,
+     "lg_throttle": 0.0014013354005752837,
+     "long_scoreboard": 0.007586117775659994,
+     "math_pipe_throttle": 0.15832402140406138,
+     "selected": 0.16969210373608007,
+     "short_scoreboard": 0.035301977745500174,
+     "tensor_wait": 0.08492736314293324,
+     "tma_wait": 0.019134810818251836,
+     "wait": 0.006135127216179768
+    }
+   },
+   "err_vs_measured": 0.052199742180218056,
+   "err_vs_ncu": null
+  },
+  "tp8_attn_decode_b64_ctx65536": {
+   "kind": "attn_decode",
+   "impl": "fa4",
+   "batch": 64,
+   "context": 65536,
+   "hq": 8,
+   "hkv": 1,
+   "d": 128,
+   "kv_bytes": 2147483648,
+   "footprint_bytes": 2147614720,
+   "copies": 1,
+   "us_median": 305.0671935081482,
+   "us_min": 303.9328098297119,
+   "graphed": true,
+   "measured_us": 305.0671935081482,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 336.903608,
+   "sim": {
+    "us": 336.903608,
+    "kernel_us": 335.7955747553421,
+    "kernels": [
+     {
+      "name": "sm100_fmha_decode_b64_hq8_hkv1_sq1_skv65536_d128",
+      "us": 334.92420403162714,
+      "tflops": 820.7167581057925,
+      "gbps": 6436.8959604854945,
+      "tensor_util": 0.333062736165379
+     },
+     {
+      "name": "elementwise",
+      "us": 0.8713707237149618,
+      "tflops": 0.0,
+      "gbps": 2406.727633743648,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.5142695558145867,
+     "branch_resolving": 0.002781154772972518,
+     "lg_throttle": 0.0003638455225280021,
+     "long_scoreboard": 0.001969674772299946,
+     "math_pipe_throttle": 0.16443026065807453,
+     "selected": 0.1750895607304879,
+     "short_scoreboard": 0.03374708896952036,
+     "tensor_wait": 0.08172327460845955,
+     "tma_wait": 0.020144094004432754,
+     "wait": 0.0054814901466377925
+    }
+   },
+   "err_vs_measured": 0.10435869595070524,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mamba_in_proj_m64": {
+   "kind": "gemm",
+   "m": 64,
+   "n": 4384,
+   "k": 8192,
+   "footprint_bytes": 72876032,
+   "copies": 8,
+   "us_median": 16.378000378608704,
+   "us_min": 16.11199975013733,
+   "graphed": true,
+   "measured_us": 16.378000378608704,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 15.280231,
+   "sim": {
+    "us": 15.280231,
+    "kernel_us": 14.7262144329694,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+      "us": 14.7262144329694,
+      "tflops": 637.9943061922086,
+      "gbps": 6372.822589754763,
+      "tensor_util": 0.2589104306444768
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6861841696126597,
+     "branch_resolving": 0.0030507040351999,
+     "lg_throttle": 0.09225462947460068,
+     "selected": 0.007739045344108466,
+     "short_scoreboard": 0.011515550644238318,
+     "tensor_wait": 0.055529045604557105,
+     "tma_wait": 0.14372685528463583
+    }
+   },
+   "err_vs_measured": -0.06702707004711628,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mamba_out_proj_m64": {
+   "kind": "gemm",
+   "m": 64,
+   "n": 8192,
+   "k": 2048,
+   "footprint_bytes": 33816576,
+   "copies": 16,
+   "us_median": 8.248000405728817,
+   "us_min": 8.186000399291515,
+   "graphed": true,
+   "measured_us": 8.248000405728817,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 9.219506,
+   "sim": {
+    "us": 9.219506,
+    "kernel_us": 8.665489094335351,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+      "us": 8.665489094335351,
+      "tflops": 495.64049406139463,
+      "gbps": 5868.790029779697,
+      "tensor_util": 0.20114050002762243
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6498970594805267,
+     "branch_resolving": 0.002858587223142922,
+     "lg_throttle": 0.16879798661002057,
+     "selected": 0.01062007901236669,
+     "short_scoreboard": 0.021069964450817248,
+     "tensor_wait": 0.0482924265987027,
+     "tma_wait": 0.0984638966244232
+    }
+   },
+   "err_vs_measured": 0.11778680243473372,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_attn_qkv_m64": {
+   "kind": "gemm",
+   "m": 64,
+   "n": 1280,
+   "k": 8192,
+   "footprint_bytes": 22020096,
+   "copies": 25,
+   "us_median": 8.798080086708069,
+   "us_min": 8.757759928703308,
+   "graphed": true,
+   "measured_us": 8.798080086708069,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 7.863493,
+   "sim": {
+    "us": 7.863493,
+    "kernel_us": 7.309476833150464,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_64x1280x8192_tile128x128_splitk14",
+      "us": 7.309476833150464,
+      "tflops": 401.67208502315566,
+      "gbps": 5962.320012062468,
+      "tensor_util": 0.16300630194006607
+     }
+    ],
+    "sched": {
+     "async_wait": 0.635981522655741,
+     "branch_resolving": 0.002210544413813914,
+     "lg_throttle": 0.20300166200191114,
+     "selected": 0.011175530092059233,
+     "short_scoreboard": 0.025339388743533572,
+     "tensor_wait": 0.04201686446555703,
+     "tma_wait": 0.08027448762738408
+    }
+   },
+   "err_vs_measured": -0.10622625362549509,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_attn_o_m64": {
+   "kind": "gemm",
+   "m": 64,
+   "n": 8192,
+   "k": 1024,
+   "footprint_bytes": 16908288,
+   "copies": 32,
+   "us_median": 5.316500086337328,
+   "us_min": 5.262000020593405,
+   "graphed": true,
+   "measured_us": 5.316500086337328,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 6.720527,
+   "sim": {
+    "us": 6.720527,
+    "kernel_us": 6.166510039706164,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_64x8192x1024_tile128x128_splitk2",
+      "us": 6.166510039706164,
+      "tflops": 348.2494367433687,
+      "gbps": 5483.908366686348,
+      "tensor_util": 0.14132635787467032
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6075341993519056,
+     "branch_resolving": 0.002284147642242131,
+     "lg_throttle": 0.2574338217699711,
+     "selected": 0.01349723606779441,
+     "short_scoreboard": 0.03213380433063361,
+     "tensor_wait": 0.03149118502325921,
+     "tma_wait": 0.055625605814194
+    }
+   },
+   "err_vs_measured": 0.26408857159070265,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mlp_gate_up_m64": {
+   "kind": "gemm",
+   "m": 64,
+   "n": 7168,
+   "k": 8192,
+   "footprint_bytes": 118489088,
+   "copies": 5,
+   "us_median": 26.22240036725998,
+   "us_min": 25.993600487709045,
+   "graphed": true,
+   "measured_us": 26.22240036725998,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 21.781808,
+   "sim": {
+    "us": 21.781808,
+    "kernel_us": 21.22779136304817,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_64x7168x8192_tile128x128_splitk2",
+      "us": 21.22779136304817,
+      "tflops": 708.1464707707327,
+      "gbps": 6322.736346167255,
+      "tensor_util": 0.2873795360352008
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6873247932004343,
+     "branch_resolving": 0.0040105929304270534,
+     "lg_throttle": 0.061390274037195734,
+     "selected": 0.007724849969592688,
+     "short_scoreboard": 0.007662952133297875,
+     "tensor_wait": 0.07896649624865952,
+     "tma_wait": 0.15292004148039287
+    }
+   },
+   "err_vs_measured": -0.16934347371205138,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mlp_down_m64": {
+   "kind": "gemm",
+   "m": 64,
+   "n": 8192,
+   "k": 3584,
+   "footprint_bytes": 59179008,
+   "copies": 9,
+   "us_median": 12.739555703269112,
+   "us_min": 12.55466706222958,
+   "graphed": true,
+   "measured_us": 12.739555703269112,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 12.96822,
+   "sim": {
+    "us": 12.96822,
+    "kernel_us": 12.41420368721186,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_64x8192x3584_tile128x128_splitk2",
+      "us": 12.41420368721186,
+      "tflops": 605.4510589142816,
+      "gbps": 6155.447254238041,
+      "tensor_util": 0.24570375139119938
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6735101009924138,
+     "branch_resolving": 0.0032272360829876216,
+     "lg_throttle": 0.1111469877729068,
+     "selected": 0.008741142414082205,
+     "short_scoreboard": 0.013873761934145858,
+     "tensor_wait": 0.059278761195211145,
+     "tma_wait": 0.13022200960825253
+    }
+   },
+   "err_vs_measured": 0.01794915788721041,
+   "err_vs_ncu": null
+  },
+  "tp8_ssm_state_update_b256": {
+   "kind": "ssm_state_update",
+   "batch": 256,
+   "nheads": 32,
+   "headdim": 64,
+   "d_state": 128,
+   "ngroups": 1,
+   "state_bytes": 134217728,
+   "min_bytes": 268435456,
+   "footprint_bytes": 138559488,
+   "copies": 4,
+   "us_median": 134.30199772119522,
+   "us_min": 134.15199518203735,
+   "graphed": true,
+   "measured_us": 134.30199772119522,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 121.575159,
+   "sim": {
+    "us": 121.575159,
+    "kernel_us": 121.02114217955845,
+    "kernels": [
+     {
+      "name": "selective_state_update_b256_h32_p64_n128",
+      "us": 121.02114217955845,
+      "tflops": 0.0,
+      "gbps": 2668.6420751245496,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "barrier": 0.0037756318861770243,
+     "lg_throttle": 0.0046458033532659326,
+     "long_scoreboard": 0.0005014441034145007,
+     "math_pipe_throttle": 0.006336013604852458,
+     "mio_throttle": 0.013521433660335891,
+     "selected": 0.9295375039618237,
+     "short_scoreboard": 0.006799659859372272,
+     "wait": 0.034882509570758204
+    }
+   },
+   "err_vs_measured": -0.09476283999598845,
+   "err_vs_ncu": null
+  },
+  "tp8_conv1d_update_b256": {
+   "kind": "conv1d_update",
+   "batch": 256,
+   "dim": 2304,
+   "width": 4,
+   "footprint_bytes": 4741632,
+   "copies": 32,
+   "us_median": 9.220500010997057,
+   "us_min": 9.096999652683735,
+   "graphed": true,
+   "measured_us": 9.220500010997057,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 5.811762,
+   "sim": {
+    "us": 5.811762,
+    "kernel_us": 5.257745654216873,
+    "kernels": [
+     {
+      "name": "causal_conv1d_update_b256_d2304_w4",
+      "us": 5.257745654216873,
+      "tflops": 0.0,
+      "gbps": 3145.4758536552504,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "lg_throttle": 8.771987535005713e-06,
+     "long_scoreboard": 0.29348506172695804,
+     "math_pipe_throttle": 0.00018842903993464193,
+     "selected": 0.10250809679753291,
+     "short_scoreboard": 0.14971842763472973,
+     "wait": 0.45409121281330966
+    }
+   },
+   "err_vs_measured": -0.36969123224679157,
+   "err_vs_ncu": null
+  },
+  "tp8_attn_decode_b256_ctx4096": {
+   "kind": "attn_decode",
+   "impl": "fa4",
+   "batch": 256,
+   "context": 4096,
+   "hq": 8,
+   "hkv": 1,
+   "d": 128,
+   "kv_bytes": 536870912,
+   "footprint_bytes": 537395200,
+   "copies": 1,
+   "us_median": 80.2944004535675,
+   "us_min": 80.0000011920929,
+   "graphed": true,
+   "measured_us": 80.2944004535675,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 89.508126,
+   "sim": {
+    "us": 89.508126,
+    "kernel_us": 88.4000925001107,
+    "kernels": [
+     {
+      "name": "sm100_fmha_decode_b256_hq8_hkv1_sq1_skv4096_d128",
+      "us": 87.0686813321984,
+      "tflops": 789.2559722342692,
+      "gbps": 6262.407006253356,
+      "tensor_util": 0.32029534068966486
+     },
+     {
+      "name": "elementwise",
+      "us": 1.3314111679123017,
+      "tflops": 0.0,
+      "gbps": 6300.539008662234,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.5117065558991001,
+     "branch_resolving": 0.002672121411401463,
+     "lg_throttle": 0.0014007869626867515,
+     "long_scoreboard": 0.006110930961410225,
+     "math_pipe_throttle": 0.157370525663631,
+     "selected": 0.1701980388744558,
+     "short_scoreboard": 0.03593322937110967,
+     "tensor_wait": 0.08441558631199317,
+     "tma_wait": 0.01901950342521855,
+     "wait": 0.011172721118993242
+    }
+   },
+   "err_vs_measured": 0.11474929128788491,
+   "err_vs_ncu": null
+  },
+  "tp8_attn_decode_b256_ctx16384": {
+   "kind": "attn_decode",
+   "impl": "fa4",
+   "batch": 256,
+   "context": 16384,
+   "hq": 8,
+   "hkv": 1,
+   "d": 128,
+   "kv_bytes": 2147483648,
+   "footprint_bytes": 2148007936,
+   "copies": 1,
+   "us_median": 305.13280630111694,
+   "us_min": 303.6479949951172,
+   "graphed": true,
+   "measured_us": 305.13280630111694,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 337.363156,
+   "sim": {
+    "us": 337.363156,
+    "kernel_us": 336.25512317767397,
+    "kernels": [
+     {
+      "name": "sm100_fmha_decode_b256_hq8_hkv1_sq1_skv16384_d128",
+      "us": 334.92420403162714,
+      "tflops": 820.7167581057925,
+      "gbps": 6436.8959604854945,
+      "tensor_util": 0.333062736165379
+     },
+     {
+      "name": "elementwise",
+      "us": 1.3309191460468504,
+      "tflops": 0.0,
+      "gbps": 6302.868228258781,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.5134623465598663,
+     "branch_resolving": 0.0027767894088435896,
+     "lg_throttle": 0.00036533376910240597,
+     "long_scoreboard": 0.0015909610855696155,
+     "math_pipe_throttle": 0.16417231667510476,
+     "selected": 0.17521338056143432,
+     "short_scoreboard": 0.03391423473251535,
+     "tensor_wait": 0.08159499988785023,
+     "tma_wait": 0.02011247537384402,
+     "wait": 0.006797161945869369
+    }
+   },
+   "err_vs_measured": 0.10562728436049218,
+   "err_vs_ncu": null
+  },
+  "tp8_attn_decode_b256_ctx65536": {
+   "kind": "attn_decode",
+   "impl": "fa4",
+   "batch": 256,
+   "context": 65536,
+   "hq": 8,
+   "hkv": 1,
+   "d": 128,
+   "kv_bytes": 8589934592,
+   "footprint_bytes": 8590458880,
+   "copies": 1,
+   "us_median": 1218.7439918518066,
+   "us_min": 1208.0448150634766,
+   "graphed": true,
+   "measured_us": 1218.7439918518066,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 1328.783279,
+   "sim": {
+    "us": 1328.783279,
+    "kernel_us": 1327.675245887927,
+    "kernels": [
+     {
+      "name": "sm100_fmha_decode_b256_hq8_hkv1_sq1_skv65536_d128",
+      "us": 1326.3443267418802,
+      "tflops": 828.979025738296,
+      "gbps": 6482.723246625926,
+      "tensor_util": 0.3364157241937501
+     },
+     {
+      "name": "elementwise",
+      "us": 1.3309191460468504,
+      "tflops": 0.0,
+      "gbps": 6302.868228258781,
+      "tensor_util": 0.0
+     }
+    ],
+    "sched": {
+     "async_wait": 0.5139332150426419,
+     "branch_resolving": 0.0028043837960610445,
+     "lg_throttle": 9.233111961160955e-05,
+     "long_scoreboard": 0.00040208497191500646,
+     "math_pipe_throttle": 0.16596553328727257,
+     "selected": 0.17653558351937568,
+     "short_scoreboard": 0.033381894080904265,
+     "tensor_wait": 0.08085133792482878,
+     "tma_wait": 0.0203909239459084,
+     "wait": 0.005642712311480783
+    }
+   },
+   "err_vs_measured": 0.09028909096896998,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mamba_in_proj_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 4384,
+   "k": 8192,
+   "footprint_bytes": 76021760,
+   "copies": 7,
+   "us_median": 18.694857401507242,
+   "us_min": 18.37714229311262,
+   "graphed": true,
+   "measured_us": 18.694857401507242,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 26.06043,
+   "sim": {
+    "us": 26.06043,
+    "kernel_us": 25.50641350501616,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_256x4384x8192_tile128x128_splitk2",
+      "us": 25.50641350501616,
+      "tflops": 736.6963574202472,
+      "gbps": 6557.090904493829,
+      "tensor_util": 0.2989656322989656
+     }
+    ],
+    "sched": {
+     "async_wait": 0.7022094922157214,
+     "branch_resolving": 0.0033200575924623266,
+     "lg_throttle": 0.050818686953345564,
+     "selected": 0.006394607916694421,
+     "short_scoreboard": 0.006343369071208088,
+     "tensor_wait": 0.06384125912874931,
+     "tma_wait": 0.1670725271218189
+    }
+   },
+   "err_vs_measured": 0.39398923673517405,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mamba_out_proj_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 8192,
+   "k": 2048,
+   "footprint_bytes": 34603008,
+   "copies": 16,
+   "us_median": 9.36400005593896,
+   "us_min": 9.325999766588211,
+   "graphed": true,
+   "measured_us": 9.36400005593896,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 10.379693,
+   "sim": {
+    "us": 10.379693,
+    "kernel_us": 9.825676653070461,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_256x8192x2048_tile128x128",
+      "us": 9.825676653070461,
+      "tflops": 874.2333882232631,
+      "gbps": 2667.9485724586884,
+      "tensor_util": 0.3547808198784663
+     }
+    ],
+    "sched": {
+     "async_wait": 0.673139002563181,
+     "branch_resolving": 0.0044474242742739345,
+     "lg_throttle": 0.06593749364290412,
+     "selected": 0.010415465881890244,
+     "short_scoreboard": 0.016789514012734534,
+     "tensor_wait": 0.10435713232252683,
+     "tma_wait": 0.12491396730248927
+    }
+   },
+   "err_vs_measured": 0.10846784899545736,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_attn_qkv_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 1280,
+   "k": 8192,
+   "footprint_bytes": 25165824,
+   "copies": 22,
+   "us_median": 11.629091067747638,
+   "us_min": 11.51272789998488,
+   "graphed": true,
+   "measured_us": 11.629091067747638,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 10.867287,
+   "sim": {
+    "us": 10.867287,
+    "kernel_us": 10.313270321733096,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_256x1280x8192_tile128x128_splitk7",
+      "us": 10.313270321733096,
+      "tflops": 540.8977119745051,
+      "gbps": 6216.320332930682,
+      "tensor_util": 0.21950675450031396
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6601866508440952,
+     "branch_resolving": 0.0027212061071879737,
+     "lg_throttle": 0.13631260521493002,
+     "selected": 0.00911224614413174,
+     "short_scoreboard": 0.017015023720113265,
+     "tensor_wait": 0.05601351306245688,
+     "tma_wait": 0.11863875490708493
+    }
+   },
+   "err_vs_measured": -0.06550847897824463,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_attn_o_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 8192,
+   "k": 1024,
+   "footprint_bytes": 17301504,
+   "copies": 31,
+   "us_median": 6.1491612465150896,
+   "us_min": 6.0830967080208564,
+   "graphed": true,
+   "measured_us": 6.1491612465150896,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 6.713146,
+   "sim": {
+    "us": 6.713146,
+    "kernel_us": 6.159129711724389,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_256x8192x1024_tile128x128",
+      "us": 6.159129711724389,
+      "tflops": 697.3334703154882,
+      "gbps": 2809.0825830579965,
+      "tensor_util": 0.2829914112866661
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6749480522243576,
+     "branch_resolving": 0.0038113356074521124,
+     "lg_throttle": 0.11033778464898905,
+     "selected": 0.012708588935301085,
+     "short_scoreboard": 0.02809505911054061,
+     "tensor_wait": 0.08219432368605814,
+     "tma_wait": 0.08790485578730134
+    }
+   },
+   "err_vs_measured": 0.09171734662260445,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mlp_gate_up_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 7168,
+   "k": 8192,
+   "footprint_bytes": 121634816,
+   "copies": 5,
+   "us_median": 27.646400034427643,
+   "us_min": 27.420800924301147,
+   "graphed": true,
+   "measured_us": 27.646400034427643,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 31.919426,
+   "sim": {
+    "us": 31.919426,
+    "kernel_us": 31.36540987881501,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_256x7168x8192_tile128x128",
+      "us": 31.36540987881501,
+      "tflops": 958.5327017297008,
+      "gbps": 2239.8748261680366,
+      "tensor_util": 0.38899111196281305
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6809421425546369,
+     "branch_resolving": 0.005187364631692434,
+     "lg_throttle": 0.019590459019351723,
+     "selected": 0.00812306980317011,
+     "short_scoreboard": 0.004988274016034026,
+     "tensor_wait": 0.12145876651311674,
+     "tma_wait": 0.159709923461998
+    }
+   },
+   "err_vs_measured": 0.1545599412672618,
+   "err_vs_ncu": null
+  },
+  "tp8_gemm_mlp_down_m256": {
+   "kind": "gemm",
+   "m": 256,
+   "n": 8192,
+   "k": 3584,
+   "footprint_bytes": 60555264,
+   "copies": 9,
+   "us_median": 14.736000034544203,
+   "us_min": 14.588443769348991,
+   "graphed": true,
+   "measured_us": 14.736000034544203,
+   "ncu_us": null,
+   "ncu_kernels": [],
+   "sim_us": 15.796362,
+   "sim": {
+    "us": 15.796362,
+    "kernel_us": 15.242345369828234,
+    "kernels": [
+     {
+      "name": "sm100_gemm_bf16_256x8192x3584_tile128x128",
+      "us": 15.242345369828234,
+      "tflops": 986.2252278941373,
+      "gbps": 2596.9588694896547,
+      "tensor_util": 0.40022927475718073
+     }
+    ],
+    "sched": {
+     "async_wait": 0.6704618076234867,
+     "branch_resolving": 0.0048198252569614025,
+     "lg_throttle": 0.04127405634912529,
+     "selected": 0.00916823958392746,
+     "short_scoreboard": 0.010509519078613144,
+     "tensor_wait": 0.1181179508878416,
+     "tma_wait": 0.1456486012200444
+    }
+   },
+   "err_vs_measured": 0.07195724504411594,
+   "err_vs_ncu": null
+  }
+ }
+}

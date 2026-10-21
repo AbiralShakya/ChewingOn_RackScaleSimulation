@@ -1,0 +1,8 @@
+# One B300 board (HGX topology, only GPU0 is used by single-GPU validation),
+# SM model driven by the measured B300 calibration.
+preset: hgx_b200_8
+name: B300 SXM6 (calibrated)
+gpus:
+  - preset: b300
+    count: 8
+    calibration: calibration/results/b300-sxm6-ac-sm103/calibration.json

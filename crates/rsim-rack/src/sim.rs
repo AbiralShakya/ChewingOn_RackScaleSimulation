@@ -7,7 +7,7 @@ use rsim_core::pdes::{self, Envelope, LogicalProcess, PdesStats};
 use rsim_core::queue::EventQueue;
 use rsim_core::trace::TraceSink;
 use rsim_core::{Clock, Time};
-use rsim_gpu::{synth, Gpu, GpuConfig, KernelDone, KernelLaunch};
+use rsim_gpu::{synth, synth_ssm, Gpu, GpuConfig, KernelDone, KernelLaunch};
 use rsim_hw::{GpuSpec, System};
 use rsim_net::{CollKind, Collective, NetConfig, NetEngine};
 use serde::{Deserialize, Serialize};
@@ -567,6 +567,53 @@ impl KernelCache {
                 cols,
                 elem_bytes,
             } => synth::row_norm("row_norm", *rows, *cols, *elem_bytes),
+            KernelSpec::Conv1d {
+                batch,
+                dim,
+                seqlen,
+                width,
+            } => synth_ssm::conv1d(g, *batch, *dim, *seqlen, *width),
+            KernelSpec::SsmStateUpdate {
+                batch,
+                heads,
+                headdim,
+                d_state,
+                groups,
+                state_bytes,
+                block_m,
+            } => synth_ssm::ssm_state_update_tiled(
+                g,
+                *batch,
+                *heads,
+                *headdim,
+                *d_state,
+                *groups,
+                *state_bytes,
+                *block_m,
+            ),
+            KernelSpec::Ssd {
+                stage,
+                batch,
+                seqlen,
+                heads,
+                headdim,
+                d_state,
+                groups,
+                chunk,
+            } => synth_ssm::ssd(
+                g,
+                stage,
+                synth_ssm::SsdShape {
+                    batch: *batch,
+                    seqlen: *seqlen,
+                    heads: *heads,
+                    headdim: *headdim,
+                    d_state: *d_state,
+                    groups: *groups,
+                    chunk: *chunk,
+                },
+                None,
+            ),
             KernelSpec::Sass {
                 path,
                 kernel,
