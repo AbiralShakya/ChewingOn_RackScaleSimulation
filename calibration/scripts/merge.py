@@ -150,6 +150,14 @@ def model_ampere(raw):
                for k, v in o["mix"].items()},
         }
         m["warp_collectives_cycles"] = o["collectives"]
+        # FP32-pipe cycles each HMMA takes from FFMA/FMUL issued in the same
+        # warps: (t_mix - t_fp32_alone) / n_hmma on points where the FP32 stream
+        # is the longer one, median across FFMA and FMUL.
+        k = sorted((p["cycles"] - p["cycles_other_alone"]) / p["hmma"]
+                   for kind in ("ffma", "fmul") for p in o["mix"][kind]["points"]
+                   if p["cycles_other_alone"] >= p["cycles_hmma_alone"])
+        if k:
+            m["mma_sync_fp32_pipe_cycles"] = k[len(k) // 2]
     return m
 
 
@@ -219,7 +227,10 @@ def main(outdir):
     model["tensor"] = model_tc(raw)
     if "tma" in raw and "bulk_g2s_latency" in raw["tma"]:
         model["tma"] = {"bulk_g2s_latency": raw["tma"]["bulk_g2s_latency"], "bulk_g2s_bandwidth": raw["tma"]["bulk_g2s_bandwidth"]}
-    model.update(model_ampere(raw))
+    amp = model_ampere(raw)
+    if "mma_sync_fp32_pipe_cycles" in amp:
+        model["tensor"]["mma_sync_fp32_pipe_cycles"] = amp.pop("mma_sync_fp32_pipe_cycles")
+    model.update(amp)
     if "misc" in raw:
         model["launch"] = raw["misc"]["launch"]
         model["syncthreads_cycles"] = raw["misc"]["syncthreads_cycles"]

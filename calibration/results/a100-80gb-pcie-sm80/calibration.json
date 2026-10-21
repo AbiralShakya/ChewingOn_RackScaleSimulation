@@ -1,7 +1,7 @@
 {
  "schema": "rackscale-calibration/v1",
- "generated_utc": "2026-10-21T00:58:06+00:00",
- "driver": "610.57.04",
+ "generated_utc": "2026-10-21T01:07:57+00:00",
+ "driver": null,
  "missing_benches": [
   "tma"
  ],
@@ -566,7 +566,8 @@
     "latency_cycles": 24.0234,
     "warp_mma_per_clk_per_sm": 0.495258,
     "flop_per_clk_per_sm": 4057.15
-   }
+   },
+   "mma_sync_fp32_pipe_cycles": 3.8503250000000016
   },
   "async_copy": {
    "latency_cycles": {
@@ -834,6 +835,151 @@
    },
    "best_single_address_bit": 13,
    "best_single_bit_accuracy": 0.742676
+  },
+  "hmma_coissue": {
+   "hmma4_alone_cycles": 33.6118,
+   "hmma8_alone_cycles": 65.625,
+   "ex2": {
+    "h4_o4": {
+     "cycles": 41.8145,
+     "overlap": 0.749089
+    },
+    "h4_o8": {
+     "cycles": 74.3198,
+     "overlap": 0.713366
+    },
+    "h4_o16": {
+     "cycles": 132.476,
+     "overlap": 0.886834
+    },
+    "h4_o32": {
+     "cycles": 261.406,
+     "overlap": 0.861528
+    },
+    "h8_o4": {
+     "cycles": 66.3423,
+     "overlap": 0.978059
+    },
+    "h8_o8": {
+     "cycles": 71.7832,
+     "overlap": 0.904798
+    },
+    "h8_o16": {
+     "cycles": 136.824,
+     "overlap": 0.875774
+    },
+    "h8_o32": {
+     "cycles": 266.5,
+     "overlap": 0.851458
+    }
+   },
+   "ffma": {
+    "h4_o4": {
+     "cycles": 38.7417,
+     "overlap": 0.41412
+    },
+    "h4_o8": {
+     "cycles": 40.2236,
+     "overlap": 0.604458
+    },
+    "h4_o16": {
+     "cycles": 47.5571,
+     "overlap": 0.573693
+    },
+    "h4_o32": {
+     "cycles": 80.1191,
+     "overlap": 0.541787
+    },
+    "h8_o4": {
+     "cycles": 71.1592,
+     "overlap": 0.367946
+    },
+    "h8_o8": {
+     "cycles": 72.7139,
+     "overlap": 0.575919
+    },
+    "h8_o16": {
+     "cycles": 79.3262,
+     "overlap": 0.581157
+    },
+    "h8_o32": {
+     "cycles": 98.3193,
+     "overlap": 0.494817
+    }
+   },
+   "fmul": {
+    "h4_o4": {
+     "cycles": 35.9717,
+     "overlap": 0.730482
+    },
+    "h4_o8": {
+     "cycles": 40.2227,
+     "overlap": 0.604551
+    },
+    "h4_o16": {
+     "cycles": 47.5596,
+     "overlap": 0.573619
+    },
+    "h4_o32": {
+     "cycles": 80.1191,
+     "overlap": 0.541874
+    },
+    "h8_o4": {
+     "cycles": 68.2939,
+     "overlap": 0.695182
+    },
+    "h8_o8": {
+     "cycles": 71.2764,
+     "overlap": 0.661945
+    },
+    "h8_o16": {
+     "cycles": 79.314,
+     "overlap": 0.58153
+    },
+    "h8_o32": {
+     "cycles": 98.3174,
+     "overlap": 0.49487
+    }
+   },
+   "ldsm_x4": {
+    "h4_o4": {
+     "cycles": 66.8936,
+     "overlap": 0.938376
+    },
+    "h4_o8": {
+     "cycles": 130.488,
+     "overlap": 0.951974
+    },
+    "h4_o16": {
+     "cycles": 258.439,
+     "overlap": 0.953455
+    },
+    "h4_o32": {
+     "cycles": 514.486,
+     "overlap": 0.954443
+    },
+    "h8_o4": {
+     "cycles": 87.1445,
+     "overlap": 0.668023
+    },
+    "h8_o8": {
+     "cycles": 131.857,
+     "overlap": 0.954539
+    },
+    "h8_o16": {
+     "cycles": 259.326,
+     "overlap": 0.962656
+    },
+    "h8_o32": {
+     "cycles": 515.434,
+     "overlap": 0.962225
+    }
+   }
+  },
+  "warp_collectives_cycles": {
+   "shfl_up_inclusive_scan32_cycles": 171.521,
+   "shfl_xor_max_allreduce32_cycles": 151.5,
+   "redux_sync_add_u32_cycles": 48.2448
   },
   "launch": {
    "sync_roundtrip_us": 6.19436,
@@ -6078,6 +6224,303 @@
      "throughput_inst_per_clk_per_sm": 0.24831,
      "best_warps": 32
     }
+   }
+  },
+  "overlap": {
+   "bench": "overlap",
+   "device": {
+    "name": "NVIDIA A100 80GB PCIe",
+    "cc_major": 8,
+    "cc_minor": 0,
+    "sm_count": 108,
+    "clock_khz_reported": 1410000
+   },
+   "sm_clock_mhz_measured": 1394.99,
+   "warps_per_sm": 32,
+   "hmma4_alone_cycles": 33.6118,
+   "hmma8_alone_cycles": 65.625,
+   "mix": {
+    "ex2": {
+     "sass": "MUFU.EX2",
+     "points": [
+      {
+       "hmma": 4,
+       "other": 4,
+       "cycles": 41.8145,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 32.6914,
+       "overlap": 0.749089
+      },
+      {
+       "hmma": 4,
+       "other": 8,
+       "cycles": 74.3198,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 64.6855,
+       "overlap": 0.713366
+      },
+      {
+       "hmma": 4,
+       "other": 16,
+       "cycles": 132.476,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 128.672,
+       "overlap": 0.886834
+      },
+      {
+       "hmma": 4,
+       "other": 32,
+       "cycles": 261.406,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 256.752,
+       "overlap": 0.861528
+      },
+      {
+       "hmma": 8,
+       "other": 4,
+       "cycles": 66.3423,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 32.6914,
+       "overlap": 0.978059
+      },
+      {
+       "hmma": 8,
+       "other": 8,
+       "cycles": 71.7832,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 64.6855,
+       "overlap": 0.904798
+      },
+      {
+       "hmma": 8,
+       "other": 16,
+       "cycles": 136.824,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 128.672,
+       "overlap": 0.875774
+      },
+      {
+       "hmma": 8,
+       "other": 32,
+       "cycles": 266.5,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 256.752,
+       "overlap": 0.851458
+      }
+     ]
+    },
+    "ffma": {
+     "sass": "FFMA",
+     "points": [
+      {
+       "hmma": 4,
+       "other": 4,
+       "cycles": 38.7417,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 8.75586,
+       "overlap": 0.41412
+      },
+      {
+       "hmma": 4,
+       "other": 8,
+       "cycles": 40.2236,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 16.7158,
+       "overlap": 0.604458
+      },
+      {
+       "hmma": 4,
+       "other": 16,
+       "cycles": 47.5571,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 32.7119,
+       "overlap": 0.573693
+      },
+      {
+       "hmma": 4,
+       "other": 32,
+       "cycles": 80.1191,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 64.7178,
+       "overlap": 0.541787
+      },
+      {
+       "hmma": 8,
+       "other": 4,
+       "cycles": 71.1592,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 8.75586,
+       "overlap": 0.367946
+      },
+      {
+       "hmma": 8,
+       "other": 8,
+       "cycles": 72.7139,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 16.7158,
+       "overlap": 0.575919
+      },
+      {
+       "hmma": 8,
+       "other": 16,
+       "cycles": 79.3262,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 32.7119,
+       "overlap": 0.581157
+      },
+      {
+       "hmma": 8,
+       "other": 32,
+       "cycles": 98.3193,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 64.7178,
+       "overlap": 0.494817
+      }
+     ]
+    },
+    "fmul": {
+     "sass": "FMUL",
+     "points": [
+      {
+       "hmma": 4,
+       "other": 4,
+       "cycles": 35.9717,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 8.75586,
+       "overlap": 0.730482
+      },
+      {
+       "hmma": 4,
+       "other": 8,
+       "cycles": 40.2227,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 16.7173,
+       "overlap": 0.604551
+      },
+      {
+       "hmma": 4,
+       "other": 16,
+       "cycles": 47.5596,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 32.7119,
+       "overlap": 0.573619
+      },
+      {
+       "hmma": 4,
+       "other": 32,
+       "cycles": 80.1191,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 64.7207,
+       "overlap": 0.541874
+      },
+      {
+       "hmma": 8,
+       "other": 4,
+       "cycles": 68.2939,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 8.75586,
+       "overlap": 0.695182
+      },
+      {
+       "hmma": 8,
+       "other": 8,
+       "cycles": 71.2764,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 16.7173,
+       "overlap": 0.661945
+      },
+      {
+       "hmma": 8,
+       "other": 16,
+       "cycles": 79.314,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 32.7119,
+       "overlap": 0.58153
+      },
+      {
+       "hmma": 8,
+       "other": 32,
+       "cycles": 98.3174,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 64.7207,
+       "overlap": 0.49487
+      }
+     ]
+    },
+    "ldsm_x4": {
+     "sass": "LDSM.16.M88.4",
+     "points": [
+      {
+       "hmma": 4,
+       "other": 4,
+       "cycles": 66.8936,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 64.8223,
+       "overlap": 0.938376
+      },
+      {
+       "hmma": 4,
+       "other": 8,
+       "cycles": 130.488,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 128.874,
+       "overlap": 0.951974
+      },
+      {
+       "hmma": 4,
+       "other": 16,
+       "cycles": 258.439,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 256.875,
+       "overlap": 0.953455
+      },
+      {
+       "hmma": 4,
+       "other": 32,
+       "cycles": 514.486,
+       "cycles_hmma_alone": 33.6118,
+       "cycles_other_alone": 512.955,
+       "overlap": 0.954443
+      },
+      {
+       "hmma": 8,
+       "other": 4,
+       "cycles": 87.1445,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 64.8223,
+       "overlap": 0.668023
+      },
+      {
+       "hmma": 8,
+       "other": 8,
+       "cycles": 131.857,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 128.874,
+       "overlap": 0.954539
+      },
+      {
+       "hmma": 8,
+       "other": 16,
+       "cycles": 259.326,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 256.875,
+       "overlap": 0.962656
+      },
+      {
+       "hmma": 8,
+       "other": 32,
+       "cycles": 515.434,
+       "cycles_hmma_alone": 65.625,
+       "cycles_other_alone": 512.955,
+       "overlap": 0.962225
+      }
+     ]
+    }
+   },
+   "collectives": {
+    "shfl_up_inclusive_scan32_cycles": 171.521,
+    "shfl_xor_max_allreduce32_cycles": 151.5,
+    "redux_sync_add_u32_cycles": 48.2448
    }
   },
   "tc_mma_sync": {
