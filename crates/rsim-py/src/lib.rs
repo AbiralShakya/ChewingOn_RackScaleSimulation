@@ -86,7 +86,15 @@ fn kernel(py: Python<'_>, gpu: &str, kind: &str, dims: Vec<u64>, dtype: &str) ->
     let ghz = g.sm_clock_mhz / 1000.0;
     let (flops, bytes) = (k.flops, k.bytes);
     let done = py.allow_threads(move || {
-        let mut gpu = rsim_gpu::Gpu::new(0, g, rsim_gpu::GpuConfig::default(), false);
+        let mut gpu = rsim_gpu::Gpu::new(
+            0,
+            g,
+            rsim_gpu::GpuConfig {
+                kernel_window: true,
+                ..Default::default()
+            },
+            false,
+        );
         gpu.submit(Arc::new(k), 0, 0);
         let mut out = vec![];
         gpu.advance(u64::MAX / 2, &mut out);
