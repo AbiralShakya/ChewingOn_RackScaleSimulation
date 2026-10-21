@@ -1,8 +1,9 @@
 //! Kernel launches and where their instruction streams come from.
 
 use rsim_sass::accelsim::TraceKernel;
+use rsim_sass::path::PathStream;
 use rsim_sass::walker::{Annotations, DynOp};
-use rsim_sass::{BranchProfile, Inst, Program, Walker};
+use rsim_sass::{BranchProfile, Inst, PathKernel, Program, Walker};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Range;
@@ -68,6 +69,8 @@ pub enum KernelSource {
     },
     /// Dynamic per-warp trace (exact control flow and addresses).
     Trace(Arc<TraceKernel>),
+    /// Per-warp paths recorded with NVBit, with mbarrier operands.
+    Path(Arc<PathKernel>),
 }
 
 #[derive(Clone, Debug)]
@@ -108,6 +111,21 @@ impl KernelLaunch {
             source: KernelSource::Trace(Arc::new(t)),
             flops: 0.0,
             bytes: 0.0,
+        }
+    }
+
+    pub fn from_path(p: PathKernel) -> Self {
+        let h = &p.header;
+        Self {
+            name: h.kernel.clone(),
+            grid: h.grid,
+            block: h.block,
+            regs_per_thread: h.regs.max(16),
+            smem_per_cta: h.smem,
+            cluster: h.cluster.iter().product::<u32>().max(1),
+            flops: h.flops,
+            bytes: h.bytes,
+            source: KernelSource::Path(Arc::new(p)),
         }
     }
 
@@ -158,6 +176,7 @@ impl KernelLaunch {
                 );
                 (Box::new(w), Some(ri))
             }
+            KernelSource::Path(p) => (Box::new(p.stream(cta, warp)), None),
             KernelSource::Trace(t) => {
                 let ops = t
                     .warps
@@ -185,6 +204,12 @@ impl InstStream for Walker {
     }
 }
 
+impl InstStream for PathStream {
+    fn next_op(&mut self) -> Option<DynOp> {
+        PathStream::next_op(self)
+    }
+}
+
 struct TraceStream {
     ops: std::vec::IntoIter<rsim_sass::accelsim::DynInst>,
 }
@@ -196,6 +221,8 @@ impl InstStream for TraceStream {
             active: d.mask,
             addrs: d.addrs,
             payload: 0,
+            mbar: None,
+            run_bytes: 0,
         })
     }
 }

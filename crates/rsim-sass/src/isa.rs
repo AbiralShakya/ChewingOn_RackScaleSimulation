@@ -124,6 +124,10 @@ impl OpClass {
 
 pub fn classify(opcode: &str) -> OpClass {
     use OpClass::*;
+    // `BAR.LE SBn, k` waits on a scoreboard counter (like DEPBAR), it is not a CTA barrier.
+    if opcode.starts_with("BAR.LE") {
+        return DepBar;
+    }
     let base = opcode.split('.').next().unwrap_or(opcode);
     match base {
         "IADD3" | "IADD" | "IABS" | "IMNMX" | "VIMNMX" | "VIADD" | "LOP3" | "LOP" | "SHF"

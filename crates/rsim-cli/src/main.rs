@@ -5,6 +5,7 @@
 //! rsim system  configs/gb200_nvl72.yaml          # print resolved topology summary
 //! rsim kernel  --gpu h100_sxm gemm 8192 8192 8192
 //! rsim sass    kernel.sass --grid 1024 --block 256 --gpu b200
+//! rsim path    fa4.rpath --gpu b300 --calibration calibration.json   # NVBit-recorded kernel
 //! rsim run     --system configs/gb200_nvl72.yaml --workload wl.json \
 //!              --trace trace.json --report report.json
 //! ```
@@ -73,6 +74,21 @@ enum Cmd {
         /// Only print the parsed program (classes, control bits).
         #[arg(long)]
         inspect: bool,
+    },
+    /// Simulate a kernel recorded on hardware with the NVBit warp_path tool
+    /// (exact per-warp paths, mbarrier/TMA/UMMA operands; see research/flash_attention).
+    Path {
+        path: PathBuf,
+        #[arg(long, default_value = "b300")]
+        gpu: String,
+        /// rackscale-calibration/v1 JSON measured on the target GPU.
+        #[arg(long)]
+        calibration: Option<PathBuf>,
+        /// Override registers per thread (NVBit reports 0 for some JIT kernels).
+        #[arg(long)]
+        regs: Option<u32>,
+        #[arg(long)]
+        json: bool,
     },
     /// Run a workload on a system.
     Run {
@@ -290,6 +306,29 @@ fn main() -> Result<()> {
                     );
                 }
             }
+        }
+        Cmd::Path {
+            path,
+            gpu,
+            calibration,
+            regs,
+            json,
+        } => {
+            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            if let Some(c) = &calibration {
+                let took = rsim_hw::calibration::apply_file(&mut g, c)
+                    .map_err(|e| anyhow::anyhow!("calibration {}: {e}", c.display()))?;
+                if !json {
+                    eprintln!("calibration: {}", took.join(", "));
+                }
+            }
+            let p = rsim_sass::PathKernel::from_file(&path.to_string_lossy())
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            let mut k = KernelLaunch::from_path(p);
+            if let Some(r) = regs {
+                k.regs_per_thread = r;
+            }
+            run_kernel(g, k, json)?;
         }
         Cmd::Sass {
             path,

@@ -605,6 +605,15 @@ impl KernelCache {
                     .map_err(|e| SimError::Workload(format!("{path}: {e}")))?;
                 KernelLaunch::from_trace(t)
             }
+            KernelSpec::Path { path, regs } => {
+                let p = rsim_sass::PathKernel::from_file(&self.path(path).to_string_lossy())
+                    .map_err(|e| SimError::Workload(format!("{path}: {e}")))?;
+                let mut k = KernelLaunch::from_path(p);
+                if let Some(r) = regs {
+                    k.regs_per_thread = *r;
+                }
+                k
+            }
             KernelSpec::Fixed { .. } | KernelSpec::Ref { .. } => unreachable!(),
         })
     }
