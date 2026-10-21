@@ -167,7 +167,8 @@ impl Sm {
             used_ctas: 0,
             reserved: false,
             mio: Server::new(lsu_rate),
-            smem_srv: Server::new(1.0),
+            // One 32-bank wavefront (128 B) per cycle at the default 128 B/clk.
+            smem_srv: Server::new((spec.pipes.l1_bytes_per_cycle.max(1) as f64) / 128.0),
             tma: Server::new(spec.tma.bytes_per_cycle),
             tensor_tail: 0,
             l1,
