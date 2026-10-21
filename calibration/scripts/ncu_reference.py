@@ -89,6 +89,8 @@ def run_ncu(binary, args, regex, skip, count):
     # template arguments included; the launch is then picked by index.
     cmd = ["ncu", "--clock-control", "none", "--csv", "--page", "raw", "--kernel-name-base", "demangled", "--kernel-name", f"regex:{name_regex(regex)}",
            "--launch-skip", str(skip), "--launch-count", str(count), "--metrics", ",".join(METRICS), binary] + args
+    if os.environ.get("GPU_LOCK"):  # shared GPU: hold the lock per profiled run
+        cmd = ["flock", os.environ["GPU_LOCK"]] + cmd
     p = subprocess.run(cmd, capture_output=True, text=True)
     text = p.stdout
     start = text.find('"ID"')
