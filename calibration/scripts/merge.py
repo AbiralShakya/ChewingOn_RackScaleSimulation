@@ -82,7 +82,7 @@ def model_mem(mem):
         "l2_hit_first_touch": med(l2f),
         "dram": med(dram),
         "smem": mem["smem"]["ld_shared_latency_cycles"],
-        "dsmem_remote": mem["smem"]["dsmem_remote_latency_cycles"],
+        "dsmem_remote": mem["smem"].get("dsmem_remote_latency_cycles"),
     }
     d = mem.get("l2_hit_latency_distribution", {})
     m["l2_partitions"] = {k: d.get(k) for k in ("near_mean_cycles", "far_mean_cycles", "far_fraction", "split_threshold_cycles")}
@@ -105,6 +105,60 @@ def model_tc(raw):
         if k.startswith("tc_"):
             out.update(v.get("tc", {}))
     return out
+
+
+def model_ampere(raw):
+    """sm_80+ async copy, warp MMA sweep and L2 partition map (bench_cpasync,
+    bench_mma_sync, bench_l2part, bench_overlap)."""
+    m = {}
+    if "cpasync" in raw:
+        c = raw["cpasync"]
+        lat = c["latency"]
+        m["async_copy"] = {
+            "latency_cycles": {lvl: {k: v["hop_cycles"] for k, v in lat[lvl].items() if isinstance(v, dict)}
+                               for lvl in ("l2", "dram")},
+            "lds_hop_cycles": lat["lds_hop_cycles"],
+            "bandwidth_GBps": {lvl: {k: v["best_gbps"] for k, v in c["bandwidth"][lvl].items() if isinstance(v, dict)}
+                               for lvl in ("l2", "dram")},
+        }
+    if "mma_sync" in raw:
+        ms = raw["mma_sync"]
+        m["warp_mma"] = {
+            k: {"shape": v["shape"], "latency_cycles": v["latency_cycles"],
+                "flop_per_clk_per_sm": v["throughput_flops_per_clk_per_sm"],
+                "issue_interval_cycles_per_smsp": v["issue_interval_cycles_per_smsp"],
+                "saturating_warps": v["best_warps"], "saturating_ilp": v["best_ilp"]}
+            for k, v in ms["mma"].items()}
+        ld = ms["ldmatrix"]
+        m["ldmatrix"] = {"latency_cycles_x1": ld["latency_cycles_x1"],
+                         **{k: v["throughput_bytes_per_clk_per_sm"] for k, v in ld.items() if k.startswith("ldmatrix_x")}}
+    if "l2part" in raw:
+        l2 = raw["l2part"]
+        m["l2_partition_map"] = {
+            "near_cycles": l2["cluster_near_cycles"], "far_cycles": l2["cluster_far_cycles"],
+            "sm_side": {str(r["smid"]): r["side"] for r in l2["sm"]},
+            "best_single_address_bit": l2["best_single_address_bit"],
+            "best_single_bit_accuracy": l2["best_single_bit_accuracy"],
+        }
+    if "overlap" in raw:
+        o = raw["overlap"]
+        # Per other-kind: cycles per warp-iteration per SMSP for (hmma, other) mixes,
+        # plus the overlap factor (1 = hidden behind HMMA, 0 = serialized).
+        m["hmma_coissue"] = {
+            "hmma4_alone_cycles": o["hmma4_alone_cycles"], "hmma8_alone_cycles": o["hmma8_alone_cycles"],
+            **{k: {f"h{p['hmma']}_o{p['other']}": {"cycles": p["cycles"], "overlap": p["overlap"]} for p in v["points"]}
+               for k, v in o["mix"].items()},
+        }
+        m["warp_collectives_cycles"] = o["collectives"]
+        # FP32-pipe cycles each HMMA takes from FFMA/FMUL issued in the same
+        # warps: (t_mix - t_fp32_alone) / n_hmma on points where the FP32 stream
+        # is the longer one, median across FFMA and FMUL.
+        k = sorted((p["cycles"] - p["cycles_other_alone"]) / p["hmma"]
+                   for kind in ("ffma", "fmul") for p in o["mix"][kind]["points"]
+                   if p["cycles_other_alone"] >= p["cycles_hmma_alone"])
+        if k:
+            m["mma_sync_fp32_pipe_cycles"] = k[len(k) // 2]
+    return m
 
 
 def model_power(outdir):
@@ -173,6 +227,10 @@ def main(outdir):
     model["tensor"] = model_tc(raw)
     if "tma" in raw and "bulk_g2s_latency" in raw["tma"]:
         model["tma"] = {"bulk_g2s_latency": raw["tma"]["bulk_g2s_latency"], "bulk_g2s_bandwidth": raw["tma"]["bulk_g2s_bandwidth"]}
+    amp = model_ampere(raw)
+    if "mma_sync_fp32_pipe_cycles" in amp:
+        model["tensor"]["mma_sync_fp32_pipe_cycles"] = amp.pop("mma_sync_fp32_pipe_cycles")
+    model.update(amp)
     if "misc" in raw:
         model["launch"] = raw["misc"]["launch"]
         model["syncthreads_cycles"] = raw["misc"]["syncthreads_cycles"]

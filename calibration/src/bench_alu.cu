@@ -33,8 +33,10 @@ DEF_OP(OpFADD,   "FADD",   float,    "f", "add.f32 %0, %0, %1;")
 DEF_OP(OpFMUL,   "FMUL",   float,    "f", "mul.f32 %0, %0, %1;")
 DEF_OP(OpFFMA,   "FFMA",   float,    "f", "fma.rn.f32 %0, %0, %1, %2;")
 DEF_OP(OpFMNMX,  "FMNMX,FMNMX3", float,    "f", "max.f32 %0, %0, %1;")
+#if CAL_SM >= 100  // f32x2 packed FP32 is sm_100+
 DEF_OP(OpFFMA2,  "FFMA2",  uint64_t, "l", "fma.rn.f32x2 %0, %0, %1, %2;")
 DEF_OP(OpFADD2,  "FADD2",  uint64_t, "l", "add.rn.f32x2 %0, %0, %1;")
+#endif
 DEF_OP(OpHFMA2,  "HFMA2",  uint32_t, "r", "fma.rn.f16x2 %0, %0, %1, %2;")
 DEF_OP(OpHFMA2BF,"HFMA2",  uint32_t, "r", "fma.rn.bf16x2 %0, %0, %1, %2;")
 DEF_OP(OpHADD2,  "HADD2,HFMA2", uint32_t, "r", "add.rn.f16x2 %0, %0, %1;")
@@ -159,7 +161,7 @@ void run_op(Json& j, const DeviceInfo& d, size_t one_cta_smem) {
   CK(cudaFuncSetAttribute(thr_kernel<Op>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)one_cta_smem));
   std::vector<double> per_sm;
   for (int r = 0; r < 3; ++r) {
-    thr_kernel<Op><<<d.sm_count, 1024, one_cta_smem>>>(io, titers, cyc);
+    thr_kernel<Op><<<cal_grid(d.sm_count), 1024, one_cta_smem>>>(io, titers, cyc);
     CK(cudaDeviceSynchronize());
     std::vector<uint64_t> hc(2 * d.sm_count);
     CK(cudaMemcpy(hc.data(), cyc, hc.size() * 8, cudaMemcpyDeviceToHost));
@@ -204,8 +206,10 @@ int main() {
   run_op<OpFMUL>(j, d, one_cta_smem);
   run_op<OpFFMA>(j, d, one_cta_smem);
   run_op<OpFMNMX>(j, d, one_cta_smem);
+#if CAL_SM >= 100
   run_op<OpFFMA2>(j, d, one_cta_smem);
   run_op<OpFADD2>(j, d, one_cta_smem);
+#endif
   run_op<OpHFMA2>(j, d, one_cta_smem);
   run_op<OpHFMA2BF>(j, d, one_cta_smem);
   run_op<OpHADD2>(j, d, one_cta_smem);

@@ -12,10 +12,14 @@ export PATH="${CUDA_HOME:-/usr/local/cuda}/bin:$PATH"
 
 gpu_index="${CUDA_VISIBLE_DEVICES:-0}"
 gpu_index="${gpu_index%%,*}"
+# A MIG UUID is not a valid `nvidia-smi -i`; inside the job only the parent GPU is visible.
+[[ $gpu_index == MIG-* ]] && gpu_index=0
 name=$(nvidia-smi --query-gpu=name --format=csv,noheader -i "$gpu_index" | head -1)
 cc=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader -i "$gpu_index" | head -1 | tr -d '.')
 slug=$(echo "$name" | sed 's/NVIDIA //; s/[^A-Za-z0-9]\+/-/g; s/-$//' | tr 'A-Z' 'a-z')
-out="results/${slug}-sm${cc}"
+# A MIG slice reports the parent GPU's name; tag the profile (e.g. -mig-3g-40gb).
+mig=$(nvidia-smi -L | grep -oE 'MIG [0-9]+g\.[0-9]+gb' | head -1 | tr 'A-Z' 'a-z' | tr ' .' '--')
+out="results/${slug}-sm${cc}${mig:+-$mig}"
 mkdir -p "$out/raw"
 echo "GPU $gpu_index: $name (sm_$cc) -> $out"
 
@@ -36,9 +40,14 @@ run() {
 run alu ./build/bench_alu && python3 scripts/sass_check.py build/bench_alu build/bench_alu.ptx "$out/raw/alu.json" 2>>"$out/raw/alu.log"
 run mem ./build/bench_mem
 run misc ./build/bench_misc
-run tma ./build/bench_tma
+# Arch-specific benches: the Makefile builds them only where the feature exists.
+[ -x build/bench_tma ] && run tma ./build/bench_tma
 for c in $(./build/bench_tc --list); do
   run "tc_$c" ./build/bench_tc "$c"
+done
+
+for b in mma_sync cpasync l2part overlap; do
+  [ -x "build/bench_$b" ] && run "$b" "./build/bench_$b"
 done
 
 python3 scripts/merge.py "$out"

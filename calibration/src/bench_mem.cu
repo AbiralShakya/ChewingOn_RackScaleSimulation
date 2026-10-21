@@ -345,6 +345,7 @@ __global__ void smem_bw128_kernel(int iters, uint64_t* out, uint32_t* sink) {
   if (threadIdx.x == 0) out[blockIdx.x] = span;
 }
 
+#if CAL_SM >= 90  // thread block clusters / DSMEM are sm_90+
 __global__ void __cluster_dims__(2, 1, 1) dsmem_chase_kernel(int hops, uint64_t* out, uint32_t* sink) {
   __shared__ uint32_t s[1024];
   cg::cluster_group cl = cg::this_cluster();
@@ -370,6 +371,7 @@ __global__ void __cluster_dims__(2, 1, 1) dsmem_chase_kernel(int hops, uint64_t*
   }
   cl.sync();
 }
+#endif
 
 void run_smem(Json& j, const DeviceInfo& d) {
   uint64_t* out;
@@ -409,7 +411,7 @@ void run_smem(Json& j, const DeviceInfo& d) {
   j.key("bank_conflict_sweep");
   j.arr();
   for (int stride : {1, 2, 4, 8, 16, 32, 33}) {
-    double span = per_sm_span([&] { smem_bw_kernel<<<d.sm_count, threads, smem>>>(iters, stride, out, sink); });
+    double span = per_sm_span([&] { smem_bw_kernel<<<cal_grid(d.sm_count), threads, smem>>>(iters, stride, out, sink); });
     double warp_loads = (threads / 32.0) * iters * 16;
     j.obj();
     j.kvi("stride_words", stride);
@@ -424,6 +426,7 @@ void run_smem(Json& j, const DeviceInfo& d) {
   j.kv("ld_shared_v4_bytes_per_clk_per_sm", bytes / span);
   fprintf(stderr, "smem v4 bw %.1f B/clk/SM\n", bytes / span);
 
+#if CAL_SM >= 90
   // DSMEM
   int hops = 2048;
   std::vector<double> rem, loc;
@@ -438,6 +441,9 @@ void run_smem(Json& j, const DeviceInfo& d) {
   j.kv("dsmem_remote_latency_cycles", vmin(rem));
   j.kv("dsmem_local_generic_latency_cycles", vmin(loc));
   fprintf(stderr, "smem lat %.1f  dsmem remote %.1f local-generic %.1f\n", l2, vmin(rem), vmin(loc));
+#else
+  fprintf(stderr, "smem lat %.1f  (no DSMEM before sm_90)\n", l2);
+#endif
   j.end_obj();
   cudaFree(out);
   cudaFree(sink);
@@ -492,7 +498,7 @@ __global__ void l1_bw_kernel(const uint4* p, int reps, uint64_t* out, uint32_t* 
 }
 
 void run_bandwidth(Json& j, const DeviceInfo& d, double mhz) {
-  size_t bytes = 8ull << 30;
+  size_t bytes = cal_bytes(8ull << 30);
   uint4 *a, *b;
   uint32_t* sink;
   uint64_t* out;
@@ -502,7 +508,7 @@ void run_bandwidth(Json& j, const DeviceInfo& d, double mhz) {
   CK(cudaMalloc(&out, 8 * d.sm_count));
   CK(cudaMemset(a, 1, bytes));
   size_t n = bytes / 16;
-  int grid = d.sm_count * 4, blk = 1024;
+  int grid = cal_grid(d.sm_count * 4), blk = 1024;
 
   j.key("bandwidth");
   j.obj();
