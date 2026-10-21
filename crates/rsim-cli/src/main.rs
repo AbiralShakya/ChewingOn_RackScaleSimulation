@@ -47,6 +47,9 @@ enum Cmd {
         dims: Vec<u64>,
         #[arg(long, default_value = "bf16")]
         dtype: String,
+        /// Apply a rackscale-calibration/v1 JSON on top of the preset.
+        #[arg(long)]
+        calibration: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },
@@ -132,7 +135,15 @@ fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> 
     let (flops, bytes, name) = (k.flops, k.bytes, k.name.clone());
     let spec = gpu.clone();
     let launch = Arc::new(k);
-    let mut g = Gpu::new(0, gpu, GpuConfig::default(), false);
+    let mut g = Gpu::new(
+        0,
+        gpu,
+        GpuConfig {
+            kernel_window: true,
+            ..Default::default()
+        },
+        false,
+    );
     g.submit(launch.clone(), 0, 0);
     let mut out = vec![];
     let t0 = std::time::Instant::now();
@@ -256,9 +267,14 @@ fn main() -> Result<()> {
             kind,
             dims,
             dtype,
+            calibration,
             json,
         } => {
-            let g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            if let Some(c) = &calibration {
+                rsim_hw::calibration::apply_file(&mut g, c)?;
+            }
+            let g = g;
             let need = |n: usize| -> Result<()> {
                 if dims.len() < n {
                     bail!("{kind} needs {n} dimensions");

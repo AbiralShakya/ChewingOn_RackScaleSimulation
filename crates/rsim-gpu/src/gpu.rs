@@ -36,6 +36,12 @@ pub struct GpuConfig {
     /// Emit a per-SM timeline: one track per SM with a span per CTA
     /// (kernel name, CTA id). Large traces for big systems.
     pub per_sm_counters: bool,
+    /// Charge the measured kernel window (`GpuSpec::kernel_window`) before
+    /// each kernel's first CTA. Right for a kernel timed alone, as ncu does.
+    /// Off for streams: there the windows of back-to-back kernels overlap,
+    /// and the measured back-to-back launch gap (`launch_overhead_ns`)
+    /// already covers them.
+    pub kernel_window: bool,
 }
 
 impl Default for GpuConfig {
@@ -45,6 +51,7 @@ impl Default for GpuConfig {
             use_control_bits: true,
             sample_interval: 2000,
             per_sm_counters: false,
+            kernel_window: false,
         }
     }
 }
@@ -173,14 +180,16 @@ impl Gpu {
         // launch, prologue) opens with the launch and delays the first CTA.
         // What the model already charges for an empty kernel is not counted twice.
         let at = at.max(self.now);
-        let window = self
-            .spec
-            .kernel_window_cycles(
-                launch.threads_per_cta(),
-                launch.smem_per_cta,
-                launch.cluster,
-                launch.allocs_tmem(),
-            )
+        let window = (self.cfg.kernel_window)
+            .then(|| {
+                self.spec.kernel_window_cycles(
+                    launch.threads_per_cta(),
+                    launch.smem_per_cta,
+                    launch.cluster,
+                    launch.allocs_tmem(),
+                )
+            })
+            .flatten()
             .map(|c| (c - self.spec.cta_launch_cycles as f64).max(0.0) as u64)
             .unwrap_or(0);
         self.kernels.push(ActiveKernel {

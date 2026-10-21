@@ -181,7 +181,15 @@ fn kernel_window_delays_first_cta() {
             smem,
             Default::default(),
         );
-        let (d, _) = run(spec, k);
+        let cfg = GpuConfig {
+            kernel_window: true,
+            ..Default::default()
+        };
+        let mut g = Gpu::new(0, spec, cfg, false);
+        g.submit(Arc::new(k), 0, 7);
+        let mut out = vec![];
+        g.advance(u64::MAX / 2, &mut out);
+        let d = out.pop().unwrap();
         d.end_cycle - d.start_cycle
     };
     let pt = |smem_bytes, cycles| rsim_hw::WindowPoint {
