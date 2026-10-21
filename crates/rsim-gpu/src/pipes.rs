@@ -160,6 +160,18 @@ fn class_timing(
         Branch => t(Pipe::Cbu, 1, l.branch, Sb::Fixed),
         Exit => t(Pipe::Cbu, 1, 1, Sb::Fixed),
         Nop => t(Pipe::Alu, 1, 1, Sb::Fixed),
+        Misc if g.tensor.tmem_alloc_latency > 0
+            && inst.opcode.starts_with("UTCATOMSWS")
+            && inst.opcode.contains("FIND_AND_SET") =>
+        {
+            let pair = inst.opcode.contains(".2CTA.") && g.tensor.tmem_alloc_2cta_latency > 0;
+            let lat = if pair {
+                g.tensor.tmem_alloc_2cta_latency
+            } else {
+                g.tensor.tmem_alloc_latency
+            };
+            t(Pipe::Uniform, 1, lat, Sb::Short)
+        }
         Misc => t(Pipe::Alu, 1, l.misc, Sb::Fixed),
     }
 }

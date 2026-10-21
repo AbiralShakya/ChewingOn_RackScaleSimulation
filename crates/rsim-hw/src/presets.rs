@@ -144,6 +144,8 @@ pub fn h100_sxm() -> GpuSpec {
             async_mma_overhead: 16,
             tmem_bytes: 0,
             tcgen05_latency: 0,
+            tmem_alloc_latency: 0,
+            tmem_alloc_2cta_latency: 0,
             hmma_fma_pipe_cycles: 0,
             sync_flops_per_cycle_per_sm: BTreeMap::new(),
         },
@@ -298,6 +300,9 @@ pub fn b200() -> GpuSpec {
             async_mma_overhead: 12,
             tmem_bytes: 256 * 1024,
             tcgen05_latency: 300, // est
+            // Fitted to the B300 FA4-prologue window points (ncu, recorded paths).
+            tmem_alloc_latency: 1430,
+            tmem_alloc_2cta_latency: 1990,
             hmma_fma_pipe_cycles: 0,
             // Legacy mma.sync path: measured 2037 FLOP/clk/SM BF16 on B300.
             sync_flops_per_cycle_per_sm: flops(&[("bf16", 2048.0), ("fp16", 2048.0), ("tf32", 1024.0)]),

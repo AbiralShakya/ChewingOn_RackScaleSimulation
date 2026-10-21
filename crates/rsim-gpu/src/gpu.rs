@@ -24,9 +24,10 @@ pub enum SchedPolicy {
     Lrr,
 }
 
-/// `calibration/src/bench_window.cu`'s kernel as compiled for sm_103: the
-/// measured window includes running it, so the model's time for it is
-/// subtracted from the measurement.
+/// `calibration/src/bench_window.cu`'s kernel as compiled for sm_103, up
+/// to the exit every warp takes (the bench passes a null sink, so the
+/// `@P0 EXIT` always fires; the recorded paths confirm it): the measured
+/// window includes running it, so the model's time for it is subtracted.
 const WINDOW_KERNEL_SASS: &str = "\t\tFunction : window
         /*0000*/                   LDC R1, c[0x0][0x37c] ;
         /*0010*/                   S2R R0, SR_TID.X ;
@@ -35,15 +36,7 @@ const WINDOW_KERNEL_SASS: &str = "\t\tFunction : window
         /*0040*/                   ISETP.EQ.U32.AND P1, PT, RZ, UR6, PT ;
         /*0050*/                   LOP3.LUT P0, RZ, R0, UR4, RZ, 0xfc, !PT ;
         /*0060*/                   ISETP.EQ.U32.OR.EX P0, PT, RZ, UR7, P0, P1 ;
-        /*0070*/               @P0 EXIT ;
-        /*0080*/                   S2UR UR5, SR_CgaCtaId ;
-        /*0090*/                   UMOV UR4, 0x400 ;
-        /*00a0*/                   LDC.64 R2, c[0x0][0x380] ;
-        /*00b0*/                   ULEA UR4, UR5, UR4, 0x18 ;
-        /*00c0*/                   LDS.U8 R5, [UR4] ;
-        /*00d0*/                   LDCU.64 UR4, c[0x0][0x358] ;
-        /*00e0*/                   STG.E desc[UR4][R2.64], R5 ;
-        /*00f0*/                   EXIT ;
+        /*0070*/                   EXIT ;
 ";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

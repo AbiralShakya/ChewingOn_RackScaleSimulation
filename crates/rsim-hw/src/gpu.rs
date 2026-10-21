@@ -128,6 +128,17 @@ pub struct TensorSpec {
     /// minus the MMA's throughput time).
     #[serde(default)]
     pub tcgen05_latency: u32,
+    /// `tcgen05.alloc` (SASS `UTCATOMSWS.FIND_AND_SET`): cycles until the
+    /// granted TMEM column is back in the warp's register. Fitted to the
+    /// ncu kernel-window points with and without FA4's alloc prologue
+    /// (calibration/src/bench_window.cu, replayed from recorded paths).
+    /// 0 = an ordinary misc op.
+    #[serde(default)]
+    pub tmem_alloc_latency: u32,
+    /// The same for `cta_group::2` (`UTCATOMSWS.2CTA.FIND_AND_SET`), which
+    /// allocates in both CTAs of the pair. 0 = `tmem_alloc_latency`.
+    #[serde(default)]
+    pub tmem_alloc_2cta_latency: u32,
     /// Synchronous warp MMA (`mma.sync` / HMMA) rate per SM per cycle, when it
     /// differs from the async tensor-core rate above (Hopper and Blackwell keep
     /// the legacy path at roughly Ampere speed: B300 measures 2037 FLOP/clk/SM
