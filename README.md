@@ -34,6 +34,7 @@ MoE layer's all-to-all (red ticks), and the LM head's partial second wave. Rende
 ## Contents
 
 - [Headline results](#headline-results)
+- [The guide: How to simulate your rack](#the-guide-how-to-simulate-your-rack)
 - [Quickstart](#quickstart)
 - [How to use it: recipes](#how-to-use-it-recipes)
 - [Architecture](#architecture)
@@ -138,6 +139,30 @@ Findings worth knowing:
 - **Calibrated B300 vs preset.** [`configs/hgx_b300_8_calibrated.yaml`](configs/hgx_b300_8_calibrated.yaml)
   loads the measured data. Llama-3-70B TP8 decode runs 2% slower than with the uncalibrated
   preset, mostly from the lower measured clock and HBM efficiency.
+
+---
+
+## The guide: How to simulate your rack
+
+[**docs/book/**](docs/book/README.md) is a nine-chapter guide to GPU and rack performance from
+first principles, in the style of DeepMind's
+[How to Scale Your Model](https://jax-ml.github.io/scaling-book/). It works from the numbers we
+measured on the B300 and A100 and from simulator runs, with exercises and the command behind
+every result:
+
+1. [Rooflines, and why the roof moves](docs/book/01-rooflines.md): arithmetic intensity,
+   critical batch, the power-capped clock
+2. [Inside one GPU](docs/book/02-inside-the-gpu.md): SMs, warp schedulers, MUFU, the memory
+   hierarchy, `mma.sync` → `wgmma` → `tcgen05`
+3. [From a kernel to SASS to cycles](docs/book/03-kernels-sass-cycles.md): control bits,
+   warp specialisation, FA2 vs FA4, how the simulator runs SASS
+4. [Networks and collectives](docs/book/04-networks-collectives.md): NVLink, NVSwitch and
+   NVLS, InfiniBand
+5. [Parallelism](docs/book/05-parallelism.md): DP, TP, PP (with simulated bubbles), EP, CP
+6. [Inference](docs/book/06-inference.md): prefill vs decode, DeepSeek-V3 on NVL72, FP4,
+   Mamba vs attention
+7. [Training](docs/book/07-training.md) · 8. [Asynchronous RL](docs/book/08-async-rl.md) ·
+   9. [How far to trust the numbers](docs/book/09-validation.md)
 
 ---
 
