@@ -61,7 +61,12 @@
     "wait": 0.04
    },
    "sass_file": "sass/ffma_throughput.sass",
-   "kernel_mangled": "_Z10thr_kernelI6OpFFMAEvPNT_1TEiPm"
+   "kernel_mangled": "_Z10thr_kernelI6OpFFMAEvPNT_1TEiPm",
+   "path_file": "paths/ffma_throughput.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "ex2_throughput",
@@ -309,7 +314,12 @@
     "wait": 1.69
    },
    "sass_file": "sass/smem_32way_conflict.sass",
-   "kernel_mangled": "_Z14smem_bw_kerneliiPmPj"
+   "kernel_mangled": "_Z14smem_bw_kerneliiPmPj",
+   "path_file": "paths/smem_32way_conflict.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "hbm_stream_read",
@@ -623,7 +633,12 @@
     "wait": 5.41
    },
    "sass_file": "sass/umma_bf16_m128n256k16.sass",
-   "kernel_mangled": "_Z11tc05_kernelILi4ELi3EEviiiiPm"
+   "kernel_mangled": "_Z11tc05_kernelILi4ELi3EEviiiiPm",
+   "path_file": "paths/umma_bf16_m128n256k16.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "umma_nvfp4_m128n256k64",
@@ -687,7 +702,12 @@
     "wait": 5.34
    },
    "sass_file": "sass/umma_nvfp4_m128n256k64.sass",
-   "kernel_mangled": "_Z11tc05_kernelILi4ELi3EEviiiiPm"
+   "kernel_mangled": "_Z11tc05_kernelILi4ELi3EEviiiiPm",
+   "path_file": "paths/umma_nvfp4_m128n256k64.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "tma_bulk_stream",

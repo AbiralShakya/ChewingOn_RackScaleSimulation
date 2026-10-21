@@ -274,8 +274,18 @@ impl PathKernel {
         })
     }
 
+    /// Reads a `.rpath`, or a gzip-compressed `.rpath.gz` (recordings of
+    /// long loops compress ~70x, which keeps them small enough for git).
     pub fn from_file(path: &str) -> Result<Self, String> {
         let b = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
+        if path.ends_with(".gz") {
+            use std::io::Read;
+            let mut out = Vec::new();
+            flate2::read::GzDecoder::new(&b[..])
+                .read_to_end(&mut out)
+                .map_err(|e| format!("{path}: {e}"))?;
+            return Self::from_bytes(&out);
+        }
         Self::from_bytes(&b)
     }
 

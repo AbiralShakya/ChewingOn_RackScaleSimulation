@@ -211,7 +211,7 @@ impl InstMeta {
             }
             dtype = match base {
                 "DMMA" => "fp64",
-                "IMMA" => "int8",
+                "IMMA" | "UTCIMMA" => "int8",
                 _ => mods
                     .iter()
                     .find_map(|m| match *m {
@@ -223,7 +223,13 @@ impl InstMeta {
                         "S8" | "U8" => Some("int8"),
                         _ => None,
                     })
-                    .unwrap_or("bf16"),
+                    // tcgen05 MMAs often carry no type modifier (NVFP4 is
+                    // `UTCOMMA.BLOCK16`): the opcode itself names the family.
+                    .unwrap_or(match base {
+                        "UTCOMMA" => "fp4",
+                        "UTCQMMA" => "fp8",
+                        _ => "bf16",
+                    }),
             };
         }
         Self {
@@ -305,5 +311,15 @@ mod tests {
         let c = Ctrl::from_hi_word(0x001fca00078e0203);
         assert_eq!(c.wait_mask, 0b000001);
         assert_eq!(c.stall, 5);
+    }
+
+    #[test]
+    fn tcgen05_dtype_from_opcode() {
+        // NVFP4 UMMA carries no type modifier on sm_103.
+        let m = InstMeta::compute("UTCOMMA.BLOCK16", OpClass::MmaTcgen05, "");
+        assert_eq!(m.dtype, "fp4");
+        assert_eq!(InstMeta::compute("UTCQMMA", OpClass::MmaTcgen05, "").dtype, "fp8");
+        assert_eq!(InstMeta::compute("UTCHMMA", OpClass::MmaTcgen05, "").dtype, "bf16");
+        assert_eq!(InstMeta::compute("UTCHMMA.TF32", OpClass::MmaTcgen05, "").dtype, "tf32");
     }
 }
