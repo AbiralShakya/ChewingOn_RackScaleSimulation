@@ -1,6 +1,6 @@
 {
  "schema": "rackscale-calibration/v1",
- "generated_utc": "2026-10-21T00:33:32+00:00",
+ "generated_utc": "2026-10-21T00:40:36+00:00",
  "driver": "610.57.04",
  "missing_benches": [],
  "model": {
@@ -933,6 +933,56 @@
    "global_same_address_Gops": 1.52714,
    "shared_distinct_ops_per_clk_per_sm": 29.7976,
    "shared_same_address_ops_per_clk_per_sm": 29.7654
+  },
+  "power": {
+   "power_cap_w": 1100.0,
+   "max_sm_mhz": 2032.0,
+   "idle_w": 260.99,
+   "sample_interval_ms": 100,
+   "runs": [
+    {
+     "kernel": "cutlass example 89, sm103 ultra FP4 (K=96 UMMA), best of the variants it runs",
+     "m": 4096,
+     "n": 4096,
+     "k": 4096,
+     "tflops": 4492.97,
+     "busy_samples": 59,
+     "sm_mhz_median": 2032.0,
+     "sm_mhz_min": 1987.0,
+     "board_w_median": 1012.02,
+     "board_w_max": 1034.16,
+     "utilization_pct_median": 100.0,
+     "power_capped_fraction": 0.4406779661016949
+    },
+    {
+     "kernel": "cutlass example 89, sm103 ultra FP4 (K=96 UMMA), best of the variants it runs",
+     "m": 8192,
+     "n": 8192,
+     "k": 8192,
+     "tflops": 6444.73,
+     "busy_samples": 64,
+     "sm_mhz_median": 1717.0,
+     "sm_mhz_min": 1447.0,
+     "board_w_median": 1064.14,
+     "board_w_max": 1097.86,
+     "utilization_pct_median": 100.0,
+     "power_capped_fraction": 0.984375
+    },
+    {
+     "kernel": "cutlass example 89, sm103 ultra FP4 (K=96 UMMA), best of the variants it runs",
+     "m": 16384,
+     "n": 16384,
+     "k": 16384,
+     "tflops": 4417.61,
+     "busy_samples": 76,
+     "sm_mhz_median": 1455.0,
+     "sm_mhz_min": 1042.0,
+     "board_w_median": 1077.38,
+     "board_w_max": 1116.09,
+     "utilization_pct_median": 100.0,
+     "power_capped_fraction": 0.8026315789473685
+    }
+   ]
   }
  },
  "raw": {

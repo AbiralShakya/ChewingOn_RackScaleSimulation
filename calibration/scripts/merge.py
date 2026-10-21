@@ -107,6 +107,60 @@ def model_tc(raw):
     return out
 
 
+def model_power(outdir):
+    """Clock and power while CUTLASS FP4 GEMMs run (scripts/cutlass_fp4.sh)."""
+    log = os.path.join(outdir, "raw", "cutlass_fp4.log")
+    trace = os.path.join(outdir, "raw", "cutlass_fp4.clk.csv")
+    if not (os.path.exists(log) and os.path.exists(trace)):
+        return None
+    ts = lambda t: datetime.datetime.strptime(t.strip(), "%Y/%m/%d %H:%M:%S.%f")
+    samples = []
+    for row in open(trace):
+        f = [x.strip() for x in row.split(",")]
+        if len(f) < 8:
+            continue
+        num = lambda x: float(x.split()[0])
+        samples.append({"t": ts(f[0]), "mhz": num(f[1]), "w": num(f[2]), "cap_w": num(f[3]), "temp_c": num(f[4]),
+                        "reasons": f[5], "util": num(f[6]), "max_mhz": num(f[7])})
+    runs, cur = [], None
+    for line in open(log):
+        p = line.split()
+        if p[:1] == ["BEGIN"]:
+            cur = {"m": int(p[1]), "n": int(p[1]), "k": int(p[1]), "t0": ts(" ".join(p[2:4])), "gflops": []}
+        elif p[:1] == ["END"] and cur:
+            cur["t1"] = ts(" ".join(p[2:4]))
+            runs.append(cur)
+            cur = None
+        elif cur and "GFLOPS" in line:
+            cur["gflops"].append(float(line.split(":")[1]))
+    med = lambda v: sorted(v)[len(v) // 2] if v else None
+    out_runs = []
+    for r in runs:
+        # GEMM steady state inside the window: host setup and on-GPU data init run
+        # far below the cap, so keep samples above half the cap.
+        cap = samples[0]["cap_w"] if samples else 0
+        win = [s for s in samples if r["t0"] <= s["t"] <= r["t1"] and s["util"] >= 50 and s["w"] >= 0.5 * cap]
+        out_runs.append({
+            "kernel": "cutlass example 89, sm103 ultra FP4 (K=96 UMMA), best of the variants it runs",
+            "m": r["m"], "n": r["n"], "k": r["k"],
+            "tflops": max(r["gflops"]) / 1e3 if r["gflops"] else None,
+            "busy_samples": len(win),
+            "sm_mhz_median": med([s["mhz"] for s in win]),
+            "sm_mhz_min": min((s["mhz"] for s in win), default=None),
+            "board_w_median": med([s["w"] for s in win]),
+            "board_w_max": max((s["w"] for s in win), default=None),
+            "utilization_pct_median": med([s["util"] for s in win]),
+            "power_capped_fraction": (sum("0x0000000000000004" in s["reasons"] for s in win) / len(win)) if win else None,
+        })
+    return {
+        "power_cap_w": samples[0]["cap_w"] if samples else None,
+        "max_sm_mhz": samples[0]["max_mhz"] if samples else None,
+        "idle_w": med([s["w"] for s in samples if s["util"] == 0]),
+        "sample_interval_ms": 100,
+        "runs": out_runs,
+    }
+
+
 def main(outdir):
     raw = load_raw(outdir)
     if "alu" not in raw:
@@ -123,6 +177,9 @@ def main(outdir):
         model["launch"] = raw["misc"]["launch"]
         model["syncthreads_cycles"] = raw["misc"]["syncthreads_cycles"]
         model["atomics"] = raw["misc"]["atomics"]
+    power = model_power(outdir)
+    if power:
+        model["power"] = power
     try:
         smi = subprocess.run(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"], capture_output=True, text=True).stdout.split()[0]
     except Exception:

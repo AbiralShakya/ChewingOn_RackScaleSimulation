@@ -19,11 +19,16 @@ fi
 mkdir -p "$OUT/raw"
 LOCK=(); [ -n "${GPU_LOCK:-}" ] && LOCK=(flock "$GPU_LOCK")
 "${LOCK[@]}" bash -c "
-  nvidia-smi -i ${GPU%%,*} --query-gpu=timestamp,clocks.sm,power.draw,power.limit,temperature.gpu,clocks_event_reasons.active \
+  nvidia-smi -i ${GPU%%,*} --query-gpu=timestamp,clocks.sm,power.draw,power.limit,temperature.gpu,clocks_event_reasons.active,utilization.gpu,clocks.max.sm \
     --format=csv,noheader -lms 100 > '$OUT/raw/cutlass_fp4.clk.csv' &
   SMI=\$!
   '$BIN' --m=2048 --n=2048 --k=2048 --iterations=5 | grep -i disposition
-  for s in 4096 8192 16384; do
-    '$BIN' --m=\$s --n=\$s --k=\$s --iterations=1000 --no_verif | grep -E 'Problem|runtime|GFLOPS'
+  # BEGIN/END stamps use nvidia-smi's timestamp format so merge.py can window the trace.
+  # Iterations sized so each GEMM runs ~3 s per variant: long enough for the clock to settle.
+  for si in 4096:100000 8192:20000 16384:2000; do
+    s=\${si%:*}; it=\${si#*:}
+    echo \"BEGIN \$s \$(date '+%Y/%m/%d %H:%M:%S.%3N')\"
+    '$BIN' --m=\$s --n=\$s --k=\$s --iterations=\$it --no_verif | grep -E 'Problem|runtime|GFLOPS'
+    echo \"END \$s \$(date '+%Y/%m/%d %H:%M:%S.%3N')\"
   done
   kill \$SMI" | tee "$OUT/raw/cutlass_fp4.log"

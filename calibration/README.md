@@ -17,6 +17,7 @@ Output goes to `results/<gpu>-sm<cc>/`:
 |---|---|
 | `calibration.json` | `model`: what the simulator loads (SASS opcode → latency/issue rate, memory levels, tensor-core shapes, TMA, launch). `raw`: every bench's full output |
 | `raw/*.json`, `raw/*.log` | one JSON object per bench (or tensor-core case), plus stderr |
+| `model.power` | clock, board power and utilization per CUTLASS FP4 GEMM size, power cap, max clock (from `scripts/cutlass_fp4.sh`) |
 | `ncu_reference.json` | 12 reference kernels: launch config, ncu `sm__cycles_elapsed`, instruction count, DRAM/L2 bytes, warp-stall breakdown |
 | `sass/*.sass` | the SASS of each reference kernel, for the simulator's SASS front end |
 
@@ -116,13 +117,20 @@ BF16 and FP8 are unchanged across the pair and TMEM-A variants (8192 and 16384 F
 This is a simulator rule: FP4 throughput depends on K and on `cta_group`, not just on the dtype.
 
 **FP4 GEMMs hit the 1100 W power cap, so the clock falls.** CUTLASS example 89 (ultra FP4,
-which passes verification) reaches 4.6 PF at 4096³, 6.7 PF at 8192³ and 5.1 PF at 16384³. Under
-load the SM clock drops from 2032 MHz to about 1470 MHz at 8192³ and to about 1125 MHz at 16384³,
-at 1100–1125 W against a 1100 W limit (`clocks_event_reasons` 0x4, software power cap).
-At 1125 MHz the K=96 pair peak is 8.2 PF, so the 16k GEMM runs at about 63% of the
-power-limited peak. The 14.8 PF peak is only reachable for bursts. A rack-scale model has
-to carry a power-dependent clock (`scripts/cutlass_fp4.sh` writes the clock/power trace
-to `raw/cutlass_fp4.clk.csv`).
+which passes verification) was run about 3 s per size with clock and power sampled every
+100 ms. The table uses only steady-state samples, meaning those above half the cap:
+
+| GEMM | TFLOP/s | SM MHz median (min) | board W median (max) | power-capped samples |
+|---|---|---|---|---|
+| 4096³ | 4493 | 2032 (1987) | 1012 (1034) | 44% |
+| 8192³ | 6445 | 1717 (1447) | 1064 (1098) | 98% |
+| 16384³ | 4418 | 1455 (1042) | 1077 (1116) | 80% |
+
+The cap is 1100 W, idle draw is 261 W, and the maximum clock is 2032 MHz. At 1455 MHz the K=96 pair
+peak is 10.6 PF, so the 16k GEMM runs at about 42% of its power-limited peak. The 14.8 PF peak is
+only reachable for bursts. A rack-scale model has to carry a power-dependent clock. These numbers
+are in `calibration.json` under `model.power`, and `scripts/cutlass_fp4.sh` regenerates them
+(raw trace in `raw/cutlass_fp4.clk.csv`).
 
 **Memory:**
 
