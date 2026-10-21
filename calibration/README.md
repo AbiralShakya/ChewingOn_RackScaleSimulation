@@ -37,6 +37,7 @@ copies this directory to della-tridao and runs a command there on GPU 3.
 | `bench_mma_sync` (sm_80+) | `mma.sync` HMMA f16/bf16/tf32 (incl. f16 accumulate and m16n8k8), IMMA s8/s4, DMMA f64, 2:4 sparse `mma.sp`; `ldmatrix` x1/x2/x4 latency and bandwidth | accumulator-dependent chain for latency; throughput swept over warps (1 to 32) × independent accumulators (1, 2, 4) so the simulator sees how many warps per SMSP saturate the pipe |
 | `bench_cpasync` (sm_80+) | `cp.async` (LDGSTS) .cg/.ca, 4/8/16 B: per-hop latency from L2 and DRAM, and staged global→smem streaming bandwidth vs the `ld.global.v4`→`st.shared` path | random line chase (L2 flushed before each DRAM rep); 1 to 8 stage commit/wait_group ring, swept over CTA size and CTAs per SM |
 | `bench_l2part` (sm_80+) | L2 hit latency per (SM, address) over 2048 lines: near/far split, which SMs share a side, which address bits pick the side | one thread per SM, dependent 8-load chain per line, 2-means on the latencies |
+| `bench_overlap` (sm_80+) | how well MUFU.EX2, FFMA, FMUL and LDSM.x4 co-issue with HMMA.16816 in the same warps (the FlashAttention-2 softmax mix), plus warp collectives: shfl.up scan, shfl.xor max all-reduce, `redux.sync` | 32 warps per SM; cycles per warp-iteration per SMSP for (HMMA, other) mixes vs each stream alone; overlap = (t_h + t_o − t_mix) / min(t_h, t_o) |
 
 ### Keeping the measurements honest
 
@@ -213,6 +214,32 @@ Per hop, a cp.async plus wait_group plus LDS costs 243 cycles from L2, cheaper t
 **Launch:** sync round trip 6.2 µs, back-to-back 1.9 µs, graph 0.94 µs per kernel.
 `__syncthreads` takes 24 cycles at 32 threads and 86 at 1024.
 
+**HMMA co-issue** (`bench_overlap`, measured on the SXM4 part, cycles per warp-iteration
+per SMSP; HMMA alone: 4 → 33.6, 8 → 65.6):
+
+| mixed with HMMA ×4 | other alone | mixed | overlap |
+|---|---|---|---|
+| 16 MUFU.EX2 | 128.7 | 132 | 0.89 |
+| 16 LDSM.x4 | 256.9 | 258 | 0.95 |
+| 16 FFMA | 32.7 | 48 | 0.57 |
+| 32 FFMA | 64.7 | 80 | 0.54 |
+
+EX2 and ldmatrix hide behind tensor work almost completely. FFMA and FMUL do not: each
+HMMA takes roughly 4 cycles away from the FP32 pipe (80 ≈ 64 + 4 × 4), consistent with
+HMMA's register-file reads competing with the FMA datapath's. That cost is what an
+FA2-style softmax pays when its rescale FMULs and FFMAs run between MMAs. Warp collectives:
+a 32-lane shfl.up inclusive scan takes 171 cycles, a shfl.xor max all-reduce 152, and
+`redux.sync.add.u32` 48.
+
+### A100 SXM4 80GB (Della `della-l07g4`)
+
+Della's `a100&gpu80` constraint can also land on SXM4 nodes; that run is in
+`results/a100-sxm4-80gb-sm80/`. Per-SM compute and latencies match the PCIe card
+(HMMA 2026 FLOP/clk/SM; L2 284, DRAM 555 cycles; L2 sides 224 / 372). HBM is faster:
+1.79 TB/s read out of a 2.04 TB/s spec, and cp.async.cg reaches 1.88 TB/s from DRAM. The
+clock probe measured 1275 MHz under full load (500 W limit) against 1395 MHz on the PCIe
+card, so per-second rates here run below the per-clock ones.
+
 ### A100 MIG 3g.40gb slice (Della `intel&gpu40`)
 
 A 3g.40gb slice of an A100 80GB PCIe has 42 SMs, 20 MB of L2 and half the HBM. Compute
@@ -232,4 +259,4 @@ unavailable"), so the slice has no `ncu_reference.json`.
 * `mma.sync` with FP8 (ptxas lowers it on sm_103a; not timed)
 * NVLink/NVSwitch: these benches cover a single GPU; fabric calibration is a separate step
 * Hopper (H100/H200) runs
-* A100 SXM4 (NVLink, 1555 MHz HBM2e); the runs here are PCIe parts
+* A100 NVLink (NVLink 3, NVSwitch) fabric calibration

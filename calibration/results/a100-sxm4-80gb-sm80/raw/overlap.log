@@ -1,0 +1,6 @@
+HMMA alone: 4->33.6 8->65.6 cyc/warp-iter/SMSP
+ex2      alone: 4->32.7 8->64.7 16->128.7 32->256.8 cyc/warp-iter/SMSP
+ffma     alone: 4->8.8 8->16.7 16->32.7 32->64.7 cyc/warp-iter/SMSP
+fmul     alone: 4->8.8 8->16.7 16->32.7 32->64.7 cyc/warp-iter/SMSP
+ldsm_x4  alone: 4->64.8 8->128.9 16->256.9 32->513.0 cyc/warp-iter/SMSP
+warp scan 171.5  bfly-max allreduce 151.5  redux.add 48.2 cyc

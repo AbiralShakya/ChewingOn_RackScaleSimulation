@@ -109,7 +109,7 @@ def model_tc(raw):
 
 def model_ampere(raw):
     """sm_80+ async copy, warp MMA sweep and L2 partition map (bench_cpasync,
-    bench_mma_sync, bench_l2part)."""
+    bench_mma_sync, bench_l2part, bench_overlap)."""
     m = {}
     if "cpasync" in raw:
         c = raw["cpasync"]
@@ -140,6 +140,16 @@ def model_ampere(raw):
             "best_single_address_bit": l2["best_single_address_bit"],
             "best_single_bit_accuracy": l2["best_single_bit_accuracy"],
         }
+    if "overlap" in raw:
+        o = raw["overlap"]
+        # Per other-kind: cycles per warp-iteration per SMSP for (hmma, other) mixes,
+        # plus the overlap factor (1 = hidden behind HMMA, 0 = serialized).
+        m["hmma_coissue"] = {
+            "hmma4_alone_cycles": o["hmma4_alone_cycles"], "hmma8_alone_cycles": o["hmma8_alone_cycles"],
+            **{k: {f"h{p['hmma']}_o{p['other']}": {"cycles": p["cycles"], "overlap": p["overlap"]} for p in v["points"]}
+               for k, v in o["mix"].items()},
+        }
+        m["warp_collectives_cycles"] = o["collectives"]
     return m
 
 

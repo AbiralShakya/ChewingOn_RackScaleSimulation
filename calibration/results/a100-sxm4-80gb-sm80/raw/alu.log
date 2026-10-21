@@ -1,0 +1,56 @@
+OpFADD     lat   4.07 cyc  thr   63.33 ops/clk/SM
+OpFMUL     lat   4.07 cyc  thr   63.33 ops/clk/SM
+OpFFMA     lat   4.05 cyc  thr   63.38 ops/clk/SM
+OpFMNMX    lat   4.06 cyc  thr   63.23 ops/clk/SM
+OpHFMA2    lat   8.04 cyc  thr  124.71 ops/clk/SM
+OpHFMA2BF  lat   4.05 cyc  thr   63.65 ops/clk/SM
+OpHADD2    lat   8.04 cyc  thr  124.67 ops/clk/SM
+OpIADD     lat   2.05 cyc  thr  125.51 ops/clk/SM
+OpIMAD     lat   4.05 cyc  thr   63.59 ops/clk/SM
+OpLOP3     lat   4.05 cyc  thr   63.39 ops/clk/SM
+OpSHF      lat   4.05 cyc  thr   63.37 ops/clk/SM
+OpPRMT     lat   4.05 cyc  thr   63.37 ops/clk/SM
+OpPOPC     lat  17.00 cyc  thr   15.98 ops/clk/SM
+OpFLO      lat  17.00 cyc  thr   15.98 ops/clk/SM
+OpIMNMX    lat   4.05 cyc  thr   63.37 ops/clk/SM
+OpEX2      lat  17.00 cyc  thr   15.98 ops/clk/SM
+OpRSQ      lat  17.00 cyc  thr   15.98 ops/clk/SM
+OpRCP      lat  23.00 cyc  thr   15.96 ops/clk/SM
+OpSQRT     lat  17.00 cyc  thr   15.98 ops/clk/SM
+OpLG2      lat  17.00 cyc  thr   15.98 ops/clk/SM
+OpTANH     lat  17.00 cyc  thr   15.98 ops/clk/SM
+OpSIN      lat  22.98 cyc  thr   15.97 ops/clk/SM
+OpDFMA     lat   6.05 cyc  thr   30.81 ops/clk/SM
+OpDADD     lat   6.05 cyc  thr   30.81 ops/clk/SM
+OpF2FBF    lat   4.11 cyc  thr   63.39 ops/clk/SM
+OpF2I      lat  17.00 cyc  thr   15.98 ops/clk/SM
+OpI2F      lat  17.00 cyc  thr   15.98 ops/clk/SM
+OpSHFL     lat  31.00 cyc  thr   36.03 ops/clk/SM
+OpFADD     add.f32                lat x1.0 thr x1.0  top=[('FADD', 194), ('NOP', 11), ('MOV', 6)]
+OpFMUL     mul.f32                lat x1.0 thr x1.0  top=[('FMUL', 192), ('NOP', 11), ('MOV', 6)]
+OpFFMA     fma.rn.f32             lat x1.0 thr x1.0  top=[('FFMA', 192), ('NOP', 10), ('MOV', 6)]
+OpFMNMX    max.f32                lat x1.0 thr x1.0  top=[('FMNMX', 192), ('NOP', 11), ('IMAD.MOV.U32', 7)]
+OpHFMA2    fma.rn.f16x2           lat x1.0 thr x1.0  top=[('HFMA2.MMA', 96), ('HFMA2', 96), ('NOP', 14)]
+OpHFMA2BF  fma.rn.bf16x2          lat x1.0 thr x1.0  top=[('HFMA2.BF16_V2', 192), ('NOP', 14), ('IMAD.MOV.U32', 6)]
+OpHADD2    add.rn.f16x2           lat x1.0 thr x1.0  top=[('HFMA2.MMA', 96), ('HADD2', 96), ('NOP', 15)]
+OpIADD     add.u32                lat x0.521 thr x0.51  top=[('IADD3', 100), ('NOP', 15), ('IMAD.MOV.U32', 6)]
+OpIMAD     mad.lo.u32             lat x1.0 thr x1.002  top=[('IMAD', 192), ('NOP', 14), ('MOV', 6)]
+OpLOP3     lop3.b32               lat x1.01 thr x1.004  top=[('LOP3.LUT', 194), ('NOP', 14), ('IMAD.MOV.U32', 6)]
+OpSHF      shf.l.wrap.b32         lat x1.005 thr x1.0  top=[('SHF.L.W.U32.HI', 192), ('NOP', 15), ('IMAD.MOV.U32', 6)]
+OpPRMT     prmt.b32               lat x1.0 thr x1.0  top=[('PRMT', 192), ('NOP', 15), ('IMAD.MOV.U32', 6)]
+OpPOPC     popc.b32               lat x1.0 thr x1.0  top=[('POPC', 192), ('NOP', 16), ('IMAD.MOV.U32', 6)]
+OpFLO      bfind.u32              lat x1.0 thr x1.0  top=[('FLO.U32', 192), ('NOP', 16), ('IMAD.MOV.U32', 6)]
+OpIMNMX    max.u32                lat x1.0 thr x1.0  top=[('IMNMX.U32', 192), ('NOP', 15), ('IMAD.MOV.U32', 6)]
+OpEX2      ex2.approx.ftz.f32     lat x1.0 thr x1.0  top=[('MUFU.EX2', 192), ('NOP', 12), ('IMAD.MOV.U32', 7)]
+OpRSQ      rsqrt.approx.ftz.f32   lat x1.0 thr x1.0  top=[('MUFU.RSQ', 192), ('NOP', 12), ('IMAD.MOV.U32', 7)]
+OpRCP      rcp.approx.ftz.f32     lat x1.0 thr x1.0  top=[('FADD', 66), ('MUFU.RCP', 64), ('NOP', 16)]
+OpSQRT     sqrt.approx.ftz.f32    lat x1.0 thr x1.0  top=[('MUFU.SQRT', 192), ('NOP', 12), ('IMAD.MOV.U32', 7)]
+OpLG2      lg2.approx.ftz.f32     lat x1.0 thr x1.0  top=[('MUFU.LG2', 192), ('NOP', 12), ('IMAD.MOV.U32', 7)]
+OpTANH     tanh.approx.f32        lat x1.0 thr x1.0  top=[('MUFU.TANH', 192), ('NOP', 12), ('IMAD.MOV.U32', 7)]
+OpSIN      sin.approx.ftz.f32     lat x1.0 thr x1.0  top=[('FMUL.RZ', 192), ('MUFU.SIN', 192), ('NOP', 11)]
+OpDFMA     fma.rn.f64             lat x1.0 thr x1.0  top=[('DFMA', 192), ('NOP', 10), ('IMAD.MOV.U32', 7)]
+OpDADD     add.f64                lat x1.0 thr x1.0  top=[('DADD', 194), ('NOP', 11), ('IMAD.MOV.U32', 7)]
+OpF2FBF    cvt.rn.bf16x2.f32      lat x1.0 thr x1.0  top=[('F2FP.BF16.PACK_AB', 64), ('NOP', 13), ('IMAD.MOV.U32', 7)]
+OpF2I      cvt.rzi.s32.f32        lat x1.0 thr x1.0  top=[('F2I.TRUNC.NTZ', 64), ('NOP', 13), ('IMAD.MOV.U32', 5)]
+OpI2F      cvt.rn.f32.s32         lat x1.0 thr x1.0  top=[('I2F', 64), ('NOP', 13), ('IMAD.MOV.U32', 5)]
+OpSHFL     shfl.sync.bfly.b32     lat x1.0 thr x0.875  top=[('SHFL.BFLY', 64), ('IADD3', 34), ('IMAD.IADD', 33)]

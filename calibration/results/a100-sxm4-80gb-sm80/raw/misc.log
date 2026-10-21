@@ -1,0 +1,9 @@
+launch: sync 6.57 us, back-to-back 1.96 us, graph 0.94 us per kernel
+syncthreads   32 threads: 24.1 cyc
+syncthreads  128 threads: 30.1 cyc
+syncthreads  256 threads: 38.2 cyc
+syncthreads  512 threads: 54.2 cyc
+syncthreads 1024 threads: 86.2 cyc
+global atomicAdd: distinct 54.4 Gop/s, same address 1.08 Gop/s
+shared atomicAdd distinct: 30.04 ops/clk/SM
+shared atomicAdd same-addr: 30.05 ops/clk/SM
