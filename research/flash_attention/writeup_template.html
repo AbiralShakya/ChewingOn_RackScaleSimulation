@@ -192,10 +192,11 @@ chunk of keys, 64 query heads, 8 or 64 KV heads. We recorded and validated those
 <tbody>
 {{CP_ROWS}}
 </tbody></table></div>
-<p class="cap">The 1024-token FA4 kernels miss the band: the simulator is 17–21% fast on a 32 µs kernel. A fixed
-per-launch cost of about 10 k cycles is missing: cluster launch, tensor-memory allocation, descriptor prefetch,
-pipeline fill and drain. At 2048 tokens and above the error is within ±2%. The 1024-token rows below are therefore
-<i>model behaviour</i>.</p>
+<p class="cap">All sixteen kernels are inside the ±10% band. The 1024-token FA4 kernels last only 32 µs, and they
+first came out 17–21% fast: the simulator was missing a fixed per-kernel cost (cluster launch, tensor-memory
+allocation, mbarrier setup, pipeline fill and drain). The calibration suite now measures that window directly,
+with almost-empty kernels of the same launch shape under ncu: 8.9–9.1 k cycles on B300 with FA4's prologue, and
+2.9–3.1 k on A100. Charged before the first CTA, it brings those two kernels to +1.9% and +2.8%.</p>
 
 <section class="col">
 <h2>Where FA4's cycles go on B300</h2>
@@ -264,7 +265,8 @@ queue started the next day.</li>
 <li>The recordings sample four CTAs. Other CTAs replay a recorded CTA of the same cluster rank, with their real TMA
 sources (FA4) or per-instruction address strides (FA2). Persistent kernels whose CTAs process one tile fewer replay
 one tile too many, which adds 2–15% instructions on the smallest shapes.</li>
-<li>Short kernels (about 30 µs) miss a fixed launch and setup cost, described above.</li>
+<li>The fixed kernel window is measured on near-empty kernels of the same launch shape, not on FA4 itself. The
+rack runs below predate it and charge only the launch gap, which matters only for the 1024-token steps.</li>
 <li>FA4's Python dispatch costs about 50–80 µs per call on top of a 32 µs kernel at the 1024-token ring shape. A real
 ring would capture the steps in a CUDA graph; the rack runs launch them as a graph would.</li>
 <li>NVLink and InfiniBand numbers come from presets, not from a multi-GPU calibration.</li>

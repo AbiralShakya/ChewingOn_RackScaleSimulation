@@ -1,7 +1,7 @@
 {
  "schema": "rackscale-calibration/v1",
- "generated_utc": "2026-10-21T01:06:58+00:00",
- "driver": null,
+ "generated_utc": "2026-10-21T16:32:47+00:00",
+ "driver": "610.57.04",
  "missing_benches": [
   "tma"
  ],
@@ -984,7 +984,33 @@
   "launch": {
    "sync_roundtrip_us": 6.57275,
    "back_to_back_us_per_kernel": 1.96301,
-   "graph_us_per_kernel": 0.940032
+   "graph_us_per_kernel": 0.940032,
+   "kernel_window": [
+    {
+     "config": "t128_smem0",
+     "threads": 128,
+     "smem_bytes": 0,
+     "cluster": 1,
+     "tmem_prologue": false,
+     "cycles": 3104.98
+    },
+    {
+     "config": "t512_smem0",
+     "threads": 512,
+     "smem_bytes": 0,
+     "cluster": 1,
+     "tmem_prologue": false,
+     "cycles": 2909.26
+    },
+    {
+     "config": "t512_smem_max",
+     "threads": 512,
+     "smem_bytes": 165888,
+     "cluster": 1,
+     "tmem_prologue": false,
+     "cycles": 2872.72
+    }
+   ]
   },
   "syncthreads_cycles": {
    "32": 24.1475,
@@ -5154,7 +5180,33 @@
    "launch": {
     "sync_roundtrip_us": 6.57275,
     "back_to_back_us_per_kernel": 1.96301,
-    "graph_us_per_kernel": 0.940032
+    "graph_us_per_kernel": 0.940032,
+    "kernel_window": [
+     {
+      "config": "t128_smem0",
+      "threads": 128,
+      "smem_bytes": 0,
+      "cluster": 1,
+      "tmem_prologue": false,
+      "cycles": 3104.98
+     },
+     {
+      "config": "t512_smem0",
+      "threads": 512,
+      "smem_bytes": 0,
+      "cluster": 1,
+      "tmem_prologue": false,
+      "cycles": 2909.26
+     },
+     {
+      "config": "t512_smem_max",
+      "threads": 512,
+      "smem_bytes": 165888,
+      "cluster": 1,
+      "tmem_prologue": false,
+      "cycles": 2872.72
+     }
+    ]
    },
    "syncthreads_cycles": {
     "32": 24.1475,
@@ -6574,6 +6626,43 @@
      "latency_cycles": 24.0273,
      "warp_mma_per_clk_per_sm": 0.494764,
      "flop_per_clk_per_sm": 4053.11
+    }
+   }
+  },
+  "window": {
+   "bench": "window",
+   "device": {
+    "name": "NVIDIA A100-SXM4-80GB",
+    "cc_major": 8,
+    "cc_minor": 0,
+    "sm_count": 108,
+    "clock_khz_reported": 1410000
+   },
+   "sm_clock_mhz_measured": 1272.95,
+   "window": {
+    "t128_smem0": {
+     "grid": 108,
+     "threads": 128,
+     "smem_dynamic": 0,
+     "cluster": 1,
+     "fa4_prologue": false,
+     "back_to_back_us": 2.65216
+    },
+    "t512_smem0": {
+     "grid": 108,
+     "threads": 512,
+     "smem_dynamic": 0,
+     "cluster": 1,
+     "fa4_prologue": false,
+     "back_to_back_us": 2.63168
+    },
+    "t512_smem_max": {
+     "grid": 108,
+     "threads": 512,
+     "smem_dynamic": 165888,
+     "cluster": 1,
+     "fa4_prologue": false,
+     "back_to_back_us": 2.59072
     }
    }
   }
