@@ -102,12 +102,44 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
             set("hbm.efficiency", &mut took);
         }
     }
-    // Loaded latency: the read sweep keeps a fixed number of loads in flight
-    // per SM, so per-SM bandwidth falls as latency rises with total load.
-    // The baseline is the best per-SM rate at light load (>= 4 SMs; one or
-    // two SMs see a boost of their own); points near saturation are left to
-    // the bandwidth server, which queues there already.
-    if let (Some(pts), Some(rd), Some(dram)) = (
+    // Loaded latency, measured directly when the calibration has it: a
+    // pointer-chase probe's HBM latency while other CTAs stream reads
+    // (bench_loaded). Points near saturation are left to the bandwidth
+    // server, which queues there already.
+    let probe = doc
+        .pointer("/raw/loaded/hbm")
+        .or_else(|| m.pointer("/memory/loaded/hbm"))
+        .and_then(Value::as_array);
+    if let (Some(pts), Some(rd)) = (probe, f(mem, &["bandwidth", "hbm_read_GBps"])) {
+        let mut pts: Vec<(f64, f64)> = pts
+            .iter()
+            .filter_map(|p| {
+                Some((
+                    p.get("load_GBps")?.as_f64()? / rd,
+                    p.get("probe_latency_ns")?.as_f64()?,
+                ))
+            })
+            .collect();
+        pts.sort_by(|a, b| a.0.total_cmp(&b.0));
+        if let Some(&(_, idle)) = pts.iter().find(|p| p.0 == 0.0) {
+            let mut extra = 0.0f64;
+            spec.hbm.loaded_latency = pts
+                .iter()
+                .filter(|p| p.0 > 0.0 && p.0 <= 0.9)
+                .map(|&(u, ns)| {
+                    extra = extra.max(ns - idle);
+                    [u, extra]
+                })
+                .collect();
+            set("hbm.loaded_latency", &mut took);
+        }
+    }
+    // Otherwise from the read sweep: it keeps a fixed number of loads in
+    // flight per SM, so per-SM bandwidth falls as latency rises with total
+    // load. The baseline is the best per-SM rate at light load (>= 4 SMs; one
+    // or two SMs see a boost of their own).
+    if let (true, Some(pts), Some(rd), Some(dram)) = (
+        spec.hbm.loaded_latency.is_empty(),
         mem.pointer("/bandwidth/hbm_read_vs_sms")
             .and_then(Value::as_array),
         f(mem, &["bandwidth", "hbm_read_GBps"]),
@@ -474,6 +506,17 @@ mod tests {
             );
         }
         assert!(g.tensor.mma_rate("fp4", 96) > g.tensor.mma_rate("fp4", 64));
+    }
+
+    #[test]
+    fn hbm_latency_rises_with_load() {
+        let h = crate::presets::b300().hbm;
+        assert!(!h.loaded_latency.is_empty());
+        assert!(h.loaded_extra_ns(0.0) < 1.0);
+        // bench_loaded: ~417 ns idle, ~471 ns at 5.4 TB/s of reads.
+        let x = h.loaded_extra_ns(5435.0 / 6818.0);
+        assert!((40.0..70.0).contains(&x), "{x}");
+        assert!(h.loaded_extra_ns(0.9) >= x);
     }
 
     #[test]
