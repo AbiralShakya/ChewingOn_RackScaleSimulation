@@ -37,9 +37,9 @@
   {
     "label": "hbm_stream_read",
     "measured_cycles": 2562048.93,
-    "simulated_cycles": 1146474.0,
-    "error_pct": -55.251674291794274,
-    "trip_count": 389
+    "simulated_cycles": 2580790.0,
+    "error_pct": 0.7314875910664138,
+    "trip_count": 883
   },
   {
     "label": "hbm_copy",
@@ -65,22 +65,22 @@
   {
     "label": "umma_bf16_m128n256k16",
     "measured_cycles": 534974.16,
-    "simulated_cycles": 2067.0,
-    "error_pct": -99.61362619831955,
+    "simulated_cycles": 2066.0,
+    "error_pct": -99.6138131232357,
     "trip_count": 19
   },
   {
     "label": "umma_nvfp4_m128n256k64",
     "measured_cycles": 534660.26,
-    "simulated_cycles": 2067.0,
-    "error_pct": -99.61339935756587,
+    "simulated_cycles": 2066.0,
+    "error_pct": -99.61358639222597,
     "trip_count": 20
   },
   {
     "label": "tma_bulk_stream",
     "measured_cycles": 4569373.7,
-    "simulated_cycles": 19395951.0,
-    "error_pct": 324.4772319672606,
-    "trip_count": 14167
+    "simulated_cycles": 4885920.0,
+    "error_pct": 6.927564274289927,
+    "trip_count": 3568
   }
 ]

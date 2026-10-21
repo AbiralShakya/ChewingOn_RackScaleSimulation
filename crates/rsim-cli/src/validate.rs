@@ -10,7 +10,7 @@
 //! `trace_file` (Accel-Sim/NVBit `.traceg`) are replayed exactly instead.
 
 use anyhow::{Context, Result};
-use rsim_gpu::{Gpu, GpuConfig, KernelLaunch};
+use rsim_gpu::{Gpu, GpuConfig, KernelDone, KernelLaunch};
 use rsim_sass::{BranchProfile, Program};
 use serde::Serialize;
 use serde_json::Value;
@@ -56,12 +56,16 @@ fn solve_profile(p: &Program, warps: f64, inst_executed: f64) -> (BranchProfile,
     (prof, trips)
 }
 
-fn simulate(gpu: &rsim_hw::GpuSpec, launch: KernelLaunch) -> Option<f64> {
+fn simulate_done(gpu: &rsim_hw::GpuSpec, launch: KernelLaunch) -> Option<KernelDone> {
     let mut g = Gpu::new(0, gpu.clone(), GpuConfig::default(), false);
     g.submit(Arc::new(launch), 0, 0);
     let mut out = vec![];
     g.advance(u64::MAX / 2, &mut out);
-    out.pop().map(|d| (d.end_cycle - d.start_cycle) as f64)
+    out.pop()
+}
+
+fn simulate(gpu: &rsim_hw::GpuSpec, launch: KernelLaunch) -> Option<f64> {
+    simulate_done(gpu, launch).map(|d| (d.end_cycle - d.start_cycle) as f64)
 }
 
 pub fn run(reference: &Path, gpu: &rsim_hw::GpuSpec) -> Result<Vec<Row>> {
@@ -122,24 +126,48 @@ pub fn run(reference: &Path, gpu: &rsim_hw::GpuSpec) -> Result<Vec<Row>> {
             "  {label}: {} static insts, main-loop trips/warp {trips}",
             prog.insts.len()
         );
-        let launch = KernelLaunch::from_program(
-            &label,
-            prog,
-            [grid as u32, 1, 1],
-            [block as u32, 1, 1],
-            regs,
-            smem,
-            prof,
-        );
+        let build = |prof: BranchProfile| {
+            KernelLaunch::from_program(
+                &label,
+                prog.clone(),
+                [grid as u32, 1, 1],
+                [block as u32, 1, 1],
+                regs,
+                smem,
+                prof,
+            )
+        };
         let t0 = std::time::Instant::now();
-        let mut g = Gpu::new(0, gpu.clone(), GpuConfig::default(), false);
-        g.submit(Arc::new(launch), 0, 0);
-        let mut out = vec![];
-        g.advance(u64::MAX / 2, &mut out);
-        let Some(d) = out.pop() else {
+        let Some(mut d) = simulate_done(gpu, build(prof.clone())) else {
             eprintln!("{label}: did not complete");
             continue;
         };
+        // Streaming kernels: the main loop's trip count is better pinned by
+        // the measured DRAM traffic (a workload fact, like the instruction
+        // count) than by instructions spread over every warp.
+        let mut trips = trips;
+        let ncu_bytes = num(k, "dram__bytes_read.sum").unwrap_or(0.0)
+            + num(k, "dram__bytes_write.sum").unwrap_or(0.0);
+        let sim_bytes = (d.stats.dram_read_bytes + d.stats.dram_write_bytes) as f64;
+        if ncu_bytes > 64e6
+            && sim_bytes > 0.0
+            && trips > 0
+            && (ncu_bytes / sim_bytes - 1.0).abs() > 0.1
+        {
+            let t2 = ((trips as f64) * ncu_bytes / sim_bytes).round().max(1.0) as u64;
+            let mut p2 = prof.clone();
+            for v in p2.taken.values_mut() {
+                *v = t2;
+            }
+            if let Some(d2) = simulate_done(gpu, build(p2)) {
+                eprintln!(
+                    "  {label}: trips {trips} -> {t2} to match {:.2} GB DRAM traffic",
+                    ncu_bytes / 1e9
+                );
+                trips = t2;
+                d = d2;
+            }
+        }
         let sim = (d.end_cycle - d.start_cycle) as f64;
         eprintln!(
             "  {label:<26} ncu {meas:>12.0}  sim {sim:>12.0}  ({:+.1}%, {:.1} s)",

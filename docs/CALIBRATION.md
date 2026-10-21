@@ -50,19 +50,21 @@ Real GEMMs on B300 hit the 1100 W board cap and the SM clock drops (measured wit
 
 | kernel | ncu cycles | sim | error |
 |---|---|---|---|
+| hbm_stream_read | 2562049 | 2580790 | +0.7% |
 | dfma_latency_chain | 40875 | 39394 | −3.6% |
 | smem_conflict_free | 142278 | 149043 | +4.8% |
 | hbm_copy | 5377992 | 5116606 | −4.9% |
+| tma_bulk_stream | 4569374 | 4885920 | +6.9% |
 | ex2_throughput | 271264 | 248396 | −8.4% |
 | l2_pointer_chase | 3458464 | 3788536 | +9.5% |
 | ffma_throughput | 82103 | 64585 | −21.3% |
-| hbm_stream_read | 2562049 | 1146474 | −55% |
-| hmma_bf16_throughput | 139972 | 33802 | −76% |
-| smem_32way_conflict | 4214901 | 149043 | −96% (needs address annotations, so no bank conflicts are modelled from bare SASS) |
-| umma_* | 534974 | 2067 | −99.6% (the issuer loop is not reconstructed yet) |
-| tma_bulk_stream | 4569374 | 19395951 | +325% |
+| hmma_bf16_throughput | 139972 | 33802 | −76% (mma.sync runs at the measured legacy rate, 2037 FLOP/clk/SM, once `mma_sync_flops_per_cycle_per_sm` lands) |
+| smem_32way_conflict | 4214901 | 149043 | −96% (bank conflicts need addresses; bare SASS has none) |
+| umma_* | 534974 | 2066 | −99.6% (the thread-0 issue loop can't be reconstructed without register values) |
 
-The misses are open work. The walker has no register values, so address-dependent effects (bank conflicts, the TMA stream's addresses) need annotations or an NVBit trace.
+For streaming kernels (more than 64 MB of DRAM traffic), the main-loop trip count is pinned to the measured DRAM bytes, not to the instruction count spread over all warps. Both are workload facts, not timings.
+
+The remaining misses are open work. They need NVBit/Accel-Sim traces (`trace_file` in ncu_reference.json; `rsim validate` replays them exactly) or the mma.sync rate field.
 
 `ncu_reference.json` holds reference kernels with their SASS and measured cycle counts. These
 form the end-to-end regression set: `rsim sass <file>` should land within tolerance of `ncu`.
