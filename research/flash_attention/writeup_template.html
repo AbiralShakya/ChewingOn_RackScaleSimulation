@@ -86,8 +86,8 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule);
   Nsight Compute to within 4% on all four kernels, so we can use it to ask what limits each generation and how
   long-context attention behaves on 72 GPUs.</p>
   <div class="facts">
-    <div class="fact"><b>1.88 PF/s</b><span>FA4 forward on B300 (4×16×4k, d128, BF16): 76% of the tcgen05 peak</span></div>
-    <div class="fact"><b>4.3×</b><span>FA4 over FA2 on the same B300: FA2 is held to the legacy mma.sync rate</span></div>
+    <div class="fact"><b>1.52 PF/s</b><span>FA4 forward on B300, sustained (4×16×4k, d128, BF16); 1.88 PF/s on a single cold call</span></div>
+    <div class="fact"><b>4.1×</b><span>FA4 over FA2 on the same B300: FA2 is held to the legacy mma.sync rate</span></div>
     <div class="fact"><b>±4%</b><span>simulated vs measured SM cycles, 4 kernels on 2 GPU generations</span></div>
     <div class="fact"><b>0.79×</b><span>FA4 with a B200-like exp unit (half-rate MUFU.EX2): why FA4 emulates exp on B200</span></div>
   </div>
@@ -99,27 +99,28 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule);
 Implementations: naive PyTorch (QKᵀ, softmax, PV as three kernels), PyTorch SDPA with its bundled FlashAttention-2 and
 with cuDNN, Dao-AILab <code>flash_attn</code> 2 (CUDA, built from source), and FlashAttention-4
 (<code>flash_attn/cute</code>, CuTe DSL, JIT-compiled). FA3 needs a Hopper GPU, which this study did not have.
-On A100 the timing is back-to-back calls between CUDA events, so host overhead is hidden. On B300 it is one call
-per event pair. That includes host overhead, which is small next to these 0.3–6 ms kernels. A back-to-back B300
-sweep was queued but did not get the shared GPU in time. Kernel cycles everywhere come from Nsight Compute with
-caches flushed.</p>
+Timing is back-to-back calls between CUDA events, so host overhead is hidden and the GPU runs at its sustained
+clock. The A100 PCIe panel is the one exception: it was timed one call per event pair. Kernel cycles come from Nsight Compute with caches flushed.</p>
 </section>
 {{FIG_THROUGHPUT}}
 <p class="cap">TFLOP/s at fixed 16k tokens. On A100, FA2, FA4's Sm80 path, and PyTorch's FA2 land within
-15% of each other near 63–73% of the 312 TF/s peak. On B300, FA2 tops out near 0.43 PF/s while FA4 and cuDNN reach
-1.6–1.9 PF/s. Naive attention stays below 80 TF/s on both because it writes S and P to HBM.</p>
+15% of each other near 63–73% of the 312 TF/s peak. On B300, FA2 stays near 0.37 PF/s while FA4 and cuDNN sustain 1.4–1.7 PF/s.
+Naive attention stays below 80 TF/s on both because it writes S and P to HBM. Run back to back, the B300 delivers
+less than on a single call. FA4 at 4k drops from 1.88 to 1.52 PF/s, consistent with the power-limited clock
+below.</p>
 
 <section class="col">
 <h3>The B300 runs FA2 on a different tensor core</h3>
 <p>FA2 issues <code>mma.sync</code> (HMMA m16n8k16) from every warp. Blackwell keeps that instruction, but our
 calibration measures it at <b>2037 FLOP/clk/SM</b>, the same per-SM rate as an A100 and a quarter of
-<code>tcgen05.mma</code> (8192 FLOP/clk/SM). FA2 on B300 is an A100 kernel on a wider, faster-clocked chip, and it
-reaches 71% of that legacy ceiling. Nothing in FA2's design is wrong for Blackwell: the
+<code>tcgen05.mma</code> (8192 FLOP/clk/SM). FA2 on B300 is an A100 kernel on a wider, faster-clocked chip, held to
+that legacy ceiling. Nothing in FA2's design is wrong for Blackwell: the
 hardware moved the fast path to an asynchronous, single-thread-issued MMA with its accumulator in tensor memory, and
 reaching it needs FA4's structure.</p>
 <h3>B300 drops its clock under FA4</h3>
 <p>Nsight Compute counted 510 k SM cycles in FA4's 290 µs, an effective <b>1.76 GHz</b> against the 2.03 GHz the
-chip holds on lighter kernels. FA4 keeps the tensor core busy enough that the B300 runs at a power-limited clock. All
+chip holds on lighter kernels. FA4 keeps the tensor core busy enough that the B300 runs at a power-limited clock, and the sustained sweep
+loses another few percent to it. All
 comparisons below are in cycles, which removes the clock from the comparison.</p>
 </section>
 
