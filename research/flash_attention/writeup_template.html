@@ -99,8 +99,10 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule);
 Implementations: naive PyTorch (QKᵀ, softmax, PV as three kernels), PyTorch SDPA with its bundled FlashAttention-2 and
 with cuDNN, Dao-AILab <code>flash_attn</code> 2 (CUDA, built from source), and FlashAttention-4
 (<code>flash_attn/cute</code>, CuTe DSL, JIT-compiled). FA3 needs a Hopper GPU, which this study did not have.
-Timing is back-to-back calls between CUDA events, so host overhead is hidden; kernel cycles come from
-Nsight Compute with caches flushed.</p>
+On A100 the timing is back-to-back calls between CUDA events, so host overhead is hidden. On B300 it is one call
+per event pair. That includes host overhead, which is small next to these 0.3–6 ms kernels. A back-to-back B300
+sweep was queued but did not get the shared GPU in time. Kernel cycles everywhere come from Nsight Compute with
+caches flushed.</p>
 </section>
 {{FIG_THROUGHPUT}}
 <p class="cap">TFLOP/s at fixed 16k tokens. On A100, FA2, FA4's Sm80 path, and PyTorch's FA2 land within
