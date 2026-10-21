@@ -16,9 +16,16 @@ use crate::gpu::*;
 use crate::system::{GpuGroup, SystemSpec, TopologySpec};
 use std::collections::BTreeMap;
 
-pub const GPU_PRESETS: &[&str] = &["h100_sxm", "h200_sxm", "b200", "gb200", "b300"];
+pub const GPU_PRESETS: &[&str] = &["h100_sxm", "h200_sxm", "b200", "gb200", "b300", "gb300"];
 pub const SWITCH_PRESETS: &[&str] = &["nvswitch3", "nvswitch_nvl5", "ib_ndr_leaf"];
-pub const SYSTEM_PRESETS: &[&str] = &["hgx_h100_8", "hgx_b200_8", "gb200_nvl72", "h100_2node_ib"];
+pub const SYSTEM_PRESETS: &[&str] = &[
+    "hgx_h100_8",
+    "hgx_b200_8",
+    "hgx_b300_8",
+    "gb200_nvl72",
+    "gb300_nvl72",
+    "h100_2node_ib",
+];
 
 fn flops(pairs: &[(&str, f64)]) -> BTreeMap<String, f64> {
     pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
@@ -31,6 +38,8 @@ pub fn gpu(name: &str) -> Option<GpuSpec> {
         "b200" => b200(),
         "gb200" => gb200(),
         "b300" => b300(),
+        "b300_uncalibrated" => b300_uncalibrated(),
+        "gb300" => gb300(),
         _ => return None,
     })
 }
@@ -123,6 +132,7 @@ pub fn h100_sxm() -> GpuSpec {
             hmma_latency: 32,
             async_mma_overhead: 16,
             tmem_bytes: 0,
+            tcgen05_latency: 0,
         },
         latency: LatencyTable {
             int_alu: 4,
@@ -152,6 +162,7 @@ pub fn h100_sxm() -> GpuSpec {
             "L2 bandwidth, HBM latency, launch gap, CTA launch: est".into(),
         ],
         opcode_timing: BTreeMap::new(),
+        tma: TmaSpec::default(),
     }
 }
 
@@ -186,7 +197,11 @@ pub fn b200() -> GpuSpec {
         l2_bytes_per_cycle: 6000.0,
         hbm: HbmSpec { capacity_gb: 180.0, bw_gbps: 7700.0, efficiency: 0.9, latency_ns: 380.0 },
         dies: 2,
-        d2d: Some(DieLink { gbps_per_dir: 5000.0, extra_latency: 60 }),
+        d2d: Some(DieLink {
+            gbps_per_dir: 5000.0,
+            extra_latency: 60,
+            far_fraction: None,
+        }),
         nvlink: NvlinkSpec { generation: 5, ports: 18, gbps_per_port_per_dir: 50.0, port_latency_ns: 60.0 },
         pipes: PipeSpec {
             fp32_lanes: 32,
@@ -211,6 +226,7 @@ pub fn b200() -> GpuSpec {
             hmma_latency: 32,
             async_mma_overhead: 12,
             tmem_bytes: 256 * 1024,
+            tcgen05_latency: 300, // est
         },
         latency: LatencyTable {
             int_alu: 4,
@@ -239,6 +255,7 @@ pub fn b200() -> GpuSpec {
             "tcgen05 (UTC*MMA) issue/complete timing: est — calibrate with ubench/tcgen05_mma.cu".into(),
         ],
         opcode_timing: BTreeMap::new(),
+        tma: TmaSpec::default(),
     }
 }
 
@@ -246,7 +263,7 @@ pub fn b200() -> GpuSpec {
 /// B300 (Blackwell Ultra, SM103). Starts from B200 and takes what the
 /// calibration run measured (`calibration/results/b300-*/calibration.json`)
 /// via [`crate::calibration`]; the values here are the uncalibrated defaults.
-pub fn b300() -> GpuSpec {
+pub fn b300_uncalibrated() -> GpuSpec {
     let mut g = b200();
     g.name = "B300 SXM".into();
     g.sm_clock_mhz = 2032.0;
@@ -255,7 +272,31 @@ pub fn b300() -> GpuSpec {
         .flops_per_cycle_per_sm
         .insert("fp4".into(), 32768.0);
     g.notes
-        .push("b300: derived from b200; clock/fp4 est, calibrate with calibration/".into());
+        .push("b300: structure derived from b200 (est)".into());
+    g
+}
+
+/// Measured on a B300 SXM6 AC (sm_103) by `calibration/`; compiled in so
+/// the `b300` preset is calibrated out of the box.
+pub const B300_CALIBRATION: &str =
+    include_str!("../../../calibration/results/b300-sxm6-ac-sm103/calibration.json");
+
+/// B300 with every measured value from the B300 calibration run applied
+/// (clock, memory latencies/bandwidth, L2 partitions, per-opcode SASS
+/// timing, tcgen05 throughput/latency, TMA, launch overhead).
+pub fn b300() -> GpuSpec {
+    let mut g = b300_uncalibrated();
+    let doc: serde_json::Value =
+        serde_json::from_str(B300_CALIBRATION).expect("embedded B300 calibration is valid JSON");
+    crate::calibration::apply(&mut g, &doc).expect("embedded B300 calibration applies");
+    g
+}
+
+/// GB300 (Grace + B300) as used in GB300 NVL72: the calibrated B300 die.
+/// Board power/clock differences from the measured HGX part are not modelled (est).
+pub fn gb300() -> GpuSpec {
+    let mut g = b300();
+    g.name = format!("GB300 ({})", g.name);
     g
 }
 
@@ -310,6 +351,18 @@ pub fn system(name: &str) -> Option<SystemSpec> {
                     link: nvlink_link(&g),
                 },
             }
+        }
+        "hgx_b300_8" => {
+            let mut s = system("hgx_b200_8").unwrap();
+            s.name = "HGX B300 8-GPU".into();
+            s.gpus = vec![GpuGroup::preset("b300", 8)];
+            s
+        }
+        "gb300_nvl72" => {
+            let mut s = system("gb200_nvl72").unwrap();
+            s.name = "GB300 NVL72".into();
+            s.gpus = vec![GpuGroup::preset("gb300", 72)];
+            s
         }
         // 72 GPUs, 18 NVLink5 switch chips (9 trays x 2). Every GPU has one
         // link to every switch chip: 18 x 50 GB/s/dir = 1.8 TB/s bidir.

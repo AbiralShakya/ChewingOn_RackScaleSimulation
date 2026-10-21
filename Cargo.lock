@@ -347,6 +347,7 @@ dependencies = [
  "rsim-hw",
  "rsim-rack",
  "rsim-sass",
+ "serde",
  "serde_json",
  "serde_yaml",
 ]

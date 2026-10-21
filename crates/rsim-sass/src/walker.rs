@@ -17,6 +17,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Predicate register ids: P0-P6 (256..264) and UP0-UP6 (328..336).
+fn is_pred(r: crate::Reg) -> bool {
+    (256..264).contains(&r) || (328..336).contains(&r)
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct BranchProfile {
     /// pc -> times taken per warp before falling through.
@@ -179,7 +184,8 @@ impl Walker {
                             false
                         }
                     }
-                    None => inst.guard.is_none(),
+                    // `BRA.U !UP0, tgt` carries its predicate as an operand.
+                    None => inst.guard.is_none() && !inst.srcs.iter().any(|&r| is_pred(r)),
                 };
                 if take {
                     if let Some(t) = self.prog.index_of_pc(target) {

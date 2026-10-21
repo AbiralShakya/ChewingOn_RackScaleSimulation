@@ -15,6 +15,7 @@ rsim-hw.workspace = true
 rsim-sass.workspace = true
 rsim-gpu.workspace = true
 rsim-rack.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 anyhow.workspace = true

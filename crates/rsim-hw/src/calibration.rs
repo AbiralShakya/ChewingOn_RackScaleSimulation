@@ -5,7 +5,7 @@
 //! value alone. Every value taken is recorded in `spec.notes` with a
 //! `calibrated` tag so reports show provenance.
 
-use crate::gpu::{GpuSpec, OpTiming};
+use crate::gpu::{DieLink, GpuSpec, OpTiming};
 use serde_json::Value;
 use std::path::Path;
 
@@ -103,6 +103,39 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         set("l2_bytes_per_cycle", &mut took);
     }
 
+    // L2 partitions: near/far latency and how often an SM sees far.
+    if let (Some(near), Some(far), Some(frac)) = (
+        f(mem, &["l2_partitions", "near_mean_cycles"]),
+        f(mem, &["l2_partitions", "far_mean_cycles"]),
+        f(mem, &["l2_partitions", "far_fraction"]),
+    ) {
+        spec.l2.hit_latency = cyc(near);
+        let d = spec.d2d.get_or_insert(DieLink {
+            // Single-die parts: the far partition is on-die; no BW limit.
+            gbps_per_dir: 1e9,
+            extra_latency: 0,
+            far_fraction: None,
+        });
+        d.extra_latency = cyc(far - near);
+        d.far_fraction = Some(frac.clamp(0.0, 1.0));
+        set("l2_partitions", &mut took);
+    }
+
+    // TMA: fit latency = intercept + bytes / rate on the L2-resident curve.
+    if let Some(pts) = m.pointer("/tma/bulk_g2s_latency").and_then(Value::as_array) {
+        let xy: Vec<(f64, f64)> = pts
+            .iter()
+            .filter_map(|p| Some((f(p, &["bytes"])?, f(p, &["l2_cycles"])?)))
+            .collect();
+        if let Some((slope, icept)) = linear_fit(&xy) {
+            if slope > 0.0 {
+                spec.tma.bytes_per_cycle = 1.0 / slope;
+            }
+            spec.tma.issue_latency = (icept - spec.l2.hit_latency as f64).max(0.0).round() as u32;
+            set("tma", &mut took);
+        }
+    }
+
     // Per-opcode ALU/FMA/XU timing.
     if let Some(ops) = m.get("sass").and_then(Value::as_object) {
         for (op, t) in ops {
@@ -146,6 +179,23 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         }
     }
 
+    // tcgen05 pipeline latency: round trip minus throughput time, median
+    // over the single-CTA shapes measured.
+    if let Some(t) = tc.as_object() {
+        let mut lat: Vec<f64> = t
+            .iter()
+            .filter(|(k, _)| k.starts_with("tcgen05_"))
+            .filter_map(|(_, v)| {
+                Some(f(v, &["roundtrip_latency_cycles"])? - f(v, &["cycles_per_mma_1sm"])?)
+            })
+            .collect();
+        if !lat.is_empty() {
+            lat.sort_by(|a, b| a.total_cmp(b));
+            spec.tensor.tcgen05_latency = cyc(lat[lat.len() / 2]);
+            set("tensor.tcgen05_latency", &mut took);
+        }
+    }
+
     if let Some(us) = f(m, &["launch", "back_to_back_us_per_kernel"]) {
         spec.launch_overhead_ns = us * 1000.0;
         set("launch_overhead_ns", &mut took);
@@ -163,13 +213,30 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
     Ok(took)
 }
 
+/// Least-squares line through `xy`: (slope, intercept).
+fn linear_fit(xy: &[(f64, f64)]) -> Option<(f64, f64)> {
+    if xy.len() < 2 {
+        return None;
+    }
+    let n = xy.len() as f64;
+    let (sx, sy) = xy.iter().fold((0.0, 0.0), |a, p| (a.0 + p.0, a.1 + p.1));
+    let (mx, my) = (sx / n, sy / n);
+    let sxx: f64 = xy.iter().map(|p| (p.0 - mx).powi(2)).sum();
+    if sxx == 0.0 {
+        return None;
+    }
+    let sxy: f64 = xy.iter().map(|p| (p.0 - mx) * (p.1 - my)).sum();
+    let slope = sxy / sxx;
+    Some((slope, my - slope * mx))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn applies_partial_document() {
-        let mut g = crate::presets::b300();
+        let mut g = crate::presets::b300_uncalibrated();
         let doc = serde_json::json!({
             "schema": SCHEMA,
             "model": {
@@ -195,8 +262,32 @@ mod tests {
     }
 
     #[test]
+    fn partitions_tma_and_tcgen05() {
+        let mut g = crate::presets::b300_uncalibrated();
+        let doc = serde_json::json!({
+            "schema": SCHEMA,
+            "model": {
+                "memory": {"l2_partitions": {"near_mean_cycles": 320.0, "far_mean_cycles": 706.0, "far_fraction": 0.25}},
+                "tma": {"bulk_g2s_latency": [{"bytes": 0, "l2_cycles": 330}, {"bytes": 1000, "l2_cycles": 340}]},
+                "tensor": {"tcgen05_a": {"roundtrip_latency_cycles": 428.0, "cycles_per_mma_1sm": 128.0},
+                           "tcgen05_b": {"roundtrip_latency_cycles": 271.0, "cycles_per_mma_1sm": 48.0},
+                           "tcgen05_c": {"roundtrip_latency_cycles": 426.0, "cycles_per_mma_1sm": 64.0}}
+            }
+        });
+        apply(&mut g, &doc).unwrap();
+        let d = g.d2d.unwrap();
+        assert_eq!(
+            (g.l2.hit_latency, d.extra_latency, d.far_fraction),
+            (320, 386, Some(0.25))
+        );
+        assert!((g.tma.bytes_per_cycle - 100.0).abs() < 1e-6);
+        assert_eq!(g.tma.issue_latency, 10);
+        assert_eq!(g.tensor.tcgen05_latency, 300);
+    }
+
+    #[test]
     fn rejects_unknown_schema() {
-        let mut g = crate::presets::b300();
+        let mut g = crate::presets::b300_uncalibrated();
         assert!(apply(&mut g, &serde_json::json!({"schema": "v0"})).is_err());
     }
 }

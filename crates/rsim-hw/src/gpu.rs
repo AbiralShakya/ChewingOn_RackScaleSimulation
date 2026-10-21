@@ -43,6 +43,29 @@ pub struct DieLink {
     pub gbps_per_dir: f64,
     /// Extra latency for a far-die access, SM cycles.
     pub extra_latency: u32,
+    /// Measured fraction of L2 accesses an SM sees at far latency. `None`
+    /// = derive from address interleave (`(dies-1)/dies`). When set, a
+    /// deterministic hash of (line, SM die) picks the far accesses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub far_fraction: Option<f64>,
+}
+
+/// TMA (bulk copy) engine of one SM.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct TmaSpec {
+    /// Engine throughput, bytes per SM cycle.
+    pub bytes_per_cycle: f64,
+    /// Fixed issue latency on top of the L2/HBM access, cycles.
+    pub issue_latency: u32,
+}
+
+impl Default for TmaSpec {
+    fn default() -> Self {
+        Self {
+            bytes_per_cycle: 256.0, // est
+            issue_latency: 0,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -81,6 +104,11 @@ pub struct TensorSpec {
     pub async_mma_overhead: u32,
     /// Tensor memory per SM (Blackwell TMEM), bytes. 0 if absent.
     pub tmem_bytes: u64,
+    /// tcgen05 pipeline latency: cycles from an MMA leaving the engine to
+    /// its result being visible to `tcgen05.commit` (measured round trip
+    /// minus the MMA's throughput time).
+    #[serde(default)]
+    pub tcgen05_latency: u32,
 }
 
 impl TensorSpec {
@@ -155,6 +183,8 @@ pub struct GpuSpec {
     /// class-level latency table for fixed-latency ALU/FMA/XU/shuffle ops.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub opcode_timing: BTreeMap<String, OpTiming>,
+    #[serde(default)]
+    pub tma: TmaSpec,
 }
 
 /// Measured timing of one SASS opcode on one SMSP.

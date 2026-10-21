@@ -17,6 +17,8 @@ use rsim_rack::{RunConfig, Simulation, Workload};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+mod validate;
+
 #[derive(Parser)]
 #[command(
     name = "rsim",
@@ -43,6 +45,15 @@ enum Cmd {
         dims: Vec<u64>,
         #[arg(long, default_value = "bf16")]
         dtype: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Replay measured reference kernels (ncu_reference.json) and report
+    /// simulated vs measured SM cycles.
+    Validate {
+        reference: PathBuf,
+        #[arg(long, default_value = "b300")]
+        gpu: String,
         #[arg(long)]
         json: bool,
     },
@@ -247,6 +258,28 @@ fn main() -> Result<()> {
                 _ => bail!("unknown kernel kind {kind}"),
             };
             run_kernel(g, k, json)?;
+        }
+        Cmd::Validate {
+            reference,
+            gpu,
+            json,
+        } => {
+            let g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            let rows = validate::run(&reference, &g)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&rows)?);
+            } else {
+                println!(
+                    "{:<26} {:>12} {:>12} {:>8} {:>8}",
+                    "kernel", "ncu cycles", "sim cycles", "error", "trips"
+                );
+                for r in &rows {
+                    println!(
+                        "{:<26} {:>12.0} {:>12.0} {:>7.1}% {:>8}",
+                        r.label, r.measured_cycles, r.simulated_cycles, r.error_pct, r.trip_count
+                    );
+                }
+            }
         }
         Cmd::Sass {
             path,

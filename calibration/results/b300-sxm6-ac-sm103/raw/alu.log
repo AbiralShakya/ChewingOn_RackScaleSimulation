@@ -1,0 +1,60 @@
+OpFADD     lat   4.03 cyc  thr  125.02 ops/clk/SM
+OpFMUL     lat   4.03 cyc  thr  125.01 ops/clk/SM
+OpFFMA     lat   4.04 cyc  thr  123.96 ops/clk/SM
+OpFMNMX    lat   2.03 cyc  thr  126.28 ops/clk/SM
+OpFFMA2    lat   4.02 cyc  thr   58.47 ops/clk/SM
+OpFADD2    lat   4.02 cyc  thr   63.57 ops/clk/SM
+OpHFMA2    lat   4.02 cyc  thr   63.66 ops/clk/SM
+OpHFMA2BF  lat   4.02 cyc  thr   63.66 ops/clk/SM
+OpHADD2    lat   4.02 cyc  thr   63.66 ops/clk/SM
+OpIADD     lat   2.02 cyc  thr  126.63 ops/clk/SM
+OpIMAD     lat   4.03 cyc  thr   63.66 ops/clk/SM
+OpLOP3     lat   4.02 cyc  thr   63.64 ops/clk/SM
+OpSHF      lat   4.02 cyc  thr   63.66 ops/clk/SM
+OpPRMT     lat   4.02 cyc  thr   63.66 ops/clk/SM
+OpPOPC     lat  18.00 cyc  thr   15.98 ops/clk/SM
+OpFLO      lat  18.00 cyc  thr   15.98 ops/clk/SM
+OpIMNMX    lat   2.03 cyc  thr  126.63 ops/clk/SM
+OpEX2      lat  14.00 cyc  thr   31.90 ops/clk/SM
+OpRSQ      lat  18.00 cyc  thr   15.98 ops/clk/SM
+OpRCP      lat  24.03 cyc  thr   15.98 ops/clk/SM
+OpSQRT     lat  18.00 cyc  thr   15.98 ops/clk/SM
+OpLG2      lat  18.00 cyc  thr   15.98 ops/clk/SM
+OpTANH     lat  18.00 cyc  thr   15.98 ops/clk/SM
+OpSIN      lat  24.02 cyc  thr   15.97 ops/clk/SM
+OpDFMA     lat  63.96 cyc  thr    1.93 ops/clk/SM
+OpDADD     lat  63.94 cyc  thr    1.63 ops/clk/SM
+OpF2FBF    lat   4.02 cyc  thr   63.66 ops/clk/SM
+OpF2I      lat  18.00 cyc  thr   15.98 ops/clk/SM
+OpI2F      lat   4.02 cyc  thr   63.66 ops/clk/SM
+OpSHFL     lat  31.00 cyc  thr   36.45 ops/clk/SM
+OpFADD     add.f32                lat x1.0 thr x1.0  top=[('FADD', 322), ('NOP', 16), ('BRA.U', 5)]
+OpFMUL     mul.f32                lat x1.0 thr x1.0  top=[('FMUL', 320), ('NOP', 16), ('BRA.U', 5)]
+OpFFMA     fma.rn.f32             lat x1.0 thr x1.0  top=[('FFMA', 320), ('NOP', 15), ('BRA.U', 5)]
+OpFMNMX    max.f32                lat x0.5 thr x0.5  top=[('FMNMX3', 160), ('NOP', 16), ('BRA.U', 5)]
+OpFFMA2    fma.rn.f32x2           lat x1.0 thr x1.0  top=[('FFMA2', 320), ('NOP', 10), ('BRA.U', 5)]
+OpFADD2    add.rn.f32x2           lat x1.0 thr x1.0  top=[('FADD2', 320), ('NOP', 11), ('BRA.U', 5)]
+OpHFMA2    fma.rn.f16x2           lat x1.0 thr x1.0  top=[('HFMA2', 320), ('NOP', 11), ('BRA.U', 5)]
+OpHFMA2BF  fma.rn.bf16x2          lat x1.0 thr x1.0  top=[('HFMA2.BF16_V2', 320), ('NOP', 11), ('BRA.U', 5)]
+OpHADD2    add.rn.f16x2           lat x1.0 thr x1.0  top=[('HFMA2', 160), ('HADD2', 160), ('NOP', 12)]
+OpIADD     add.u32                lat x0.506 thr x0.503  top=[('IADD3', 162), ('NOP', 12), ('BRA.U', 5)]
+OpIMAD     mad.lo.u32             lat x1.0 thr x1.001  top=[('IMAD', 320), ('NOP', 11), ('BRA.U', 5)]
+OpLOP3     lop3.b32               lat x1.0 thr x1.001  top=[('LOP3.LUT', 320), ('NOP', 11), ('BRA.U', 5)]
+OpSHF      shf.l.wrap.b32         lat x1.003 thr x1.0  top=[('SHF.L.W.U32.HI', 320), ('NOP', 12), ('BRA.U', 5)]
+OpPRMT     prmt.b32               lat x1.0 thr x1.0  top=[('PRMT', 320), ('NOP', 12), ('BRA.U', 5)]
+OpPOPC     popc.b32               lat x1.0 thr x1.0  top=[('POPC', 320), ('NOP', 13), ('BRA.U', 5)]
+OpFLO      bfind.u32              lat x1.0 thr x1.0  top=[('FLO.U32', 320), ('NOP', 13), ('BRA.U', 5)]
+OpIMNMX    max.u32                lat x0.5 thr x0.5  top=[('VIMNMX3.U32', 160), ('NOP', 12), ('BRA.U', 5)]
+OpEX2      ex2.approx.ftz.f32     lat x1.0 thr x1.0  top=[('MUFU.EX2', 320), ('NOP', 9), ('BRA.U', 5)]
+OpRSQ      rsqrt.approx.ftz.f32   lat x1.0 thr x1.0  top=[('MUFU.RSQ', 320), ('NOP', 9), ('BRA.U', 5)]
+OpRCP      rcp.approx.ftz.f32     lat x1.0 thr x1.0  top=[('FADD', 322), ('MUFU.RCP', 320), ('NOP', 16)]
+OpSQRT     sqrt.approx.ftz.f32    lat x1.0 thr x1.0  top=[('MUFU.SQRT', 320), ('NOP', 9), ('BRA.U', 5)]
+OpLG2      lg2.approx.ftz.f32     lat x1.0 thr x1.0  top=[('MUFU.LG2', 320), ('NOP', 9), ('BRA.U', 5)]
+OpTANH     tanh.approx.f32        lat x1.0 thr x1.0  top=[('MUFU.TANH', 320), ('NOP', 9), ('BRA.U', 5)]
+OpSIN      sin.approx.ftz.f32     lat x1.0 thr x1.0  top=[('FMUL.RZ', 320), ('MUFU.SIN', 320), ('NOP', 9)]
+OpDFMA     fma.rn.f64             lat x1.0 thr x1.0  top=[('NOP', 1295), ('DFMA', 320), ('BRA.U', 5)]
+OpDADD     add.f64                lat x1.0 thr x1.0  top=[('NOP', 1296), ('DADD', 322), ('BRA.U', 5)]
+OpF2FBF    cvt.rn.bf16x2.f32      lat x1.0 thr x1.0  top=[('F2FP.BF16.F32.PACK_AB', 320), ('NOP', 13), ('BRA.U', 5)]
+OpF2I      cvt.rzi.s32.f32        lat x1.0 thr x1.0  top=[('F2I.TRUNC.NTZ', 320), ('NOP', 13), ('BRA.U', 5)]
+OpI2F      cvt.rn.f32.s32         lat x1.0 thr x1.0  top=[('I2FP.F32.S32', 320), ('NOP', 13), ('BRA.U', 5)]
+OpSHFL     shfl.sync.bfly.b32     lat x1.0 thr x0.875  top=[('SHFL.BFLY', 320), ('IMAD.IADD', 162), ('IADD3', 160)]

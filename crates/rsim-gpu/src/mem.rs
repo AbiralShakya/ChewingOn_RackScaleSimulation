@@ -175,6 +175,7 @@ pub struct MemSystem {
     l2_lat: u64,
     hbm_lat: u64,
     d2d_lat: u64,
+    far_fraction: Option<f64>,
     sector: u32,
     sm_count: u32,
     pub dram_read_bytes: u64,
@@ -203,6 +204,7 @@ impl MemSystem {
             l2_lat: g.l2.hit_latency as u64,
             hbm_lat: (g.hbm.latency_ns * clock_ghz).round() as u64,
             d2d_lat: g.d2d.as_ref().map(|d| d.extra_latency as u64).unwrap_or(0),
+            far_fraction: g.d2d.as_ref().and_then(|d| d.far_fraction),
             sector: g.l2.sector_bytes,
             sm_count: g.sm_count,
             dram_read_bytes: 0,
@@ -233,7 +235,15 @@ impl MemSystem {
         let bytes = mask.count_ones() as u64 * self.sector as u64;
         let mut t = now;
         let mut extra = 0;
-        if die != self.sm_die(sm) {
+        let far = match self.far_fraction {
+            Some(f) => {
+                let h = (addr >> 7) ^ ((self.sm_die(sm) as u64) << 40);
+                let h = h.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 11;
+                (h as f64 / (1u64 << 53) as f64) < f
+            }
+            None => die != self.sm_die(sm),
+        };
+        if far {
             t = self.d2d[die].serve(t, bytes);
             extra = self.d2d_lat;
         }

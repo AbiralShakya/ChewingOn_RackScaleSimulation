@@ -20,8 +20,6 @@ const MIO_QUEUE_CYCLES: u64 = 16;
 const WGMMA_QUEUE_CYCLES: u64 = 2048;
 /// Backlog (cycles) the SM-wide tcgen05 queue tolerates.
 const TCGEN05_QUEUE_CYCLES: u64 = 4096;
-/// TMA engine throughput, bytes per cycle per SM (est).
-const TMA_BYTES_PER_CYCLE: f64 = 256.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Policy {
@@ -141,7 +139,7 @@ impl Sm {
             reserved: false,
             mio: Server::new(lsu_rate),
             smem_srv: Server::new(1.0),
-            tma: Server::new(TMA_BYTES_PER_CYCLE),
+            tma: Server::new(spec.tma.bytes_per_cycle),
             tensor_tail: 0,
             l1,
             use_ctrl,
@@ -768,7 +766,8 @@ impl Sm {
                 let dur = (flops / rate).ceil().max(1.0) as u64;
                 let start = self.tensor_tail.max(c + t.lat as u64);
                 self.tensor_tail = start + dur;
-                let fin = start + dur;
+                // Visible to tcgen05.commit after the pipeline latency.
+                let fin = start + dur + spec.tensor.tcgen05_latency as u64;
                 // The SM's four tensor cores work as one engine here.
                 self.tensor_busy_total += dur * spec.sub_partitions as u64;
                 let st = self.acc.get(kid);
@@ -790,7 +789,7 @@ impl Sm {
                 });
                 let store = inst.meta.flags & flags::BULK_STORE != 0;
                 let frac = self.multicast(cta, role, inst.pc);
-                let start = self.tma.serve(c, bytes);
+                let start = self.tma.serve(c, bytes) + spec.tma.issue_latency as u64;
                 let r = mem.bulk(self.id, start, addr, bytes, frac, store);
                 let st = self.acc.get(kid);
                 st.l2_hits += r.l2_hit_sectors as u64;
