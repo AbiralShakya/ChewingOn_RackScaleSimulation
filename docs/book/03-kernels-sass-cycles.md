@@ -132,7 +132,9 @@ The [FlashAttention study](../../research/flash_attention/README.md) ran Dao-AIL
 | 8k (batch 2) | 444 | 1801 | 1829 | 4.1× |
 | 16k (batch 1) | 440 | **1888** | 1857 | 4.3× |
 
-(One call per CUDA event pair, so host overhead is included. FA2 at 4k measured 227 TFLOP/s
+(One call per CUDA event pair, so host overhead is included. Run back to back for long
+enough to reach thermal steady state, FA4 sustains **1.52 PFLOP/s** at 4k tokens and FA2 0.37;
+the single-call figures above are the burst numbers. FA2 at 4k measured 227 TFLOP/s
 in this sweep, against 430 at its neighbours; we treat it as an outlier of that run.)
 
 Chapter 2 already predicts the FA2 ceiling: `mma.sync` on B300 is 2037 FLOP/clk/SM, 613
@@ -205,10 +207,15 @@ parameter (shape 4 × 16 × 4096, *d* = 128):
 
 | GPU | kernel | ncu cycles | sim cycles | error |
 |---|---|---|---|---|
-| A100 PCIe | FA2 | 3.42 M | 3.45 M | +0.7% |
-| A100 PCIe | FA4 (Sm80 path) | 3.39 M | 3.41 M | +0.6% |
-| B300 | FA2 (`mma.sync`) | 2.38 M | 2.47 M | +3.7% |
-| B300 | FA4 (2-CTA `tcgen05`) | 510 k | 506 k | −0.9% |
+| A100 PCIe | FA2 | 3.42 M | 3.24 M | −5.4% |
+| A100 PCIe | FA4 (Sm80 path) | 3.39 M | 3.19 M | −6.0% |
+| B300 | FA2 (`mma.sync`) | 2.38 M | 2.26 M | −4.9% |
+| B300 | FA4 (2-CTA `tcgen05`) | 510 k | 511 k | +0.2% |
+
+The same recordings and calibrations reproduce twelve ring-attention step kernels (chapter
+5.5) that were not used to tune anything: FA4 on B300 within −3.7 to +5.4%, FA2 on A100 SXM4
+within −4.6 to −5.9%. All sixteen recordings are committed in
+[`research/flash_attention/rpath/`](../../research/flash_attention/rpath/).
 
 The stall mix matches too. For the HMMA kernels both hardware and simulator put about half the
 stalled warp-cycles on fixed-latency dependencies (`wait`) and a third on the math pipe. For
@@ -223,13 +230,15 @@ A kernel also costs time before its first instruction and after its last. Measur
 |---|---|
 | back-to-back launches, per kernel | 1.71 µs |
 | CUDA graph, per kernel | 0.55 µs |
-| kernel window, 128 threads, no shared memory | 7093 cycles (3.5 µs) |
-| kernel window, 512 threads, max shared memory, 2-CTA cluster, TMEM prologue (FA4-like) | 9110 cycles (4.5 µs) |
+| kernel window, 148 CTAs × 128 threads, no shared memory | 6947 cycles (3.4 µs) |
+| kernel window, one CTA × 128 threads | 6702 cycles (3.3 µs) |
+| kernel window, one CTA × 512 threads, max shared memory | 6984 cycles (3.4 µs) |
+| kernel window, 512 threads, max shared memory, 2-CTA cluster, TMEM prologue (FA4-like) | 9188 cycles (4.5 µs) |
 
 The **kernel window** is the in-kernel fixed cost: CTA launch, shared-memory carve-out, TMEM
 allocation, descriptor prefetch, pipeline fill and drain. For a 290 µs FA4 call it is noise;
-for the 32 µs ring-attention step of chapter 5 it is 14%. The simulator adds the measured
-window to kernels timed alone (`rsim kernel`, `rsim validate`, `rsim path`).
+for the 29 µs ring-attention step of chapter 5 it is 16%. The simulator picks the measured
+window that matches each kernel's launch shape and adds it to kernels timed alone (`rsim kernel`, `rsim validate`, `rsim path`).
 
 ## Exercises
 
@@ -264,7 +273,7 @@ window to kernels timed alone (`rsim kernel`, `rsim validate`, `rsim path`).
 | vector add on H100 | `rsim sass examples/sass/vecadd_sm90.sass --gpu h100_sxm --grid 1024 --block 256` |
 | GEMM stall anatomy | `rsim kernel --gpu b300 gemm 8192 8192 8192` |
 | FA timing, validation, roles | `research/flash_attention/results/study.json`; write-up `research/flash_attention/writeup.html` |
-| FA replay (needs the `.rpath` recordings, not in git) | `python research/flash_attention/run_study.py all` |
+| FA replay (recordings in `research/flash_attention/rpath/`) | `python research/flash_attention/run_study.py all` |
 | launch and kernel window | `calibration.json`, `model.launch` |
 | validation of microbenchmark kernels | `rsim validate calibration/results/b300-sxm6-ac-sm103/ncu_reference.json --gpu b300` |
 

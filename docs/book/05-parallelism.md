@@ -215,8 +215,8 @@ Ring efficiency is the share of the step spent in the attention kernel. On NVL72
 hides behind the kernel at every shape. Over InfiniBand, FA4 on B300 is fast enough that the
 ring becomes transfer bound even with GQA at 1k chunks; the slower FA2 on A100 still hides its
 transfer when K/V is small. **A faster kernel needs a faster fabric to stay compute bound.**
-(1024-token FA4 kernels are 17 to 21% fast in the simulator, which misses a fixed cost on
-32 µs kernels; read those rows as model behaviour. The fabrics are presets.)
+(The step kernels themselves are validated against Nsight Compute within −3.7 to +5.4% for
+FA4 and −4.6 to −5.9% for FA2, chapter 3.5. The fabrics are presets.)
 
 ## 5.6 Putting the axes together
 
@@ -269,6 +269,6 @@ the 18× drop to InfiniBand outside it.
 | TP sweep | `rackscale prefill llama3-70b --system hgx_b200_8 --tp N --seqlen 4096 --layers 2 --fast` |
 | pipeline bubbles | `python docs/book/scripts/pipeline_bubbles.py` |
 | EP all-to-all in a real step | `python examples/deepseek_v3_nvl72.py --layers 4` |
-| ring attention | `research/flash_attention/results/scale_rows.json`; rerun with `python research/flash_attention/run_study.py scale` (needs the `.rpath` recordings) |
+| ring attention | `research/flash_attention/results/scale_rows.json`; rerun with `python research/flash_attention/run_study.py scale` (recordings in `research/flash_attention/rpath/`) |
 
 Next: [6. Inference](06-inference.md).

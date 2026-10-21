@@ -58,8 +58,8 @@ What the misses mean:
 
 | kernels | GPU | cases | result | source |
 |---|---|---|---|---|
-| FlashAttention-2 and -4, recorded paths, 4k shape | A100 PCIe, B300 | 4 | **−0.9% to +3.7%** cycles, instruction counts exact | [`research/flash_attention`](../../research/flash_attention/README.md) |
-| FA4 / FA2 ring-attention step kernels | B300, A100 SXM4 | 12 | within ±2% at chunks ≥ 2048; FA4 at 1024 is 17–21% fast (fixed per-launch cost) | same |
+| FlashAttention-2 and -4, recorded paths, 4k shape | A100 PCIe, B300 | 4 | **−6.0% to +0.2%** cycles, instruction counts exact | [`research/flash_attention`](../../research/flash_attention/README.md) |
+| FA4 / FA2 ring-attention step kernels, out of sample | B300, A100 SXM4 | 12 | FA4 −3.7% to +5.4%, FA2 −4.6% to −5.9% | same |
 | cuBLAS BF16 GEMMs, decode and prefill shapes | B300 | 54 | median \|error\| 10%; decode shapes within ~10%, large GEMMs 15–35% fast | [`research/ssm_vs_attention`](../../research/ssm_vs_attention/README.md) |
 | cuBLAS BF16 GEMMs | A100 PCIe | 48 | median \|error\| 33%; large GEMMs 30–90% slow | same |
 | FA decode/prefill attention | B300 / A100 | 30 / 22 | median 10% / 20% | same |
@@ -69,7 +69,8 @@ What the misses mean:
 
 Read this as:
 
-- **Recorded kernels on either GPU are the most trustworthy numbers** in the guide (±4%).
+- **Recorded kernels on either GPU are the most trustworthy numbers** in the guide: all 16
+  within ±6%, with the A100 recordings consistently about 5% fast.
 - **Synthetic Blackwell kernels** are good to about 10% at decode shapes and optimistic by up
   to a third for large GEMMs. The likely cause: under a sustained back-to-back replay the B300
   clock falls below what Nsight's per-kernel replay shows (1.79 GHz for tensor-bound kernels),
@@ -113,7 +114,7 @@ from link rates and a chunked cut-through model, with no multi-GPU measurement b
 When you see a number in this guide, or produce one with the simulator, ask three questions:
 
 1. **Which GPU model produced it?** Calibrated B300, calibrated A100, or a preset.
-2. **Which kernel model?** Recorded `.rpath` (±4%), real SASS, or synthetic (±10% at decode
+2. **Which kernel model?** Recorded `.rpath` (±6%), real SASS, or synthetic (±10% at decode
    shapes on Blackwell; worse on Ampere and for large GEMMs).
 3. **Does it cross a fabric?** Then the network part is a preset, and the result is a model
    prediction until the fabric is calibrated.
@@ -130,7 +131,7 @@ recorded kernel, the same calibration, one number changed.
 |---|---|
 | microbenchmark validation | `rsim validate calibration/results/<gpu>/ncu_reference.json --gpu <preset> --calibration calibration/results/<gpu>/calibration.json` |
 | a quick CI subset | `rsim validate ... --only hbm_stream_read,ex2_throughput --max-error 10` |
-| FA validation | `python research/flash_attention/run_study.py validate` (needs the recordings) |
+| FA validation | `python research/flash_attention/run_study.py validate` (recordings in `research/flash_attention/rpath/`) |
 | GEMM / attention / Mamba validation | `python research/ssm_vs_attention/validate.py --gpu b300` |
 | fast vs exact | `python examples/deepseek_v3_nvl72.py --layers 4 --exact` |
 

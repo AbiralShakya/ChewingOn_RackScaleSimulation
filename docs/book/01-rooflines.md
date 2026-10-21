@@ -116,18 +116,18 @@ python docs/book/scripts/roofline_sweep.py            # B300, BF16, about 20 s
 ```
 b300 bf16: peak 2464 TFLOP/s, HBM 6.82 TB/s, ridge 361 FLOP/byte
      M      AI roofline_us    sim_us  TFLOP/s  %peak    GB/s
-     1     1.0        19.7      27.6        5    0.2    4873
-    64    63.0        20.0      27.6      312   12.7    4948
-   128   124.1        20.3      27.6      624   25.3    5024
-   256   240.9        20.9      35.3      973   39.5    4038
-   512   455.1        27.9      41.9     1642   66.6    3608
-  1024   819.2        55.8      79.7     1724   70.0    2105
-  4096  2048.0       223.1     279.2     1969   79.9      961
-  8192  2730.7       446.2     558.3     1969   79.9      721
+     1     1.0        19.7      27.1        5    0.2    4958
+    64    63.0        20.0      27.1      317   12.9    5034
+   128   124.1        20.3      27.1      634   25.7    5111
+   256   240.9        20.9      33.3     1033   41.9    4286
+   512   455.1        27.9      40.9     1682   68.3    3696
+  1024   819.2        55.8      78.8     1744   70.8    2129
+  4096  2048.0       223.1     277.6     1980   80.4     967
+  8192  2730.7       446.2     556.0     1977   80.2     724
 ```
 
-Read it like a roofline plot. Up to *M* = 128 the time does not move at all (27.6 µs): the
-kernel streams the 134 MB weight at 4.9 TB/s and the tensor core is mostly idle. Past the
+Read it like a roofline plot. Up to *M* = 128 the time does not move at all (27.1 µs): the
+kernel streams the 134 MB weight at 5.0 TB/s and the tensor core is mostly idle. Past the
 ridge (*M* ≈ 361) time grows linearly with *M* and throughput flattens at 70 to 80% of peak.
 The knee in the simulator sits where the algebra puts it.
 
@@ -169,17 +169,17 @@ part of the kernel by `f_max/f` (memory time is unchanged). For 8192³ that give
 (839/1331)<sup>1/3</sup> = **1742 MHz**, against 1717 MHz measured.
 
 ```bash
-python docs/book/scripts/roofline_sweep.py --dtype fp4 --n 16384 --k 16384 --ms 1,64,256,1024,4096,8192,16384
+python docs/book/scripts/roofline_sweep.py --dtype fp4 --n 16384 --k 16384 --ms 1,256,1024,4096,16384
 ```
 
 ```
 b300 fp4: peak 13142 TFLOP/s, HBM 6.82 TB/s, ridge 1928 FLOP/byte
      M      AI roofline_us    sim_us  TFLOP/s  %peak    GB/s  clock
-     1     4.0        19.7      27.9       19    0.1    4804 2032.0
-   256   949.8        21.2      28.7     4782   36.4    5035 2032.0
-  1024  3120.8        41.8     110.5     4976   37.9    1594 1927.0
-  4096  7281.8       167.3     406.6     5408   41.2      743 1767.0
- 16384 10922.7       669.3    1732.3     5078   38.6      465 1646.0
+     1     4.0        19.7      26.8       20    0.2    5015 2032.0
+   256   949.8        21.2      27.2     5047   38.4    5314 2032.0
+  1024  3120.8        41.8     107.9     5094   38.8    1632 1924.0
+  4096  7281.8       167.3     401.8     5473   41.6     752 1764.0
+ 16384 10922.7       669.3    1715.5     5128   39.0     469 1643.0
 ```
 
 So the honest roofline for B300 FP4 has a ceiling that slopes down with kernel size, from 13.1
