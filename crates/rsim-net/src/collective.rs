@@ -115,8 +115,8 @@ pub fn plan(c: &Collective, view: &FabricView) -> Plan {
         }
         (a, _) => a,
     };
-    let steps;
-    match (c.kind, algo) {
+
+    let steps = match (c.kind, algo) {
         (CollKind::SendRecv, _) => {
             t.push(Transfer {
                 src: End::Rank(0),
@@ -124,7 +124,7 @@ pub fn plan(c: &Collective, view: &FabricView) -> Plan {
                 bytes: c.bytes,
                 deps: vec![],
             });
-            steps = 1;
+            1
         }
         (CollKind::AllToAll, _) => {
             let per = c.bytes / n as u64;
@@ -141,7 +141,7 @@ pub fn plan(c: &Collective, view: &FabricView) -> Plan {
                     });
                 }
             }
-            steps = 1;
+            1
         }
         (CollKind::AllReduce, Algo::Nvls) => {
             // multimem.ld_reduce: every rank pushes its buffer share to every
@@ -173,7 +173,7 @@ pub fn plan(c: &Collective, view: &FabricView) -> Plan {
                     }
                 }
             }
-            steps = 2;
+            2
         }
         (CollKind::Broadcast, _) => {
             // Pipelined chain from rank 0.
@@ -199,7 +199,7 @@ pub fn plan(c: &Collective, view: &FabricView) -> Plan {
                     prev[p] = Some(t.len() - 1);
                 }
             }
-            steps = (n - 1) as u32 + pieces as u32 - 1;
+            (n - 1) as u32 + pieces as u32 - 1
         }
         (kind, _) => {
             // Ring family.
@@ -229,9 +229,9 @@ pub fn plan(c: &Collective, view: &FabricView) -> Plan {
                     last = next;
                 }
             }
-            steps = nsteps as u32;
+            nsteps as u32
         }
-    }
+    };
     Plan {
         algo,
         transfers: t,
