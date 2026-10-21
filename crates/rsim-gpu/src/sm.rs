@@ -941,12 +941,10 @@ impl Sm {
         }
 
         match inst.class {
-            // A guarded EXIT that the stream resolved as taken ends the
-            // stream instead (next fetch returns `None`).
-            OpClass::Exit if inst.guard.is_none() => {
-                self.exit_warp(ws, sp, c, done);
-                return;
-            }
+            // Warps retire when their stream ends (next fetch returns
+            // `None`), not at an EXIT: a recorded EXIT may have only some
+            // lanes (or none) active, and the warp's remaining lanes go on.
+            OpClass::Exit => {}
             OpClass::Mem | OpClass::AsyncCopy | OpClass::Ldsm | OpClass::Tmem => {
                 // A recorded op with every lane predicated off moves no data.
                 let r = if op.active == 0 {

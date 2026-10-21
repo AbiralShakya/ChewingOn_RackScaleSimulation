@@ -102,6 +102,42 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
             set("hbm.efficiency", &mut took);
         }
     }
+    // Loaded latency: the read sweep keeps a fixed number of loads in flight
+    // per SM, so per-SM bandwidth falls as latency rises with total load.
+    // The baseline is the best per-SM rate at light load (>= 4 SMs; one or
+    // two SMs see a boost of their own); points near saturation are left to
+    // the bandwidth server, which queues there already.
+    if let (Some(pts), Some(rd), Some(dram)) = (
+        mem.pointer("/bandwidth/hbm_read_vs_sms")
+            .and_then(Value::as_array),
+        f(mem, &["bandwidth", "hbm_read_GBps"]),
+        f(mem, &["latency_cycles", "dram"]),
+    ) {
+        let pts: Vec<(f64, f64)> = pts
+            .iter()
+            .filter_map(|p| Some((p.get("sms")?.as_f64()?, p.get("GBps_per_sm")?.as_f64()?)))
+            .filter(|&(n, b)| n >= 4.0 && b > 0.0)
+            .map(|(n, b)| (n * b / rd, b))
+            .collect();
+        let base = pts
+            .iter()
+            .filter(|p| p.0 < 0.15)
+            .map(|p| p.1)
+            .fold(0.0, f64::max);
+        if base > 0.0 {
+            let total_ns = dram / ghz;
+            let mut extra = 0.0f64;
+            spec.hbm.loaded_latency = pts
+                .iter()
+                .filter(|p| p.0 <= 0.9)
+                .map(|&(u, b)| {
+                    extra = extra.max((base / b - 1.0).max(0.0) * total_ns);
+                    [u, extra]
+                })
+                .collect();
+            set("hbm.loaded_latency", &mut took);
+        }
+    }
     if let Some(b) = f(mem, &["bandwidth", "l2_read_bytes_per_clk_per_sm"]) {
         spec.l2_bytes_per_cycle = b * spec.sm_count as f64;
         set("l2_bytes_per_cycle", &mut took);

@@ -46,10 +46,23 @@ fn solve_profile(p: &Program, warps: f64, inst_executed: f64) -> (BranchProfile,
         })
         .max();
     let mut prof = BranchProfile::default();
+    let per_warp = inst_executed / warps.max(1.0);
+    // Warps that run no further than the first guarded EXIT (e.g. bench_window
+    // with a null sink) take it: fire it for every CTA.
+    if let Some((i, e)) = p
+        .insts
+        .iter()
+        .enumerate()
+        .find(|(_, i)| i.class == rsim_sass::OpClass::Exit && i.guard.is_some())
+    {
+        if per_warp > 0.0 && per_warp <= (i + 1) as f64 + 0.5 {
+            prof.exit_prob.insert(e.pc, 1.0);
+            return (prof, 0);
+        }
+    }
     let Some((body, pc)) = main else {
         return (prof, 0);
     };
-    let per_warp = inst_executed / warps.max(1.0);
     let trips = ((per_warp - p.insts.len() as f64) / body as f64)
         .round()
         .max(0.0) as u64;

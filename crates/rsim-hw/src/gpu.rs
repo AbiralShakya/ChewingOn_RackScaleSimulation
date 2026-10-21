@@ -31,6 +31,27 @@ pub struct HbmSpec {
     pub efficiency: f64,
     /// Unloaded latency beyond L2 miss, ns.
     pub latency_ns: f64,
+    /// Extra miss latency under load: `[utilization, ns]` points, utilization
+    /// being the fraction of achievable read bandwidth in use. Taken from the
+    /// calibration's latency-bound read sweep over SM counts (per-SM
+    /// bandwidth falls as total load rises). Empty = load-independent.
+    #[serde(default)]
+    pub loaded_latency: Vec<[f64; 2]>,
+}
+
+impl HbmSpec {
+    /// Extra latency (ns) at `util`, interpolated; flat past the last point.
+    pub fn loaded_extra_ns(&self, util: f64) -> f64 {
+        let p = &self.loaded_latency;
+        match p.iter().position(|q| q[0] >= util) {
+            None => p.last().map_or(0.0, |q| q[1]),
+            Some(0) => p[0][1] * (util / p[0][0].max(1e-9)).clamp(0.0, 1.0),
+            Some(i) => {
+                let (a, b) = (p[i - 1], p[i]);
+                a[1] + (b[1] - a[1]) * (util - a[0]) / (b[0] - a[0]).max(1e-9)
+            }
+        }
+    }
 }
 
 fn one() -> u32 {
