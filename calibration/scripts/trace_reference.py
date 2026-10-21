@@ -89,7 +89,10 @@ def trace(binary, args, mangled, skip, env, workdir):
         "TRACE_FILE_COMPRESS": "0",
         "TOOL_COMPRESS": "0",
     })
-    p = subprocess.run(locked([binary] + args), env=e, capture_output=True, text=True)
+    try:
+        p = subprocess.run(locked([binary] + args), env=e, capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        return None, "tracer run timed out after 900 s"
     if p.returncode != 0:
         return None, p.stderr[-2000:]
     tdir = os.path.join(folder, "traces")
