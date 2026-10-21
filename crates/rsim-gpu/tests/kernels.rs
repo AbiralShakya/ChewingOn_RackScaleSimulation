@@ -111,3 +111,54 @@ fn parsed_sass_with_control_bits_runs() {
         d.stats.class_mix
     );
 }
+
+/// sm_80-style structural hazard: HMMA holds the FP32 pipe, so FFMA can't
+/// hide under it, while MUFU (XU pipe) still can.
+#[test]
+fn hmma_blocks_fp32_pipe_not_mufu() {
+    fn listing(filler: &str) -> String {
+        let mut s = String::from("\t\tFunction : hazard\n");
+        let mut pc = 0;
+        for i in 0..64 {
+            let d = 4 + 4 * (i % 16);
+            let (f1, f2) = (120 + (2 * i) % 16, 121 + (2 * i) % 16);
+            for op in [
+                format!("HMMA.16816.F32.BF16 R{d}, R200, R204, R{d}"),
+                filler.replace("RD", &format!("R{f1}")),
+                filler.replace("RD", &format!("R{f2}")),
+            ] {
+                s += &format!("        /*{pc:04x}*/                   {op} ;\n");
+                pc += 16;
+            }
+        }
+        s += &format!("        /*{pc:04x}*/                   EXIT ;\n");
+        s
+    }
+    let time = |filler: &str, hold: u32| {
+        let mut spec = presets::h100_sxm();
+        spec.tensor.hmma_fma_pipe_cycles = hold;
+        let prog = rsim_sass::parse_listing(&listing(filler))
+            .unwrap()
+            .remove(0);
+        let k = KernelLaunch::from_program(
+            "hazard",
+            prog,
+            [1, 1, 1],
+            [32, 1, 1],
+            64,
+            0,
+            Default::default(),
+        );
+        run(spec, k).0.end_cycle as f64
+    };
+    let ffma = "FFMA RD, R101, R102, R103";
+    let mufu = "MUFU.EX2 RD, R111";
+    let (f0, f4) = (time(ffma, 0), time(ffma, 4));
+    let (m0, m4) = (time(mufu, 0), time(mufu, 4));
+    eprintln!("ffma {f0} -> {f4}, mufu {m0} -> {m4}");
+    assert!(
+        f4 > 1.25 * f0,
+        "FFMA should serialise behind HMMA: {f0} -> {f4}"
+    );
+    assert!(m4 < 1.05 * m0, "MUFU should still overlap: {m0} -> {m4}");
+}

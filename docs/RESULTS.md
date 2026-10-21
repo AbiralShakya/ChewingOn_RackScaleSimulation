@@ -76,3 +76,17 @@ transfer are the levers to model next.
 The measured values replace the presets: 2003 MHz clock, 89% HBM read efficiency, per-opcode
 ALU/XU latencies, and the tcgen05 FLOP/clk. Llama-3-70B TP8 decode (2 layers, b32) runs 2% slower
 than with the uncalibrated preset, mostly because of the lower measured clock and HBM efficiency.
+
+## GB200 vs GB300 NVL72: FP4 prefill under the power cap
+
+Llama-3-405B prefill, TP8 × 9 replicas, 8k tokens, first 2 layers, fast mode (`python examples/gb300_fp4.py`).
+GB300 uses the measured B300 calibration, including the K=96 FP4 UMMA (1.5× the K=64 rate) and power-capped clocks.
+
+| system | dtype | step | GEMM time / GPU |
+|---|---|---|---|
+| GB200 NVL72 | bf16 | 12441 us | 8839 us |
+| GB200 NVL72 | fp4 | 6027 us | 2425 us |
+| GB300 NVL72 | bf16 | 9919 us | 6520 us |
+| GB300 NVL72 | fp4 | 5994 us | 2283 us |
+
+GB300's FP4 GEMMs are only about 6% faster than GB200's, not 1.5×. Large FP4 GEMMs pin the 1100 W cap, so the clock falls to about 1.6-1.9 GHz, and the GEMMs left at that point are no longer the bottleneck for the step. The step is then set by attention, norms and TP all-reduces. GB300's BF16 advantage (−20%) comes mainly from the measured memory system and the higher clock on kernels that are not power-bound. GB200 has no measured power data yet, so it runs unthrottled. That favours GB200, and GB200 power runs would make this comparison fair.

@@ -161,6 +161,10 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
 
     // Tensor cores.
     let tc = m.get("tensor").unwrap_or(&Value::Null);
+    if let Some(c) = f(tc, &["mma_sync_fp32_pipe_cycles"]) {
+        spec.tensor.hmma_fma_pipe_cycles = c.round().max(0.0) as u32;
+        set("tensor.hmma_fma_pipe_cycles", &mut took);
+    }
     if let Some(l) = f(tc, &["mma_sync_m16n8k16_bf16_f32", "latency_cycles"]) {
         spec.tensor.hmma_latency = cyc(l);
         set("tensor.hmma_latency", &mut took);

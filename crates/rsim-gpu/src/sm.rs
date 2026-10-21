@@ -737,6 +737,11 @@ impl Sm {
                 let ii = (flops / rate).ceil().max(1.0) as u64;
                 let sps = &mut self.smsps[sp];
                 sps.pipe_free[Pipe::Tensor as usize] = c + ii;
+                let hold = spec.tensor.hmma_fma_pipe_cycles as u64;
+                if hold > 0 {
+                    let f = &mut sps.pipe_free[Pipe::Fma as usize];
+                    *f = (*f).max(c + hold);
+                }
                 result = Some((c + ii + t.lat as u64, Sb::Short));
                 self.tensor_busy_total += ii;
                 let st = self.acc.get(kid);

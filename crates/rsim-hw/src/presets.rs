@@ -133,6 +133,7 @@ pub fn h100_sxm() -> GpuSpec {
             async_mma_overhead: 16,
             tmem_bytes: 0,
             tcgen05_latency: 0,
+            hmma_fma_pipe_cycles: 0,
         },
         latency: LatencyTable {
             int_alu: 4,
@@ -228,6 +229,7 @@ pub fn b200() -> GpuSpec {
             async_mma_overhead: 12,
             tmem_bytes: 256 * 1024,
             tcgen05_latency: 300, // est
+            hmma_fma_pipe_cycles: 0,
         },
         latency: LatencyTable {
             int_alu: 4,

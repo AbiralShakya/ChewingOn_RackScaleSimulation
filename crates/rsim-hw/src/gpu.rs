@@ -100,6 +100,11 @@ pub struct TensorSpec {
     pub flops_per_cycle_per_sm: BTreeMap<String, f64>,
     /// Latency of a synchronous warp-level MMA (HMMA m16n8k16), cycles.
     pub hmma_latency: u32,
+    /// Cycles each HMMA also holds the SMSP's FP32 (FMA) pipe. On sm_80
+    /// this is ~4, so FFMA/FMUL cannot overlap HMMA while MUFU and
+    /// LDSM can (structural hazard behind softmax bubbles). 0 = none.
+    #[serde(default)]
+    pub hmma_fma_pipe_cycles: u32,
     /// Fixed issue/setup overhead for an async (wgmma/tcgen05) MMA, cycles.
     pub async_mma_overhead: u32,
     /// Tensor memory per SM (Blackwell TMEM), bytes. 0 if absent.
