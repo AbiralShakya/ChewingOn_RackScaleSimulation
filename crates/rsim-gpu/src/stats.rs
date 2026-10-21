@@ -139,6 +139,10 @@ pub struct KernelStats {
     pub l1_misses: u64,
     pub smem_wavefronts: u64,
     pub unknown_opcodes: BTreeMap<String, u64>,
+    /// Per-PC issue counts and stall samples (only with `DetailConfig::pc_stats`),
+    /// keyed `role << 32 | pc` (static kernels give each warp role its own program).
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub pc: BTreeMap<u64, crate::detail::PcStat>,
     /// Hot-path class counters (indexed by `OpClass as usize`).
     #[serde(skip)]
     pub class_counts: [u64; 32],

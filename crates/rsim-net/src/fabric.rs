@@ -15,6 +15,9 @@ pub struct Channel {
     free_at: f64,
     pub bytes: u64,
     pub busy_ps: f64,
+    /// Busy picoseconds per time bin of `bin_ps` (empty when binning is off).
+    pub busy_bins: Vec<f32>,
+    pub bin_ps: f64,
 }
 
 impl Channel {
@@ -26,6 +29,18 @@ impl Channel {
         self.free_at = start + dur;
         self.bytes += bytes;
         self.busy_ps += dur;
+        if self.bin_ps > 0.0 {
+            let (mut a, b) = (start, start + dur);
+            while a < b {
+                let i = (a / self.bin_ps) as usize;
+                let edge = ((i + 1) as f64 * self.bin_ps).min(b);
+                if self.busy_bins.len() <= i {
+                    self.busy_bins.resize(i + 1, 0.0);
+                }
+                self.busy_bins[i] += (edge - a) as f32;
+                a = edge;
+            }
+        }
         self.free_at.ceil() as Time
     }
 }
@@ -58,6 +73,8 @@ impl Fabric {
                     free_at: 0.0,
                     bytes: 0,
                     busy_ps: 0.0,
+                    busy_bins: Vec::new(),
+                    bin_ps: 0.0,
                 });
             }
         }
@@ -177,6 +194,7 @@ impl Fabric {
         for c in &mut self.channels {
             c.bytes = 0;
             c.busy_ps = 0.0;
+            c.busy_bins.clear();
         }
     }
 }

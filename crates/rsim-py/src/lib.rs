@@ -36,6 +36,39 @@ fn simulate(
     serde_json::to_string(&out.report).map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+/// viz(system_yaml, workload, config_json, name, out_path) -> report_json
+///
+/// Like `simulate`, with visualiser capture; writes a self-contained viewer
+/// page (`.html`) or an rsviz/1 bundle (`.json`) to `out_path`.
+#[pyfunction]
+fn viz(
+    py: Python<'_>,
+    system_yaml: &str,
+    workload: &str,
+    config_json: &str,
+    name: &str,
+    out_path: &str,
+) -> PyResult<String> {
+    let cfg: RunConfig = serde_json::from_str(config_json)
+        .map_err(|e| PyValueError::new_err(format!("config: {e}")))?;
+    let bin = cfg.net.link_bin_ns;
+    let sys = rsim_hw::SystemSpec::from_yaml(system_yaml)
+        .and_then(|s| s.build())
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let (sy, wl) = (system_yaml.to_string(), workload.to_string());
+    let out = py
+        .allow_threads(move || rsim_rack::simulate(&sy, &wl, cfg))
+        .map_err(PyValueError::new_err)?;
+    let b = rsim_rack::viz::bundle(name, vec![rsim_rack::viz::rack_run(name, &sys, &out, bin)]);
+    let text = if out_path.ends_with(".html") {
+        rsim_rack::viz::html(&b)
+    } else {
+        b.to_string()
+    };
+    std::fs::write(out_path, text).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    serde_json::to_string(&out.report).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 /// Simulate a single synthetic kernel: kernel(gpu, kind, dims, dtype="bf16") -> json
 #[pyfunction]
 #[pyo3(signature = (gpu, kind, dims, dtype = "bf16"))]
@@ -125,6 +158,7 @@ fn presets() -> String {
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(simulate, m)?)?;
     m.add_function(wrap_pyfunction!(kernel, m)?)?;
+    m.add_function(wrap_pyfunction!(viz, m)?)?;
     m.add_function(wrap_pyfunction!(presets, m)?)?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())

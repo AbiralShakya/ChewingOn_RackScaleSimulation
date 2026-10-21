@@ -8,17 +8,19 @@
 //! rsim path    fa4.rpath --gpu b300 --calibration calibration.json   # NVBit-recorded kernel
 //! rsim run     --system configs/gb200_nvl72.yaml --workload wl.json \
 //!              --trace trace.json --report report.json
+//! rsim viz path fa4.rpath --gpu b300 -o fa4.html  # rack -> GPU -> SM -> warp -> SASS viewer
 //! ```
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use rsim_gpu::{synth, Gpu, GpuConfig, KernelLaunch};
+use rsim_gpu::{synth, Gpu, GpuConfig, KernelDone, KernelLaunch};
 use rsim_hw::{presets, SystemSpec};
 use rsim_rack::{RunConfig, Simulation, Workload};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 mod validate;
+mod viz;
 
 #[derive(Parser)]
 #[command(
@@ -126,13 +128,20 @@ enum Cmd {
         #[arg(long)]
         fast: bool,
     },
+    /// Simulate with full capture and write a zoomable viewer: rack, GPU,
+    /// SMs, warps and SASS (see docs/VIZ.md).
+    Viz {
+        #[command(subcommand)]
+        cmd: viz::VizCmd,
+    },
 }
 
-fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> {
-    let ghz = gpu.sm_clock_mhz / 1000.0;
-    let peak = gpu.peak_tensor_tflops("bf16");
-    let hbm = gpu.hbm.bw_gbps;
-    let (flops, bytes, name) = (k.flops, k.bytes, k.name.clone());
+/// Simulate one kernel alone on a cold GPU (kernel window charged, as ncu times it).
+pub(crate) fn sim_kernel(
+    gpu: rsim_hw::GpuSpec,
+    k: KernelLaunch,
+    detail: rsim_gpu::DetailConfig,
+) -> Result<(KernelDone, f64)> {
     let spec = gpu.clone();
     let launch = Arc::new(k);
     let mut g = Gpu::new(
@@ -140,6 +149,7 @@ fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> 
         gpu,
         GpuConfig {
             kernel_window: true,
+            detail,
             ..Default::default()
         },
         false,
@@ -158,6 +168,92 @@ fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> 
             spec.sm_clock_mhz / stretch
         );
     }
+    Ok((d, wall))
+}
+
+/// Build one synthetic kernel (`rsim kernel` / `rsim viz kernel`).
+pub(crate) fn synth_kernel(
+    g: &rsim_hw::GpuSpec,
+    kind: &str,
+    dims: &[u64],
+    dtype: &str,
+) -> Result<KernelLaunch> {
+    let need = |n: usize| -> Result<()> {
+        if dims.len() < n {
+            bail!("{kind} needs {n} dimensions");
+        }
+        Ok(())
+    };
+    let k = match kind {
+        "gemm" => {
+            need(3)?;
+            synth::gemm(g, dims[0], dims[1], dims[2], dtype)
+        }
+        "attention" => {
+            need(6)?;
+            synth::attention(
+                g,
+                dims[0],
+                dims[1],
+                dims[2],
+                dims[3],
+                dims[4],
+                dims[5],
+                dims.get(6).copied().unwrap_or(0) == 1,
+            )
+        }
+        "elementwise" => {
+            need(1)?;
+            synth::elementwise("elementwise", dims[0], 2, 2.0, 1)
+        }
+        "rownorm" => {
+            need(2)?;
+            synth::row_norm("rmsnorm", dims[0], dims[1], 2.0)
+        }
+        "ssm_update" => {
+            need(5)?;
+            rsim_gpu::synth_ssm::ssm_state_update(
+                g, dims[0], dims[1], dims[2], dims[3], dims[4], 2.0,
+            )
+        }
+        "conv1d" => {
+            need(3)?;
+            rsim_gpu::synth_ssm::conv1d(
+                g,
+                dims[0],
+                dims[1],
+                dims[2],
+                dims.get(3).copied().unwrap_or(4),
+            )
+        }
+        s if s.starts_with("ssd_") => {
+            need(6)?;
+            rsim_gpu::synth_ssm::ssd(
+                g,
+                &s[4..],
+                rsim_gpu::synth_ssm::SsdShape {
+                    batch: dims[0],
+                    seqlen: dims[1],
+                    heads: dims[2],
+                    headdim: dims[3],
+                    d_state: dims[4],
+                    groups: dims[5],
+                    chunk: dims.get(6).copied().unwrap_or(256),
+                },
+                None,
+            )
+        }
+        _ => bail!("unknown kernel kind {kind}"),
+    };
+    Ok(k)
+}
+
+fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> {
+    let ghz = gpu.sm_clock_mhz / 1000.0;
+    let peak = gpu.peak_tensor_tflops("bf16");
+    let hbm = gpu.hbm.bw_gbps;
+    let (flops, bytes, name) = (k.flops, k.bytes, k.name.clone());
+    let (d, wall) = sim_kernel(gpu, k, Default::default())?;
     if json {
         println!("{}", serde_json::to_string_pretty(&d)?);
         return Ok(());
@@ -220,6 +316,7 @@ fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
+        Cmd::Viz { cmd } => viz::main(cmd)?,
         Cmd::Presets => {
             println!("GPUs:");
             for g in presets::GPU_PRESETS {
@@ -275,73 +372,7 @@ fn main() -> Result<()> {
                 rsim_hw::calibration::apply_file(&mut g, c)?;
             }
             let g = g;
-            let need = |n: usize| -> Result<()> {
-                if dims.len() < n {
-                    bail!("{kind} needs {n} dimensions");
-                }
-                Ok(())
-            };
-            let k = match kind.as_str() {
-                "gemm" => {
-                    need(3)?;
-                    synth::gemm(&g, dims[0], dims[1], dims[2], &dtype)
-                }
-                "attention" => {
-                    need(6)?;
-                    synth::attention(
-                        &g,
-                        dims[0],
-                        dims[1],
-                        dims[2],
-                        dims[3],
-                        dims[4],
-                        dims[5],
-                        dims.get(6).copied().unwrap_or(0) == 1,
-                    )
-                }
-                "elementwise" => {
-                    need(1)?;
-                    synth::elementwise("elementwise", dims[0], 2, 2.0, 1)
-                }
-                "rownorm" => {
-                    need(2)?;
-                    synth::row_norm("rmsnorm", dims[0], dims[1], 2.0)
-                }
-                "ssm_update" => {
-                    need(5)?;
-                    rsim_gpu::synth_ssm::ssm_state_update(
-                        &g, dims[0], dims[1], dims[2], dims[3], dims[4], 2.0,
-                    )
-                }
-                "conv1d" => {
-                    need(3)?;
-                    rsim_gpu::synth_ssm::conv1d(
-                        &g,
-                        dims[0],
-                        dims[1],
-                        dims[2],
-                        dims.get(3).copied().unwrap_or(4),
-                    )
-                }
-                s if s.starts_with("ssd_") => {
-                    need(6)?;
-                    rsim_gpu::synth_ssm::ssd(
-                        &g,
-                        &s[4..],
-                        rsim_gpu::synth_ssm::SsdShape {
-                            batch: dims[0],
-                            seqlen: dims[1],
-                            heads: dims[2],
-                            headdim: dims[3],
-                            d_state: dims[4],
-                            groups: dims[5],
-                            chunk: dims.get(6).copied().unwrap_or(256),
-                        },
-                        None,
-                    )
-                }
-                _ => bail!("unknown kernel kind {kind}"),
-            };
+            let k = synth_kernel(&g, &kind, &dims, &dtype)?;
             run_kernel(g, k, json)?;
         }
         Cmd::Validate {

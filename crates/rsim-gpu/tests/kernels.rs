@@ -210,3 +210,58 @@ fn kernel_window_delays_first_cta() {
     assert!(small > base + 1000, "{small}");
     assert!((big - small).abs_diff(7000) < 100, "{big} - {small}");
 }
+
+#[test]
+fn detail_capture_is_consistent() {
+    // Visualiser capture must not change timing, and its parts must add up.
+    let spec = presets::b200();
+    let mk = || synth::gemm(&spec, 2048, 2048, 1024, "bf16");
+    let (plain, _) = run(spec.clone(), mk());
+    let mut g = Gpu::new(
+        0,
+        spec.clone(),
+        GpuConfig {
+            detail: rsim_gpu::DetailConfig::full(vec![0, 5]),
+            ..Default::default()
+        },
+        false,
+    );
+    g.submit(Arc::new(mk()), 0, 7);
+    let mut out = vec![];
+    g.advance(u64::MAX / 2, &mut out);
+    let d = out.pop().unwrap();
+    assert_eq!(
+        d.end_cycle - d.start_cycle,
+        plain.end_cycle - plain.start_cycle
+    );
+    assert_eq!(d.stats.insts_issued, plain.stats.insts_issued);
+    // Per-PC issue counts sum to the kernel's.
+    let issued: u64 = d.stats.pc.values().map(|p| p.issued).sum();
+    assert_eq!(issued, d.stats.insts_issued);
+    // Per-PC stall samples equal the warp-state totals.
+    let pc_samples: u64 = d.stats.pc.values().map(|p| p.stalls.total()).sum();
+    assert!(pc_samples <= d.stats.warp.total() && pc_samples * 10 >= d.stats.warp.total() * 9);
+    let det = d.detail.expect("detail");
+    // One residency record per CTA, inside the kernel.
+    assert_eq!(det.ctas.len() as u64, 4 * d.stats.ctas);
+    let span = d.end_cycle - d.start_cycle;
+    for c in det.ctas.chunks(4) {
+        assert!(c[0] < spec.sm_count as u64 && c[2] <= c[3] && c[3] <= span);
+    }
+    // Warp timelines for the two traced SMs: ordered, non-overlapping segments.
+    assert_eq!(det.warps.len(), 2);
+    for tl in &det.warps {
+        assert!(!tl.truncated && !tl.warps.is_empty());
+        let mut issues = 0;
+        for w in &tl.warps {
+            for s in w.seg.chunks(3) {
+                assert!(s[1] < s[2]);
+            }
+            for p in w.seg.chunks(3).collect::<Vec<_>>().windows(2) {
+                assert!(p[0][2] <= p[1][1]);
+            }
+            issues += w.iss.len() / 2;
+        }
+        assert!(issues > 0);
+    }
+}
