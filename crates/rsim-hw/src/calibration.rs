@@ -125,7 +125,7 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
             let mut extra = 0.0f64;
             spec.hbm.loaded_latency = pts
                 .iter()
-                .filter(|p| p.0 > 0.0 && p.0 <= 0.9)
+                .filter(|p| p.0 > 0.0 && p.0 <= 0.8)
                 .map(|&(u, ns)| {
                     extra = extra.max(ns - idle);
                     [u, extra]
