@@ -1,0 +1,79 @@
+[
+  {
+    "label": "ffma_throughput",
+    "measured_cycles": 136691.41,
+    "simulated_cycles": 135660.0,
+    "error_pct": -0.7545536328873946,
+    "trip_count": 15
+  },
+  {
+    "label": "ex2_throughput",
+    "measured_cycles": 529472.26,
+    "simulated_cycles": 528751.0,
+    "error_pct": -0.13622243401382525,
+    "trip_count": 15
+  },
+  {
+    "label": "dfma_latency_chain",
+    "measured_cycles": 7053.17,
+    "simulated_cycles": 4058.0,
+    "error_pct": -42.46558639590425,
+    "trip_count": 2
+  },
+  {
+    "label": "smem_conflict_free",
+    "measured_cycles": 137377.28,
+    "simulated_cycles": 152454.0,
+    "error_pct": 10.974682276428824,
+    "trip_count": 129
+  },
+  {
+    "label": "smem_32way_conflict",
+    "measured_cycles": 4201122.31,
+    "simulated_cycles": 152454.0,
+    "error_pct": -96.37111255634926,
+    "trip_count": 129
+  },
+  {
+    "label": "hbm_stream_read",
+    "measured_cycles": 6768755.93,
+    "simulated_cycles": 6784013.0,
+    "error_pct": 0.22540434546293794,
+    "trip_count": 1212
+  },
+  {
+    "label": "hbm_copy",
+    "measured_cycles": 14449753.98,
+    "simulated_cycles": 13544923.0,
+    "error_pct": -6.261912702820982,
+    "trip_count": 1212
+  },
+  {
+    "label": "l2_pointer_chase",
+    "measured_cycles": 2240089.06,
+    "simulated_cycles": 2821034.0,
+    "error_pct": 25.934010855800523,
+    "trip_count": 251
+  },
+  {
+    "label": "hmma_bf16_throughput",
+    "measured_cycles": 136012.15,
+    "simulated_cycles": 151297.0,
+    "error_pct": 11.237856323865188,
+    "trip_count": 31
+  },
+  {
+    "label": "cp_async_cg16_dram_stream",
+    "measured_cycles": 1622593.22,
+    "simulated_cycles": 1567040.0,
+    "error_pct": -3.4237305638439666,
+    "trip_count": 111
+  },
+  {
+    "label": "hmma_f16_f32_m16n8k16_w32_ilp4",
+    "measured_cycles": 136718.96,
+    "simulated_cycles": 150668.0,
+    "error_pct": 10.202710728636328,
+    "trip_count": 15
+  }
+]
