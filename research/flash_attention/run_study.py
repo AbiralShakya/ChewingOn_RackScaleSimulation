@@ -53,6 +53,12 @@ VALIDATE = [
     ("b300", "fa2", "s4096", "flash_fwd_kernel", 255),
     ("b300", "fa4", "s4096", "FlashAttentionForwardSm100", 128),
 ]
+# Ring-attention step kernels (Llama-3-70B heads, one chunk of queries x one chunk of keys),
+# validated the same way before the rack-scale runs use them.
+VALIDATE_CP = [(g, impl, f"cp_c{c}_kv{kv}", sub, regs)
+               for g, impl, sub, regs in (("b300", "fa4", "FlashAttentionForwardSm100", 128),
+                                          ("a100sxm", "fa2", "flash_fwd_kernel", 255))
+               for c in (1024, 2048, 4096) for kv in (8, 64)]
 
 
 def sh(cmd):
@@ -123,10 +129,10 @@ def shares(d, skip=("selected", "not_selected", "drain", "idle")):
     return {k: v / tot for k, v in d.items() if k not in skip and isinstance(v, (int, float)) and tot > 0}
 
 
-def validate():
+def validate(entries=None):
     rows = []
     jobs = []
-    for gpu, impl, shape, sub, regs in VALIDATE:
+    for gpu, impl, shape, sub, regs in (entries or VALIDATE):
         rp = rpath_of(gpu, impl, shape, regs)
         if rp:
             jobs.append((gpu, impl, shape, sub, regs, rp))
@@ -187,6 +193,13 @@ def whatif():
             ("ex2_double_rate", lambda m: set_sass(m, "MUFU.EX2", ii=2.0)),
             ("tensor_1.5x", lambda m: scale_tensor(m, 1.5)),
             ("tensor_2x", lambda m: scale_tensor(m, 2.0)),
+            # With twice the tensor rate, which unit binds next?
+            ("tensor_2x+ex2_2x", lambda m: (scale_tensor(m, 2.0), set_sass(m, "MUFU.EX2", ii=2.0))),
+            ("tensor_2x+fma2_2x", lambda m: (scale_tensor(m, 2.0), set_sass(m, "FFMA2", ii=1.1),
+                                             set_sass(m, "FADD2", ii=1.0), set_sass(m, "FMUL2", ii=1.0))),
+            ("tensor_2x+ex2_2x+fma2_2x", lambda m: (scale_tensor(m, 2.0), set_sass(m, "MUFU.EX2", ii=2.0),
+                                                    set_sass(m, "FFMA2", ii=1.1), set_sass(m, "FADD2", ii=1.0),
+                                                    set_sass(m, "FMUL2", ii=1.0))),
             ("fma2_half_rate", lambda m: (set_sass(m, "FFMA2", ii=4.4), set_sass(m, "FADD2", ii=4.0),
                                           set_sass(m, "FMUL2", ii=4.0))),
             ("hbm_half", lambda m: m["memory"]["bandwidth"].update(
@@ -195,18 +208,22 @@ def whatif():
         ],
         "a100": [
             ("baseline", lambda m: None),
-            ("no_hmma_fp32_coupling", lambda m: m.pop("hmma_coissue", None)),
+            ("no_hmma_fp32_coupling", lambda m: (m.pop("hmma_coissue", None),
+                                                 m["tensor"].pop("mma_sync_fp32_pipe_cycles", None))),
             ("ex2_double_rate", lambda m: set_sass(m, "MUFU.EX2", ii=4.0)),
         ],
     }
     jobs = []
     for gpu, impl, shape, _sub, regs in VALIDATE:
-        if gpu not in variants:
+        if gpu not in variants or (gpu, impl) == ("a100", "fa4"):
             continue
         rp = rpath_of(gpu, impl, shape, regs)
         if not rp:
             continue
         for name, fn in variants[gpu]:
+            # FA2 on B300 runs on mma.sync, so only the exp/FMA/HBM knobs apply to it.
+            if (gpu, impl) == ("b300", "fa2") and name.startswith("tensor"):
+                continue
             cp = cal_variant(gpu, name, fn)
             jobs.append((gpu, impl, shape, regs, rp, name, cp))
     with ThreadPoolExecutor(JOBS) as ex:
@@ -260,13 +277,16 @@ def scale():
     os.makedirs(os.path.join(SIM, "ring"), exist_ok=True)
     jobs = []
     for sysname, (gpu, cfg, impl, regs) in SYSTEMS.items():
-        for chunk in (1024, 2048, 4096):
+        for chunk in (1024, 2048):
             for hkv in (8, 64):
                 rp = rpath_of(gpu, impl, f"cp_c{chunk}_kv{hkv}", regs)
                 if not rp:
                     continue
                 for n in (8, 72):
-                    jobs.append((sysname, cfg, gpu, impl, chunk, hkv, n, rp, regs))
+                    key = f"ring_{sysname}_{impl}_c{chunk}_kv{hkv}_n{n}"
+                    # 72-way rings for every system; 8-way ones only where already simulated.
+                    if n == 72 or os.path.exists(os.path.join(SIM, "ring", key + ".json")):
+                        jobs.append((sysname, cfg, gpu, impl, chunk, hkv, n, rp, regs))
 
     def run(j):
         sysname, cfg, gpu, impl, chunk, hkv, n, rp, regs = j
@@ -281,9 +301,27 @@ def scale():
     with ThreadPoolExecutor(max(1, JOBS // 2)) as ex:
         for j, rep in ex.map(run, jobs):
             sysname, _cfg, gpu, impl, chunk, hkv, n, _rp, _regs = j
-            mk = rep.get("makespan_us") or rep.get("makespan_ns", 0) / 1e3
+            mk = rep["makespan_us"]
+            kern = [k for k in rep["kernels"] if "flash" in k["name"].lower() or "attn" in k["name"].lower()]
+            k_us = kern[0]["mean_us"] if kern else None
+            colls = rep.get("collectives", [])
+            # Slowest KV-chunk transfer to a ring neighbour: the ring moves at its slowest hop
+            # (an InfiniBand hop between nodes; NVLink everywhere on NVL72).
+            durs = sorted((c["done_ps"] - c["last_post_ps"]) / 1e6 for c in colls if c.get("kind") == "SendRecv")
+            send_us = durs[-1] if durs else None
+            # The same kernel alone on an idle GPU (the validated replay), for comparison: during
+            # the ring it shares SMs, L2 and HBM with the transfers.
+            alone = os.path.join(SIM, f"{gpu}_{impl}_cp_c{chunk}_kv{hkv}.json")
+            mhz = json.load(open(os.path.join(CALDIR, GPUS[gpu]["cal"])))["model"]["sm_clock_mhz_measured"]
+            k_alone = json.load(open(alone))["cycles"] / mhz if os.path.exists(alone) else None
             rows.append({"system": sysname, "gpu": gpu, "impl": impl, "chunk": chunk, "hkv": hkv, "n": n,
-                         "context": chunk * n, "makespan_us": mk, "report_keys": sorted(rep.keys())[:20],
+                         "kernel_alone_us": k_alone,
+                         "eff_alone": (n * k_alone / mk) if k_alone else None,
+                         "context": chunk * n, "makespan_us": mk, "kernel_us": k_us,
+                         "kv_bytes": 2 * chunk * hkv * LLAMA70["d"] * 2, "sendrecv_us": send_us,
+                         # Ring efficiency: time the GPU spends in attention kernels / step time.
+                         "eff": (n * k_us / mk) if k_us else None,
+                         "tflops_per_gpu": 4.0 * chunk * chunk * LLAMA70["hq"] * LLAMA70["d"] * n / mk / 1e6,
                          "bubbles": rep.get("bubbles")})
             print(f"{sysname:12} {impl} N={n:2} chunk={chunk:5} hkv={hkv:2} -> {mk:9.1f} us")
     return rows
@@ -308,6 +346,8 @@ def main():
     study = json.load(open(study_p)) if os.path.exists(study_p) else {}
     if what in ("validate", "all"):
         study["validation"] = validate()
+    if what in ("validate_cp", "all"):
+        study["validation_cp"] = validate(VALIDATE_CP)
     if what in ("whatif", "all"):
         study["whatif"] = whatif()
     if what in ("scale", "all"):
