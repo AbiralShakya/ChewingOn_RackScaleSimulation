@@ -2,14 +2,15 @@
 //! CTA slots, MIO/LSU, L1, shared memory banks, tensor engine, TMA unit and
 //! barrier state.
 
+use crate::detail::{PcStat, WarpTrace};
 use crate::kernel::{BarOp, InstStream, KernelLaunch, KernelSource};
 use crate::mem::{Cache, MemSystem, Server};
-use crate::pipes::{mma_dtype, mma_flops, timing, Pipe, Sb, NUM_PIPES};
-use crate::stats::{AccMap, Stall};
+use crate::pipes::{mma_dtype, mma_flops, mma_shape, timing, Pipe, Sb, NUM_PIPES};
+use crate::stats::{AccMap, Stall, StallCounts};
 use rsim_hw::GpuSpec;
 use rsim_sass::inst::flags;
 use rsim_sass::walker::DynOp;
-use rsim_sass::{MemSpace, OpClass, Reg};
+use rsim_sass::{MbarRef, MemSpace, OpClass, Reg};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -20,8 +21,6 @@ const MIO_QUEUE_CYCLES: u64 = 16;
 const WGMMA_QUEUE_CYCLES: u64 = 2048;
 /// Backlog (cycles) the SM-wide tcgen05 queue tolerates.
 const TCGEN05_QUEUE_CYCLES: u64 = 4096;
-/// TMA engine throughput, bytes per cycle per SM (est).
-const TMA_BYTES_PER_CYCLE: f64 = 256.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Policy {
@@ -32,9 +31,25 @@ pub enum Policy {
 struct MBar {
     count: u32,
     arrivals: u32,
+    /// Expected minus completed transaction bytes of the current phase.
+    tx: i64,
     max_t: u64,
     /// Completion time of every produced phase, in order.
     phases: Vec<(u64, Stall)>,
+}
+
+/// An mbarrier event for a CTA of the same cluster on another SM (a 2-CTA
+/// TMA completing on the leader's barrier, a multicast `tcgen05.commit`,
+/// a remote `mbarrier.arrive`). Routed by the GPU.
+#[derive(Clone, Copy, Debug)]
+pub struct RemoteMbar {
+    pub kid: u32,
+    pub cta: u64,
+    pub id: u32,
+    pub t: u64,
+    pub arrivals: u32,
+    pub tx: i64,
+    pub why: Stall,
 }
 
 struct CtaBar {
@@ -48,7 +63,8 @@ struct Cta {
     cta_id: u64,
     warp_slots: Vec<usize>,
     live: u32,
-    bars: HashMap<u32, CtaBar>,
+    /// Named barriers keyed by (id << 32 | generation).
+    bars: HashMap<u64, CtaBar>,
     mbars: HashMap<u32, MBar>,
     tensor_tail: u64,
     async_tail: u64,
@@ -58,6 +74,8 @@ struct Cta {
 
 struct Warp {
     cta: usize,
+    /// Warp index within its CTA.
+    widx: u32,
     kid: u32,
     role: Option<usize>,
     stream: Box<dyn InstStream>,
@@ -70,7 +88,13 @@ struct Warp {
     open_group: u64,
     wg_pending: Vec<u64>,
     mbar_idx: HashMap<u32, usize>,
-    at_bar: Option<u32>,
+    at_bar: Option<u64>,
+    /// Arrivals of this warp so far at each named barrier id: the n-th arrival of
+    /// every participant belongs to generation n, so a warp that arrives (bar.arrive)
+    /// twice before its partner syncs cannot complete a barrier on its own.
+    bar_gen: HashMap<u32, u32>,
+    /// mbarrier the warp is currently blocked on (u32::MAX = none).
+    wait_bar: u32,
     exited: bool,
     // Cached evaluation.
     until: u64,
@@ -82,6 +106,8 @@ struct Warp {
 struct Smsp {
     warps: Vec<usize>,
     pipe_free: [u64; NUM_PIPES],
+    /// Accumulated fractional issue-interval debt per pipe.
+    pipe_debt: [f32; NUM_PIPES],
     tensor_tail: u64,
     next_eval: u64,
     last_eval: u64,
@@ -118,6 +144,11 @@ pub struct Sm {
     pub idle_sched_cycles: u64,
     scratch_ws: Vec<usize>,
     scratch_el: Vec<usize>,
+    /// mbarrier events for CTAs on other SMs, drained by the GPU each step.
+    pub outbox: Vec<RemoteMbar>,
+    /// Visualiser capture: per-PC statistics, warp timeline (see `detail`).
+    pub pc_stats: bool,
+    pub wtrace: Option<Box<WarpTrace>>,
 }
 
 impl Sm {
@@ -140,8 +171,9 @@ impl Sm {
             used_ctas: 0,
             reserved: false,
             mio: Server::new(lsu_rate),
-            smem_srv: Server::new(1.0),
-            tma: Server::new(TMA_BYTES_PER_CYCLE),
+            // One 32-bank wavefront (128 B) per cycle at the default 128 B/clk.
+            smem_srv: Server::new((spec.pipes.l1_bytes_per_cycle.max(1) as f64) / 128.0),
+            tma: Server::new(spec.tma.bytes_per_cycle),
             tensor_tail: 0,
             l1,
             use_ctrl,
@@ -153,6 +185,9 @@ impl Sm {
             idle_sched_cycles: 0,
             scratch_ws: Vec::with_capacity(16),
             scratch_el: Vec::with_capacity(16),
+            outbox: Vec::new(),
+            pc_stats: false,
+            wtrace: None,
             spec,
             policy,
         }
@@ -206,8 +241,23 @@ impl Sm {
                     MBar {
                         count: init.count.max(1),
                         arrivals: 0,
+                        tx: 0,
                         max_t: 0,
                         phases: vec![(at, Stall::AsyncWait); init.initial_phases as usize],
+                    },
+                );
+            }
+        }
+        if let KernelSource::Path(p) = &k.source {
+            for (&id, &count) in &p.header.barriers {
+                mbars.insert(
+                    id,
+                    MBar {
+                        count: count.max(1),
+                        arrivals: 0,
+                        tx: 0,
+                        max_t: 0,
+                        phases: vec![],
                     },
                 );
             }
@@ -225,6 +275,7 @@ impl Sm {
             self.age += 1;
             self.warps[ws] = Some(Warp {
                 cta: slot,
+                widx: w,
                 kid,
                 role,
                 stream,
@@ -238,12 +289,17 @@ impl Sm {
                 wg_pending: Vec::new(),
                 mbar_idx: HashMap::new(),
                 at_bar: None,
+                bar_gen: HashMap::new(),
+                wait_bar: u32::MAX,
                 exited: false,
                 until: 0,
                 state: Stall::Wait,
                 age: self.age,
             });
             let sp = ws % nsp;
+            if let Some(t) = &mut self.wtrace {
+                t.begin(ws, sp, kid, cta_id, w, role, at);
+            }
             self.smsps[sp].warps.push(ws);
             self.smsps[sp].next_eval = self.smsps[sp].next_eval.min(at);
             if self.smsps[sp].warps.len() == 1 {
@@ -277,6 +333,43 @@ impl Sm {
         let st = self.acc.get(kid);
         st.ctas += 1;
         st.warps += nw as u64;
+    }
+
+    /// Describe every resident warp (for diagnosing a kernel that never finishes).
+    pub fn debug_dump(&mut self) -> String {
+        let mut out = String::new();
+        for ws in 0..self.warps.len() {
+            let Some(w) = self.warps[ws].as_mut() else {
+                continue;
+            };
+            let cta = w.cta;
+            let next = Self::peek(w).map(|o| (o.inst.pc, o.inst.opcode.to_string(), o.mbar));
+            let w = self.warps[ws].as_ref().unwrap();
+            let c = self.ctas[cta].as_ref().unwrap();
+            let wi = c.warp_slots.iter().position(|&x| x == ws).unwrap_or(0);
+            if w.exited {
+                continue;
+            }
+            out += &format!(
+                "SM{} cta{} w{} state {:?} until {} at_bar {:?} next {:?}\n",
+                self.id, c.cta_id, wi, w.state, w.until, w.at_bar, next
+            );
+            if let Some((_, _, Some(MbarRef::Wait { id, .. } | MbarRef::WaitParity { id, .. }))) =
+                next
+            {
+                if let Some(m) = c.mbars.get(&id) {
+                    out += &format!(
+                        "    bar {id:#x}: count {} arrivals {} tx {} phases {} last phase at {:?}\n",
+                        m.count,
+                        m.arrivals,
+                        m.tx,
+                        m.phases.len(),
+                        m.phases.last().map(|p| p.0)
+                    );
+                }
+            }
+        }
+        out
     }
 
     pub fn next_event(&self) -> u64 {
@@ -316,6 +409,7 @@ impl Sm {
         if dt == 0 {
             return;
         }
+        let t0 = s.last_eval;
         s.last_eval = c;
         if s.warps.is_empty() {
             self.idle_sched_cycles += dt;
@@ -329,7 +423,33 @@ impl Sm {
         }
         for &ws in &s.warps {
             if let Some(w) = &self.warps[ws] {
-                self.acc.get(w.kid).warp.add(w.state, dt);
+                let st = self.acc.get(w.kid);
+                st.warp.add(w.state, dt);
+                if w.wait_bar != u32::MAX
+                    && matches!(
+                        w.state,
+                        Stall::AsyncWait | Stall::TmaWait | Stall::TensorWait
+                    )
+                {
+                    *st.mbar_wait
+                        .entry(format!("w{}:{:#x}", w.widx, w.wait_bar))
+                        .or_default() += dt;
+                }
+                let i = w.widx as usize;
+                if st.warp_by_index.len() <= i {
+                    st.warp_by_index.resize(i + 1, StallCounts::default());
+                }
+                st.warp_by_index[i].add(w.state, dt);
+                if self.pc_stats {
+                    if let Some(op) = &w.next {
+                        pc_entry(&mut st.pc, w.role, &op.inst)
+                            .stalls
+                            .add(w.state, dt);
+                    }
+                }
+                if let Some(t) = &mut self.wtrace {
+                    t.state(ws, w.state, t0, c);
+                }
             }
         }
     }
@@ -474,6 +594,7 @@ impl Sm {
             return (Stall::Selected, c);
         };
         let inst = op.inst.clone();
+        let op_mbar = op.mbar;
         // Dependency checks.
         if use_ctrl && inst.ctrl.is_some() {
             if let Some(ctrl) = inst.ctrl {
@@ -517,6 +638,39 @@ impl Sm {
                 return (why, until);
             }
         }
+        // Recorded paths carry the barrier and the phase each wait needs.
+        if let Some(MbarRef::Wait { id, need }) = op_mbar {
+            if need > 0 {
+                let cta = self.ctas[cta_idx].as_ref().unwrap();
+                match cta
+                    .mbars
+                    .get(&id)
+                    .and_then(|m| m.phases.get(need as usize - 1))
+                {
+                    None => {
+                        self.warps[ws].as_mut().unwrap().wait_bar = id;
+                        return (Stall::AsyncWait, NEVER);
+                    }
+                    Some(&(t, why)) if t > c => {
+                        self.warps[ws].as_mut().unwrap().wait_bar = id;
+                        return (why, t);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if let Some(MbarRef::WaitParity { id, parity }) = op_mbar {
+            let cta = self.ctas[cta_idx].as_ref().unwrap();
+            let phases: &[(u64, Stall)] = cta.mbars.get(&id).map(|m| &m.phases[..]).unwrap_or(&[]);
+            let done = phases.iter().filter(|p| p.0 <= c).count();
+            if done % 2 == parity as usize {
+                // Blocked until the next phase lands (or is produced at all).
+                return match phases.iter().filter(|p| p.0 > c).min_by_key(|p| p.0) {
+                    Some(&(t, why)) => (why, t),
+                    None => (Stall::AsyncWait, NEVER),
+                };
+            }
+        }
         // Class-specific waits.
         match inst.class {
             OpClass::Warpgroup if inst.meta.flags & flags::DEPBAR != 0 => {
@@ -527,12 +681,17 @@ impl Sm {
                     return (Stall::TensorWait, pend[pend.len() - n - 1]);
                 }
             }
-            OpClass::DepBar if inst.base_opcode() == "DEPBAR" => {
+            OpClass::DepBar if inst.base_opcode() != "LDGDEPBAR" => {
                 let n = inst.meta.imm_last.unwrap_or(0) as usize;
                 if use_ctrl && inst.ctrl.is_some() {
                     let b = inst.meta.sb.unwrap_or(0) as usize;
                     let mut pend: Vec<u64> =
                         w.sb[b].iter().map(|x| x.0).filter(|&t| t > c).collect();
+                    // `cp.async.wait_group N` is `DEPBAR.LE SB0, N`: LDGDEPBAR
+                    // commit groups count on SB0.
+                    if b == 0 {
+                        pend.extend(w.async_groups.iter().copied().filter(|&t| t > c));
+                    }
                     if pend.len() > n {
                         pend.sort_unstable();
                         return (Stall::LongScoreboard, pend[pend.len() - n - 1]);
@@ -546,7 +705,19 @@ impl Sm {
                     }
                 }
             }
-            OpClass::AsyncBarrier if inst.meta.flags & flags::MBAR_WAIT != 0 => {
+            // A CTA cannot retire (and free its shared memory) while its
+            // async copies are still landing: its last warp waits for them.
+            // Other warps exit freely (a recorded EXIT may even have no lanes
+            // active while the warp goes on).
+            OpClass::Exit if inst.guard.is_none() => {
+                let cta = self.ctas[cta_idx].as_ref().unwrap();
+                if cta.live == 1 && cta.async_tail > c {
+                    return (Stall::Drain, cta.async_tail);
+                }
+            }
+            OpClass::AsyncBarrier
+                if inst.meta.flags & flags::MBAR_WAIT != 0 && op_mbar.is_none() =>
+            {
                 let role = w.role;
                 let bar = self.bar_op(cta_idx, role, inst.pc);
                 let w = self.warps[ws].as_ref().unwrap();
@@ -560,6 +731,9 @@ impl Sm {
                             _ => {}
                         }
                     }
+                    // A recorded path's wait without barrier semantics is a non-blocking
+                    // poll that failed on hardware: it does not wait.
+                    _ if matches!(cta.kernel.source, KernelSource::Path(_)) => {}
                     _ => {
                         // Un-annotated SASS: conservatively wait for all
                         // async work this CTA has issued.
@@ -640,22 +814,90 @@ impl Sm {
     }
 
     fn mbar_arrive(&mut self, cta: usize, id: u32, t: u64, producer: Stall) {
+        self.mbar_event(cta, id, t, 1, 0, producer);
+    }
+
+    /// One mbarrier event at time `t`: `arrivals` arrivals and a change of
+    /// `tx` in the pending transaction bytes (expect-tx adds, a completed
+    /// async copy subtracts). The phase completes once the arrival count is
+    /// reached and no transaction bytes are outstanding.
+    fn mbar_event(&mut self, cta: usize, id: u32, t: u64, arrivals: u32, tx: i64, producer: Stall) {
         let c = self.ctas[cta].as_mut().unwrap();
         let m = c.mbars.entry(id).or_insert(MBar {
             count: 1,
             arrivals: 0,
+            tx: 0,
             max_t: 0,
             phases: vec![],
         });
-        m.arrivals += 1;
+        m.arrivals += arrivals;
+        m.tx += tx;
         m.max_t = m.max_t.max(t);
-        if m.arrivals >= m.count {
-            m.phases.push((m.max_t, producer));
+        if m.arrivals >= m.count && m.tx <= 0 {
+            // The last event to land decides who the waiters were waiting on.
+            let why = if arrivals == 0 {
+                Stall::TmaWait
+            } else {
+                producer
+            };
+            m.phases.push((m.max_t, why));
             m.arrivals = 0;
+            m.tx = 0;
             m.max_t = 0;
             let at = m.phases.last().unwrap().0;
             self.poke_cta(cta, at);
         }
+    }
+
+    /// Signal barrier `id` on the cluster ranks in `ranks` (0 = this CTA).
+    #[allow(clippy::too_many_arguments)]
+    fn signal(
+        &mut self,
+        cta: usize,
+        id: u32,
+        ranks: u16,
+        t: u64,
+        arrivals: u32,
+        tx: i64,
+        why: Stall,
+    ) {
+        if ranks == 0 {
+            return self.mbar_event(cta, id, t, arrivals, tx, why);
+        }
+        let c = self.ctas[cta].as_ref().unwrap();
+        let cl = c.kernel.cluster.max(1) as u64;
+        let (kid, cta_id) = (c.kid, c.cta_id);
+        let own = cta_id % cl;
+        for r in 0..16u64 {
+            if ranks & (1 << r) == 0 || r >= cl {
+                continue;
+            }
+            if r == own {
+                self.mbar_event(cta, id, t, arrivals, tx, why);
+            } else {
+                self.outbox.push(RemoteMbar {
+                    kid,
+                    cta: cta_id - own + r,
+                    id,
+                    t: t + self.spec.latency.dsmem as u64,
+                    arrivals,
+                    tx,
+                    why,
+                });
+            }
+        }
+    }
+
+    /// Apply an event from another SM; false if the CTA is not resident here.
+    pub fn deliver(&mut self, ev: &RemoteMbar) -> bool {
+        let Some(slot) = self.ctas.iter().position(|c| {
+            c.as_ref()
+                .is_some_and(|c| c.kid == ev.kid && c.cta_id == ev.cta)
+        }) else {
+            return false;
+        };
+        self.mbar_event(slot, ev.id, ev.t, ev.arrivals, ev.tx, ev.why);
+        true
     }
 
     fn issue(
@@ -676,12 +918,24 @@ impl Sm {
         let cta = w.cta;
         let kid = w.kid;
         let role = w.role;
+        let widx = w.widx as usize;
+        w.wait_bar = u32::MAX;
         let t = timing(&spec, &inst);
         self.issued_total += 1;
+        if let Some(tr) = &mut self.wtrace {
+            tr.issue(ws, c, inst.pc);
+        }
         {
             let st = self.acc.get(kid);
             st.insts_issued += 1;
+            if st.issued_by_index.len() <= widx {
+                st.issued_by_index.resize(widx + 1, 0);
+            }
+            st.issued_by_index[widx] += 1;
             st.class_counts[inst.class as usize] += 1;
+            if self.pc_stats {
+                pc_entry(&mut st.pc, role, &inst).issued += 1;
+            }
             if inst.class == OpClass::Misc {
                 *st.unknown_opcodes
                     .entry(inst.base_opcode().to_string())
@@ -702,18 +956,30 @@ impl Sm {
         let mut read_done = c + spec.latency.store_read as u64;
 
         if t.pipe != Pipe::Mio && t.pipe != Pipe::Tensor {
-            self.smsps[sp].pipe_free[t.pipe as usize] = c + t.ii as u64;
+            let sps = &mut self.smsps[sp];
+            let debt = &mut sps.pipe_debt[t.pipe as usize];
+            *debt += t.ii_frac;
+            let extra = if *debt >= 1.0 {
+                *debt -= 1.0;
+                1
+            } else {
+                0
+            };
+            sps.pipe_free[t.pipe as usize] = c + t.ii as u64 + extra;
         }
 
         match inst.class {
-            // A guarded EXIT that the stream resolved as taken ends the
-            // stream instead (next fetch returns `None`).
-            OpClass::Exit if inst.guard.is_none() => {
-                self.exit_warp(ws, sp, c, done);
-                return;
-            }
+            // Warps retire when their stream ends (next fetch returns
+            // `None`), not at an EXIT: a recorded EXIT may have only some
+            // lanes (or none) active, and the warp's remaining lanes go on.
+            OpClass::Exit => {}
             OpClass::Mem | OpClass::AsyncCopy | OpClass::Ldsm | OpClass::Tmem => {
-                let r = self.mem_op(&op, c, mem, kid);
+                // A recorded op with every lane predicated off moves no data.
+                let r = if op.active == 0 {
+                    c + 1
+                } else {
+                    self.mem_op(&op, c, mem, kid)
+                };
                 result = Some((r, t.sb));
                 if inst.class == OpClass::AsyncCopy {
                     let w = self.warps[ws].as_mut().unwrap();
@@ -734,12 +1000,26 @@ impl Sm {
             }
             OpClass::MmaSync => {
                 let rate =
-                    spec.tensor.flops_per_cycle(mma_dtype(&inst)) / spec.sub_partitions as f64;
+                    spec.tensor.sync_flops_per_cycle(mma_dtype(&inst)) / spec.sub_partitions as f64;
                 let flops = mma_flops(&inst, op.payload);
-                let ii = (flops / rate).ceil().max(1.0) as u64;
+                // Measured rates give fractional intervals (A100: 8.09 cycles
+                // per m16n8k16); carry the fraction instead of rounding up.
+                let exact = (flops / rate).max(1.0);
                 let sps = &mut self.smsps[sp];
+                let debt = &mut sps.pipe_debt[Pipe::Tensor as usize];
+                *debt += (exact - exact.floor()) as f32;
+                let ii = exact.floor() as u64 + (*debt >= 1.0) as u64;
+                if *debt >= 1.0 {
+                    *debt -= 1.0;
+                }
                 sps.pipe_free[Pipe::Tensor as usize] = c + ii;
-                result = Some((c + ii + t.lat as u64, Sb::Short));
+                let hold = spec.tensor.hmma_fma_pipe_cycles as u64;
+                if hold > 0 {
+                    let f = &mut sps.pipe_free[Pipe::Fma as usize];
+                    *f = (*f).max(c + hold);
+                }
+                // The measured dependent-issue latency already includes the issue interval.
+                result = Some((c + (t.lat as u64).max(ii), Sb::Short));
                 self.tensor_busy_total += ii;
                 let st = self.acc.get(kid);
                 st.tensor_busy_cycles += ii;
@@ -763,12 +1043,21 @@ impl Sm {
                 cta_ref.async_tail = cta_ref.async_tail.max(fin);
             }
             OpClass::MmaTcgen05 => {
-                let rate = spec.tensor.flops_per_cycle(mma_dtype(&inst));
+                // A `cta_group::2` MMA runs on the tensor cores of both SMs of
+                // the pair, each computing half of M; only the leader issues it.
+                let pair = if inst.opcode.contains(".2CTA") {
+                    2.0
+                } else {
+                    1.0
+                };
+                let k_ext = mma_shape(&inst).map(|s| s.2).unwrap_or(0);
+                let rate = pair * spec.tensor.mma_rate(mma_dtype(&inst), k_ext);
                 let flops = mma_flops(&inst, op.payload);
                 let dur = (flops / rate).ceil().max(1.0) as u64;
                 let start = self.tensor_tail.max(c + t.lat as u64);
                 self.tensor_tail = start + dur;
-                let fin = start + dur;
+                // Visible to tcgen05.commit after the pipeline latency.
+                let fin = start + dur + spec.tensor.tcgen05_latency as u64;
                 // The SM's four tensor cores work as one engine here.
                 self.tensor_busy_total += dur * spec.sub_partitions as u64;
                 let st = self.acc.get(kid);
@@ -790,23 +1079,59 @@ impl Sm {
                 });
                 let store = inst.meta.flags & flags::BULK_STORE != 0;
                 let frac = self.multicast(cta, role, inst.pc);
-                let start = self.tma.serve(c, bytes);
-                let r = mem.bulk(self.id, start, addr, bytes, frac, store);
-                let st = self.acc.get(kid);
-                st.l2_hits += r.l2_hit_sectors as u64;
-                st.l2_misses += r.l2_miss_sectors as u64;
-                if store {
-                    st.dram_write_bytes += bytes;
+                let start = self.tma.serve(c, bytes) + spec.tma.issue_latency as u64;
+                // A recorded TMA op lists the contiguous source runs of its box.
+                let runs: Vec<(u64, u64)> = if op.run_bytes > 0 && op.addrs.len() > 1 {
+                    op.addrs.iter().map(|&a| (a, op.run_bytes as u64)).collect()
                 } else {
-                    st.dram_read_bytes += r.dram_bytes;
+                    vec![(addr, bytes)]
+                };
+                let mut fin = start;
+                for (a, n) in runs {
+                    let r = mem.bulk(self.id, start, a, n, frac, store);
+                    let st = self.acc.get(kid);
+                    st.l2_hits += r.l2_hit_sectors as u64;
+                    st.l2_misses += r.l2_miss_sectors as u64;
+                    if store {
+                        st.dram_write_bytes += n;
+                    } else {
+                        st.dram_read_bytes += r.dram_bytes;
+                    }
+                    fin = fin.max(r.done);
                 }
-                let fin = r.done;
                 let cta_ref = self.ctas[cta].as_mut().unwrap();
                 cta_ref.async_tail = cta_ref.async_tail.max(fin);
-                if let Some(BarOp::Arrive(id)) = self.bar_op(cta, role, inst.pc) {
-                    self.mbar_arrive(cta, id, fin, Stall::TmaWait);
+                match op.mbar {
+                    Some(MbarRef::TxDone { id, bytes, ranks }) => {
+                        self.signal(cta, id, ranks, fin, 0, -(bytes as i64), Stall::TmaWait)
+                    }
+                    Some(_) => {}
+                    None => {
+                        if let Some(BarOp::Arrive(id)) = self.bar_op(cta, role, inst.pc) {
+                            self.mbar_arrive(cta, id, fin, Stall::TmaWait);
+                        }
+                    }
                 }
             }
+            OpClass::AsyncBarrier if op.mbar.is_some() => match op.mbar.unwrap() {
+                MbarRef::Arrive { id, tx, n, ranks } => self.signal(
+                    cta,
+                    id,
+                    ranks,
+                    c + t.lat as u64,
+                    n,
+                    tx as i64,
+                    Stall::AsyncWait,
+                ),
+                MbarRef::CommitArrive { id, ranks } => {
+                    let at = self.ctas[cta].as_ref().unwrap().tensor_tail.max(c);
+                    self.signal(cta, id, ranks, at, 1, 0, Stall::TensorWait)
+                }
+                MbarRef::TxDone { .. }
+                | MbarRef::Wait { .. }
+                | MbarRef::WaitParity { .. }
+                | MbarRef::Named { .. } => {}
+            },
             OpClass::AsyncBarrier => {
                 let bar = self.bar_op(cta, role, inst.pc);
                 match bar {
@@ -838,24 +1163,32 @@ impl Sm {
                 }
             }
             OpClass::Barrier => {
-                if inst.meta.flags & flags::ARV != 0 {
-                    // Arrive-only: no wait.
-                } else {
-                    let (id, expected) = (
-                        inst.meta.bar_id,
-                        inst.meta.bar_threads.map(|t| t.div_ceil(32)),
-                    );
-                    let cta_ref = self.ctas[cta].as_mut().unwrap();
-                    let exp = expected.unwrap_or(cta_ref.live);
-                    let b = cta_ref.bars.entry(id).or_insert(CtaBar {
-                        expected: exp,
-                        arrived: 0,
-                    });
-                    b.expected = expected.unwrap_or(cta_ref.live);
-                    b.arrived += 1;
-                    self.warps[ws].as_mut().unwrap().at_bar = Some(id);
-                    self.try_release_bar(cta, id, c);
+                // Recorded paths carry the id of barriers named by a register.
+                let bar_id = match op.mbar {
+                    Some(MbarRef::Named { id }) => id,
+                    _ => inst.meta.bar_id,
+                };
+                let w = self.warps[ws].as_mut().unwrap();
+                let g = w.bar_gen.entry(bar_id).or_insert(0);
+                let key = ((bar_id as u64) << 32) | *g as u64;
+                *g += 1;
+                let arrive_only = inst.meta.flags & flags::ARV != 0;
+                if !arrive_only {
+                    w.at_bar = Some(key);
                 }
+                let expected = inst.meta.bar_threads.map(|t| t.div_ceil(32));
+                let cta_ref = self.ctas[cta].as_mut().unwrap();
+                let live = cta_ref.live;
+                let b = cta_ref.bars.entry(key).or_insert(CtaBar {
+                    expected: expected.unwrap_or(live),
+                    arrived: 0,
+                });
+                if !arrive_only {
+                    b.expected = expected.unwrap_or(live);
+                }
+                // `bar.arrive` counts toward the barrier without waiting.
+                b.arrived += 1;
+                self.try_release_bar(cta, key, c);
             }
             OpClass::Branch => {
                 if !self.use_ctrl || inst.ctrl.is_none() {
@@ -898,7 +1231,7 @@ impl Sm {
         w.state = Stall::Wait;
     }
 
-    fn try_release_bar(&mut self, cta: usize, id: u32, c: u64) {
+    fn try_release_bar(&mut self, cta: usize, id: u64, c: u64) {
         let lat = self.spec.latency.bar as u64;
         let cta_ref = self.ctas[cta].as_mut().unwrap();
         let Some(b) = cta_ref.bars.get(&id) else {
@@ -925,6 +1258,9 @@ impl Sm {
     }
 
     fn exit_warp(&mut self, ws: usize, sp: usize, c: u64, done: &mut Vec<(u32, u64)>) {
+        if let Some(tr) = &mut self.wtrace {
+            tr.end(ws, c);
+        }
         let w = self.warps[ws].as_mut().unwrap();
         w.exited = true;
         w.state = Stall::Drain;
@@ -941,7 +1277,7 @@ impl Sm {
         let cta_ref = self.ctas[cta].as_mut().unwrap();
         cta_ref.live -= 1;
         // Remaining warps may now satisfy a pending CTA barrier.
-        let ids: Vec<u32> = cta_ref.bars.keys().copied().collect();
+        let ids: Vec<u64> = cta_ref.bars.keys().copied().collect();
         for id in ids {
             self.try_release_bar(cta, id, c);
         }
@@ -1067,6 +1403,24 @@ impl Sm {
 }
 
 /// Shared-memory wavefronts for a warp access (32 banks x 4 B).
+/// The per-PC record for `inst`, created on first touch.
+fn pc_entry<'a>(
+    m: &'a mut std::collections::BTreeMap<u64, PcStat>,
+    role: Option<usize>,
+    inst: &rsim_sass::Inst,
+) -> &'a mut PcStat {
+    let key = ((role.unwrap_or(0) as u64) << 32) | inst.pc as u64;
+    m.entry(key).or_insert_with(|| PcStat {
+        text: if inst.operands.is_empty() {
+            inst.opcode.to_string()
+        } else {
+            format!("{} {}", inst.opcode, inst.operands)
+        },
+        class: format!("{:?}", inst.class),
+        ..Default::default()
+    })
+}
+
 pub fn bank_wavefronts(addrs: &[u64], width: u32, active: u32) -> u32 {
     if addrs.is_empty() {
         // Unknown pattern: assume conflict-free.

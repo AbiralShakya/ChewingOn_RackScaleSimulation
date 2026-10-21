@@ -88,3 +88,47 @@ fn pipeline_send_recv() {
     assert!(r.ranks[1].finish_us > r.ranks[0].finish_us);
     assert!(r.bubbles.gpu_idle_fraction > 0.2);
 }
+
+#[test]
+fn viz_bundle_round_trips() {
+    let wl = r#"{
+      "name": "tp8-mlp",
+      "spmd": {"world": 8, "program": {"streams": [[
+        {"op": "kernel", "name": "up_proj", "kernel": {"type": "gemm", "m": 1024, "n": 3584, "k": 8192}},
+        {"op": "collective", "kind": "all_reduce", "bytes": 33554432, "group": "world"}
+      ]]}}
+    }"#;
+    let mut cfg = RunConfig {
+        trace: false,
+        memoize_kernels: true,
+        detail_ranks: vec![0],
+        ..Default::default()
+    };
+    cfg.gpu.detail = rsim_gpu::DetailConfig::full(vec![0]);
+    cfg.net.link_bin_ns = 1000.0;
+    let sys = rsim_hw::SystemSpec::from_yaml(HGX)
+        .unwrap()
+        .build()
+        .unwrap();
+    let out = simulate(HGX, wl, cfg).unwrap();
+    // Detail only on rank 0; every rank has its spans and kernels.
+    assert_eq!(out.ranks.len(), 8);
+    assert!(out.ranks[0].kernels[0].detail.is_some());
+    assert!(out.ranks[1].kernels[0].detail.is_none());
+    assert!(out.links.iter().any(|l| l.bytes > 0 && !l.bins.is_empty()));
+    let run = rsim_rack::viz::rack_run("t", &sys, &out, 1000.0);
+    let b = rsim_rack::viz::bundle("t", vec![run]);
+    assert_eq!(rsim_rack::viz::runs_of(&b).unwrap().len(), 1);
+    let r = &b["runs"][0];
+    assert_eq!(r["ranks"].as_array().unwrap().len(), 8);
+    assert_eq!(r["details"].as_array().unwrap().len(), 1);
+    let spans = r["ranks"][0]["spans"].as_array().unwrap();
+    assert_eq!(spans.len(), 2 * 6);
+    assert!(
+        spans[5].as_i64().unwrap() >= 0,
+        "kernel span links to its kernel"
+    );
+    let page = rsim_rack::viz::html(&b);
+    assert!(!page.contains("/*RSVIZ_DATA*/"));
+    assert_eq!(rsim_rack::viz::from_html(&page).unwrap(), b);
+}

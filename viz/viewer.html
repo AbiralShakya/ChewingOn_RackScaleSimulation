@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rackscale viewer</title>
+<!--
+  rackscale viewer: one self-contained page that draws an rsviz/1 bundle
+  from the rack's links down to per-instruction stall samples.
+  `rsim viz ... -o page.html` embeds the bundle below. Opened bare, the page
+  asks for a bundle file (.json or .json.gz), or loads ?src=<url>.
+  Field reference: docs/VIZ.md.
+-->
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f3ef;
+  --surface: #fcfcfb;
+  --surface-2: #efeee9;
+  --line: #dcdbd5;
+  --grid: #e8e7e2;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --text-3: #7d7c76;
+  --accent: #2a78d6;
+  --sel: #0b0b0b;
+  --c-issued: #2a78d6;
+  --c-mem: #eb6834;
+  --c-dep: #1baf7a;
+  --c-pipe: #eda100;
+  --c-async: #e87ba4;
+  --c-tensor: #6250d6;
+  --c-sync: #e34948;
+  --c-notsel: #b9b8b2;
+  --c-idle: #e4e3de;
+  --c-green: #008300;
+  --seq-0: #cde2fb;
+  --seq-1: #86b6ef;
+  --seq-2: #3987e5;
+  --seq-3: #1c5cab;
+  --seq-4: #0d366b;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --line: #353532; --grid: #2a2a28;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #8e8d86; --accent: #3987e5; --sel: #f0efec;
+    --c-issued: #3987e5; --c-mem: #d95926; --c-dep: #199e70; --c-pipe: #c98500; --c-async: #d55181;
+    --c-tensor: #9085e9; --c-sync: #e66767; --c-notsel: #6b6a64; --c-idle: #33332f; --c-green: #008300;
+    --seq-0: #1b2a3d; --seq-1: #184f95; --seq-2: #2a78d6; --seq-3: #6da7ec; --seq-4: #cde2fb;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --line: #353532; --grid: #2a2a28;
+  --text: #f0efec; --text-2: #c3c2b7; --text-3: #8e8d86; --accent: #3987e5; --sel: #f0efec;
+  --c-issued: #3987e5; --c-mem: #d95926; --c-dep: #199e70; --c-pipe: #c98500; --c-async: #d55181;
+  --c-tensor: #9085e9; --c-sync: #e66767; --c-notsel: #6b6a64; --c-idle: #33332f; --c-green: #008300;
+  --seq-0: #1b2a3d; --seq-1: #184f95; --seq-2: #2a78d6; --seq-3: #6da7ec; --seq-4: #cde2fb;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
+a { color: var(--accent); }
+header { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px; max-width: 1480px; margin: 0 auto; }
+.brand { font-weight: 650; letter-spacing: -0.01em; }
+.brand small { font-weight: 400; color: var(--text-3); margin-left: 6px; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; color: var(--text-3); min-width: 0; }
+.crumbs button { border: 0; background: none; color: var(--accent); padding: 2px 4px; cursor: pointer; font: inherit; border-radius: 4px; }
+.crumbs button:hover { background: var(--surface-2); }
+.crumbs .cur { color: var(--text); font-weight: 600; padding: 2px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46ch; }
+.spacer { flex: 1; }
+select, input[type=search], .btn { font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.btn { cursor: pointer; }
+.btn:hover { border-color: var(--text-3); }
+main { max-width: 1480px; margin: 0 auto; padding: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0 0 2px; font-weight: 650; }
+.card .sub { color: var(--text-2); font-size: 13px; margin: 0 0 10px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.kpis { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; min-width: 130px; flex: 1 1 130px; }
+.kpi .v { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kpi .l { color: var(--text-2); font-size: 12px; }
+.canvas-wrap { position: relative; width: 100%; overflow: hidden; border-radius: 6px; background: var(--surface); }
+canvas { display: block; width: 100%; touch-action: none; }
+.hint { color: var(--text-3); font-size: 12px; margin-top: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-2); margin: 6px 0 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+th { color: var(--text-2); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--surface); cursor: pointer; white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: var(--surface-2); }
+tr.sel td { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.scroll { max-height: 560px; overflow: auto; }
+.sass td.code { font: 12.5px/1.35 var(--mono); white-space: pre; }
+.sass td.pc { font: 12px var(--mono); color: var(--text-3); }
+.op { font-weight: 650; }
+.chip { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 9px; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); white-space: nowrap; }
+.stack { display: flex; height: 10px; border-radius: 3px; overflow: hidden; min-width: 60px; background: var(--surface-2); gap: 1px; }
+.stack b { display: block; height: 100%; }
+.hbar { height: 8px; border-radius: 0 4px 4px 0; background: var(--c-issued); }
+#tip { position: fixed; z-index: 20; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.18); max-width: 420px; display: none; }
+#tip .t { font-weight: 650; margin-bottom: 2px; word-break: break-all; }
+#tip .m { font-family: var(--mono); font-size: 11.5px; }
+#tip .r { color: var(--text-2); }
+.empty { text-align: center; padding: 80px 20px; color: var(--text-2); }
+.empty .drop { border: 2px dashed var(--line); border-radius: 14px; padding: 40px; margin: 20px auto; max-width: 560px; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tabs button { font: inherit; border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+.tabs button.on { background: var(--text); color: var(--surface); border-color: var(--text); }
+.row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 8px; }
+.note { color: var(--text-2); font-size: 13px; }
+.mono { font-family: var(--mono); font-size: 12px; }
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <div class="brand">rackscale<small>viewer</small></div>
+  <div class="crumbs" id="crumbs"></div>
+  <div class="spacer"></div>
+  <select id="runSel" aria-label="Run"></select>
+  <button class="btn" id="themeBtn" title="Toggle light/dark">◐</button>
+</div></header>
+<main id="main"></main>
+<div id="tip"></div>
+<script type="application/json" id="rsviz-data">/*RSVIZ_DATA*/</script>
+<script>
+"use strict";
+// ---------------------------------------------------------------- data ---
+const FAMILIES = [
+  // key, label, css var, stall names (Nsight-style warp states)
+  ["issued", "Issued", "--c-issued", ["selected"]],
+  ["mem", "Memory (long scoreboard, LG throttle)", "--c-mem", ["long_scoreboard", "lg_throttle"]],
+  ["dep", "Dependency (fixed latency, short scoreboard)", "--c-dep", ["wait", "short_scoreboard"]],
+  ["pipe", "Pipe / MIO throttle", "--c-pipe", ["math_pipe_throttle", "mio_throttle"]],
+  ["async", "mbarrier / TMA wait", "--c-async", ["async_wait", "tma_wait"]],
+  ["tensor", "Tensor core (wait, throttle)", "--c-tensor", ["tensor_wait", "tensor_throttle"]],
+  ["sync", "Barrier, fence, branch", "--c-sync", ["barrier", "membar", "branch_resolving"]],
+  ["notsel", "Eligible, not selected", "--c-notsel", ["not_selected"]],
+  ["idle", "Drain / idle", "--c-idle", ["drain", "idle"]],
+];
+const KCATS = [
+  ["gemm", "GEMM / linear", "--c-issued"],
+  ["moe", "MoE experts", "--c-mem"],
+  ["norm", "Norm / elementwise", "--c-dep"],
+  ["ssm", "SSM / scan", "--c-pipe"],
+  ["attn", "Attention", "--c-tensor"],
+  ["coll", "Collective", "--c-sync"],
+  ["other", "Other", "--c-notsel"],
+];
+function kcat(name, kind) {
+  if (kind === 1) return "coll";
+  const n = name.toLowerCase();
+  if (/allreduce|all_reduce|alltoall|all_to_all|allgather|reduce_scatter|dispatch|combine|nccl|sendrecv|ring/.test(n)) return "coll";
+  if (/attn|attention|fmha|flash|mla|sdpa/.test(n)) return "attn";
+  if (/moe|expert|grouped/.test(n)) return "moe";
+  if (/ssd|ssm|scan|mamba|conv1d|chunk|state/.test(n)) return "ssm";
+  if (/norm|rms|layernorm|softmax|elementwise|silu|gelu|rope|act|add|embed|sample|topk|router|gate/.test(n)) return n.includes("gate_up") ? "gemm" : "norm";
+  if (/gemm|linear|matmul|proj|mlp|lm_head|qkv|_o\b|wq|wkv|ffn|up|down|dense|mm/.test(n)) return "gemm";
+  return "other";
+}
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let COL = {};
+function readColors() {
+  COL = {};
+  for (const f of FAMILIES) COL[f[0]] = css(f[2]);
+  for (const k of KCATS) COL["k_" + k[0]] = css(k[2]);
+  for (const v of ["--text", "--text-2", "--text-3", "--grid", "--line", "--surface", "--surface-2", "--accent", "--sel", "--seq-0", "--seq-1", "--seq-2", "--seq-3", "--seq-4"]) COL[v] = css(v);
+}
+
+let B = null;          // bundle
+let R = null;          // current run
+let S = { run: 0, view: "rack", rank: 0, k: -1, sm: null, pc: null };
+
+function prepRun(run) {
+  if (run._prep) return run;
+  run._prep = true;
+  const stallIdx = {};
+  run.stalls.forEach((n, i) => stallIdx[n] = i);
+  // stall index -> family index
+  run._fam = run.stalls.map(n => Math.max(0, FAMILIES.findIndex(f => f[3].includes(n))));
+  run._ghz = (rank) => run.system.gpus[run.system.rank_gpu[rank] ?? 0].clock_mhz / 1000;
+  run._gpu = (rank) => run.system.gpus[run.system.rank_gpu[rank] ?? 0];
+  run._str = (i) => run.strings[i] ?? "";
+  for (const r of run.ranks) {
+    const sp = r.spans, out = [];
+    for (let i = 0; i < sp.length; i += 6) {
+      const label = run.strings[sp[i + 2]];
+      out.push({ stream: sp[i], kind: sp[i + 1], label, t0: sp[i + 3], t1: sp[i + 4], k: sp[i + 5], cat: kcat(label, sp[i + 1]) });
+    }
+    r._spans = out;
+    r._streams = out.reduce((m, s) => Math.max(m, s.stream + 1), 1);
+  }
+  run.kernels.forEach((k, i) => { k._i = i; k._name = run.strings[k.name]; k._t0 = k.start / run._ghz(k.rank); k._t1 = (k.start + k.cycles) / run._ghz(k.rank); });
+  run._makespan_ns = Math.max(1, ...run.ranks.map(r => r._spans.reduce((m, s) => Math.max(m, s.t1), 0)));
+  return run;
+}
+function famOf(run, arr) { // stall-count array -> family totals
+  const out = new Array(FAMILIES.length).fill(0);
+  arr.forEach((v, i) => out[run._fam[i]] += v);
+  return out;
+}
+
+// ------------------------------------------------------------- helpers ---
+const $ = (s, el = document) => el.querySelector(s);
+const h = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v; else if (k === "html") e.innerHTML = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else if (v !== null && v !== undefined) e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) if (c !== null && c !== undefined && c !== false) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return e;
+};
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function fmtT(ns) {
+  const a = Math.abs(ns);
+  if (a >= 1e6) return (ns / 1e6).toFixed(a >= 1e7 ? 1 : 2) + " ms";
+  if (a >= 1e3) return (ns / 1e3).toFixed(a >= 1e4 ? 1 : 2) + " µs";
+  return ns.toFixed(a >= 100 ? 0 : 1) + " ns";
+}
+const pct = (x, d = 1) => (100 * x).toFixed(d) + "%";
+const fmtN = (x) => x >= 1e9 ? (x / 1e9).toFixed(2) + "G" : x >= 1e6 ? (x / 1e6).toFixed(2) + "M" : x >= 1e4 ? (x / 1e3).toFixed(1) + "k" : String(Math.round(x));
+const fmtC = (c) => fmtN(c) + " cyc";
+const tip = $("#tip");
+function showTip(e, html) {
+  tip.innerHTML = html; tip.style.display = "block";
+  const pad = 14, w = tip.offsetWidth, hh = tip.offsetHeight;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + w > innerWidth - 8) x = e.clientX - w - pad;
+  if (y + hh > innerHeight - 8) y = e.clientY - hh - pad;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => tip.style.display = "none";
+function stackBar(run, fam, total) {
+  const t = total ?? fam.reduce((a, b) => a + b, 0);
+  const el = h("div", { class: "stack", title: FAMILIES.map((f, i) => fam[i] ? `${f[1]}: ${pct(fam[i] / t)}` : "").filter(Boolean).join("\n") });
+  if (!t) return el;
+  fam.forEach((v, i) => { if (v / t > 0.002) el.append(h("b", { style: `width:${100 * v / t}%;background:var(${FAMILIES[i][2]})` })); });
+  return el;
+}
+function famLegend(fams) {
+  return h("div", { class: "legend" }, FAMILIES.filter((f, i) => !fams || fams[i] > 0).map(f => h("span", {}, h("i", { style: `background:var(${f[2]})` }), f[1])));
+}
+function seqColor(x) { // 0..1 -> sequential blue
+  const st = [COL["--seq-0"], COL["--seq-1"], COL["--seq-2"], COL["--seq-3"], COL["--seq-4"]];
+  const i = Math.min(4, Math.max(0, Math.floor(x * 4.999)));
+  return st[i];
+}
+
+// ------------------------------------------------- generic zoomable lane ---
+// rows: [{label, sub}], draw(ctx, X, y0, rowH, rowIndex, visible [t0,t1]),
+// hit(t, rowIndex) -> {html, onclick} | null
+class Lanes {
+  constructor(opts) {
+    this.o = Object.assign({ rowH: 16, gap: 1, labelW: 120, axisH: 22, unit: fmtT, maxH: 620 }, opts);
+    this.t0 = this.o.t0; this.t1 = this.o.t1;
+    this.full = [this.o.t0, this.o.t1];
+    this.wrap = h("div", { class: "canvas-wrap" });
+    this.cv = h("canvas"); this.wrap.append(this.cv);
+    this.scrollY = 0;
+    this.bind();
+    new ResizeObserver(() => this.draw()).observe(this.wrap);
+  }
+  get H() { return this.o.axisH + this.o.rows.length * this.o.rowH; }
+  viewH() { return Math.min(this.H, this.o.maxH); }
+  X(t) { const w = this.cv.clientWidth - this.o.labelW; return this.o.labelW + (t - this.t0) / (this.t1 - this.t0) * w; }
+  T(x) { const w = this.cv.clientWidth - this.o.labelW; return this.t0 + (x - this.o.labelW) / w * (this.t1 - this.t0); }
+  setRange(a, b) { const span = this.full[1] - this.full[0]; const minSpan = this.o.minSpan ?? span * 1e-6; if (b - a < minSpan) { const m = (a + b) / 2; a = m - minSpan / 2; b = m + minSpan / 2; } this.t0 = a; this.t1 = b; this.draw(); this.o.onRange?.(a, b); }
+  bind() {
+    const cv = this.cv;
+    let drag = null;
+    cv.addEventListener("wheel", (e) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && !e.ctrlKey) { const dt = e.deltaX / cv.clientWidth * (this.t1 - this.t0); this.setRange(this.t0 + dt, this.t1 + dt); e.preventDefault(); return; }
+      if (e.shiftKey && this.H > this.viewH()) { this.scrollY = Math.max(0, Math.min(this.H - this.viewH(), this.scrollY + e.deltaY)); this.draw(); e.preventDefault(); return; }
+      const r = cv.getBoundingClientRect(), x = e.clientX - r.left;
+      if (x < this.o.labelW) { if (this.H > this.viewH()) { this.scrollY = Math.max(0, Math.min(this.H - this.viewH(), this.scrollY + e.deltaY)); this.draw(); e.preventDefault(); } return; }
+      const t = this.T(x), k = Math.exp(e.deltaY * 0.0015);
+      this.setRange(t - (t - this.t0) * k, t + (this.t1 - t) * k);
+      e.preventDefault();
+    }, { passive: false });
+    cv.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, t0: this.t0, t1: this.t1, sy: this.scrollY, moved: false }; cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener("pointermove", (e) => {
+      if (drag) {
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+        const dt = -dx / (cv.clientWidth - this.o.labelW) * (drag.t1 - drag.t0);
+        this.t0 = drag.t0 + dt; this.t1 = drag.t1 + dt;
+        if (this.H > this.viewH()) this.scrollY = Math.max(0, Math.min(this.H - this.viewH(), drag.sy - dy));
+        this.draw(); hideTip(); return;
+      }
+      this.hover(e);
+    });
+    cv.addEventListener("pointerup", (e) => { const d = drag; drag = null; if (d && !d.moved) this.click(e); if (d?.moved) this.o.onRange?.(this.t0, this.t1); });
+    cv.addEventListener("pointerleave", hideTip);
+    cv.addEventListener("dblclick", () => this.setRange(...this.full));
+  }
+  at(e) {
+    const r = this.cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top + this.scrollY - this.o.axisH;
+    const row = Math.floor(y / this.o.rowH);
+    if (x < this.o.labelW || row < 0 || row >= this.o.rows.length) return { x, row: -1, t: this.T(x) };
+    return { x, row, t: this.T(x), px: (this.t1 - this.t0) / (this.cv.clientWidth - this.o.labelW) };
+  }
+  hover(e) {
+    const a = this.at(e);
+    if (a.row < 0) { const lab = this.o.rows[Math.floor((e.clientY - this.cv.getBoundingClientRect().top + this.scrollY - this.o.axisH) / this.o.rowH)]; if (lab?.tip && a.x < this.o.labelW) { showTip(e, lab.tip); this.cv.style.cursor = lab.onclick ? "pointer" : "default"; } else { hideTip(); this.cv.style.cursor = "grab"; } return; }
+    const r = this.o.hit?.(a.t, a.row, a.px);
+    this.cv.style.cursor = r?.onclick ? "pointer" : "grab";
+    if (r) showTip(e, r.html); else hideTip();
+  }
+  click(e) {
+    const a = this.at(e);
+    if (a.row < 0) { const row = Math.floor((e.clientY - this.cv.getBoundingClientRect().top + this.scrollY - this.o.axisH) / this.o.rowH); const lab = this.o.rows[row]; if (lab?.onclick && a.x < this.o.labelW) lab.onclick(); return; }
+    const r = this.o.hit?.(a.t, a.row, a.px);
+    r?.onclick?.();
+  }
+  draw() {
+    const cv = this.cv, dpr = devicePixelRatio || 1, W = cv.clientWidth || this.wrap.clientWidth, Hh = this.viewH();
+    if (!W) return;
+    cv.style.height = Hh + "px";
+    cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr);
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = COL["--surface"]; ctx.fillRect(0, 0, W, Hh);
+    const { rowH, labelW, axisH, rows } = this.o;
+    // grid + axis
+    const span = this.t1 - this.t0, target = span / Math.max(2, (W - labelW) / 110);
+    const p10 = Math.pow(10, Math.floor(Math.log10(target)));
+    const step = [1, 2, 5, 10].map(m => m * p10).find(s => s >= target) || p10 * 10;
+    ctx.font = "11px " + css("--sans"); ctx.textBaseline = "middle";
+    ctx.strokeStyle = COL["--grid"]; ctx.lineWidth = 1; ctx.fillStyle = COL["--text-3"];
+    for (let t = Math.ceil(this.t0 / step) * step; t <= this.t1; t += step) {
+      const x = Math.round(this.X(t)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(x, axisH - 4); ctx.lineTo(x, Hh); ctx.stroke();
+      ctx.fillText(this.o.unit(t), x + 3, axisH / 2);
+    }
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, axisH, W, Hh - axisH); ctx.clip();
+    const first = Math.max(0, Math.floor(this.scrollY / rowH)), last = Math.min(rows.length, Math.ceil((this.scrollY + Hh - axisH) / rowH));
+    ctx.save(); ctx.beginPath(); ctx.rect(labelW, axisH, W - labelW, Hh - axisH); ctx.clip();
+    for (let i = first; i < last; i++) {
+      const y = axisH + i * rowH - this.scrollY;
+      this.o.draw(ctx, (t) => this.X(t), y, rowH - this.o.gap, i, this.t0, this.t1);
+    }
+    ctx.restore();
+    // labels
+    ctx.textBaseline = "middle"; ctx.font = (rowH >= 14 ? "11.5px " : "9.5px ") + css("--sans");
+    const taken = [];
+    const free = (y) => taken.every(t => Math.abs(t - y) >= 10);
+    const label = (i, y) => { const r = rows[i]; ctx.fillStyle = r.onclick ? COL["--accent"] : COL["--text-2"]; ctx.fillText(r.label, 6, Math.max(y + rowH / 2, axisH + 6), labelW - 10); taken.push(y); };
+    for (let i = first; i < last; i++) { const y = axisH + i * rowH - this.scrollY; if (rows[i].group) { ctx.fillStyle = COL["--line"]; ctx.fillRect(0, y, W, 1); } if (rowH < 10 && rows[i].always) label(i, y); }
+    for (let i = first; i < last; i++) { const y = axisH + i * rowH - this.scrollY; if (rowH < 10 && rows[i].always) continue; if (rowH >= 10 || free(y)) label(i, y); }
+    ctx.restore();
+    ctx.fillStyle = COL["--line"]; ctx.fillRect(labelW - 1, axisH, 1, Hh - axisH);
+    if (this.H > Hh) { // scroll indicator
+      const frac = Hh / this.H, y = axisH + (this.scrollY / this.H) * (Hh - axisH);
+      ctx.fillStyle = COL["--text-3"]; ctx.globalAlpha = 0.5; ctx.fillRect(W - 4, y, 3, Math.max(12, frac * (Hh - axisH))); ctx.globalAlpha = 1;
+    }
+  }
+}
+// draw a span with a min visible width; returns nothing
+function box(ctx, x0, x1, y, hh, color) {
+  let w = x1 - x0; if (w < 0.6) { w = 0.6; }
+  ctx.fillStyle = color; ctx.fillRect(x0, y, w, hh);
+}
+// binary search: first index i in flat array (stride, offset) with value >= t
+function lowerBound(arr, stride, off, t) {
+  let lo = 0, hi = arr.length / stride;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m * stride + off] < t) lo = m + 1; else hi = m; }
+  return lo;
+}
+
+// ---------------------------------------------------------------- views ---
+function crumbs() {
+  const c = $("#crumbs"); c.innerHTML = "";
+  const items = [];
+  if (R.kind === "rack") items.push(["Rack: " + R.system.name, () => go({ view: "rack" })]);
+  if (S.view !== "rack") {
+    const g = R._gpu(S.rank);
+    items.push([R.kind === "rack" ? `GPU ${S.rank}` : g.name, R.kind === "rack" ? () => go({ view: "gpu", k: -1 }) : null]);
+  }
+  if (S.view === "kernel" && S.k >= 0) items.push([R.kernels[S.k]._name, null]);
+  items.forEach(([label, fn], i) => {
+    if (i) c.append(h("span", {}, "›"));
+    if (fn && i < items.length - 1) c.append(h("button", { onclick: fn }, label));
+    else c.append(h("span", { class: "cur", title: label }, label));
+  });
+}
+function go(patch) {
+  Object.assign(S, patch);
+  try { history.replaceState(null, "", "#" + new URLSearchParams({ run: S.run, view: S.view, rank: S.rank, k: S.k, sm: S.sm ?? "" }).toString()); } catch (e) { }
+  render();
+  window.scrollTo({ top: 0 });
+}
+function render() {
+  readColors();
+  hideTip();
+  R = prepRun(B.runs[S.run]);
+  if (R.kind === "kernel") { S.view = "kernel"; S.rank = 0; if (!R.kernels[S.k]) S.k = 0; }
+  if (S.view === "kernel" && !R.kernels[S.k]) S.view = "rack";
+  crumbs();
+  const m = $("#main"); m.innerHTML = "";
+  if (S.view === "rack") rackView(m);
+  else if (S.view === "gpu") gpuView(m);
+  else kernelView(m);
+  if (B.runs.length > 1 && S.view !== "kernel") compareCard(m);
+}
+
+function kpis(list) { return h("div", { class: "kpis" }, list.map(([v, l]) => h("div", { class: "kpi" }, h("div", { class: "v" }, v), h("div", { class: "l" }, l)))); }
+
+// A run's explanatory note ("Reading this run"); blank lines separate paragraphs.
+function noteCard(text) {
+  return h("div", { class: "card" }, h("h2", {}, "Reading this run"),
+    ...text.split(/\n\s*\n/).map(p => h("p", { class: "sub", style: "max-width:80ch;margin:6px 0 0" }, p.trim())));
+}
+
+function rackView(m) {
+  const rk = R.ranks;
+  const busy = rk.map(r => r.busy_us * 1e3 / R._makespan_ns);
+  const anyDetail = R.kernels.some(k => k.d >= 0);
+  m.append(kpis([
+    [fmtT(R.makespan_us * 1e3), "step time (makespan)"],
+    [R.mfu != null ? pct(R.mfu) : "–", "MFU (bf16 dense peak)"],
+    [pct(R.gpu_idle ?? 0), "GPU idle (mean over ranks)"],
+    [pct(R.tensor_idle ?? 0), "tensor-core idle inside kernels"],
+    [String(rk.length), `GPUs · ${R.system.gpus.map(g => g.name).join(", ")}`],
+  ]));
+  m.append(h("div", { class: "note", style: "margin:-6px 0 14px" }, `${R.workload}. ` + (anyDetail ? "Click a GPU or a kernel to zoom in; ranks with captured detail go down to warps and SASS." : "")));
+  if (R.note) m.append(noteCard(R.note));
+  if (rk.length > 1) m.append(topologyCard());
+  // Gantt of all ranks
+  const card = h("div", { class: "card" }, h("h2", {}, "Every GPU, every stream"),
+    h("p", { class: "sub" }, "One row per GPU stream. Kernels are coloured by kind, collectives in red; gaps are bubbles. Scroll to zoom, drag to pan, double-click to reset; click a span to open that kernel."));
+  const rows = [], rowRank = [];
+  for (const r of rk) for (let s = 0; s < r._streams; s++) {
+    rows.push({ label: r._streams > 1 ? `GPU ${r.rank} · s${s}` : `GPU ${r.rank}`, group: s === 0 && r._streams > 1, tip: `<div class="t">GPU ${r.rank} (${esc(R._gpu(r.rank).name)})</div><div class="r">busy ${pct(busy[r.rank] ?? 0)} of the step · click to open</div>`, onclick: () => go({ view: "gpu", rank: r.rank, k: -1 }) });
+    rowRank.push([r, s]);
+  }
+  const rowH = rows.length > 120 ? 6 : rows.length > 60 ? 9 : 16;
+  const lanes = new Lanes({
+    rows, rowH, gap: rowH > 8 ? 2 : 1, labelW: 104, t0: 0, t1: R._makespan_ns * 1.01, maxH: 640,
+    draw(ctx, X, y, hh, i, t0, t1) {
+      const [r, s] = rowRank[i];
+      for (const sp of r._spans) {
+        if (sp.stream !== s || sp.t1 < t0 || sp.t0 > t1) continue;
+        box(ctx, X(sp.t0), X(sp.t1), y, hh, COL["k_" + sp.cat]);
+      }
+    },
+    hit(t, i, px) {
+      const [r, s] = rowRank[i];
+      const sp = r._spans.find(sp => sp.stream === s && t >= sp.t0 - px && t <= sp.t1 + px);
+      if (!sp) return null;
+      const k = sp.k >= 0 ? R.kernels[sp.k] : null;
+      let html = `<div class="t">${esc(sp.label)}</div><div class="r">GPU ${r.rank} · stream ${s} · ${fmtT(sp.t1 - sp.t0)} · ${KCATS.find(c => c[0] === sp.cat)[1]}</div>`;
+      if (k) html += `<div class="r">${fmtN(k.ctas)} CTAs · ${k.ctas_per_sm} CTA/SM · tensor ${pct(k.tensor_util)} · issue ${pct(k.issue_util)}${k.tflops > 1 ? " · " + k.tflops.toFixed(0) + " TFLOPS" : ""}</div>` + (k.d >= 0 ? `<div class="r">click: SMs, warps, SASS</div>` : `<div class="r">click: kernel summary</div>`);
+      return { html, onclick: k ? () => go({ view: "kernel", rank: r.rank, k: k._i, sm: null }) : null };
+    },
+  });
+  card.append(lanes.wrap, h("div", { class: "legend" }, KCATS.map(c => h("span", {}, h("i", { style: `background:var(${c[2]})` }), c[1]))));
+  m.append(card);
+  requestAnimationFrame(() => lanes.draw());
+  m.append(h("div", { class: "grid2" }, anatomyCard(), collectiveCard()));
+  m.append(kernelTableCard(null));
+}
+
+function topologyCard() {
+  const sys = R.system, nodes = sys.nodes;
+  const card = h("div", { class: "card" }, h("h2", {}, "Fabric: " + sys.name),
+    h("p", { class: "sub" }, R.link_use.length ? "GPUs (squares) shaded by how busy they were; switches (bars) and links shaded by mean link utilisation over the step. Drag the time slider to see NVLink traffic move during the step." : "GPUs shaded by how busy they were over the step."));
+  const gpus = nodes.map((n, i) => n.t === "gpu" ? i : -1).filter(i => i >= 0), sws = nodes.map((n, i) => n.t === "switch" ? i : -1).filter(i => i >= 0);
+  const W = 1000, gpuRows = gpus.length > 36 ? 2 : 1, perRow = Math.ceil(gpus.length / gpuRows);
+  const gs = Math.min(26, (W - 40) / perRow - 3), Hh = 70 + gpuRows * (gs + 28) + (sws.length ? 60 : 0);
+  const pos = {};
+  gpus.forEach((n, j) => { const row = Math.floor(j / perRow), col = j % perRow; const x0 = (W - perRow * (gs + 3)) / 2; pos[n] = [x0 + col * (gs + 3) + gs / 2, row === 0 ? 30 + gs / 2 : Hh - 30 - gs / 2]; });
+  const swW = sws.length ? Math.min(46, (W - 40) / sws.length - 6) : 0;
+  sws.forEach((n, j) => { const x0 = (W - sws.length * (swW + 6)) / 2; pos[n] = [x0 + j * (swW + 6) + swW / 2, gpuRows === 2 ? Hh / 2 : Hh - 40]; });
+  if (!sws.length) gpus.forEach(n => pos[n][1] = Hh / 2);
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`); svg.setAttribute("width", "100%"); svg.style.maxHeight = "380px"; svg.style.display = "block";
+  const util = {}; for (const [a, b, , u] of R.link_use) { util[a + "," + b] = u; }
+  const linkEls = [];
+  const linkOf = (a, b) => Math.max(util[a + "," + b] ?? 0, util[b + "," + a] ?? 0);
+  const maxU = Math.max(1e-6, ...R.link_use.map(l => l[3]));
+  for (const [a, b] of sys.links) {
+    if (!pos[a] || !pos[b]) continue;
+    const l = document.createElementNS(svgNS, "line");
+    l.setAttribute("x1", pos[a][0]); l.setAttribute("y1", pos[a][1]); l.setAttribute("x2", pos[b][0]); l.setAttribute("y2", pos[b][1]);
+    const u = linkOf(a, b);
+    l.setAttribute("stroke", u > 0 ? seqColor(u / maxU) : COL["--line"]); const dense = sys.links.length > 400; l.setAttribute("stroke-width", dense ? 0.5 : 1.2); l.setAttribute("opacity", (u > 0 ? 0.8 : 0.35) * (dense ? 0.45 : 1));
+    svg.append(l); linkEls.push([l, a, b]);
+  }
+  const busyOf = {}; R.ranks.forEach(r => busyOf[r.rank] = r.busy_us * 1e3 / R._makespan_ns);
+  const gpuEls = {};
+  for (const n of gpus) {
+    const rank = nodes[n].rank, [x, y] = pos[n];
+    const g = document.createElementNS(svgNS, "rect");
+    g.setAttribute("x", x - gs / 2); g.setAttribute("y", y - gs / 2); g.setAttribute("width", gs); g.setAttribute("height", gs); g.setAttribute("rx", 3);
+    g.setAttribute("fill", seqColor(busyOf[rank] ?? 0)); g.setAttribute("stroke", COL["--surface"]); g.setAttribute("stroke-width", 1.5);
+    g.style.cursor = "pointer";
+    g.addEventListener("click", () => go({ view: "gpu", rank, k: -1 }));
+    g.addEventListener("mousemove", (e) => showTip(e, `<div class="t">GPU ${rank}</div><div class="r">${esc(R._gpu(rank).name)} · busy ${pct(busyOf[rank] ?? 0)}</div><div class="r">click to open</div>`));
+    g.addEventListener("mouseleave", hideTip);
+    svg.append(g); gpuEls[n] = g;
+    if (gpus.length <= 72 && gs >= 14) { const t = document.createElementNS(svgNS, "text"); t.setAttribute("x", x); t.setAttribute("y", y + (y < Hh / 2 ? -gs / 2 - 4 : gs / 2 + 11)); t.setAttribute("text-anchor", "middle"); t.setAttribute("font-size", 9); t.setAttribute("fill", COL["--text-3"]); t.textContent = rank; svg.append(t); }
+  }
+  const swEls = {};
+  for (const n of sws) {
+    const [x, y] = pos[n], nd = nodes[n];
+    const out = R.link_use.filter(l => l[0] === n);
+    const u = out.length ? out.reduce((a, l) => a + l[3], 0) / out.length : 0;
+    const r = document.createElementNS(svgNS, "rect");
+    r.setAttribute("x", x - swW / 2); r.setAttribute("y", y - 9); r.setAttribute("width", swW); r.setAttribute("height", 18); r.setAttribute("rx", 4);
+    r.setAttribute("fill", u > 0 ? seqColor(u / maxU) : COL["--surface-2"]); r.setAttribute("stroke", COL["--text-3"]); r.setAttribute("stroke-width", 0.8);
+    r.addEventListener("mousemove", (e) => showTip(e, `<div class="t">${esc(nd.label)}</div><div class="r">${esc(nd.name)} · ${nd.ports} ports · mean egress util ${pct(u)}</div>`));
+    r.addEventListener("mouseleave", hideTip);
+    svg.append(r); swEls[n] = r;
+  }
+  card.append(svg);
+  // time slider over node bins
+  if (R.node_bins && R.node_bins.some(b => b.length)) {
+    const nb = Math.max(...R.node_bins.map(b => b.length));
+    const lab = h("span", { class: "note mono" }, "whole step");
+    const sl = h("input", { type: "range", min: -1, max: nb - 1, value: -1, style: "flex:1;min-width:160px" });
+    sl.addEventListener("input", () => {
+      const i = +sl.value;
+      if (i < 0) { lab.textContent = "whole step"; for (const n of gpus) gpuEls[n].setAttribute("fill", seqColor(busyOf[nodes[n].rank] ?? 0)); return; }
+      lab.textContent = `${fmtT(i * R.link_bin_ns)}–${fmtT((i + 1) * R.link_bin_ns)}: NVLink egress`;
+      for (const n of gpus) gpuEls[n].setAttribute("fill", seqColor(R.node_bins[n]?.[i] ?? 0));
+      for (const n of sws) swEls[n].setAttribute("fill", (R.node_bins[n]?.[i] ?? 0) > 0 ? seqColor(R.node_bins[n][i]) : COL["--surface-2"]);
+    });
+    card.append(h("div", { class: "row", style: "margin-top:8px" }, h("span", { class: "note" }, "time"), sl, lab));
+  }
+  card.append(h("div", { class: "legend" }, h("span", {}, "low"), ...[0, 1, 2, 3, 4].map(i => h("i", { style: `background:var(--seq-${i})` })), h("span", {}, "high (busy fraction / link utilisation)")));
+  return card;
+}
+
+function anatomyCard() {
+  const fam = new Array(FAMILIES.length).fill(0);
+  for (const [n, v] of Object.entries(R.sched || {})) { const i = R.stalls.indexOf(n); if (i >= 0) fam[R._fam[i]] += v; }
+  const card = h("div", { class: "card" }, h("h2", {}, "Bubble anatomy"), h("p", { class: "sub" }, "Where every warp-scheduler cycle went, summed over all kernels on all GPUs (Nsight-style issue-slot attribution: a cycle with no issue is charged to the warp that unblocks first)."));
+  const t = fam.reduce((a, b) => a + b, 0) || 1;
+  const tb = h("table");
+  tb.append(h("tr", {}, h("th", {}, "state"), h("th", { class: "num" }, "share"), h("th", {}, "")));
+  FAMILIES.forEach((f, i) => { if (fam[i] / t < 0.0005) return; tb.append(h("tr", {}, h("td", {}, h("span", { class: "legend", style: "margin:0" }, h("span", {}, h("i", { style: `background:var(${f[2]})` }), f[1]))), h("td", { class: "num" }, pct(fam[i] / t)), h("td", { style: "width:45%" }, h("div", { class: "hbar", style: `width:${100 * fam[i] / Math.max(...fam)}%;background:var(${f[2]})` })))); });
+  card.append(stackBar(R, fam), h("div", { style: "height:10px" }), tb);
+  return card;
+}
+function collectiveCard() {
+  const card = h("div", { class: "card" }, h("h2", {}, "Collectives"));
+  const cs = R.collectives || [];
+  if (!cs.length) { card.append(h("p", { class: "sub" }, "No collectives in this run.")); return card; }
+  card.append(h("p", { class: "sub" }, `${cs.length} collectives. Time is from the last rank's post to completion.`));
+  const agg = {};
+  for (const c of cs) { const k = `${c.kind} ${c.algo} ${c.bytes}`; const a = agg[k] ??= { kind: c.kind, algo: c.algo, bytes: c.bytes, ranks: c.ranks, n: 0, t: 0, bw: 0 }; a.n++; a.t += (c.done_ps - c.last_post_ps) / 1e3; a.bw += c.busbw_gbps; }
+  const tb = h("table", {}, h("tr", {}, h("th", {}, "collective"), h("th", { class: "num" }, "bytes"), h("th", { class: "num" }, "ranks"), h("th", { class: "num" }, "n"), h("th", { class: "num" }, "mean time"), h("th", { class: "num" }, "busbw")));
+  Object.values(agg).sort((a, b) => b.t - a.t).slice(0, 12).forEach(a => tb.append(h("tr", {}, h("td", {}, `${a.kind} · ${a.algo}`), h("td", { class: "num" }, fmtN(a.bytes) + "B"), h("td", { class: "num" }, a.ranks), h("td", { class: "num" }, a.n), h("td", { class: "num" }, fmtT(a.t / a.n)), h("td", { class: "num" }, (a.bw / a.n).toFixed(0) + " GB/s"))));
+  card.append(h("div", { class: "scroll", style: "max-height:320px" }, tb));
+  return card;
+}
+
+function kernelTableCard(rank) {
+  const ks = R.kernels.filter(k => rank === null || k.rank === rank);
+  const agg = new Map();
+  for (const k of ks) {
+    const a = agg.get(k._name) ?? { name: k._name, n: 0, t: 0, tu: 0, iu: 0, sched: new Array(R.stalls.length).fill(0), first: k, detail: -1 };
+    const dur = k._t1 - k._t0;
+    a.n++; a.t += dur; a.tu += k.tensor_util * dur; a.iu += k.issue_util * dur;
+    k.sched.forEach((v, i) => a.sched[i] += v);
+    if (k.d >= 0 && a.detail < 0) { a.detail = k._i; }
+    agg.set(k._name, a);
+  }
+  const rows = [...agg.values()].sort((a, b) => b.t - a.t);
+  const tot = rows.reduce((s, a) => s + a.t, 0) || 1;
+  const card = h("div", { class: "card" }, h("h2", {}, rank === null ? "Kernels (all GPUs)" : `Kernels on GPU ${rank}`),
+    h("p", { class: "sub" }, "Summed kernel time with tensor-core and issue utilisation, and the scheduler-cycle anatomy of each. Click a row to open the kernel (SM timeline, warp states, SASS hot spots where captured)."));
+  const tb = h("table", {}, h("tr", {}, h("th", {}, "kernel"), h("th", { class: "num" }, "n"), h("th", { class: "num" }, "time"), h("th", { class: "num" }, "share"), h("th", { class: "num" }, "tensor"), h("th", { class: "num" }, "issue"), h("th", { style: "width:22%" }, "scheduler cycles")));
+  for (const a of rows.slice(0, 80)) {
+    const kk = a.detail >= 0 ? a.detail : a.first._i;
+    tb.append(h("tr", { class: "click", onclick: () => go({ view: "kernel", rank: R.kernels[kk].rank, k: kk, sm: null }) },
+      h("td", { class: "mono", title: a.name, style: "max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }, h("i", { style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:var(${KCATS.find(c => c[0] === kcat(a.name, 0))[2]})` }), a.name, a.detail >= 0 ? h("span", { class: "chip", style: "margin-left:6px" }, "SASS") : null),
+      h("td", { class: "num" }, a.n), h("td", { class: "num" }, fmtT(a.t)), h("td", { class: "num" }, pct(a.t / tot)), h("td", { class: "num" }, pct(a.tu / a.t)), h("td", { class: "num" }, pct(a.iu / a.t)), h("td", {}, stackBar(R, famOf(R, a.sched)))));
+  }
+  card.append(h("div", { class: "scroll" }, tb), famLegend());
+  return card;
+}
+
+function gpuView(m) {
+  const r = R.ranks.find(x => x.rank === S.rank) ?? R.ranks[0];
+  const g = R._gpu(r.rank), ghz = R._ghz(r.rank);
+  const ks = R.kernels.filter(k => k.rank === r.rank);
+  const tu = ks.reduce((a, k) => a + k.tensor_util * (k._t1 - k._t0), 0) / Math.max(1, ks.reduce((a, k) => a + (k._t1 - k._t0), 0));
+  m.append(kpis([
+    [fmtT(r.finish_us * 1e3), `GPU ${r.rank} finish`],
+    [pct(r.busy_us * 1e3 / R._makespan_ns), "busy (≥1 kernel resident)"],
+    [String(ks.length), "kernels"],
+    [pct(tu), "tensor util (time-weighted)"],
+    [`${g.sm_count} SMs`, `${g.name} · ${g.clock_mhz.toFixed(0)} MHz`],
+  ]));
+  // streams
+  const card = h("div", { class: "card" }, h("h2", {}, `GPU ${r.rank}: streams`), h("p", { class: "sub" }, "Kernel and collective spans per stream. Click a kernel to open it."));
+  const rows = []; for (let s = 0; s < r._streams; s++) rows.push({ label: `stream ${s}` });
+  const t1 = Math.max(r.finish_us * 1e3, 1) * 1.01;
+  let ctaLanes = null;
+  const lanes = new Lanes({
+    rows, rowH: 22, gap: 3, labelW: 104, t0: 0, t1,
+    onRange: (a, b) => { if (ctaLanes) { ctaLanes.t0 = a; ctaLanes.t1 = b; ctaLanes.draw(); } },
+    draw(ctx, X, y, hh, i, t0, tt1) { for (const sp of r._spans) if (sp.stream === i && sp.t1 >= t0 && sp.t0 <= tt1) box(ctx, X(sp.t0), X(sp.t1), y, hh, COL["k_" + sp.cat]); },
+    hit(t, i, px) {
+      const sp = r._spans.find(sp => sp.stream === i && t >= sp.t0 - px && t <= sp.t1 + px); if (!sp) return null;
+      const k = sp.k >= 0 ? R.kernels[sp.k] : null;
+      return { html: `<div class="t">${esc(sp.label)}</div><div class="r">${fmtT(sp.t1 - sp.t0)}${k ? ` · tensor ${pct(k.tensor_util)} · issue ${pct(k.issue_util)}` : ""}</div>`, onclick: k ? () => go({ view: "kernel", k: k._i, sm: null }) : null };
+    },
+  });
+  card.append(lanes.wrap, h("div", { class: "legend" }, KCATS.map(c => h("span", {}, h("i", { style: `background:var(${c[2]})` }), c[1]))));
+  m.append(card);
+  requestAnimationFrame(() => lanes.draw());
+  // per-SM CTA timeline from captured kernels
+  const det = ks.filter(k => k.d >= 0);
+  if (det.length) {
+    const c2 = h("div", { class: "card" }, h("h2", {}, `GPU ${r.rank}: all ${g.sm_count} SMs`), h("p", { class: "sub" }, "Each row is one SM, each bar one CTA, coloured by kernel kind. Idle SMs, partial waves and tails are bubbles. Zoom is shared with the streams above; click a CTA to open its kernel."));
+    const rows2 = []; for (let s = 0; s < g.sm_count; s++) rows2.push({ label: `SM ${s}` });
+    // per SM list of [t0,t1,kidx,cta]
+    const per = Array.from({ length: g.sm_count }, () => []);
+    for (const k of det) { const c = R.details[k.d].ctas; for (let i = 0; i < c.length; i += 4) per[c[i]]?.push([k._t0 + c[i + 2] / ghz, k._t0 + c[i + 3] / ghz, k._i, c[i + 1]]); }
+    per.forEach(p => p.sort((a, b) => a[0] - b[0]));
+    ctaLanes = new Lanes({
+      rows: rows2, rowH: g.sm_count > 100 ? 4 : 6, gap: 1, labelW: 104, t0: 0, t1, maxH: 640,
+      draw(ctx, X, y, hh, i, t0, tt1) { for (const c of per[i]) { if (c[1] < t0 || c[0] > tt1) continue; box(ctx, X(c[0]), X(c[1]), y, hh, COL["k_" + kcat(R.kernels[c[2]]._name, 0)]); } },
+      hit(t, i, px) { const c = per[i].find(c => t >= c[0] - px && t <= c[1] + px); if (!c) return null; const k = R.kernels[c[2]]; return { html: `<div class="t">${esc(k._name)}</div><div class="r">SM ${i} · CTA ${c[3]} · ${fmtT(c[1] - c[0])}</div>`, onclick: () => go({ view: "kernel", k: k._i, sm: null }) }; },
+      onRange: (a, b) => { lanes.t0 = a; lanes.t1 = b; lanes.draw(); },
+    });
+    c2.append(ctaLanes.wrap, h("div", { class: "hint" }, "Scroll over SM labels to scroll rows; scroll over the plot to zoom."));
+    m.append(c2);
+    requestAnimationFrame(() => ctaLanes.draw());
+  } else if (R.kind === "rack") {
+    m.append(h("div", { class: "card note" }, `GPU ${r.rank} ran without per-SM capture. Re-run with --detail-ranks ${r.rank} to see its SMs, warps and SASS.`));
+  }
+  m.append(kernelTableCard(r.rank));
+}
+
+function kernelView(m) {
+  const k = R.kernels[S.k];
+  if (!k) { m.append(h("div", { class: "card" }, "No kernel.")); return; }
+  const g = R._gpu(k.rank), ghz = R._ghz(k.rank);
+  const D = k.d >= 0 ? R.details[k.d] : null;
+  D_ROLES = D?.roles ?? [];
+  const sch = famOf(R, k.sched);
+  m.append(kpis([
+    [fmtT(k.cycles / ghz), `${fmtC(k.cycles)} at ${g.clock_mhz.toFixed(0)} MHz`],
+    [k.tflops > 1 ? k.tflops.toFixed(0) + " TF/s" : fmtN(k.dram_bytes / (k.cycles / ghz)) + "B/ns", k.tflops > 1 ? "tensor throughput" : "DRAM bytes per ns (GB/s)"],
+    [pct(k.tensor_util), "tensor-core busy"],
+    [pct(k.issue_util), "issue-slot utilisation"],
+    [`${fmtN(k.ctas)} CTAs`, `${k.ctas / Math.max(1, k.ctas) ? Math.round(k.warps / k.ctas) : 0} warps/CTA · ${k.ctas_per_sm} CTA/SM · ${(k.ctas / (g.sm_count * k.ctas_per_sm)).toFixed(2)} waves`],
+    [fmtN(k.insts), "warp instructions"],
+  ]));
+  if (R.note && R.kind === "kernel") { const [first, ...rest] = R.note.split(/\n\s*\n/); m.append(h("div", { class: "note", style: "margin:-6px 0 14px" }, first)); if (rest.length) m.append(noteCard(rest.join("\n\n"))); }
+  const top = h("div", { class: "grid2" });
+  const c1 = h("div", { class: "card" }, h("h2", {}, "Scheduler cycles"), h("p", { class: "sub" }, "Every issue slot of every SMSP while the kernel held the SM: issued, or the reason nothing issued."), stackBar(R, sch), famTable(sch, k.sched));
+  top.append(c1);
+  if (D) {
+    const wf = famOf(R, D.warp);
+    const c2 = h("div", { class: "card" }, h("h2", {}, "Warp states"), h("p", { class: "sub" }, "Every resident warp, every cycle (Nsight's warp state statistics). The split by warp index shows warp-specialised roles: producer, MMA, softmax, correction, epilogue."), stackBar(R, wf));
+    if (D.warp_by_index?.length > 1) {
+      const tb = h("table", {}, h("tr", {}, h("th", {}, "warp"), h("th", { class: "num" }, "issued"), h("th", { style: "width:60%" }, "states")));
+      D.warp_by_index.forEach((c, i) => { const f = famOf(R, c); if (!f.some(x => x)) return; tb.append(h("tr", {}, h("td", { class: "mono" }, "w" + i), h("td", { class: "num" }, fmtN(D.issued_by_index?.[i] ?? 0)), h("td", {}, stackBar(R, f)))); });
+      c2.append(h("div", { style: "height:8px" }), h("div", { class: "scroll", style: "max-height:300px" }, tb));
+    }
+    top.append(c2);
+  } else top.append(h("div", { class: "card note" }, "This kernel instance has no captured detail. Kernels on ranks run with --detail-ranks (default 0) carry SM, warp and SASS data."));
+  m.append(top, famLegend());
+  if (!D) return;
+  // per-SM CTA timeline for this kernel
+  const ctas = D.ctas, per = Array.from({ length: g.sm_count }, () => []);
+  for (let i = 0; i < ctas.length; i += 4) per[ctas[i]]?.push([ctas[i + 2], ctas[i + 3], ctas[i + 1]]);
+  const traced = new Set(D.warps.map(w => w.sm));
+  const c3 = h("div", { class: "card" }, h("h2", {}, `${g.sm_count} SMs × time`), h("p", { class: "sub" }, "One row per SM, one bar per CTA (alternating shades so back-to-back CTAs are visible). Rows marked ● have per-warp timelines: click one to open its warps below."));
+  const rows = per.map((_, s) => ({ label: (traced.has(s) ? "● " : "") + `SM ${s}`, always: traced.has(s), onclick: traced.has(s) ? () => { S.sm = s; renderWarps(); } : null, tip: traced.has(s) ? `<div class="t">SM ${s}</div><div class="r">click: per-warp timeline</div>` : null }));
+  const ctaL = new Lanes({
+    rows, rowH: g.sm_count > 100 ? 4 : 6, gap: 1, labelW: 90, t0: 0, t1: k.cycles * 1.01, unit: (c) => fmtN(c) + "", maxH: 520, minSpan: 50,
+    draw(ctx, X, y, hh, i, t0, t1) { const p = per[i]; for (let j = 0; j < p.length; j++) { const c = p[j]; if (c[1] < t0 || c[0] > t1) continue; box(ctx, X(c[0]), X(c[1]), y, hh, j % 2 ? COL["--seq-3"] : COL["--seq-2"]); } if (traced.has(i)) { ctx.fillStyle = COL["--sel"]; ctx.fillRect(X(t0), y, 2, hh); } },
+    hit(t, i, px) { const c = per[i].find(c => t >= c[0] - px && t <= c[1] + px); if (!c) return null; return { html: `<div class="t">SM ${i} · CTA ${c[2]}</div><div class="r">cycles ${fmtN(c[0])}–${fmtN(c[1])} (${fmtC(c[1] - c[0])}, ${fmtT((c[1] - c[0]) / ghz)})</div>${traced.has(i) ? '<div class="r">click: warps</div>' : ""}`, onclick: traced.has(i) ? () => { S.sm = i; renderWarps(); } : null }; },
+  });
+  c3.append(ctaL.wrap, h("div", { class: "hint" }, "x axis: SM cycles from the kernel's first CTA."));
+  m.append(c3);
+  requestAnimationFrame(() => ctaL.draw());
+  const warpCard = h("div", { class: "card", id: "warpCard" });
+  m.append(warpCard);
+  const sassCard = h("div", { class: "card", id: "sassCard" });
+  m.append(sassCard);
+  if (S.sm === null && D.warps.length) S.sm = D.warps[0].sm;
+  renderWarps();
+  renderSass();
+  // memory + class mix
+  const c5 = h("div", { class: "grid2" });
+  const mix = Object.entries(D.class_mix || {}).sort((a, b) => b[1] - a[1]);
+  const mt = mix.reduce((a, b) => a + b[1], 0) || 1;
+  const t1 = h("table", {}, h("tr", {}, h("th", {}, "instruction class"), h("th", { class: "num" }, "warp instr"), h("th", { class: "num" }, "share")));
+  mix.forEach(([c, n]) => t1.append(h("tr", {}, h("td", {}, c), h("td", { class: "num" }, fmtN(n)), h("td", { class: "num" }, pct(n / mt)))));
+  c5.append(h("div", { class: "card" }, h("h2", {}, "Instruction mix"), h("div", { class: "scroll", style: "max-height:300px" }, t1)));
+  const mb = Object.entries(D.mbar_wait || {}).sort((a, b) => b[1] - a[1]);
+  const t2 = h("table", {}, h("tr", {}, h("th", {}, "warp:mbarrier"), h("th", { class: "num" }, "warp-cycles waiting")));
+  mb.slice(0, 40).forEach(([n, v]) => t2.append(h("tr", {}, h("td", { class: "mono" }, n), h("td", { class: "num" }, fmtN(v)))));
+  const l2 = D.l2_hits / Math.max(1, D.l2_hits + D.l2_misses), l1 = D.l1_hits / Math.max(1, D.l1_hits + D.l1_misses);
+  c5.append(h("div", { class: "card" }, h("h2", {}, "Memory and handoffs"), h("p", { class: "sub" }, `L1 hit ${pct(l1)} · L2 hit ${pct(l2)} · DRAM ${fmtN(k.dram_bytes)}B · ${fmtN(D.smem_wavefronts)} shared-memory wavefronts`),
+    mb.length ? h("div", {}, h("p", { class: "sub" }, "Which mbarrier handoff each warp waited on: in a warp-specialised pipeline this names the bubble (e.g. the MMA warp waiting on a TMA-filled stage)."), h("div", { class: "scroll", style: "max-height:260px" }, t2)) : h("p", { class: "sub" }, "No mbarrier waits recorded (static SASS kernels use named barriers instead).")));
+  m.append(c5);
+
+  function renderWarps() {
+    const card = $("#warpCard"); if (!card) return; card.innerHTML = "";
+    const tl = D.warps.find(w => w.sm === S.sm);
+    card.append(h("h2", {}, tl ? `SM ${S.sm}: every warp, every cycle` : "Warps"));
+    if (!tl) { card.append(h("p", { class: "sub" }, "No SM of this kernel was traced. Use --warp-sms to pick SMs.")); return; }
+    const warps = tl.warps;
+    const smsps = g.smsp || 4;
+    const order = warps.map((w, i) => i).sort((a, b) => (warps[a].smsp - warps[b].smsp) || (warps[a].start - warps[b].start) || (warps[a].slot - warps[b].slot));
+    // pack warp instances that reuse a slot over time into the same row
+    const rowsOf = []; const rowKey = new Map();
+    for (const i of order) { const w = warps[i]; const key = w.slot; if (!rowKey.has(key)) { rowKey.set(key, rowsOf.length); rowsOf.push([]); } rowsOf[rowKey.get(key)].push(w); }
+    const rowSorted = [...rowKey.entries()].sort((a, b) => (a[0] % smsps) - (b[0] % smsps) || a[0] - b[0]).map(e => rowsOf[e[1]]);
+    // last recorded event (a truncated timeline stops before the warps exit)
+    const lastEv = (w) => Math.max(w.seg.length ? w.seg[w.seg.length - 1] : w.start, w.iss.length ? w.iss[w.iss.length - 2] + 1 : w.start);
+    const t1 = Math.max(...warps.map(w => tl.truncated ? lastEv(w) : w.end));
+    card.append(h("p", { class: "sub" }, `${warps.length} warps on ${rowSorted.length} warp slots, grouped by sub-partition (SMSP). Colour is the warp's state; ticks above a row are issued instructions (zoom in to see each one). Hover for the instruction; click to find it in the SASS listing.${tl.truncated ? " The timeline hit its event cap and stops early (raise --max-warp-events)." : ""}`));
+    let prevSp = -1;
+    const rows = rowSorted.map(ws => { const w = ws[0]; const grp = w.smsp !== prevSp; prevSp = w.smsp; const roles = [...new Set(ws.map(x => "w" + x.widx + (x.role != null && D.roles?.length > 1 ? " " + D.roles[x.role] : "")))].join(","); return { label: `SMSP${w.smsp} slot ${w.slot} ${roles}`, group: grp }; });
+    const pcText = new Map(D.pc.map(p => [p[0], p]));
+    const stallName = R.stalls;
+    const L = new Lanes({
+      rows, rowH: rows.length > 40 ? 12 : 16, gap: 2, labelW: 150, t0: 0, t1: t1 * 1.01, unit: (c) => fmtN(c), maxH: 640, minSpan: 20,
+      draw(ctx, X, y, hh, i, t0, tt1) {
+        const px = (tt1 - t0) / (L.cv.clientWidth - 150);
+        for (const w of rowSorted[i]) {
+          if (w.end < t0 || w.start > tt1) continue;
+          const s = w.seg;
+          let j = Math.max(0, lowerBound(s, 3, 2, t0));
+          // coalesce sub-pixel segments: draw the dominant state per pixel column
+          let colX = -1, colBest = null, colW = 0;
+          const fam = R._fam;
+          for (; j < s.length / 3; j++) {
+            const st = s[j * 3], a = s[j * 3 + 1], b = s[j * 3 + 2];
+            if (a > tt1) break;
+            const x0 = X(a), x1 = X(b);
+            if (x1 - x0 >= 1) { box(ctx, x0, x1, y + 3, hh - 3, COL[FAMILIES[fam[st]][0]]); continue; }
+            const cx = Math.floor(x0);
+            if (cx !== colX) { if (colBest !== null) box(ctx, colX, colX + 1, y + 3, hh - 3, COL[FAMILIES[colBest][0]]); colX = cx; colBest = fam[st]; colW = b - a; }
+            else if (b - a > colW) { colBest = fam[st]; colW = b - a; }
+          }
+          if (colBest !== null) box(ctx, colX, colX + 1, y + 3, hh - 3, COL[FAMILIES[colBest][0]]);
+          // issue ticks
+          const is = w.iss, base = (w.role ?? 0) * 4294967296;
+          if (px < 4) {
+            ctx.fillStyle = COL["--text"];
+            for (let q = lowerBound(is, 2, 0, t0); q < is.length / 2 && is[q * 2] <= tt1; q++) {
+              const sel = S.pc !== null && base + is[q * 2 + 1] === S.pc;
+              if (sel) { ctx.fillStyle = COL["sync"]; ctx.fillRect(X(is[q * 2]) - 1, y, 3, hh); ctx.fillStyle = COL["--text"]; }
+              else ctx.fillRect(X(is[q * 2]), y, Math.max(1, 1 / px), 2.5);
+            }
+          } else if (S.pc !== null) {
+            ctx.fillStyle = COL["sync"];
+            for (let q = lowerBound(is, 2, 0, t0); q < is.length / 2 && is[q * 2] <= tt1; q++) if (base + is[q * 2 + 1] === S.pc) ctx.fillRect(X(is[q * 2]) - 1, y, 2, hh);
+          }
+        }
+      },
+      hit(t, i, px) {
+        const w = rowSorted[i].find(w => t >= w.start && t <= w.end); if (!w) return null;
+        const s = w.seg; const j = lowerBound(s, 3, 2, t);
+        if (j >= s.length / 3) return null;
+        const st = s[j * 3];
+        // instruction: issued at t (within a pixel), else the next one this warp issues (what it was waiting to issue)
+        const is = w.iss; let q = lowerBound(is, 2, 0, t - px);
+        let pc = null, issuedAt = null;
+        if (q < is.length / 2) { pc = (w.role ?? 0) * 4294967296 + is[q * 2 + 1]; issuedAt = is[q * 2]; }
+        const p = pc !== null ? pcText.get(pc) : null;
+        const fam = FAMILIES[R._fam[st]];
+        const html = `<div class="t">SMSP${w.smsp} slot ${w.slot} · CTA ${w.cta} · warp ${w.widx}${w.role != null ? " · " + esc(D.roles?.[w.role] ?? "role " + w.role) : ""}</div>` +
+          `<div class="r"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(${fam[2]})"></i> ${esc(stallName[st])} · cycles ${fmtN(s[j * 3 + 1])}–${fmtN(s[j * 3 + 2])}</div>` +
+          (p ? `<div class="m">${issuedAt <= t + px ? "issued" : "next"} @${fmtN(issuedAt)}: ${pcHex(pc)}  ${esc(R._str(p[1]))}</div>` : "") + `<div class="r">click: find in SASS</div>`;
+        return { html, onclick: pc !== null ? () => { S.pc = pc; renderSass(true); L.draw(); } : null };
+      },
+    });
+    const traced = D.warps.map(w => w.sm);
+    const sel = h("select", { onchange: (e) => { S.sm = +e.target.value; renderWarps(); } }, traced.map(s => { const o = h("option", { value: s }, `SM ${s}`); if (s === S.sm) o.selected = true; return o; }));
+    card.append(h("div", { class: "row" }, h("span", { class: "note" }, "traced SM"), sel, S.pc !== null ? h("span", { class: "note" }, "red ticks: issues of the selected instruction") : null), L.wrap, famLegend(famOf(R, D.warp)), h("div", { class: "hint" }, "Scroll to zoom (down to single cycles), drag to pan, double-click to reset. Scroll over the labels to scroll rows."));
+    requestAnimationFrame(() => L.draw());
+    renderWarps.lanes = L;
+  }
+
+  function renderSass(scrollTo) {
+    const card = $("#sassCard"); if (!card) return; card.innerHTML = "";
+    const pcs = D.pc;
+    card.append(h("h2", {}, "SASS: issue counts and stall samples per instruction"));
+    if (!pcs.length) { card.append(h("p", { class: "sub" }, "No per-PC data captured.")); return; }
+    const totalStall = pcs.reduce((a, p) => a + p[4].reduce((x, y) => x + y, 0), 0) || 1;
+    const maxS = Math.max(...pcs.map(p => p[4].reduce((x, y) => x + y, 0)));
+    const totalIss = pcs.reduce((a, p) => a + p[3], 0) || 1;
+    card.append(h("p", { class: "sub" }, `${pcs.length} instructions, ${fmtN(totalIss)} warp instructions issued. "Samples" counts warp-cycles a warp spent waiting to issue that instruction (as in Nsight's source view), split by reason. Blackwell tcgen05 (UTC*MMA), TMA (UTMALDG/STG), mbarrier (SYNCS), MUFU and tensor-memory ops are tagged.`));
+    const q = h("input", { type: "search", placeholder: "filter (e.g. UTCHMMA, MUFU, SYNCS)", value: renderSass.q || "", style: "min-width:240px" });
+    const sortSel = h("select", {}, h("option", { value: "pc" }, "program order"), h("option", { value: "samples" }, "most stall samples"), h("option", { value: "issued" }, "most issued"));
+    sortSel.value = renderSass.sort || (pcs.length > 400 ? "samples" : "pc");
+    const body = h("div", { class: "scroll", style: "max-height:620px" });
+    const draw = () => {
+      renderSass.q = q.value; renderSass.sort = sortSel.value;
+      const f = q.value.trim().toLowerCase();
+      let list = pcs.filter(p => !f || R._str(p[1]).toLowerCase().includes(f) || R._str(p[2]).toLowerCase().includes(f) || pcHex(p[0]).includes(f));
+      const sm = (p) => p[4].reduce((x, y) => x + y, 0);
+      if (sortSel.value === "samples") list = [...list].sort((a, b) => sm(b) - sm(a));
+      if (sortSel.value === "issued") list = [...list].sort((a, b) => b[3] - a[3]);
+      const tb = h("table", { class: "sass" }, h("tr", {}, h("th", {}, "PC"), h("th", {}, "instruction"), h("th", {}, "unit"), h("th", { class: "num" }, "issued"), h("th", { class: "num" }, "samples"), h("th", { style: "width:24%" }, "stall reasons")));
+      let selRow = null;
+      for (const p of list.slice(0, 3000)) {
+        const txt = R._str(p[1]), cls = R._str(p[2]), s = sm(p);
+        const sp = txt.indexOf(" "), op = sp < 0 ? txt : txt.slice(0, sp), rest = sp < 0 ? "" : txt.slice(sp);
+        const tag = unitTag(op, cls);
+        const tr = h("tr", { class: "click" + (p[0] === S.pc ? " sel" : ""), onclick: () => { S.pc = S.pc === p[0] ? null : p[0]; draw(); renderWarps.lanes?.draw(); } },
+          h("td", { class: "pc" }, pcHex(p[0])),
+          h("td", { class: "code" }, h("span", { class: "op", style: tag ? `color:var(${tag[1]})` : "" }, op), rest),
+          h("td", {}, h("span", { class: "chip" }, tag ? tag[0] : cls)),
+          h("td", { class: "num" }, fmtN(p[3])),
+          h("td", { class: "num", title: pct(s / totalStall, 2) + " of all samples" }, s ? fmtN(s) : ""),
+          h("td", {}, s ? h("div", { style: `width:${Math.max(4, 100 * s / maxS)}%` }, stackBar(R, famOf(R, p[4]))) : ""));
+        if (p[0] === S.pc) selRow = tr;
+        tb.append(tr);
+      }
+      body.innerHTML = ""; body.append(tb);
+      if (selRow && scrollTo) { body.scrollTop = selRow.offsetTop - 120; scrollTo = false; }
+    };
+    q.addEventListener("input", draw); sortSel.addEventListener("change", draw);
+    card.append(h("div", { class: "row" }, q, sortSel, h("span", { class: "note" }, "click a line to mark its issues in the warp timeline")), body, famLegend());
+    draw();
+    if (scrollTo) card.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+// per-PC keys are role << 32 | pc (static kernels: one program per warp role)
+let D_ROLES = [];
+function pcHex(key) {
+  const role = Math.floor(key / 4294967296), pc = key % 4294967296;
+  return (D_ROLES.length > 1 ? (D_ROLES[role] ?? "r" + role) + ":" : "") + pc.toString(16).padStart(4, "0");
+}
+function unitTag(op, cls) {
+  if (/^UTC.*MMA/.test(op)) return ["tcgen05 MMA", "--c-tensor"];
+  if (/^(HGMMA|IGMMA|QGMMA|BGMMA)/.test(op)) return ["wgmma", "--c-tensor"];
+  if (/^(HMMA|IMMA|DMMA|BMMA)/.test(op)) return ["mma.sync", "--c-tensor"];
+  if (/^(UTMALDG|UTMASTG|UBLKCP|UTMAPF|UTMACCTL)/.test(op)) return ["TMA", "--c-async"];
+  if (/^(LDTM|STTM|UTCCP)/.test(op)) return ["TMEM", "--c-tensor"];
+  if (/^(SYNCS|UTCBAR)/.test(op)) return ["mbarrier", "--c-async"];
+  if (/^MUFU/.test(op)) return ["MUFU", "--c-pipe"];
+  if (/^(LDG|STG|LDGSTS|ATOM|RED|LD\b|ST\b)/.test(op)) return ["global", "--c-mem"];
+  if (/^(LDS|STS|LDSM|STSM)/.test(op)) return ["shared", "--c-mem"];
+  if (/^(BAR|WARPSYNC|MEMBAR|FENCE)/.test(op)) return ["sync", "--c-sync"];
+  return null;
+}
+function famTable(fam, raw) {
+  const t = fam.reduce((a, b) => a + b, 0) || 1;
+  const tb = h("table", { style: "margin-top:10px" });
+  // detailed reasons, largest first
+  const rows = raw.map((v, i) => [R.stalls[i], v, R._fam[i]]).filter(r => r[1] > 0).sort((a, b) => b[1] - a[1]);
+  const tot = rows.reduce((a, r) => a + r[1], 0) || 1;
+  tb.append(h("tr", {}, h("th", {}, "reason"), h("th", { class: "num" }, "share"), h("th", { style: "width:40%" }, "")));
+  rows.forEach(([n, v, f]) => tb.append(h("tr", {}, h("td", {}, h("span", { class: "legend", style: "margin:0" }, h("span", {}, h("i", { style: `background:var(${FAMILIES[f][2]})` }), n.replace(/_/g, " ")))), h("td", { class: "num" }, pct(v / tot)), h("td", {}, h("div", { class: "hbar", style: `width:${100 * v / rows[0][1]}%;background:var(${FAMILIES[f][2]})` })))));
+  return tb;
+}
+
+function compareCard(m) {
+  const card = h("div", { class: "card" }, h("h2", {}, "All runs in this file"), h("p", { class: "sub" }, "Side by side: time, utilisation and where scheduler cycles went. Click a run to open it."));
+  const tb = h("table", {}, h("tr", {}, h("th", {}, "run"), h("th", { class: "num" }, "time"), h("th", { class: "num" }, "GPUs"), h("th", { class: "num" }, "tensor"), h("th", { class: "num" }, "issue"), h("th", { style: "width:30%" }, "scheduler cycles")));
+  B.runs.forEach((run, i) => {
+    prepRun(run);
+    const sch = new Array(run.stalls.length).fill(0);
+    let tu = 0, iu = 0, tt = 0;
+    for (const k of run.kernels) { k.sched.forEach((v, j) => sch[j] += v); const d = k.cycles; tu += k.tensor_util * d; iu += k.issue_util * d; tt += d; }
+    tb.append(h("tr", { class: "click" + (i === S.run ? " sel" : ""), onclick: () => { $("#runSel").value = i; go({ run: i, view: run.kind === "rack" ? "rack" : "kernel", k: 0, rank: 0, sm: null, pc: null }); } },
+      h("td", {}, run.name), h("td", { class: "num" }, fmtT(run.makespan_us * 1e3)), h("td", { class: "num" }, run.ranks.length), h("td", { class: "num" }, pct(tu / Math.max(1, tt))), h("td", { class: "num" }, pct(iu / Math.max(1, tt))), h("td", {}, stackBar(run, famOf(run, sch)))));
+  });
+  card.append(tb, famLegend());
+  m.append(card);
+}
+
+// ----------------------------------------------------------------- boot ---
+function start(bundle) {
+  if (!bundle || bundle.format !== "rsviz/1") throw new Error("not an rsviz/1 bundle");
+  B = bundle;
+  document.title = (B.title || "rackscale") + " · rackscale viewer";
+  const sel = $("#runSel"); sel.innerHTML = "";
+  B.runs.forEach((r, i) => sel.append(h("option", { value: i }, r.name)));
+  sel.style.display = B.runs.length > 1 ? "" : "none";
+  sel.onchange = () => { const r = B.runs[+sel.value]; go({ run: +sel.value, view: r.kind === "rack" ? "rack" : "kernel", k: 0, rank: 0, sm: null, pc: null }); };
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (p.has("run") && B.runs[+p.get("run")]) {
+    S.run = +p.get("run"); S.view = p.get("view") || "rack"; S.rank = +p.get("rank") || 0; S.k = +(p.get("k") ?? -1); S.sm = p.get("sm") ? +p.get("sm") : null;
+  } else S.view = B.runs[0].kind === "rack" ? "rack" : "kernel";
+  sel.value = S.run;
+  render();
+}
+async function loadFile(file) {
+  let stream = file.stream();
+  if (file.name.endsWith(".gz")) stream = stream.pipeThrough(new DecompressionStream("gzip"));
+  const text = await new Response(stream).text();
+  start(JSON.parse(text));
+}
+function emptyState(msg) {
+  const m = $("#main"); m.innerHTML = "";
+  const inp = h("input", { type: "file", accept: ".json,.gz", onchange: (e) => e.target.files[0] && loadFile(e.target.files[0]).catch(err => emptyState(String(err))) });
+  const d = h("div", { class: "drop" }, h("p", {}, "Drop an rsviz bundle here (.json or .json.gz), or choose one:"), inp,
+    h("p", { class: "note" }, "Make one with ", h("span", { class: "mono" }, "rsim viz path fa4.rpath --gpu b300 -o fa4.json"), " or any other ", h("span", { class: "mono" }, "rsim viz"), " command."));
+  m.append(h("div", { class: "empty" }, msg ? h("p", { style: "color:var(--c-sync)" }, msg) : null, d));
+  document.addEventListener("dragover", e => e.preventDefault());
+  document.addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) loadFile(f).catch(err => emptyState(String(err))); });
+}
+$("#themeBtn").onclick = () => {
+  const root = document.documentElement, dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("rsviz-theme", root.dataset.theme); } catch (e) { }
+  if (B) render();
+};
+try { const t = localStorage.getItem("rsviz-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) { }
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => B && render());
+(async () => {
+  readColors();
+  const raw = $("#rsviz-data").textContent.trim();
+  try {
+    if (raw.startsWith("gz:")) {
+      const bin = Uint8Array.from(atob(raw.slice(3)), c => c.charCodeAt(0));
+      return start(JSON.parse(await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).text()));
+    }
+    if (raw && !raw.startsWith("/*")) return start(JSON.parse(raw));
+    const src = new URLSearchParams(location.search).get("src");
+    if (src) {
+      const r = await fetch(src); let body = r.body;
+      if (src.endsWith(".gz")) body = body.pipeThrough(new DecompressionStream("gzip"));
+      return start(JSON.parse(await new Response(body).text()));
+    }
+    emptyState();
+  } catch (e) { emptyState("Could not load bundle: " + e.message); console.error(e); }
+})();
+</script>
+</body>
+</html>

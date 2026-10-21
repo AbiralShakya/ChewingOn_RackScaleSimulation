@@ -1,6 +1,6 @@
 # First results
 
-These are the results of the first demo runs. They are reproducible with the commands shown.
+These are the results of the demo runs, refreshed 2026-10-21 on the `integration` branch (warp paths, cp.async fix, calibration, split-K GEMMs). They are reproducible with the commands shown.
 All numbers use uncalibrated presets unless marked otherwise, so read them as *model
 behaviour*, not as hardware claims.
 
@@ -15,8 +15,8 @@ python examples/deepseek_v3_nvl72.py --layers 4      # fast mode, ~12 s
 
 | | makespan | MFU | GPU idle |
 |---|---|---|---|
-| single stream | 1899 us | 10.2% | 5.2% |
-| two-micro-batch overlap | 2456 us | 7.9% | 0.9% |
+| single stream | 1435 us | 13.6% | 6.9% |
+| two-micro-batch overlap | 2372 us | 8.2% | 0.9% |
 
 What the model says:
 
@@ -76,3 +76,88 @@ transfer are the levers to model next.
 The measured values replace the presets: 2003 MHz clock, 89% HBM read efficiency, per-opcode
 ALU/XU latencies, and the tcgen05 FLOP/clk. Llama-3-70B TP8 decode (2 layers, b32) runs 2% slower
 than with the uncalibrated preset, mostly because of the lower measured clock and HBM efficiency.
+
+## GB200 vs GB300 NVL72: FP4 prefill under the power cap
+
+Llama-3-405B prefill, TP8 × 9 replicas, 8k tokens, first 2 layers, fast mode (`python examples/gb300_fp4.py`).
+GB300 uses the measured B300 calibration, including the K=96 FP4 UMMA (1.5× the K=64 rate) and power-capped clocks.
+
+| system | dtype | step | GEMM time / GPU |
+|---|---|---|---|
+| GB200 NVL72 | bf16 | 11825 us | 8844 us |
+| GB200 NVL72 | fp4 | 5370 us | 2388 us |
+| GB300 NVL72 | bf16 | 9477 us | 6668 us |
+| GB300 NVL72 | fp4 | 5541 us | 2420 us |
+
+GB300's FP4 GEMMs are no faster than GB200's (1% slower here), not 1.5×. Large FP4 GEMMs pin the 1100 W cap, so the clock falls to about 1.6-1.9 GHz, and the GEMMs left at that point are no longer the bottleneck for the step. The step is then set by attention, norms and TP all-reduces. GB300's BF16 advantage (−19%) comes mainly from the measured memory system and the higher clock on kernels that are not power-bound. GB200 has no measured power data yet, so it runs unthrottled. That favours GB200, and GB200 power runs would make this comparison fair.
+
+## DeepSeek-V3 decode on GB200 vs GB300 NVL72: BF16 vs FP4 weights
+
+EP72, 4k context, first 4 layers, fast mode (`python examples/gb300_deepseek_fp4.py`). Batch is per GPU.
+
+| system | batch | dtype | step | GEMM time / GPU | tok/s/GPU |
+|---|---|---|---|---|---|
+| GB200 NVL72 | 64 | bf16 | 1435 us | 1016 us | 44.6k |
+| GB200 NVL72 | 64 | fp4 | 783 us | 364 us | 81.7k |
+| GB300 NVL72 | 64 | bf16 | 1432 us | 1024 us | 44.7k |
+| GB300 NVL72 | 64 | fp4 | 779 us | 371 us | 82.1k |
+| GB200 NVL72 | 256 | bf16 | 2607 us | 1412 us | 98.2k |
+| GB200 NVL72 | 256 | fp4 | 1692 us | 498 us | 151.3k |
+| GB300 NVL72 | 256 | bf16 | 2461 us | 1329 us | 104.0k |
+| GB300 NVL72 | 256 | fp4 | 1663 us | 526 us | 154.0k |
+
+- **FP4 nearly doubles decode throughput on both racks** (1.8× at batch 64, 1.5× at batch 256). Decode GEMMs stream weights, so the gain comes from moving a quarter of the bytes, not from the tensor core.
+- **GB300 is no faster than GB200 for decode.** The two have the same HBM bandwidth, and decode does not use GB300's extra FP4 FLOPs. The power cap does not bite here either. Decode GEMMs keep the tensor cores mostly idle, so they stay well under the 1100 W board limit that throttles FP4 prefill.
+- **At batch 256, FP4 GEMMs are no longer the step.** GEMMs are under a third of the 1.66 ms step. MLA attention, the all-to-alls and the norms set the pace, so the next decode lever is attention (an FP8 KV cache, or FlashMLA-style kernels), not lower-precision weights.
+
+The step also got faster since the first results. GEMMs with fewer output tiles than SMs now use split-K (from the Mamba study), so the M=64 decode GEMMs spread over all SMs instead of a few.
+
+## FlashAttention on recorded warp paths: one-number what-ifs and ring attention
+
+These come from the FlashAttention study (`research/flash_attention/`, write-up in `writeup.html`). The kernels are real FA2/FA4 binaries recorded with NVBit (`.rpath`) and validated against ncu within ±4%. The recordings are too large for git, so the numbers are from the committed `results/study.json` and `results/scale_rows.json`. Rerun them with `run_study.py whatif|scale` once the traces are on disk.
+
+**One hardware number at a time** (B300, forward, BF16, d=128, 16k tokens; speedup vs. the calibrated B300):
+
+| kernel | change | speedup |
+|---|---|---|
+| FA4 | MUFU.EX2 at half rate (B200-like exp unit) | 0.79× |
+| FA4 | MUFU.EX2 at 2× | 1.00× |
+| FA4 | tensor core 1.5× / 2× | 1.21× / 1.21× |
+| FA4 | tensor 2× + EX2 2× | 1.51× |
+| FA4 | tensor 2× + EX2 2× + FFMA2 2× | 1.56× |
+| FA4 | HBM bandwidth halved | 1.00× |
+| FA2 | EX2 at 2× / HBM halved | 1.02× / 1.00× |
+| FA2 on A100 | no HMMA↔FP32-pipe coupling | 1.01× |
+
+On B300, FA4 is balanced between the tensor core and the exp unit. A faster tensor core alone stalls on EX2 at about 1.2×. B300's doubled EX2 rate is what keeps FA4 from being exp-bound, which is why FA4 emulates exp on B200.
+
+**Context-parallel ring attention, 72 GPUs** (Llama-3-70B heads: 64 query heads, 8 or 64 KV heads; each step is one query chunk against one KV chunk while the next chunk moves to the neighbour):
+
+| system | kernel | chunk | KV heads | context | step | ring efficiency | TFLOPS/GPU |
+|---|---|---|---|---|---|---|---|
+| GB300 NVL72 | FA4 | 1024 | 8 | 74k | 1.89 ms | 94% | 1311 |
+| GB300 NVL72 | FA4 | 1024 | 64 | 74k | 3.20 ms | 96% | 773 |
+| GB300 NVL72 | FA4 | 2048 | 8 | 147k | 6.04 ms | 98% | 1637 |
+| GB300 NVL72 | FA4 | 2048 | 64 | 147k | 8.44 ms | 99% | 1173 |
+| 9×8 B300 over IB | FA4 | 1024 | 8 | 74k | 7.17 ms | 42% | 345 |
+| 9×8 B300 over IB | FA4 | 2048 | 64 | 147k | 112 ms | 9% | 88 |
+| 9×8 A100 over IB | FA2 | 2048 | 8 | 147k | 52.3 ms | 100% | 189 |
+| 9×8 A100 over IB | FA2 | 2048 | 64 | 147k | 225 ms | 23% | 44 |
+
+Ring efficiency is the share of the step spent in attention kernels. On NVL72 the KV transfer hides behind the kernel at every shape. Over InfiniBand, FA4 on B300 is fast enough that the ring becomes transfer-bound, even with GQA (8 KV heads) at 1k chunks. The slower FA2 on A100 still hides the transfer when KV is small. A faster kernel needs a faster fabric to stay compute-bound, and NVL72 provides that.
+
+## One-number what-ifs on GB300 (synthetic kernels and rack workloads)
+
+`python examples/gb300_whatifs.py`. Each variant changes one number of the calibrated B300: every MUFU function at 2× issue rate, shared memory at 256 B/clk per SM instead of 128 (`pipes.l1_bytes_per_cycle`, which now drives the SMEM port), or no 1100 W board cap. The kernels here are the simulator's synthetic ones, not the recorded FA binaries above.
+
+| workload | mufu 2× | smem 2× | no power cap | all three |
+|---|---|---|---|---|
+| attention 8k causal, 64q/8kv heads (754 us) | 1.15× | 1.00× | 1.00× | 1.15× |
+| GEMM bf16 8192³ (557 us) | 1.00× | 1.00× | 1.00× | 1.00× |
+| GEMM fp4 16384³ (1731 us) | 1.00× | 1.00× | 1.24× | 1.24× |
+| Llama-3-405B fp4 prefill 8k, GB300 NVL72 (5.54 ms) | 1.01× | 1.00× | 1.06× | 1.07× |
+| DeepSeek-V3 fp4 decode b256, GB300 NVL72 (1.66 ms) | 1.01× | 1.00× | 1.00× | 1.01× |
+
+- **The power cap costs large FP4 GEMMs about 24%, but the rack step only 6%.** Even the 405B prefill spends most of its step outside the GEMMs. Decode never reaches the cap.
+- **The exp unit is the next limit for attention**, as in the recorded FA4 what-ifs. Removing the power cap does nothing there: only FP4 has measured power runs, so BF16 kernels are never throttled. That favours BF16 until BF16 power data exists.
+- **2× SMEM bandwidth does nothing on these kernels.** Their operands go TMA → SMEM → UMMA, and the model does not charge UMMA descriptor reads to the SMEM port. Only LDS/LDSM traffic uses it. Read this as "not modelled", not as "SMEM is never the bottleneck". The recorded FA kernels with LDSM-heavy softmax paths are where to test this once the traces are back.

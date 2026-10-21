@@ -5,17 +5,22 @@
 //! rsim system  configs/gb200_nvl72.yaml          # print resolved topology summary
 //! rsim kernel  --gpu h100_sxm gemm 8192 8192 8192
 //! rsim sass    kernel.sass --grid 1024 --block 256 --gpu b200
+//! rsim path    fa4.rpath --gpu b300 --calibration calibration.json   # NVBit-recorded kernel
 //! rsim run     --system configs/gb200_nvl72.yaml --workload wl.json \
 //!              --trace trace.json --report report.json
+//! rsim viz path fa4.rpath --gpu b300 -o fa4.html  # rack -> GPU -> SM -> warp -> SASS viewer
 //! ```
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use rsim_gpu::{synth, Gpu, GpuConfig, KernelLaunch};
+use rsim_gpu::{synth, Gpu, GpuConfig, KernelDone, KernelLaunch};
 use rsim_hw::{presets, SystemSpec};
 use rsim_rack::{RunConfig, Simulation, Workload};
 use std::path::PathBuf;
 use std::sync::Arc;
+
+mod validate;
+mod viz;
 
 #[derive(Parser)]
 #[command(
@@ -38,11 +43,33 @@ enum Cmd {
     Kernel {
         #[arg(long, default_value = "h100_sxm")]
         gpu: String,
-        /// gemm M N K | attention B HQ HKV SQ SKV D | elementwise N | rownorm ROWS COLS
+        /// gemm M N K | attention B HQ HKV SQ SKV D | elementwise N | rownorm ROWS COLS |
+        /// ssm_update B H P N G | conv1d B DIM L [W] | ssd_<stage> B L H P N G [CHUNK]
         kind: String,
         dims: Vec<u64>,
         #[arg(long, default_value = "bf16")]
         dtype: String,
+        /// Apply a rackscale-calibration/v1 JSON on top of the preset.
+        #[arg(long)]
+        calibration: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Replay measured reference kernels (ncu_reference.json) and report
+    /// simulated vs measured SM cycles.
+    Validate {
+        reference: PathBuf,
+        #[arg(long, default_value = "b300")]
+        gpu: String,
+        /// Apply a rackscale-calibration/v1 JSON on top of the preset.
+        #[arg(long)]
+        calibration: Option<PathBuf>,
+        /// Only these reference labels (comma separated).
+        #[arg(long, value_delimiter = ',')]
+        only: Vec<String>,
+        /// Fail if any kernel's |error| exceeds this many percent.
+        #[arg(long)]
+        max_error: Option<f64>,
         #[arg(long)]
         json: bool,
     },
@@ -62,6 +89,21 @@ enum Cmd {
         /// Only print the parsed program (classes, control bits).
         #[arg(long)]
         inspect: bool,
+    },
+    /// Simulate a kernel recorded on hardware with the NVBit warp_path tool
+    /// (exact per-warp paths, mbarrier/TMA/UMMA operands; see research/flash_attention).
+    Path {
+        path: PathBuf,
+        #[arg(long, default_value = "b300")]
+        gpu: String,
+        /// rackscale-calibration/v1 JSON measured on the target GPU.
+        #[arg(long)]
+        calibration: Option<PathBuf>,
+        /// Override registers per thread (NVBit reports 0 for some JIT kernels).
+        #[arg(long)]
+        regs: Option<u32>,
+        #[arg(long)]
+        json: bool,
     },
     /// Run a workload on a system.
     Run {
@@ -86,6 +128,124 @@ enum Cmd {
         #[arg(long)]
         fast: bool,
     },
+    /// Simulate with full capture and write a zoomable viewer: rack, GPU,
+    /// SMs, warps and SASS (see docs/VIZ.md).
+    Viz {
+        #[command(subcommand)]
+        cmd: viz::VizCmd,
+    },
+}
+
+/// Simulate one kernel alone on a cold GPU (kernel window charged, as ncu times it).
+pub(crate) fn sim_kernel(
+    gpu: rsim_hw::GpuSpec,
+    k: KernelLaunch,
+    detail: rsim_gpu::DetailConfig,
+) -> Result<(KernelDone, f64)> {
+    let spec = gpu.clone();
+    let launch = Arc::new(k);
+    let mut g = Gpu::new(
+        0,
+        gpu,
+        GpuConfig {
+            kernel_window: true,
+            detail,
+            ..Default::default()
+        },
+        false,
+    );
+    g.submit(launch.clone(), 0, 0);
+    let mut out = vec![];
+    let t0 = std::time::Instant::now();
+    g.advance(u64::MAX / 2, &mut out);
+    let wall = t0.elapsed().as_secs_f64();
+    let mut d = out.pop().context("kernel did not finish")?;
+    let stretch = rsim_gpu::dvfs_stretch(&spec, &launch, &d);
+    if stretch > 1.0 {
+        d.end_cycle = d.start_cycle + ((d.end_cycle - d.start_cycle) as f64 * stretch) as u64;
+        eprintln!(
+            "  power cap: sustained SM clock {:.0} MHz (x{stretch:.3} on time)",
+            spec.sm_clock_mhz / stretch
+        );
+    }
+    Ok((d, wall))
+}
+
+/// Build one synthetic kernel (`rsim kernel` / `rsim viz kernel`).
+pub(crate) fn synth_kernel(
+    g: &rsim_hw::GpuSpec,
+    kind: &str,
+    dims: &[u64],
+    dtype: &str,
+) -> Result<KernelLaunch> {
+    let need = |n: usize| -> Result<()> {
+        if dims.len() < n {
+            bail!("{kind} needs {n} dimensions");
+        }
+        Ok(())
+    };
+    let k = match kind {
+        "gemm" => {
+            need(3)?;
+            synth::gemm(g, dims[0], dims[1], dims[2], dtype)
+        }
+        "attention" => {
+            need(6)?;
+            synth::attention(
+                g,
+                dims[0],
+                dims[1],
+                dims[2],
+                dims[3],
+                dims[4],
+                dims[5],
+                dims.get(6).copied().unwrap_or(0) == 1,
+            )
+        }
+        "elementwise" => {
+            need(1)?;
+            synth::elementwise("elementwise", dims[0], 2, 2.0, 1)
+        }
+        "rownorm" => {
+            need(2)?;
+            synth::row_norm("rmsnorm", dims[0], dims[1], 2.0)
+        }
+        "ssm_update" => {
+            need(5)?;
+            rsim_gpu::synth_ssm::ssm_state_update(
+                g, dims[0], dims[1], dims[2], dims[3], dims[4], 2.0,
+            )
+        }
+        "conv1d" => {
+            need(3)?;
+            rsim_gpu::synth_ssm::conv1d(
+                g,
+                dims[0],
+                dims[1],
+                dims[2],
+                dims.get(3).copied().unwrap_or(4),
+            )
+        }
+        s if s.starts_with("ssd_") => {
+            need(6)?;
+            rsim_gpu::synth_ssm::ssd(
+                g,
+                &s[4..],
+                rsim_gpu::synth_ssm::SsdShape {
+                    batch: dims[0],
+                    seqlen: dims[1],
+                    heads: dims[2],
+                    headdim: dims[3],
+                    d_state: dims[4],
+                    groups: dims[5],
+                    chunk: dims.get(6).copied().unwrap_or(256),
+                },
+                None,
+            )
+        }
+        _ => bail!("unknown kernel kind {kind}"),
+    };
+    Ok(k)
 }
 
 fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> {
@@ -93,13 +253,7 @@ fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> 
     let peak = gpu.peak_tensor_tflops("bf16");
     let hbm = gpu.hbm.bw_gbps;
     let (flops, bytes, name) = (k.flops, k.bytes, k.name.clone());
-    let mut g = Gpu::new(0, gpu, GpuConfig::default(), false);
-    g.submit(Arc::new(k), 0, 0);
-    let mut out = vec![];
-    let t0 = std::time::Instant::now();
-    g.advance(u64::MAX / 2, &mut out);
-    let wall = t0.elapsed().as_secs_f64();
-    let d = out.pop().context("kernel did not finish")?;
+    let (d, wall) = sim_kernel(gpu, k, Default::default())?;
     if json {
         println!("{}", serde_json::to_string_pretty(&d)?);
         return Ok(());
@@ -162,6 +316,7 @@ fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
+        Cmd::Viz { cmd } => viz::main(cmd)?,
         Cmd::Presets => {
             println!("GPUs:");
             for g in presets::GPU_PRESETS {
@@ -209,43 +364,83 @@ fn main() -> Result<()> {
             kind,
             dims,
             dtype,
+            calibration,
             json,
         } => {
-            let g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
-            let need = |n: usize| -> Result<()> {
-                if dims.len() < n {
-                    bail!("{kind} needs {n} dimensions");
+            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            if let Some(c) = &calibration {
+                rsim_hw::calibration::apply_file(&mut g, c)?;
+            }
+            let g = g;
+            let k = synth_kernel(&g, &kind, &dims, &dtype)?;
+            run_kernel(g, k, json)?;
+        }
+        Cmd::Validate {
+            reference,
+            gpu,
+            calibration,
+            only,
+            max_error,
+            json,
+        } => {
+            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            if let Some(c) = &calibration {
+                rsim_hw::calibration::apply_file(&mut g, c)?;
+            }
+            let rows = validate::run(&reference, &g, &only)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&rows)?);
+            } else {
+                println!(
+                    "{:<26} {:>12} {:>12} {:>8} {:>8}",
+                    "kernel", "ncu cycles", "sim cycles", "error", "trips"
+                );
+                for r in &rows {
+                    println!(
+                        "{:<26} {:>12.0} {:>12.0} {:>7.1}% {:>8}",
+                        r.label, r.measured_cycles, r.simulated_cycles, r.error_pct, r.trip_count
+                    );
                 }
-                Ok(())
-            };
-            let k = match kind.as_str() {
-                "gemm" => {
-                    need(3)?;
-                    synth::gemm(&g, dims[0], dims[1], dims[2], &dtype)
+            }
+            if !only.is_empty() && rows.len() < only.len() {
+                bail!(
+                    "{} of {} requested kernels did not run",
+                    only.len() - rows.len(),
+                    only.len()
+                );
+            }
+            if let Some(tol) = max_error {
+                let bad: Vec<_> = rows.iter().filter(|r| r.error_pct.abs() > tol).collect();
+                if !bad.is_empty() {
+                    let names: Vec<_> = bad
+                        .iter()
+                        .map(|r| format!("{} ({:+.1}%)", r.label, r.error_pct))
+                        .collect();
+                    bail!("outside ±{tol}%: {}", names.join(", "));
                 }
-                "attention" => {
-                    need(6)?;
-                    synth::attention(
-                        &g,
-                        dims[0],
-                        dims[1],
-                        dims[2],
-                        dims[3],
-                        dims[4],
-                        dims[5],
-                        dims.get(6).copied().unwrap_or(0) == 1,
-                    )
+            }
+        }
+        Cmd::Path {
+            path,
+            gpu,
+            calibration,
+            regs,
+            json,
+        } => {
+            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            if let Some(c) = &calibration {
+                let took = rsim_hw::calibration::apply_file(&mut g, c)
+                    .map_err(|e| anyhow::anyhow!("calibration {}: {e}", c.display()))?;
+                if !json {
+                    eprintln!("calibration: {}", took.join(", "));
                 }
-                "elementwise" => {
-                    need(1)?;
-                    synth::elementwise("elementwise", dims[0], 2, 2.0, 1)
-                }
-                "rownorm" => {
-                    need(2)?;
-                    synth::row_norm("rmsnorm", dims[0], dims[1], 2.0)
-                }
-                _ => bail!("unknown kernel kind {kind}"),
-            };
+            }
+            let p = rsim_sass::PathKernel::from_file(&path.to_string_lossy())
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            let mut k = KernelLaunch::from_path(p);
+            if let Some(r) = regs {
+                k.regs_per_thread = r;
+            }
             run_kernel(g, k, json)?;
         }
         Cmd::Sass {

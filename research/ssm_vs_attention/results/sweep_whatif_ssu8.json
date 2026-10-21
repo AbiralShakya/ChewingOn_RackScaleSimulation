@@ -1,0 +1,1180 @@
+{
+ "points": [
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 4,
+   "batch": 64,
+   "context": 1024,
+   "launch_gap_ns": 554.0,
+   "step_us": 12315.033948,
+   "mfu": 0.0736102417036837,
+   "gpu_idle": 0.1014964400753432,
+   "tensor_idle": 0.8378001216961537,
+   "sched": {
+    "async_wait": 0.4143864203120054,
+    "barrier": 0.00017249188173681213,
+    "branch_resolving": 0.0018630858567936861,
+    "lg_throttle": 0.04145584302891193,
+    "long_scoreboard": 0.05348455591731847,
+    "math_pipe_throttle": 0.022654997895904996,
+    "mio_throttle": 0.002880530594849437,
+    "selected": 0.22589566580944823,
+    "short_scoreboard": 0.03109312236197239,
+    "tensor_wait": 0.04026879196313154,
+    "tma_wait": 0.10125808174275992,
+    "wait": 0.06458641263516716
+   },
+   "kernel_us_per_gpu": {
+    "gemm": 6874.5470417070555,
+    "ssm_state_update": 2863.171677982524,
+    "other": 848.3433559650686,
+    "conv1d": 479.0397672162915
+   },
+   "collective_us": 603.330156,
+   "n_collectives": 163,
+   "busbw_gbps": 424.9362135314848,
+   "top_kernels": [
+    {
+     "name": "sm100_gemm_bf16_64x8768x8192_tile128x128_splitk2",
+     "us": 4419.260426770073,
+     "count": 163.0,
+     "tflops": 683.1671551519266,
+     "gbps": 6081.750178195226,
+     "tensor_util": 0.27326666618322104
+    },
+    {
+     "name": "selective_state_update_b64_h64_p64_n128",
+     "us": 2863.171677982524,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 8002.906421645548,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_64x8192x4096_tile128x128_splitk2",
+     "us": 2377.254607177526,
+     "count": 163.0,
+     "tflops": 588.9816489443617,
+     "gbps": 5823.671089415686,
+     "tensor_util": 0.23559249070505014
+    },
+    {
+     "name": "row_norm",
+     "us": 691.4301648884446,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 746.5543654481465,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "causal_conv1d_update_b64_d4608_w4",
+     "us": 479.0397672162915,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 2825.4218138614065,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 156.913191076624,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3267.7537209068146,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_64x32064x8192_tile128x256",
+     "us": 78.03200775945685,
+     "count": 1.0,
+     "tflops": 866.8972752889586,
+     "gbps": 7011.155341363065,
+     "tensor_util": 0.3467586615589748
+    }
+   ],
+   "sim_wall_s": 23.159456968307495,
+   "tokens_per_s_per_gpu": 1299.2250015354973,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 35.41257536,
+   "cache_gb_per_gpu": 11.227168768
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 4,
+   "batch": 64,
+   "context": 131072,
+   "launch_gap_ns": 554.0,
+   "step_us": 12315.033948,
+   "mfu": 0.0736102417036837,
+   "gpu_idle": 0.1014964400753432,
+   "tensor_idle": 0.8378001216961537,
+   "sched": {
+    "async_wait": 0.4143864203120054,
+    "barrier": 0.00017249188173681213,
+    "branch_resolving": 0.0018630858567936861,
+    "lg_throttle": 0.04145584302891193,
+    "long_scoreboard": 0.05348455591731847,
+    "math_pipe_throttle": 0.022654997895904996,
+    "mio_throttle": 0.002880530594849437,
+    "selected": 0.22589566580944823,
+    "short_scoreboard": 0.03109312236197239,
+    "tensor_wait": 0.04026879196313154,
+    "tma_wait": 0.10125808174275992,
+    "wait": 0.06458641263516716
+   },
+   "kernel_us_per_gpu": {
+    "gemm": 6874.5470417070555,
+    "ssm_state_update": 2863.171677982524,
+    "other": 848.3433559650686,
+    "conv1d": 479.0397672162915
+   },
+   "collective_us": 603.330156,
+   "n_collectives": 163,
+   "busbw_gbps": 424.9362135314848,
+   "top_kernels": [
+    {
+     "name": "sm100_gemm_bf16_64x8768x8192_tile128x128_splitk2",
+     "us": 4419.260426770073,
+     "count": 163.0,
+     "tflops": 683.1671551519266,
+     "gbps": 6081.750178195226,
+     "tensor_util": 0.27326666618322104
+    },
+    {
+     "name": "selective_state_update_b64_h64_p64_n128",
+     "us": 2863.171677982524,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 8002.906421645548,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_64x8192x4096_tile128x128_splitk2",
+     "us": 2377.254607177526,
+     "count": 163.0,
+     "tflops": 588.9816489443617,
+     "gbps": 5823.671089415686,
+     "tensor_util": 0.23559249070505014
+    },
+    {
+     "name": "row_norm",
+     "us": 691.4301648884446,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 746.5543654481465,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "causal_conv1d_update_b64_d4608_w4",
+     "us": 479.0397672162915,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 2825.4218138614065,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 156.913191076624,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3267.7537209068146,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_64x32064x8192_tile128x256",
+     "us": 78.03200775945685,
+     "count": 1.0,
+     "tflops": 866.8972752889586,
+     "gbps": 7011.155341363065,
+     "tensor_util": 0.3467586615589748
+    }
+   ],
+   "sim_wall_s": 23.221851348876953,
+   "tokens_per_s_per_gpu": 1299.2250015354973,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 35.41257536,
+   "cache_gb_per_gpu": 11.227168768
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 4,
+   "batch": 256,
+   "context": 1024,
+   "launch_gap_ns": 554.0,
+   "step_us": 26323.308438,
+   "mfu": 0.13775056089723428,
+   "gpu_idle": 0.0984090948896098,
+   "tensor_idle": 0.8487532885508019,
+   "sched": {
+    "async_wait": 0.25135349241852206,
+    "barrier": 0.0002242779787248103,
+    "branch_resolving": 0.0015597611939618056,
+    "lg_throttle": 0.01620739331214795,
+    "long_scoreboard": 0.05521038233385516,
+    "math_pipe_throttle": 0.03962946106817829,
+    "mio_throttle": 0.005460407231679234,
+    "selected": 0.3772277669329898,
+    "short_scoreboard": 0.03435228030953777,
+    "tensor_wait": 0.03677021547427332,
+    "tma_wait": 0.05955212116444287,
+    "wait": 0.1224524405816869
+   },
+   "kernel_us_per_gpu": {
+    "ssm_state_update": 11771.414161008583,
+    "gemm": 9315.319107662388,
+    "conv1d": 1572.1357904946776,
+    "other": 1073.9864209505258
+   },
+   "collective_us": 1943.8574780000001,
+   "n_collectives": 163,
+   "busbw_gbps": 527.56302332161,
+   "top_kernels": [
+    {
+     "name": "selective_state_update_b256_h64_p64_n128",
+     "us": 11771.414161008583,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 7786.212585365951,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_256x8768x8192_tile128x128",
+     "us": 6140.325412221064,
+     "count": 163.0,
+     "tflops": 983.3659850089089,
+     "gbps": 2272.057533014951,
+     "tensor_util": 0.3933461120530652
+    },
+    {
+     "name": "sm100_gemm_bf16_256x8192x4096_tile128x128",
+     "us": 3080.636760426775,
+     "count": 163.0,
+     "tflops": 909.0064472917796,
+     "gbps": 2330.2167227938685,
+     "tensor_util": 0.3636023182865707
+    },
+    {
+     "name": "causal_conv1d_update_b256_d4608_w4",
+     "us": 1572.1357904946776,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3429.3631279163046,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "row_norm",
+     "us": 774.5470417070743,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 2660.5777893853883,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 299.43937924345164,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 6849.515455121466,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_256x32064x8192_tile128x256",
+     "us": 94.356935014549,
+     "count": 1.0,
+     "tflops": 1433.8264569863281,
+     "gbps": 5498.752581566991,
+     "tensor_util": 0.5735301716881043
+    }
+   ],
+   "sim_wall_s": 57.075865030288696,
+   "tokens_per_s_per_gpu": 2431.3053258765303,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 35.41257536,
+   "cache_gb_per_gpu": 44.908675072
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 4,
+   "batch": 256,
+   "context": 131072,
+   "launch_gap_ns": 554.0,
+   "step_us": 26323.308438,
+   "mfu": 0.13775056089723428,
+   "gpu_idle": 0.0984090948896098,
+   "tensor_idle": 0.8487532885508019,
+   "sched": {
+    "async_wait": 0.25135349241852206,
+    "barrier": 0.0002242779787248103,
+    "branch_resolving": 0.0015597611939618056,
+    "lg_throttle": 0.01620739331214795,
+    "long_scoreboard": 0.05521038233385516,
+    "math_pipe_throttle": 0.03962946106817829,
+    "mio_throttle": 0.005460407231679234,
+    "selected": 0.3772277669329898,
+    "short_scoreboard": 0.03435228030953777,
+    "tensor_wait": 0.03677021547427332,
+    "tma_wait": 0.05955212116444287,
+    "wait": 0.1224524405816869
+   },
+   "kernel_us_per_gpu": {
+    "ssm_state_update": 11771.414161008583,
+    "gemm": 9315.319107662388,
+    "conv1d": 1572.1357904946776,
+    "other": 1073.9864209505258
+   },
+   "collective_us": 1943.8574780000001,
+   "n_collectives": 163,
+   "busbw_gbps": 527.56302332161,
+   "top_kernels": [
+    {
+     "name": "selective_state_update_b256_h64_p64_n128",
+     "us": 11771.414161008583,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 7786.212585365951,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_256x8768x8192_tile128x128",
+     "us": 6140.325412221064,
+     "count": 163.0,
+     "tflops": 983.3659850089089,
+     "gbps": 2272.057533014951,
+     "tensor_util": 0.3933461120530652
+    },
+    {
+     "name": "sm100_gemm_bf16_256x8192x4096_tile128x128",
+     "us": 3080.636760426775,
+     "count": 163.0,
+     "tflops": 909.0064472917796,
+     "gbps": 2330.2167227938685,
+     "tensor_util": 0.3636023182865707
+    },
+    {
+     "name": "causal_conv1d_update_b256_d4608_w4",
+     "us": 1572.1357904946776,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3429.3631279163046,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "row_norm",
+     "us": 774.5470417070743,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 2660.5777893853883,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 299.43937924345164,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 6849.515455121466,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_256x32064x8192_tile128x256",
+     "us": 94.356935014549,
+     "count": 1.0,
+     "tflops": 1433.8264569863281,
+     "gbps": 5498.752581566991,
+     "tensor_util": 0.5735301716881043
+    }
+   ],
+   "sim_wall_s": 56.36496710777283,
+   "tokens_per_s_per_gpu": 2431.3053258765303,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 35.41257536,
+   "cache_gb_per_gpu": 44.908675072
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 4,
+   "batch": 512,
+   "context": 1024,
+   "launch_gap_ns": 554.0,
+   "step_us": 45786.42386,
+   "mfu": 0.15838976693583598,
+   "gpu_idle": 0.0956143781664408,
+   "tensor_idle": 0.8249386960772619,
+   "sched": {
+    "async_wait": 0.19010254475728353,
+    "barrier": 0.00020274472322392227,
+    "branch_resolving": 0.0008954696140899606,
+    "lg_throttle": 0.01944235570552796,
+    "long_scoreboard": 0.04526648743643839,
+    "math_pipe_throttle": 0.04549871287885367,
+    "mio_throttle": 0.006446118634912772,
+    "selected": 0.4245701736322311,
+    "short_scoreboard": 0.040495535605979294,
+    "tensor_wait": 0.035766720406269985,
+    "tma_wait": 0.04240654824622578,
+    "wait": 0.14890658835896364
+   },
+   "kernel_us_per_gpu": {
+    "ssm_state_update": 24170.718234723226,
+    "gemm": 12827.209020368497,
+    "conv1d": 3029.7289039767584,
+    "other": 1380.927255092167
+   },
+   "collective_us": 3731.234956,
+   "n_collectives": 163,
+   "busbw_gbps": 549.687886232378,
+   "top_kernels": [
+    {
+     "name": "selective_state_update_b512_h64_p64_n128",
+     "us": 24170.718234723226,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 7583.947185510645,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_512x8768x8192_tile128x256",
+     "us": 8420.191076624535,
+     "count": 163.0,
+     "tflops": 1455.0019233947492,
+     "gbps": 1938.5140022907162,
+     "tensor_util": 0.5820003521800401
+    },
+    {
+     "name": "sm100_gemm_bf16_512x8192x4096_tile128x256",
+     "us": 4212.229873908852,
+     "count": 163.0,
+     "tflops": 1329.613416559989,
+     "gbps": 2109.982228427717,
+     "tensor_util": 0.5318449853975132
+    },
+    {
+     "name": "causal_conv1d_update_b512_d4608_w4",
+     "us": 3029.7289039767584,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3556.5353619119255,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "row_norm",
+     "us": 891.6110572260117,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 4621.012589075145,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 489.31619786615516,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 8383.187251696185,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_512x32064x8192_tile128x256",
+     "us": 194.78806983511157,
+     "count": 1.0,
+     "tflops": 1389.1145380569199,
+     "gbps": 5106.747907313028,
+     "tensor_util": 0.555645416936133
+    }
+   ],
+   "sim_wall_s": 122.9652099609375,
+   "tokens_per_s_per_gpu": 2795.5885000187477,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 35.41257536,
+   "cache_gb_per_gpu": 89.817350144
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 4,
+   "batch": 512,
+   "context": 131072,
+   "launch_gap_ns": 554.0,
+   "step_us": 45786.42386,
+   "mfu": 0.15838976693583598,
+   "gpu_idle": 0.0956143781664408,
+   "tensor_idle": 0.8249386960772619,
+   "sched": {
+    "async_wait": 0.19010254475728353,
+    "barrier": 0.00020274472322392227,
+    "branch_resolving": 0.0008954696140899606,
+    "lg_throttle": 0.01944235570552796,
+    "long_scoreboard": 0.04526648743643839,
+    "math_pipe_throttle": 0.04549871287885367,
+    "mio_throttle": 0.006446118634912772,
+    "selected": 0.4245701736322311,
+    "short_scoreboard": 0.040495535605979294,
+    "tensor_wait": 0.035766720406269985,
+    "tma_wait": 0.04240654824622578,
+    "wait": 0.14890658835896364
+   },
+   "kernel_us_per_gpu": {
+    "ssm_state_update": 24170.718234723226,
+    "gemm": 12827.209020368497,
+    "conv1d": 3029.7289039767584,
+    "other": 1380.927255092167
+   },
+   "collective_us": 3731.234956,
+   "n_collectives": 163,
+   "busbw_gbps": 549.687886232378,
+   "top_kernels": [
+    {
+     "name": "selective_state_update_b512_h64_p64_n128",
+     "us": 24170.718234723226,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 7583.947185510645,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_512x8768x8192_tile128x256",
+     "us": 8420.191076624535,
+     "count": 163.0,
+     "tflops": 1455.0019233947492,
+     "gbps": 1938.5140022907162,
+     "tensor_util": 0.5820003521800401
+    },
+    {
+     "name": "sm100_gemm_bf16_512x8192x4096_tile128x256",
+     "us": 4212.229873908852,
+     "count": 163.0,
+     "tflops": 1329.613416559989,
+     "gbps": 2109.982228427717,
+     "tensor_util": 0.5318449853975132
+    },
+    {
+     "name": "causal_conv1d_update_b512_d4608_w4",
+     "us": 3029.7289039767584,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3556.5353619119255,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "row_norm",
+     "us": 891.6110572260117,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 4621.012589075145,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 489.31619786615516,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 8383.187251696185,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_512x32064x8192_tile128x256",
+     "us": 194.78806983511157,
+     "count": 1.0,
+     "tflops": 1389.1145380569199,
+     "gbps": 5106.747907313028,
+     "tensor_util": 0.555645416936133
+    }
+   ],
+   "sim_wall_s": 124.86610889434814,
+   "tokens_per_s_per_gpu": 2795.5885000187477,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 35.41257536,
+   "cache_gb_per_gpu": 89.817350144
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 8,
+   "batch": 64,
+   "context": 1024,
+   "launch_gap_ns": 554.0,
+   "step_us": 7873.613482,
+   "mfu": 0.05756649266399372,
+   "gpu_idle": 0.15874948745628703,
+   "tensor_idle": 0.8631984203128389,
+   "sched": {
+    "async_wait": 0.3997392171057934,
+    "barrier": 0.0002824410365914908,
+    "branch_resolving": 0.0016991782526770574,
+    "lg_throttle": 0.0707174327063135,
+    "long_scoreboard": 0.07589828839336908,
+    "math_pipe_throttle": 0.02015426125153491,
+    "mio_throttle": 0.0024046713491192467,
+    "selected": 0.2020361220794636,
+    "short_scoreboard": 0.04427384827433959,
+    "tensor_wait": 0.03243383961830267,
+    "tma_wait": 0.08266610359488623,
+    "wait": 0.06769459633760924
+   },
+   "kernel_us_per_gpu": {
+    "gemm": 4081.545101842917,
+    "ssm_state_update": 1505.1808923375488,
+    "other": 740.9941804073675,
+    "conv1d": 295.96120271580645
+   },
+   "collective_us": 603.330156,
+   "n_collectives": 163,
+   "busbw_gbps": 495.7589157867323,
+   "top_kernels": [
+    {
+     "name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+     "us": 2543.021338506322,
+     "count": 163.0,
+     "tflops": 602.2066167087307,
+     "gbps": 6015.345111097255,
+     "tensor_util": 0.24088247401893656
+    },
+    {
+     "name": "selective_state_update_b64_h32_p64_n128",
+     "us": 1505.1808923375488,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 7611.66903082815,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+     "us": 1493.0863239573512,
+     "count": 163.0,
+     "tflops": 468.88090662599706,
+     "gbps": 5551.934563320521,
+     "tensor_util": 0.1875522282129652
+    },
+    {
+     "name": "row_norm",
+     "us": 584.080989330744,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 737.4512642391317,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "causal_conv1d_update_b64_d2304_w4",
+     "us": 295.96120271580645,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 2286.599384615411,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 156.91319107662343,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3267.753720906826,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_64x16032x8192_tile128x128",
+     "us": 45.437439379243465,
+     "count": 1.0,
+     "tflops": 744.3832204913117,
+     "gbps": 6043.382808350764,
+     "tensor_util": 0.2977530747671208
+    }
+   ],
+   "sim_wall_s": 7.574729919433594,
+   "tokens_per_s_per_gpu": 1016.0519078424329,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 17.70628768,
+   "cache_gb_per_gpu": 5.613584384
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 8,
+   "batch": 64,
+   "context": 131072,
+   "launch_gap_ns": 554.0,
+   "step_us": 7873.613482,
+   "mfu": 0.05756649266399372,
+   "gpu_idle": 0.15874948745628703,
+   "tensor_idle": 0.8631984203128389,
+   "sched": {
+    "async_wait": 0.3997392171057934,
+    "barrier": 0.0002824410365914908,
+    "branch_resolving": 0.0016991782526770574,
+    "lg_throttle": 0.0707174327063135,
+    "long_scoreboard": 0.07589828839336908,
+    "math_pipe_throttle": 0.02015426125153491,
+    "mio_throttle": 0.0024046713491192467,
+    "selected": 0.2020361220794636,
+    "short_scoreboard": 0.04427384827433959,
+    "tensor_wait": 0.03243383961830267,
+    "tma_wait": 0.08266610359488623,
+    "wait": 0.06769459633760924
+   },
+   "kernel_us_per_gpu": {
+    "gemm": 4081.545101842917,
+    "ssm_state_update": 1505.1808923375488,
+    "other": 740.9941804073675,
+    "conv1d": 295.96120271580645
+   },
+   "collective_us": 603.330156,
+   "n_collectives": 163,
+   "busbw_gbps": 495.7589157867323,
+   "top_kernels": [
+    {
+     "name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+     "us": 2543.021338506322,
+     "count": 163.0,
+     "tflops": 602.2066167087307,
+     "gbps": 6015.345111097255,
+     "tensor_util": 0.24088247401893656
+    },
+    {
+     "name": "selective_state_update_b64_h32_p64_n128",
+     "us": 1505.1808923375488,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 7611.66903082815,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+     "us": 1493.0863239573512,
+     "count": 163.0,
+     "tflops": 468.88090662599706,
+     "gbps": 5551.934563320521,
+     "tensor_util": 0.1875522282129652
+    },
+    {
+     "name": "row_norm",
+     "us": 584.080989330744,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 737.4512642391317,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "causal_conv1d_update_b64_d2304_w4",
+     "us": 295.96120271580645,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 2286.599384615411,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 156.91319107662343,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3267.753720906826,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_64x16032x8192_tile128x128",
+     "us": 45.437439379243465,
+     "count": 1.0,
+     "tflops": 744.3832204913117,
+     "gbps": 6043.382808350764,
+     "tensor_util": 0.2977530747671208
+    }
+   ],
+   "sim_wall_s": 7.503766059875488,
+   "tokens_per_s_per_gpu": 1016.0519078424329,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 17.70628768,
+   "cache_gb_per_gpu": 5.613584384
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 8,
+   "batch": 256,
+   "context": 1024,
+   "launch_gap_ns": 554.0,
+   "step_us": 16236.303589,
+   "mfu": 0.1116649021166994,
+   "gpu_idle": 0.15954696488301368,
+   "tensor_idle": 0.8671933175441346,
+   "sched": {
+    "async_wait": 0.2874188776446568,
+    "barrier": 0.000279262955881659,
+    "branch_resolving": 0.0014115694877107467,
+    "lg_throttle": 0.027588376032863498,
+    "long_scoreboard": 0.07161185885441074,
+    "math_pipe_throttle": 0.034298478931014474,
+    "mio_throttle": 0.0043798720996579355,
+    "selected": 0.3380703344841888,
+    "short_scoreboard": 0.034710562804900105,
+    "tensor_wait": 0.033993643412687145,
+    "tma_wait": 0.07176804851632171,
+    "wait": 0.09446911477570646
+   },
+   "kernel_us_per_gpu": {
+    "ssm_state_update": 5581.28758486915,
+    "gemm": 6272.649369544114,
+    "conv1d": 843.5368574199942,
+    "other": 948.3768186226835
+   },
+   "collective_us": 1943.8574780000001,
+   "n_collectives": 163,
+   "busbw_gbps": 615.4901938752117,
+   "top_kernels": [
+    {
+     "name": "selective_state_update_b256_h32_p64_n128",
+     "us": 5581.28758486915,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 8210.911394037115,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_256x4384x8192_tile128x128_splitk2",
+     "us": 4475.543646944664,
+     "count": 163.0,
+     "tflops": 684.3522920508051,
+     "gbps": 6091.193670876307,
+     "tensor_util": 0.27374072060297044
+    },
+    {
+     "name": "sm100_gemm_bf16_256x8192x2048_tile128x128",
+     "us": 1749.838991270643,
+     "count": 163.0,
+     "tflops": 800.1646697101409,
+     "gbps": 2441.9087820744044,
+     "tensor_util": 0.3200656384610125
+    },
+    {
+     "name": "causal_conv1d_update_b256_d2304_w4",
+     "us": 843.5368574199942,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3195.7255125104907,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "row_norm",
+     "us": 648.9374393792265,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 2648.802142844935,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 299.4393792434569,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 6849.515455121345,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_256x16032x8192_tile128x256",
+     "us": 47.26673132880699,
+     "count": 1.0,
+     "tflops": 1431.148992330953,
+     "gbps": 3233.3514017893785,
+     "tensor_util": 0.5724591865936363
+    }
+   ],
+   "sim_wall_s": 41.989346742630005,
+   "tokens_per_s_per_gpu": 1970.8919474553195,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 17.70628768,
+   "cache_gb_per_gpu": 22.454337536
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 8,
+   "batch": 256,
+   "context": 131072,
+   "launch_gap_ns": 554.0,
+   "step_us": 16236.303589,
+   "mfu": 0.1116649021166994,
+   "gpu_idle": 0.15954696488301368,
+   "tensor_idle": 0.8671933175441346,
+   "sched": {
+    "async_wait": 0.2874188776446568,
+    "barrier": 0.000279262955881659,
+    "branch_resolving": 0.0014115694877107467,
+    "lg_throttle": 0.027588376032863498,
+    "long_scoreboard": 0.07161185885441074,
+    "math_pipe_throttle": 0.034298478931014474,
+    "mio_throttle": 0.0043798720996579355,
+    "selected": 0.3380703344841888,
+    "short_scoreboard": 0.034710562804900105,
+    "tensor_wait": 0.033993643412687145,
+    "tma_wait": 0.07176804851632171,
+    "wait": 0.09446911477570646
+   },
+   "kernel_us_per_gpu": {
+    "ssm_state_update": 5581.28758486915,
+    "gemm": 6272.649369544114,
+    "conv1d": 843.5368574199942,
+    "other": 948.3768186226835
+   },
+   "collective_us": 1943.8574780000001,
+   "n_collectives": 163,
+   "busbw_gbps": 615.4901938752117,
+   "top_kernels": [
+    {
+     "name": "selective_state_update_b256_h32_p64_n128",
+     "us": 5581.28758486915,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 8210.911394037115,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_256x4384x8192_tile128x128_splitk2",
+     "us": 4475.543646944664,
+     "count": 163.0,
+     "tflops": 684.3522920508051,
+     "gbps": 6091.193670876307,
+     "tensor_util": 0.27374072060297044
+    },
+    {
+     "name": "sm100_gemm_bf16_256x8192x2048_tile128x128",
+     "us": 1749.838991270643,
+     "count": 163.0,
+     "tflops": 800.1646697101409,
+     "gbps": 2441.9087820744044,
+     "tensor_util": 0.3200656384610125
+    },
+    {
+     "name": "causal_conv1d_update_b256_d2304_w4",
+     "us": 843.5368574199942,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3195.7255125104907,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "row_norm",
+     "us": 648.9374393792265,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 2648.802142844935,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 299.4393792434569,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 6849.515455121345,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_256x16032x8192_tile128x256",
+     "us": 47.26673132880699,
+     "count": 1.0,
+     "tflops": 1431.148992330953,
+     "gbps": 3233.3514017893785,
+     "tensor_util": 0.5724591865936363
+    }
+   ],
+   "sim_wall_s": 42.77198004722595,
+   "tokens_per_s_per_gpu": 1970.8919474553195,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 17.70628768,
+   "cache_gb_per_gpu": 22.454337536
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 8,
+   "batch": 512,
+   "context": 1024,
+   "launch_gap_ns": 554.0,
+   "step_us": 27709.809893,
+   "mfu": 0.130858007182554,
+   "gpu_idle": 0.1579888300484955,
+   "tensor_idle": 0.844654335278039,
+   "sched": {
+    "async_wait": 0.23773400297234032,
+    "barrier": 0.00017664778784772425,
+    "branch_resolving": 0.001349322038938726,
+    "lg_throttle": 0.020693656275383544,
+    "long_scoreboard": 0.05464017021293687,
+    "math_pipe_throttle": 0.04042886334012895,
+    "mio_throttle": 0.005539524548640669,
+    "selected": 0.3846815445399427,
+    "short_scoreboard": 0.03945578998186278,
+    "tensor_wait": 0.03488947159626745,
+    "tma_wait": 0.05291413319934845,
+    "wait": 0.12749687350636182
+   },
+   "kernel_us_per_gpu": {
+    "ssm_state_update": 11776.631425800264,
+    "gemm": 8758.318622696488,
+    "conv1d": 1571.8195926285675,
+    "other": 1225.1998060135656
+   },
+   "collective_us": 3731.234956,
+   "n_collectives": 163,
+   "busbw_gbps": 641.3025339377743,
+   "top_kernels": [
+    {
+     "name": "selective_state_update_b512_h32_p64_n128",
+     "us": 11776.631425800264,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 7782.770236249601,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_512x4384x8192_tile128x128",
+     "us": 6217.31959262864,
+     "count": 163.0,
+     "tflops": 985.2633461504427,
+     "gbps": 1422.63889964524,
+     "tensor_util": 0.39410505596568074
+    },
+    {
+     "name": "sm100_gemm_bf16_512x8192x2048_tile128x256",
+     "us": 2445.474296799178,
+     "count": 163.0,
+     "tflops": 1145.102477935372,
+     "gbps": 2376.3112945436187,
+     "tensor_util": 0.45804066285059303
+    },
+    {
+     "name": "causal_conv1d_update_b512_d2304_w4",
+     "us": 1571.8195926285675,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3427.663719975748,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "row_norm",
+     "us": 735.8836081474241,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 4669.8612796271855,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 489.31619786614147,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 8383.18725169642,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_512x16032x8192_tile128x256",
+     "us": 95.5247332686712,
+     "count": 1.0,
+     "tflops": 1416.2978026170622,
+     "gbps": 2967.3089083930713,
+     "tensor_util": 0.5665187149662101
+    }
+   ],
+   "sim_wall_s": 67.66098523139954,
+   "tokens_per_s_per_gpu": 2309.6513562212335,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 17.70628768,
+   "cache_gb_per_gpu": 44.908675072
+  },
+  {
+   "phase": "decode",
+   "model": "mamba2-70b-ssu8",
+   "tp": 8,
+   "batch": 512,
+   "context": 131072,
+   "launch_gap_ns": 554.0,
+   "step_us": 27709.809893,
+   "mfu": 0.130858007182554,
+   "gpu_idle": 0.1579888300484955,
+   "tensor_idle": 0.844654335278039,
+   "sched": {
+    "async_wait": 0.23773400297234032,
+    "barrier": 0.00017664778784772425,
+    "branch_resolving": 0.001349322038938726,
+    "lg_throttle": 0.020693656275383544,
+    "long_scoreboard": 0.05464017021293687,
+    "math_pipe_throttle": 0.04042886334012895,
+    "mio_throttle": 0.005539524548640669,
+    "selected": 0.3846815445399427,
+    "short_scoreboard": 0.03945578998186278,
+    "tensor_wait": 0.03488947159626745,
+    "tma_wait": 0.05291413319934845,
+    "wait": 0.12749687350636182
+   },
+   "kernel_us_per_gpu": {
+    "ssm_state_update": 11776.631425800264,
+    "gemm": 8758.318622696488,
+    "conv1d": 1571.8195926285675,
+    "other": 1225.1998060135656
+   },
+   "collective_us": 3731.234956,
+   "n_collectives": 163,
+   "busbw_gbps": 641.3025339377743,
+   "top_kernels": [
+    {
+     "name": "selective_state_update_b512_h32_p64_n128",
+     "us": 11776.631425800264,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 7782.770236249601,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_512x4384x8192_tile128x128",
+     "us": 6217.31959262864,
+     "count": 163.0,
+     "tflops": 985.2633461504427,
+     "gbps": 1422.63889964524,
+     "tensor_util": 0.39410505596568074
+    },
+    {
+     "name": "sm100_gemm_bf16_512x8192x2048_tile128x256",
+     "us": 2445.474296799178,
+     "count": 163.0,
+     "tflops": 1145.102477935372,
+     "gbps": 2376.3112945436187,
+     "tensor_util": 0.45804066285059303
+    },
+    {
+     "name": "causal_conv1d_update_b512_d2304_w4",
+     "us": 1571.8195926285675,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 3427.663719975748,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "row_norm",
+     "us": 735.8836081474241,
+     "count": 327.0,
+     "tflops": 0.0,
+     "gbps": 4669.8612796271855,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "elementwise",
+     "us": 489.31619786614147,
+     "count": 163.0,
+     "tflops": 0.0,
+     "gbps": 8383.18725169642,
+     "tensor_util": 0.0
+    },
+    {
+     "name": "sm100_gemm_bf16_512x16032x8192_tile128x256",
+     "us": 95.5247332686712,
+     "count": 1.0,
+     "tflops": 1416.2978026170622,
+     "gbps": 2967.3089083930713,
+     "tensor_util": 0.5665187149662101
+    }
+   ],
+   "sim_wall_s": 66.93757700920105,
+   "tokens_per_s_per_gpu": 2309.6513562212335,
+   "fits_hbm": true,
+   "weights_gb_per_gpu": 17.70628768,
+   "cache_gb_per_gpu": 44.908675072
+  }
+ ]
+}

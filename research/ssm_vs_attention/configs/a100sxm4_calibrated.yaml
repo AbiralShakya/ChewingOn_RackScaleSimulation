@@ -1,0 +1,8 @@
+# A100 SXM4 80GB with the SM model driven by the measured A100 calibration.
+# The HGX topology is a placeholder: single-GPU validation uses GPU0 only.
+preset: hgx_b200_8
+name: A100 SXM4 80GB (calibrated)
+gpus:
+  - preset: a100_pcie
+    count: 8
+    calibration: calibration/results/a100-sxm4-80gb-sm80/calibration.json

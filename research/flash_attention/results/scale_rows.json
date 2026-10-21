@@ -1,0 +1,595 @@
+[
+ {
+  "system": "gb300_nvl72",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 1024,
+  "hkv": 8,
+  "n": 8,
+  "context": 8192,
+  "makespan_us": 207.625355,
+  "kernel_us": 24.24585348572894,
+  "kv_bytes": 4194304,
+  "sendrecv_us": 6.042753,
+  "eff": 0.9342155146987299,
+  "tflops_per_gpu": 1323.9130015888475,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.1730527968833048,
+    "barrier": 0.005255671919598124,
+    "math_pipe_throttle": 0.09952364367248363,
+    "membar": 0.042334476283865434,
+    "mio_throttle": 0.00017382357846372842,
+    "selected": 0.33349078532168785,
+    "short_scoreboard": 0.022539301959529856,
+    "tensor_throttle": 3.683607774569183e-05,
+    "tensor_wait": 0.06630764481365464,
+    "tma_wait": 0.021047636558102382,
+    "wait": 0.23623738293156382
+   },
+   "gpu_idle_fraction": 0.06578448530127146,
+   "tensor_idle_fraction": 0.6675189739843338,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor00000o81112101314_tensor0000o11101213_tensor0000o10111213_tensor00000o81112101314_None_None__0",
+     1034.2454250226313
+    ]
+   ]
+  }
+ },
+ {
+  "system": "gb300_nvl72",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 1024,
+  "hkv": 8,
+  "n": 72,
+  "context": 73728,
+  "makespan_us": 1887.036208,
+  "kernel_us": 24.501520347564053,
+  "kv_bytes": 4194304,
+  "sendrecv_us": 6.042753,
+  "eff": 0.9348572420315805,
+  "tflops_per_gpu": 1310.9982479445885,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.17295574727111174,
+    "barrier": 0.005256648942031727,
+    "math_pipe_throttle": 0.09953709928724844,
+    "membar": 0.042339054724144204,
+    "mio_throttle": 0.00017384642494384385,
+    "selected": 0.3335346176410019,
+    "short_scoreboard": 0.022541429408328487,
+    "tensor_throttle": 3.68631662228641e-05,
+    "tensor_wait": 0.06631731211927602,
+    "tma_wait": 0.021040719109274294,
+    "wait": 0.2362666619064165
+   },
+   "gpu_idle_fraction": 0.06514275796841226,
+   "tensor_idle_fraction": 0.6709883252464349,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor00000o81112101314_tensor0000o11101213_tensor0000o10111213_tensor00000o81112101314_None_None__0",
+     84651.6880174144
+    ]
+   ]
+  }
+ },
+ {
+  "system": "gb300_nvl72",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 1024,
+  "hkv": 64,
+  "n": 8,
+  "context": 8192,
+  "makespan_us": 339.064568,
+  "kernel_us": 38.16776592551774,
+  "kv_bytes": 33554432,
+  "sendrecv_us": 44.422024,
+  "eff": 0.9005427172919522,
+  "tflops_per_gpu": 810.6948731487626,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.1437753418450567,
+    "barrier": 0.007225453336791194,
+    "math_pipe_throttle": 0.10584138725305235,
+    "membar": 0.03954326165135411,
+    "mio_throttle": 0.00018362714193010456,
+    "selected": 0.3522025354738716,
+    "short_scoreboard": 0.021344288944451388,
+    "tensor_wait": 0.0748895560662513,
+    "tma_wait": 0.010620731974295096,
+    "wait": 0.24437381631294613
+   },
+   "gpu_idle_fraction": 0.09945728270804816,
+   "tensor_idle_fraction": 0.7887933430714332,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor0000o11101213_tensor0000o11101213_tensor0000o10111213_tensor0000o11101213_None_None_None_Non_0",
+     1582.3988475633378
+    ]
+   ]
+  }
+ },
+ {
+  "system": "gb300_nvl72",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 1024,
+  "hkv": 64,
+  "n": 72,
+  "context": 73728,
+  "makespan_us": 3199.655093,
+  "kernel_us": 42.45387621507244,
+  "kv_bytes": 33554432,
+  "sendrecv_us": 44.422024,
+  "eff": 0.9553151819933412,
+  "tflops_per_gpu": 773.1774490032511,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.14245467062236483,
+    "barrier": 0.007233283285929589,
+    "math_pipe_throttle": 0.10603492184873906,
+    "membar": 0.039585862123463246,
+    "mio_throttle": 0.0001839615863325743,
+    "selected": 0.35284401017792016,
+    "short_scoreboard": 0.021369481617409966,
+    "tensor_wait": 0.0750495844556773,
+    "tma_wait": 0.010512277577166716,
+    "wait": 0.24473194670499654
+   },
+   "gpu_idle_fraction": 0.04468481800662808,
+   "tensor_idle_fraction": 0.8101166027167527,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor0000o11101213_tensor0000o11101213_tensor0000o10111213_tensor0000o11101213_None_None_None_Non_0",
+     142426.66899095615
+    ]
+   ]
+  }
+ },
+ {
+  "system": "gb300_nvl72",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 2048,
+  "hkv": 8,
+  "n": 8,
+  "context": 16384,
+  "makespan_us": 663.780794,
+  "kernel_us": 81.26528342919566,
+  "kv_bytes": 8388608,
+  "sendrecv_us": 11.525506,
+  "eff": 0.9794231368399088,
+  "tflops_per_gpu": 1656.4378447141391,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.11157643520564949,
+    "barrier": 0.0019947007052293895,
+    "math_pipe_throttle": 0.1205946252376791,
+    "membar": 0.047505874495666414,
+    "mio_throttle": 5.0568477069225014e-05,
+    "selected": 0.35323952183673984,
+    "short_scoreboard": 0.020175673067051026,
+    "tensor_throttle": 0.0001829431657117397,
+    "tensor_wait": 0.06757252093218122,
+    "tma_wait": 0.012439327663727661,
+    "wait": 0.2646678092132949
+   },
+   "gpu_idle_fraction": 0.020576863160092218,
+   "tensor_idle_fraction": 0.6032113146773549,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor00000o81112101314_tensor0000o11101213_tensor0000o10111213_tensor00000o81112101314_None_None__0",
+     3363.7871083993246
+    ]
+   ]
+  }
+ },
+ {
+  "system": "gb300_nvl72",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 2048,
+  "hkv": 8,
+  "n": 72,
+  "context": 147456,
+  "makespan_us": 6043.470624,
+  "kernel_us": 82.22977612458257,
+  "kv_bytes": 8388608,
+  "sendrecv_us": 11.525506,
+  "eff": 0.9796595779680166,
+  "tflops_per_gpu": 1637.404277384306,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.1114626445280648,
+    "barrier": 0.001995121028385092,
+    "math_pipe_throttle": 0.12061160053933284,
+    "membar": 0.04751193141115508,
+    "mio_throttle": 5.057561431447977e-05,
+    "selected": 0.35328937813550815,
+    "short_scoreboard": 0.020178136941806073,
+    "tensor_throttle": 0.00018285809762201588,
+    "tensor_wait": 0.0675907268686075,
+    "tma_wait": 0.01242447204928423,
+    "wait": 0.2647025547859197
+   },
+   "gpu_idle_fraction": 0.020340422031962815,
+   "tensor_idle_fraction": 0.6078653439918305,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor00000o81112101314_tensor0000o11101213_tensor0000o10111213_tensor00000o81112101314_None_None__0",
+     275679.2602827421
+    ]
+   ]
+  }
+ },
+ {
+  "system": "gb300_nvl72",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 2048,
+  "hkv": 64,
+  "n": 8,
+  "context": 16384,
+  "makespan_us": 915.009127,
+  "kernel_us": 111.79902259856435,
+  "kv_bytes": 67108864,
+  "sendrecv_us": 88.284048,
+  "eff": 0.9774680431012955,
+  "tflops_per_gpu": 1201.6400660187076,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.10484893691499733,
+    "barrier": 0.0018514869077980618,
+    "math_pipe_throttle": 0.12603680304575648,
+    "membar": 0.05008005326911618,
+    "mio_throttle": 5.2159289525544544e-05,
+    "selected": 0.3644296724105865,
+    "short_scoreboard": 0.01945281183438318,
+    "tensor_throttle": 0.00017659594630422212,
+    "tensor_wait": 0.04547630813387569,
+    "tma_wait": 0.01135128753120997,
+    "wait": 0.27624388471644684
+   },
+   "gpu_idle_fraction": 0.022531956898705185,
+   "tensor_idle_fraction": 0.7115793660377068,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor0000o11101213_tensor0000o11101213_tensor0000o10111213_tensor0000o11101213_None_None_None_Non_0",
+     4547.593050697331
+    ]
+   ]
+  }
+ },
+ {
+  "system": "gb300_nvl72",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 2048,
+  "hkv": 64,
+  "n": 72,
+  "context": 147456,
+  "makespan_us": 8435.090999,
+  "kernel_us": 115.34965890736879,
+  "kv_bytes": 67108864,
+  "sendrecv_us": 88.284048,
+  "eff": 0.9845982031865633,
+  "tflops_per_gpu": 1173.1473497034174,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.10444560365816566,
+    "barrier": 0.0018506047376278445,
+    "math_pipe_throttle": 0.12610277054887392,
+    "membar": 0.0501055237254356,
+    "mio_throttle": 5.2186974947943705e-05,
+    "selected": 0.3646231065909071,
+    "short_scoreboard": 0.01946124746717927,
+    "tensor_throttle": 0.00017575207941393438,
+    "tensor_wait": 0.045501720445438244,
+    "tma_wait": 0.011304351570972716,
+    "wait": 0.2763771322010378
+   },
+   "gpu_idle_fraction": 0.01540179681350874,
+   "tensor_idle_fraction": 0.7204573877401806,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor0000o11101213_tensor0000o11101213_tensor0000o10111213_tensor0000o11101213_None_None_None_Non_0",
+     379937.99312136706
+    ]
+   ]
+  }
+ },
+ {
+  "system": "b300_9x8_ib",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 1024,
+  "hkv": 8,
+  "n": 72,
+  "context": 73728,
+  "makespan_us": 7168.123871,
+  "kernel_us": 41.856837388691396,
+  "kv_bytes": 4194304,
+  "sendrecv_us": 6.042751,
+  "eff": 0.4204297172065124,
+  "tflops_per_gpu": 345.1253364223566,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.16920192277973725,
+    "barrier": 0.005358009901857623,
+    "math_pipe_throttle": 0.10009481798304971,
+    "membar": 0.04249028738443387,
+    "mio_throttle": 0.00017475220442077888,
+    "selected": 0.33527240897955934,
+    "short_scoreboard": 0.02262261687657898,
+    "tensor_throttle": 3.43235482612155e-05,
+    "tensor_wait": 0.06657925623058936,
+    "tma_wait": 0.0207526737593284,
+    "wait": 0.23741893035218345
+   },
+   "gpu_idle_fraction": 0.579570282793533,
+   "tensor_idle_fraction": 0.8074081381566712,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor00000o81112101314_tensor0000o11101213_tensor0000o10111213_tensor00000o81112101314_None_None__0",
+     144236.47804765764
+    ]
+   ]
+  }
+ },
+ {
+  "system": "b300_9x8_ib",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 1024,
+  "hkv": 64,
+  "n": 72,
+  "context": 73728,
+  "makespan_us": 56215.30926,
+  "kernel_us": 42.72140949776944,
+  "kv_bytes": 33554432,
+  "sendrecv_us": 44.422004,
+  "eff": 0.054717149551075865,
+  "tflops_per_gpu": 44.0076056693742,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.14488466088786103,
+    "barrier": 0.00721304572270125,
+    "math_pipe_throttle": 0.10567069794265262,
+    "membar": 0.039514572681981636,
+    "mio_throttle": 0.0001833609678237895,
+    "selected": 0.3516920053085797,
+    "short_scoreboard": 0.02134026608540247,
+    "tensor_wait": 0.0746924604345733,
+    "tma_wait": 0.010674842986514508,
+    "wait": 0.2441340869819097
+   },
+   "gpu_idle_fraction": 0.9452828504489216,
+   "tensor_idle_fraction": 0.8113057050708689,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor0000o11101213_tensor0000o11101213_tensor0000o10111213_tensor0000o11101213_None_None_None_Non_0",
+     143579.33677267726
+    ]
+   ]
+  }
+ },
+ {
+  "system": "b300_9x8_ib",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 2048,
+  "hkv": 8,
+  "n": 72,
+  "context": 147456,
+  "makespan_us": 14232.09803,
+  "kernel_us": 148.09911091800618,
+  "kv_bytes": 8388608,
+  "sendrecv_us": 11.525502,
+  "eff": 0.7492314881206903,
+  "tflops_per_gpu": 695.3018893718231,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.10693343052443591,
+    "barrier": 0.00199350857979886,
+    "math_pipe_throttle": 0.1213425810152561,
+    "membar": 0.04777371580340555,
+    "mio_throttle": 5.087481579469667e-05,
+    "selected": 0.35537941117447,
+    "short_scoreboard": 0.02027685473076197,
+    "tensor_throttle": 0.00017595429636146939,
+    "tensor_wait": 0.06814066682333791,
+    "tma_wait": 0.011772091273697298,
+    "wait": 0.2661609109626803
+   },
+   "gpu_idle_fraction": 0.25076851187930227,
+   "tensor_idle_fraction": 0.7822732035704484,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor00000o81112101314_tensor0000o11101213_tensor0000o10111213_tensor00000o81112101314_None_None__0",
+     494904.7438620616
+    ]
+   ]
+  }
+ },
+ {
+  "system": "b300_9x8_ib",
+  "gpu": "b300",
+  "impl": "fa4",
+  "chunk": 2048,
+  "hkv": 64,
+  "n": 72,
+  "context": 147456,
+  "makespan_us": 112328.00244,
+  "kernel_us": 142.2349280035374,
+  "kv_bytes": 67108864,
+  "sendrecv_us": 88.284006,
+  "eff": 0.09116974034791438,
+  "tflops_per_gpu": 88.09561672094843,
+  "bubbles": {
+   "sched": {
+    "async_wait": 0.10431796998733188,
+    "barrier": 0.0018548803934096748,
+    "math_pipe_throttle": 0.12607653008964467,
+    "membar": 0.05009663262353685,
+    "mio_throttle": 5.217603614952139e-05,
+    "selected": 0.3645466787338202,
+    "short_scoreboard": 0.01945151938912863,
+    "tensor_throttle": 0.0001761625417728957,
+    "tensor_wait": 0.045744432023982026,
+    "tma_wait": 0.011337035935806225,
+    "wait": 0.2763459822454174
+   },
+   "gpu_idle_fraction": 0.9088302596520883,
+   "tensor_idle_fraction": 0.7732965775224948,
+   "top_bubble_kernels": [
+    [
+     "kernel_cutlass_kernel_flash_attncuteflash_fwd_sm100FlashAttentionForwardSm100_object_at__tensor0000o11101213_tensor0000o11101213_tensor0000o10111213_tensor0000o11101213_None_None_None_Non_0",
+     468548.8799611013
+    ]
+   ]
+  }
+ },
+ {
+  "system": "a100_9x8_ib",
+  "gpu": "a100sxm",
+  "impl": "fa2",
+  "chunk": 1024,
+  "hkv": 8,
+  "n": 72,
+  "context": 73728,
+  "makespan_us": 14350.115298,
+  "kernel_us": 188.06585865049712,
+  "kv_bytes": 4194304,
+  "sendrecv_us": 17.008283,
+  "eff": 0.9435981204083418,
+  "tflops_per_gpu": 172.39590840366222,
+  "bubbles": {
+   "sched": {
+    "barrier": 0.012262389788047435,
+    "lg_throttle": 0.01629345847920303,
+    "long_scoreboard": 0.004899664606373063,
+    "math_pipe_throttle": 0.10982118221385373,
+    "mio_throttle": 0.005992521949082123,
+    "selected": 0.3293796374847709,
+    "short_scoreboard": 0.01757131517521423,
+    "wait": 0.5037798303034555
+   },
+   "gpu_idle_fraction": 0.056401879591564126,
+   "tensor_idle_fraction": 0.2711433139179952,
+   "top_bubble_kernels": [
+    [
+     "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, false, false, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t> >, false, false, false, false, true, true, false, false>(flash::Flash_fwd_params)",
+     653810.197676779
+    ]
+   ]
+  }
+ },
+ {
+  "system": "a100_9x8_ib",
+  "gpu": "a100sxm",
+  "impl": "fa2",
+  "chunk": 1024,
+  "hkv": 64,
+  "n": 72,
+  "context": 73728,
+  "makespan_us": 112447.483843,
+  "kernel_us": 188.04511650255532,
+  "kv_bytes": 33554432,
+  "sendrecv_us": 132.146142,
+  "eff": 0.12040508089169502,
+  "tflops_per_gpu": 22.000502616404283,
+  "bubbles": {
+   "sched": {
+    "barrier": 0.012227395629441258,
+    "lg_throttle": 0.016327911083647128,
+    "long_scoreboard": 0.004908929564061556,
+    "math_pipe_throttle": 0.10985869060849525,
+    "mio_throttle": 0.006010346922310568,
+    "selected": 0.32941150295380417,
+    "short_scoreboard": 0.017571619848059942,
+    "wait": 0.5036836033901801
+   },
+   "gpu_idle_fraction": 0.8795949191082982,
+   "tensor_idle_fraction": 0.2710629180348242,
+   "top_bubble_kernels": [
+    [
+     "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, false, false, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t> >, false, false, false, false, true, true, false, false>(flash::Flash_fwd_params)",
+     653707.0243992547
+    ]
+   ]
+  }
+ },
+ {
+  "system": "a100_9x8_ib",
+  "gpu": "a100sxm",
+  "impl": "fa2",
+  "chunk": 2048,
+  "hkv": 8,
+  "n": 72,
+  "context": 147456,
+  "makespan_us": 52265.731474,
+  "kernel_us": 723.8075869554805,
+  "kv_bytes": 8388608,
+  "sendrecv_us": 33.456518,
+  "eff": 0.997099720812655,
+  "tflops_per_gpu": 189.33255827303682,
+  "bubbles": {
+   "sched": {
+    "barrier": 0.0062661374554179,
+    "lg_throttle": 0.01478108859124108,
+    "long_scoreboard": 0.002162240038761435,
+    "math_pipe_throttle": 0.11373120111630387,
+    "mio_throttle": 0.006267887080557924,
+    "selected": 0.33398136295616776,
+    "short_scoreboard": 0.014840195070491759,
+    "wait": 0.5079698876910583
+   },
+   "gpu_idle_fraction": 0.0029002791872852346,
+   "tensor_idle_fraction": 0.2424889654570338,
+   "top_bubble_kernels": [
+    [
+     "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, false, false, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t> >, false, false, false, false, true, true, false, false>(flash::Flash_fwd_params)",
+     2499047.4717588485
+    ]
+   ]
+  }
+ },
+ {
+  "system": "a100_9x8_ib",
+  "gpu": "a100sxm",
+  "impl": "fa2",
+  "chunk": 2048,
+  "hkv": 64,
+  "n": 72,
+  "context": 147456,
+  "makespan_us": 225094.468846,
+  "kernel_us": 723.8323122228304,
+  "kv_bytes": 67108864,
+  "sendrecv_us": 263.732283,
+  "eff": 0.2315291297348549,
+  "tflops_per_gpu": 43.962007155112055,
+  "bubbles": {
+   "sched": {
+    "barrier": 0.006249090797892683,
+    "lg_throttle": 0.014780934074651282,
+    "long_scoreboard": 0.0021741103769963703,
+    "math_pipe_throttle": 0.11377276086887175,
+    "mio_throttle": 0.0062950986102823046,
+    "selected": 0.3340475128159178,
+    "short_scoreboard": 0.014830907882796118,
+    "wait": 0.5078495845725917
+   },
+   "gpu_idle_fraction": 0.768470870265133,
+   "tensor_idle_fraction": 0.2425148411502409,
+   "top_bubble_kernels": [
+    [
+     "void flash::flash_fwd_kernel<Flash_fwd_kernel_traits<128, 128, 64, 4, false, false, cutlass::bfloat16_t, Flash_kernel_traits<128, 128, 64, 4, cutlass::bfloat16_t> >, false, false, false, false, true, true, false, false>(flash::Flash_fwd_params)",
+     2498884.622012731
+    ]
+   ]
+  }
+ }
+]

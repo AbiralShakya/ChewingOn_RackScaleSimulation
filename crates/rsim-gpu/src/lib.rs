@@ -22,6 +22,7 @@
 //! **Stall taxonomy** mirrors Nsight Compute's warp states, so a simulated
 //! "bubble" can be compared 1:1 with `smsp__pcsamp_warps_issue_stalled_*`.
 
+pub mod detail;
 pub mod gpu;
 pub mod kernel;
 pub mod mem;
@@ -29,7 +30,9 @@ pub mod pipes;
 pub mod sm;
 pub mod stats;
 pub mod synth;
+pub mod synth_ssm;
 
-pub use gpu::{Gpu, GpuConfig, KernelDone, SchedPolicy};
+pub use detail::{DetailConfig, KernelDetail, PcStat, WarpRecord, WarpTimeline};
+pub use gpu::{dvfs_stretch, Gpu, GpuConfig, KernelDone, SchedPolicy};
 pub use kernel::{BarInit, BarOp, KernelLaunch, KernelSource, WarpRole};
 pub use stats::{KernelStats, Stall, StallCounts};

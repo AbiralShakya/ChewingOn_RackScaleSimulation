@@ -3,9 +3,10 @@
 //! Time inside a [`Gpu`] is in SM clock cycles. The rack layer converts to
 //! global picoseconds with the GPU's [`rsim_core::Clock`].
 
+use crate::detail::{DetailConfig, KernelDetail, WarpTrace};
 use crate::kernel::KernelLaunch;
 use crate::mem::MemSystem;
-use crate::sm::{Policy, Sm, NEVER};
+use crate::sm::{Policy, RemoteMbar, Sm, NEVER};
 use crate::stats::KernelStats;
 use rsim_core::trace::TraceSink;
 use rsim_hw::GpuSpec;
@@ -24,6 +25,21 @@ pub enum SchedPolicy {
     Lrr,
 }
 
+/// `calibration/src/bench_window.cu`'s kernel as compiled for sm_103, up
+/// to the exit every warp takes (the bench passes a null sink, so the
+/// `@P0 EXIT` always fires; the recorded paths confirm it): the measured
+/// window includes running it, so the model's time for it is subtracted.
+const WINDOW_KERNEL_SASS: &str = "\t\tFunction : window
+        /*0000*/                   LDC R1, c[0x0][0x37c] ;
+        /*0010*/                   S2R R0, SR_TID.X ;
+        /*0020*/                   S2UR UR4, SR_CTAID.X ;
+        /*0030*/                   LDCU.64 UR6, c[0x0][0x380] ;
+        /*0040*/                   ISETP.EQ.U32.AND P1, PT, RZ, UR6, PT ;
+        /*0050*/                   LOP3.LUT P0, RZ, R0, UR4, RZ, 0xfc, !PT ;
+        /*0060*/                   ISETP.EQ.U32.OR.EX P0, PT, RZ, UR7, P0, P1 ;
+        /*0070*/                   EXIT ;
+";
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GpuConfig {
@@ -36,6 +52,14 @@ pub struct GpuConfig {
     /// Emit a per-SM timeline: one track per SM with a span per CTA
     /// (kernel name, CTA id). Large traces for big systems.
     pub per_sm_counters: bool,
+    /// Charge the measured kernel window (`GpuSpec::kernel_window`) before
+    /// each kernel's first CTA. Right for a kernel timed alone, as ncu does.
+    /// Off for streams: there the windows of back-to-back kernels overlap,
+    /// and the measured back-to-back launch gap (`launch_overhead_ns`)
+    /// already covers them.
+    pub kernel_window: bool,
+    /// Visualiser capture (`rsim viz`); all off by default.
+    pub detail: DetailConfig,
 }
 
 impl Default for GpuConfig {
@@ -45,6 +69,8 @@ impl Default for GpuConfig {
             use_control_bits: true,
             sample_interval: 2000,
             per_sm_counters: false,
+            kernel_window: false,
+            detail: DetailConfig::default(),
         }
     }
 }
@@ -66,6 +92,9 @@ pub struct KernelDone {
     pub start_cycle: u64,
     pub end_cycle: u64,
     pub stats: KernelStats,
+    /// Visualiser capture, when `GpuConfig::detail` asks for it.
+    #[serde(skip)]
+    pub detail: Option<Arc<KernelDetail>>,
 }
 
 /// Perfetto thread id of SM 0's track (streams use small tids).
@@ -98,6 +127,14 @@ pub struct Gpu {
     stepping: Vec<u32>,
     /// Per-SM timeline: CTA start cycle keyed by (sm, kernel id, cta id).
     cta_start: HashMap<(u32, u32, u64), u64>,
+    /// Where each resident CTA of a clustered kernel lives: (kid, cta) -> SM.
+    cta_sm: HashMap<(u32, u64), usize>,
+    /// Cluster mbarrier events for CTAs that are not resident yet.
+    pending_mbar: HashMap<(u32, u64), Vec<RemoteMbar>>,
+    /// `empty_kernel_cycles` cache: (ctas, threads, smem, cluster) -> cycles.
+    window_own: HashMap<(u32, u32, u32, u32), u64>,
+    /// Finished CTAs for the visualiser: (kid, sm, cta, start, end).
+    cta_log: Vec<(u32, u32, u64, u64, u64)>,
 }
 
 impl Gpu {
@@ -108,7 +145,17 @@ impl Gpu {
             SchedPolicy::Lrr => Policy::Lrr,
         };
         let sms = (0..spec.sm_count)
-            .map(|i| Sm::new(i, spec.clone(), policy, cfg.use_control_bits))
+            .map(|i| {
+                let mut sm = Sm::new(i, spec.clone(), policy, cfg.use_control_bits);
+                sm.pc_stats = cfg.detail.pc_stats;
+                if cfg.detail.warp_sms.contains(&i) {
+                    sm.wtrace = Some(Box::new(WarpTrace::new(
+                        spec.max_warps_per_sm as usize,
+                        cfg.detail.max_warp_events,
+                    )));
+                }
+                sm
+            })
             .collect();
         let mem = MemSystem::new(&spec);
         let mut trace = TraceSink::new(trace_enabled);
@@ -141,6 +188,10 @@ impl Gpu {
             sm_next: vec![NEVER; spec.sm_count as usize],
             heap: BinaryHeap::new(),
             cta_start: HashMap::new(),
+            cta_sm: HashMap::new(),
+            pending_mbar: HashMap::new(),
+            window_own: HashMap::new(),
+            cta_log: Vec::new(),
             stepping: Vec::new(),
             spec,
         }
@@ -151,6 +202,40 @@ impl Gpu {
     }
 
     /// Queue a kernel whose CTAs become dispatchable at `at` (cycles).
+    /// Simulated cycles of the empty kernel a window point was measured
+    /// with (`WINDOW_KERNEL_SASS`, same shape), cached per point.
+    fn empty_kernel_cycles(&mut self, p: &rsim_hw::WindowPoint) -> u64 {
+        let key = (p.ctas, p.threads, p.smem_bytes, p.cluster);
+        if let Some(&c) = self.window_own.get(&key) {
+            return c;
+        }
+        let prog = rsim_sass::parse_listing(WINDOW_KERNEL_SASS)
+            .expect("static listing")
+            .remove(0);
+        let ctas = if p.ctas == 0 {
+            self.spec.sm_count
+        } else {
+            p.ctas
+        };
+        let mut k = KernelLaunch::from_program(
+            "window",
+            prog,
+            [ctas, 1, 1],
+            [p.threads, 1, 1],
+            32,
+            p.smem_bytes,
+            Default::default(),
+        );
+        k.cluster = p.cluster.max(1);
+        let mut g = Gpu::new(0, (*self.spec).clone(), GpuConfig::default(), false);
+        g.submit(Arc::new(k), 0, 0);
+        let mut out = vec![];
+        g.advance(u64::MAX / 2, &mut out);
+        let c = out.pop().map_or(0, |d| d.end_cycle - d.start_cycle);
+        self.window_own.insert(key, c);
+        c
+    }
+
     pub fn submit(&mut self, launch: Arc<KernelLaunch>, at: u64, tag: u64) -> u32 {
         assert!(
             crate::sm::Sm::occupancy(&self.spec, &launch) > 0,
@@ -163,15 +248,38 @@ impl Gpu {
         let kid = self.next_kid;
         self.next_kid += 1;
         let total = launch.num_ctas();
+        // The measured fixed window (rasterisation, smem carveout, cluster
+        // launch) opens with the launch and delays the first CTA. The
+        // measurement is of an empty kernel, so what the model itself takes
+        // for that same empty kernel is subtracted: only the residual the
+        // model does not have is charged.
+        let at = at.max(self.now);
+        let window = if self.cfg.kernel_window {
+            self.spec
+                .kernel_window_point(
+                    total,
+                    launch.threads_per_cta(),
+                    launch.smem_per_cta,
+                    launch.cluster,
+                )
+                .cloned()
+                .map(|p| {
+                    let own = self.empty_kernel_cycles(&p);
+                    (p.cycles - own as f64).max(0.0) as u64
+                })
+                .unwrap_or(0)
+        } else {
+            0
+        };
         self.kernels.push(ActiveKernel {
             kid,
             tag,
             launch,
-            available_at: at.max(self.now),
+            available_at: at + window,
             next_cta: 0,
             total,
             done: 0,
-            started: None,
+            started: (window > 0).then_some(at),
         });
         self.dispatch_dirty = true;
         kid
@@ -258,7 +366,13 @@ impl Gpu {
                     if self.sms[s].can_fit(&launch) {
                         let cta = self.kernels[ki].next_cta;
                         self.sms[s].launch_cta(kid, &launch, cta, t + lat);
-                        if self.cfg.per_sm_counters && self.trace.enabled {
+                        if launch.cluster > 1 {
+                            self.cta_sm.insert((kid, cta), s);
+                            for ev in self.pending_mbar.remove(&(kid, cta)).unwrap_or_default() {
+                                self.sms[s].deliver(&ev);
+                            }
+                        }
+                        if self.cta_timeline() {
                             self.cta_start.insert((s as u32, kid, cta), t + lat);
                         }
                         self.update_sm(s);
@@ -296,6 +410,11 @@ impl Gpu {
         let mut cta_done: Vec<(u32, u64)> = Vec::new();
         loop {
             let Some(t) = self.next_event() else {
+                if !self.kernels.is_empty() && std::env::var_os("RSIM_DEBUG_DEADLOCK").is_some() {
+                    for sm in self.sms.iter_mut().take(4) {
+                        eprint!("{}", sm.debug_dump());
+                    }
+                }
                 self.now = self.now.max(until);
                 break;
             };
@@ -334,7 +453,20 @@ impl Gpu {
                 let before = cta_done.len();
                 self.sms[s].step(t, &mut self.mem, &mut cta_done);
                 self.update_sm(s);
-                if self.cfg.per_sm_counters && self.trace.enabled {
+                if !self.sms[s].outbox.is_empty() {
+                    let evs = std::mem::take(&mut self.sms[s].outbox);
+                    for ev in evs {
+                        match self.cta_sm.get(&(ev.kid, ev.cta)).copied() {
+                            Some(d) if self.sms[d].deliver(&ev) => self.update_sm(d),
+                            _ => self
+                                .pending_mbar
+                                .entry((ev.kid, ev.cta))
+                                .or_default()
+                                .push(ev),
+                        }
+                    }
+                }
+                if self.cta_timeline() {
                     for i in before..cta_done.len() {
                         let (kid, cta) = cta_done[i];
                         self.trace_cta(s, kid, cta, t);
@@ -343,7 +475,8 @@ impl Gpu {
             }
             if !cta_done.is_empty() {
                 self.dispatch_dirty = true;
-                for (kid, _) in cta_done.drain(..) {
+                for (kid, cta) in cta_done.drain(..) {
+                    self.cta_sm.remove(&(kid, cta));
                     if let Some(k) = self.kernels.iter_mut().find(|k| k.kid == kid) {
                         k.done += 1;
                     }
@@ -399,6 +532,32 @@ impl Gpu {
                 }
                 st.sched.merge(&a.sched);
                 st.warp.merge(&a.warp);
+                if st.warp_by_index.len() < a.warp_by_index.len() {
+                    st.warp_by_index
+                        .resize(a.warp_by_index.len(), Default::default());
+                    st.issued_by_index.resize(a.warp_by_index.len(), 0);
+                }
+                for (i, c) in a.warp_by_index.iter().enumerate() {
+                    st.warp_by_index[i].merge(c);
+                }
+                if st.issued_by_index.len() < a.issued_by_index.len() {
+                    st.issued_by_index.resize(a.issued_by_index.len(), 0);
+                }
+                for (i, n) in a.issued_by_index.iter().enumerate() {
+                    st.issued_by_index[i] += n;
+                }
+                for (k, n) in a.mbar_wait {
+                    *st.mbar_wait.entry(k).or_default() += n;
+                }
+                for (pc, p) in a.pc {
+                    let e = st.pc.entry(pc).or_insert_with(|| crate::detail::PcStat {
+                        text: p.text.clone(),
+                        class: p.class.clone(),
+                        ..Default::default()
+                    });
+                    e.issued += p.issued;
+                    e.stalls.merge(&p.stalls);
+                }
                 st.tensor_busy_cycles += a.tensor_busy_cycles;
                 st.tensor_flops += a.tensor_flops;
                 st.dram_read_bytes += a.dram_read_bytes;
@@ -414,18 +573,56 @@ impl Gpu {
         st.start_cycle = start;
         st.end_cycle = end;
         st.ctas_per_sm = Sm::occupancy(&self.spec, &k.launch);
+        let detail = self.cfg.detail.enabled().then(|| {
+            let mut d = KernelDetail::default();
+            if let crate::kernel::KernelSource::Static { roles, .. } = &k.launch.source {
+                d.roles = roles.iter().map(|r| r.name.clone()).collect();
+            }
+            let kid = k.kid;
+            self.cta_log.retain(|&(id, sm, cta, s0, s1)| {
+                if id != kid {
+                    return true;
+                }
+                d.ctas.extend_from_slice(&[
+                    sm as u64,
+                    cta,
+                    s0.saturating_sub(start),
+                    s1.saturating_sub(start),
+                ]);
+                false
+            });
+            for sm in &mut self.sms {
+                let id = sm.id;
+                if let Some(t) = sm.wtrace.as_mut().and_then(|t| t.take(kid, start, id)) {
+                    d.warps.push(t);
+                }
+            }
+            Arc::new(d)
+        });
         KernelDone {
             tag: k.tag,
             start_cycle: start,
             end_cycle: end,
             stats: st,
+            detail,
         }
+    }
+
+    /// Whether CTA start/end times are tracked (Perfetto per-SM tracks or `rsim viz`).
+    fn cta_timeline(&self) -> bool {
+        (self.cfg.per_sm_counters && self.trace.enabled) || self.cfg.detail.ctas
     }
 
     fn trace_cta(&mut self, s: usize, kid: u32, cta: u64, end: u64) {
         let Some(start) = self.cta_start.remove(&(s as u32, kid, cta)) else {
             return;
         };
+        if self.cfg.detail.ctas {
+            self.cta_log.push((kid, s as u32, cta, start, end));
+        }
+        if !(self.cfg.per_sm_counters && self.trace.enabled) {
+            return;
+        }
         let name = self
             .kernels
             .iter()
@@ -488,4 +685,36 @@ impl Gpu {
             self.next_sample += iv;
         }
     }
+}
+
+/// Power-capped clock (DVFS) for a finished kernel: the factor by which its
+/// wall time stretches when the board power cap pulls the SM clock below
+/// `sm_clock_mhz`. Only the tensor-bound part of the kernel scales (memory
+/// time is set by HBM/L2, not the SM clock). 1.0 when the GPU has no power
+/// model or no measured run for the kernel's dtype.
+pub fn dvfs_stretch(spec: &GpuSpec, launch: &KernelLaunch, d: &KernelDone) -> f64 {
+    let Some(p) = &spec.power else {
+        return 1.0;
+    };
+    let name = launch.name.to_ascii_lowercase();
+    let Some(dtype) = ["fp4", "fp8", "bf16", "fp16", "tf32"]
+        .into_iter()
+        .find(|t| name.contains(t))
+    else {
+        return 1.0;
+    };
+    let flops = if launch.flops > 0.0 {
+        launch.flops
+    } else {
+        d.stats.tensor_flops
+    };
+    let Some(mhz) = p.sustained_mhz(dtype, flops) else {
+        return 1.0;
+    };
+    let cycles = (d.end_cycle - d.start_cycle).max(1) as f64;
+    let slots = cycles * spec.sm_count as f64 * spec.sub_partitions as f64;
+    // Kernels at >= 70% tensor utilisation count as fully tensor-bound
+    // (the measured CUTLASS runs this is fitted to sit around there).
+    let w = (d.stats.tensor_busy_cycles as f64 / slots / 0.7).min(1.0);
+    1.0 + w * (spec.sm_clock_mhz / mhz - 1.0).max(0.0)
 }

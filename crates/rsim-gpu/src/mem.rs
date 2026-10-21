@@ -165,6 +165,9 @@ pub struct MemResult {
     pub dram_bytes: u64,
 }
 
+/// Cycles per HBM utilization window (loaded latency).
+const HBM_LOAD_WINDOW: u64 = 4096;
+
 /// Per-die L2 + HBM + die-to-die link.
 pub struct MemSystem {
     dies: u32,
@@ -174,7 +177,15 @@ pub struct MemSystem {
     d2d: Vec<Server>,
     l2_lat: u64,
     hbm_lat: u64,
+    /// Per die: (window index, bytes read in it, utilization of the last
+    /// full window), for the load-dependent part of the miss latency.
+    hbm_load: Vec<(u64, f64, f64)>,
+    hbm_window_bytes: f64,
+    /// `[utilization, cycles]`, from `HbmSpec::loaded_latency`.
+    loaded: rsim_hw::HbmSpec,
+    clock_ghz: f64,
     d2d_lat: u64,
+    far_fraction: Option<f64>,
     sector: u32,
     sm_count: u32,
     pub dram_read_bytes: u64,
@@ -202,7 +213,12 @@ impl MemSystem {
             d2d: (0..dies).map(|_| Server::new(d2d_rate)).collect(),
             l2_lat: g.l2.hit_latency as u64,
             hbm_lat: (g.hbm.latency_ns * clock_ghz).round() as u64,
+            hbm_load: vec![(0, 0.0, 0.0); dies as usize],
+            hbm_window_bytes: hbm_rate * HBM_LOAD_WINDOW as f64,
+            loaded: g.hbm.clone(),
+            clock_ghz,
             d2d_lat: g.d2d.as_ref().map(|d| d.extra_latency as u64).unwrap_or(0),
+            far_fraction: g.d2d.as_ref().and_then(|d| d.far_fraction),
             sector: g.l2.sector_bytes,
             sm_count: g.sm_count,
             dram_read_bytes: 0,
@@ -220,6 +236,27 @@ impl MemSystem {
         (sm as u64 * self.dies as u64 / self.sm_count as u64) as usize
     }
 
+    /// Load-dependent extra miss latency: utilization of the die's HBM over
+    /// the last full window, mapped through the measured curve.
+    fn loaded_cycles(&mut self, die: usize, now: u64, bytes: u64) -> u64 {
+        if self.loaded.loaded_latency.is_empty() {
+            return 0;
+        }
+        let w = now / HBM_LOAD_WINDOW;
+        let l = &mut self.hbm_load[die];
+        if w > l.0 {
+            l.2 = if w == l.0 + 1 {
+                l.1 / self.hbm_window_bytes
+            } else {
+                0.0
+            };
+            *l = (w, 0.0, l.2);
+        }
+        l.1 += bytes as f64;
+        let util = l.2;
+        (self.loaded.loaded_extra_ns(util) * self.clock_ghz).round() as u64
+    }
+
     /// Access one line's sectors. Returns completion cycle.
     pub fn access_line(
         &mut self,
@@ -233,7 +270,15 @@ impl MemSystem {
         let bytes = mask.count_ones() as u64 * self.sector as u64;
         let mut t = now;
         let mut extra = 0;
-        if die != self.sm_die(sm) {
+        let far = match self.far_fraction {
+            Some(f) => {
+                let h = (addr >> 7) ^ ((self.sm_die(sm) as u64) << 40);
+                let h = h.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 11;
+                (h as f64 / (1u64 << 53) as f64) < f
+            }
+            None => die != self.sm_die(sm),
+        };
+        if far {
             t = self.d2d[die].serve(t, bytes);
             extra = self.d2d_lat;
         }
@@ -249,7 +294,8 @@ impl MemSystem {
         if miss_sectors > 0 && !write {
             dram = miss_sectors as u64 * self.sector as u64;
             let h = self.hbm[die].serve(served, dram);
-            done = done.max(h + self.hbm_lat + self.l2_lat + extra);
+            let q = self.loaded_cycles(die, served, dram);
+            done = done.max(h + self.hbm_lat + q + self.l2_lat + extra);
             self.dram_read_bytes += dram;
         }
         MemResult {

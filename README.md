@@ -34,6 +34,7 @@ MoE layer's all-to-all (red ticks), and the LM head's partial second wave. Rende
 ## Contents
 
 - [Headline results](#headline-results)
+- [The guide: How to simulate your rack](#the-guide-how-to-simulate-your-rack)
 - [Quickstart](#quickstart)
 - [How to use it: recipes](#how-to-use-it-recipes)
 - [Architecture](#architecture)
@@ -63,8 +64,8 @@ python examples/deepseek_v3_nvl72.py --layers 4      # fast mode, both schedules
 
 | schedule | step time | MFU | GPU idle |
 |---|---|---|---|
-| single stream | 1899 µs | 10.2% | 5.2% |
-| two-micro-batch overlap (DeepSeek style) | 2456 µs | 7.9% | 0.9% |
+| single stream | 1435 µs | 13.6% | 6.9% |
+| two-micro-batch overlap (DeepSeek style) | 2372 µs | 8.2% | 0.9% |
 
 What the model shows:
 
@@ -73,7 +74,7 @@ What the model shows:
   With M=64 against a 128-row UMMA tile, half the tensor work is padding (tensor-core
   utilisation about 35%).
 - **MLA attention is compute heavy.** 128 query heads share one 576-wide latent, so the kernel
-  runs at about 980 TFLOPS rather than at HBM speed. It is the largest single kernel.
+  runs at about 1100 TFLOPS rather than at HBM speed. It is the largest single kernel.
 - **Two-micro-batch overlap loses at this size.** Each half-batch reads the full weights again,
   while the all-to-all it hides is only about 10 µs per layer on NVLink5 (509 to 722 GB/s
   busbw). Overlap pays off only when dispatch and combine are a large part of the step, for
@@ -81,7 +82,7 @@ What the model shows:
 - **Bubble anatomy.** About 60% of scheduler cycles are `async_wait`: warps parked on
   mbarriers while TMA and UMMA work is in flight, the expected signature of a warp-specialised
   kernel. The bubbles that matter are the ~11% `tma_wait` (tensor core starved by loads) and
-  the 5% of wall time the GPU sits idle between kernels.
+  the 7% of wall time the GPU sits idle between kernels.
 
 ### Fast mode vs exact co-simulation
 
@@ -138,6 +139,30 @@ Findings worth knowing:
 - **Calibrated B300 vs preset.** [`configs/hgx_b300_8_calibrated.yaml`](configs/hgx_b300_8_calibrated.yaml)
   loads the measured data. Llama-3-70B TP8 decode runs 2% slower than with the uncalibrated
   preset, mostly from the lower measured clock and HBM efficiency.
+
+---
+
+## The guide: How to simulate your rack
+
+[**docs/book/**](docs/book/README.md) is a nine-chapter guide to GPU and rack performance from
+first principles, in the style of DeepMind's
+[How to Scale Your Model](https://jax-ml.github.io/scaling-book/). It works from the numbers we
+measured on the B300 and A100 and from simulator runs, with exercises and the command behind
+every result:
+
+1. [Rooflines, and why the roof moves](docs/book/01-rooflines.md): arithmetic intensity,
+   critical batch, the power-capped clock
+2. [Inside one GPU](docs/book/02-inside-the-gpu.md): SMs, warp schedulers, MUFU, the memory
+   hierarchy, `mma.sync` → `wgmma` → `tcgen05`
+3. [From a kernel to SASS to cycles](docs/book/03-kernels-sass-cycles.md): control bits,
+   warp specialisation, FA2 vs FA4, how the simulator runs SASS
+4. [Networks and collectives](docs/book/04-networks-collectives.md): NVLink, NVSwitch and
+   NVLS, InfiniBand
+5. [Parallelism](docs/book/05-parallelism.md): DP, TP, PP (with simulated bubbles), EP, CP
+6. [Inference](docs/book/06-inference.md): prefill vs decode, DeepSeek-V3 on NVL72, FP4,
+   Mamba vs attention
+7. [Training](docs/book/07-training.md) · 8. [Asynchronous RL](docs/book/08-async-rl.md) ·
+   9. [How far to trust the numbers](docs/book/09-validation.md)
 
 ---
 
@@ -337,6 +362,22 @@ rackscale decode deepseek-v3 --system hgx_b200_8 --ep 8 --batch 32 --context 409
     --per-sm --trace out/deepseek_v3_ep8_b200_per_sm.json
 python docs/img/plot_per_sm.py out/deepseek_v3_ep8_b200_per_sm.json per_sm.png   # static PNG, needs matplotlib
 ```
+
+### 7b. Zoom from the rack to one SASS instruction
+
+`rsim viz` writes one self-contained HTML page that zooms from the NVLink fabric and every GPU's
+streams, through one GPU's SMs and one kernel's warp roles, down to every warp of an SM cycle by
+cycle and the SASS listing with per-instruction stall samples (Nsight-style, at rack scale):
+
+```bash
+rsim viz run --system configs/gb200_nvl72.yaml --workload wl.json --fast --detail-ranks 0 -o ds.html
+rsim viz path fa4.rpath --gpu b300 --calibration research/flash_attention/calibration/b300-sxm6-ac-sm103.json -o fa4.html
+```
+
+Example pages (DeepSeek-V3 on NVL72, Mamba-2 vs attention, FlashAttention-2 vs 4 on B300) are in
+[`docs/viz/`](docs/viz/); the guide is [docs/VIZ.md](docs/VIZ.md).
+
+![SM 0 of a FlashAttention-4 replay: every warp, every cycle, and the SASS hot spots](docs/img/viz_fa4_warps.png)
 
 ### 8. Async RL on heterogeneous hardware
 

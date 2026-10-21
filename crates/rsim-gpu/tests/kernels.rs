@@ -111,3 +111,157 @@ fn parsed_sass_with_control_bits_runs() {
         d.stats.class_mix
     );
 }
+
+/// sm_80-style structural hazard: HMMA holds the FP32 pipe, so FFMA can't
+/// hide under it, while MUFU (XU pipe) still can.
+#[test]
+fn hmma_blocks_fp32_pipe_not_mufu() {
+    fn listing(filler: &str) -> String {
+        let mut s = String::from("\t\tFunction : hazard\n");
+        let mut pc = 0;
+        for i in 0..64 {
+            let d = 4 + 4 * (i % 16);
+            let (f1, f2) = (120 + (2 * i) % 16, 121 + (2 * i) % 16);
+            for op in [
+                format!("HMMA.16816.F32.BF16 R{d}, R200, R204, R{d}"),
+                filler.replace("RD", &format!("R{f1}")),
+                filler.replace("RD", &format!("R{f2}")),
+            ] {
+                s += &format!("        /*{pc:04x}*/                   {op} ;\n");
+                pc += 16;
+            }
+        }
+        s += &format!("        /*{pc:04x}*/                   EXIT ;\n");
+        s
+    }
+    let time = |filler: &str, hold: u32| {
+        let mut spec = presets::h100_sxm();
+        spec.tensor.hmma_fma_pipe_cycles = hold;
+        let prog = rsim_sass::parse_listing(&listing(filler))
+            .unwrap()
+            .remove(0);
+        let k = KernelLaunch::from_program(
+            "hazard",
+            prog,
+            [1, 1, 1],
+            [32, 1, 1],
+            64,
+            0,
+            Default::default(),
+        );
+        run(spec, k).0.end_cycle as f64
+    };
+    let ffma = "FFMA RD, R101, R102, R103";
+    let mufu = "MUFU.EX2 RD, R111";
+    let (f0, f4) = (time(ffma, 0), time(ffma, 4));
+    let (m0, m4) = (time(mufu, 0), time(mufu, 4));
+    eprintln!("ffma {f0} -> {f4}, mufu {m0} -> {m4}");
+    assert!(
+        f4 > 1.25 * f0,
+        "FFMA should serialise behind HMMA: {f0} -> {f4}"
+    );
+    assert!(m4 < 1.05 * m0, "MUFU should still overlap: {m0} -> {m4}");
+}
+
+/// A measured kernel window is charged once per kernel, from the nearest
+/// launch shape, before the first CTA starts.
+#[test]
+fn kernel_window_delays_first_cta() {
+    let listing = "\t\tFunction : empty\n        /*0000*/                   EXIT ;\n";
+    let time = |pts: Vec<rsim_hw::WindowPoint>, smem: u32| {
+        let mut spec = presets::b200();
+        spec.kernel_window = pts;
+        let prog = rsim_sass::parse_listing(listing).unwrap().remove(0);
+        let k = KernelLaunch::from_program(
+            "empty",
+            prog,
+            [148, 1, 1],
+            [512, 1, 1],
+            32,
+            smem,
+            Default::default(),
+        );
+        let cfg = GpuConfig {
+            kernel_window: true,
+            ..Default::default()
+        };
+        let mut g = Gpu::new(0, spec, cfg, false);
+        g.submit(Arc::new(k), 0, 7);
+        let mut out = vec![];
+        g.advance(u64::MAX / 2, &mut out);
+        let d = out.pop().unwrap();
+        d.end_cycle - d.start_cycle
+    };
+    let pt = |smem_bytes, cycles| rsim_hw::WindowPoint {
+        ctas: 0,
+        threads: 512,
+        smem_bytes,
+        cluster: 1,
+        tmem_prologue: false,
+        cycles,
+    };
+    let base = time(vec![], 0);
+    let small = time(vec![pt(0, 2000.0), pt(200 << 10, 9000.0)], 0);
+    let big = time(vec![pt(0, 2000.0), pt(200 << 10, 9000.0)], 190 << 10);
+    eprintln!("empty kernel: {base} cycles, window 2000 -> {small}, window 9000 -> {big}");
+    // The model's own time for the measured empty kernel is subtracted, so
+    // the charge differs between the two points by exactly their difference.
+    assert!(base < 1000);
+    assert!(small > base + 1000, "{small}");
+    assert!((big - small).abs_diff(7000) < 100, "{big} - {small}");
+}
+
+#[test]
+fn detail_capture_is_consistent() {
+    // Visualiser capture must not change timing, and its parts must add up.
+    let spec = presets::b200();
+    let mk = || synth::gemm(&spec, 2048, 2048, 1024, "bf16");
+    let (plain, _) = run(spec.clone(), mk());
+    let mut g = Gpu::new(
+        0,
+        spec.clone(),
+        GpuConfig {
+            detail: rsim_gpu::DetailConfig::full(vec![0, 5]),
+            ..Default::default()
+        },
+        false,
+    );
+    g.submit(Arc::new(mk()), 0, 7);
+    let mut out = vec![];
+    g.advance(u64::MAX / 2, &mut out);
+    let d = out.pop().unwrap();
+    assert_eq!(
+        d.end_cycle - d.start_cycle,
+        plain.end_cycle - plain.start_cycle
+    );
+    assert_eq!(d.stats.insts_issued, plain.stats.insts_issued);
+    // Per-PC issue counts sum to the kernel's.
+    let issued: u64 = d.stats.pc.values().map(|p| p.issued).sum();
+    assert_eq!(issued, d.stats.insts_issued);
+    // Per-PC stall samples equal the warp-state totals.
+    let pc_samples: u64 = d.stats.pc.values().map(|p| p.stalls.total()).sum();
+    assert!(pc_samples <= d.stats.warp.total() && pc_samples * 10 >= d.stats.warp.total() * 9);
+    let det = d.detail.expect("detail");
+    // One residency record per CTA, inside the kernel.
+    assert_eq!(det.ctas.len() as u64, 4 * d.stats.ctas);
+    let span = d.end_cycle - d.start_cycle;
+    for c in det.ctas.chunks(4) {
+        assert!(c[0] < spec.sm_count as u64 && c[2] <= c[3] && c[3] <= span);
+    }
+    // Warp timelines for the two traced SMs: ordered, non-overlapping segments.
+    assert_eq!(det.warps.len(), 2);
+    for tl in &det.warps {
+        assert!(!tl.truncated && !tl.warps.is_empty());
+        let mut issues = 0;
+        for w in &tl.warps {
+            for s in w.seg.chunks(3) {
+                assert!(s[1] < s[2]);
+            }
+            for p in w.seg.chunks(3).collect::<Vec<_>>().windows(2) {
+                assert!(p[0][2] <= p[1][1]);
+            }
+            issues += w.iss.len() / 2;
+        }
+        assert!(issues > 0);
+    }
+}

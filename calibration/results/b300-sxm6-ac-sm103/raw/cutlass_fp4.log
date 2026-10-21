@@ -1,0 +1,26 @@
+  Disposition: Passed
+  Disposition: Passed
+BEGIN 4096 2026/10/20 20:38:40.161
+  Problem Size: 4096x4096x4096 (batch: 1)
+  Avg runtime: 0.034553 ms
+  GFLOPS: 3.97762e+06
+  Problem Size: 4096x4096x4096 (batch: 1)
+  Avg runtime: 0.0305898 ms
+  GFLOPS: 4.49297e+06
+END 4096 2026/10/20 20:38:52.205
+BEGIN 8192 2026/10/20 20:38:52.208
+  Problem Size: 8192x8192x8192 (batch: 1)
+  Avg runtime: 0.191504 ms
+  GFLOPS: 5.74147e+06
+  Problem Size: 8192x8192x8192 (batch: 1)
+  Avg runtime: 0.170606 ms
+  GFLOPS: 6.44473e+06
+END 8192 2026/10/20 20:39:18.494
+BEGIN 16384 2026/10/20 20:39:18.497
+  Problem Size: 16384x16384x16384 (batch: 1)
+  Avg runtime: 1.99115 ms
+  GFLOPS: 4.41761e+06
+  Problem Size: 16384x16384x16384 (batch: 1)
+  Avg runtime: 2.16137 ms
+  GFLOPS: 4.06968e+06
+END 16384 2026/10/20 20:40:36.168

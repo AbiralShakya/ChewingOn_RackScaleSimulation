@@ -17,6 +17,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Predicate register ids: P0-P6 (256..264) and UP0-UP6 (328..336).
+fn is_pred(r: crate::Reg) -> bool {
+    (256..264).contains(&r) || (328..336).contains(&r)
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct BranchProfile {
     /// pc -> times taken per warp before falling through.
@@ -80,6 +85,11 @@ pub struct DynOp {
     pub addrs: Vec<u64>,
     /// Payload for async ops: bytes for TMA, FLOPs for MMA.
     pub payload: u64,
+    /// mbarrier this op waits on or signals (recorded paths only; static
+    /// programs use per-PC `BarOp` annotations instead).
+    pub mbar: Option<crate::path::MbarRef>,
+    /// TMA: bytes per entry of `addrs` (each address starts a contiguous run).
+    pub run_bytes: u32,
 }
 
 /// Per-PC side information attached to a static program.
@@ -179,7 +189,8 @@ impl Walker {
                             false
                         }
                     }
-                    None => inst.guard.is_none(),
+                    // `BRA.U !UP0, tgt` carries its predicate as an operand.
+                    None => inst.guard.is_none() && !inst.srcs.iter().any(|&r| is_pred(r)),
                 };
                 if take {
                     if let Some(t) = self.prog.index_of_pc(target) {
@@ -213,6 +224,8 @@ impl Walker {
             active,
             addrs,
             payload,
+            mbar: None,
+            run_bytes: 0,
         })
     }
 }

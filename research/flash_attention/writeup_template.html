@@ -1,0 +1,286 @@
+<title>FlashAttention Across Generations</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column (about 70ch) with wide figure plates and data tables that
+   break out to the page width; section labels in the margin on wide screens. */
+:root {
+  --bg: #f6f7f5;          /* paper, faintly green-grey */
+  --fg: #16201d;          /* ink */
+  --muted: #56645f;
+  --rule: #d5dbd7;
+  --accent: #0f6b5c;      /* teal-green: the "silicon" accent */
+  --accent-soft: #e2efeb;
+  --warn: #a8321e;
+  --plate: #ffffff;
+  --code-bg: #eaeeeb;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101614; --fg: #e3ebe7; --muted: #9aaba4; --rule: #2a3632; --accent: #5fc4ad;
+    --accent-soft: #17302a; --warn: #f08b72; --plate: #f4f6f5; --code-bg: #1a2421; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101614; --fg: #e3ebe7; --muted: #9aaba4; --rule: #2a3632; --accent: #5fc4ad;
+  --accent-soft: #17302a; --warn: #f08b72; --plate: #f4f6f5; --code-bg: #1a2421; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+main { max-width: 1040px; margin: 0 auto; }
+.col { max-width: 70ch; }
+header.hero { padding-block: 56px 28px; border-bottom: 1px solid var(--rule); margin-bottom: 36px; }
+.kicker { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--display); font-weight: 650; font-size: clamp(34px, 6vw, 56px); line-height: 1.05; margin: 10px 0 18px; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-family: var(--display); font-weight: 650; font-size: 28px; line-height: 1.2; margin: 56px 0 12px; text-wrap: balance; }
+h3 { font-size: 16px; font-weight: 600; margin: 28px 0 6px; }
+p { margin: 0 0 14px; }
+.lede { font-size: 19px; color: var(--fg); max-width: 62ch; }
+.muted { color: var(--muted); }
+a { color: var(--accent); }
+code, .mono { font-family: var(--mono); font-size: 0.88em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; margin: 28px 0 8px; border-top: 2px solid var(--fg); }
+.fact { padding: 14px 16px 16px 0; border-bottom: 1px solid var(--rule); }
+.fact b { display: block; font-family: var(--display); font-size: 30px; font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fact span { font-size: 13px; color: var(--muted); }
+figure.plate { margin: 18px 0 6px; background: var(--plate); border: 1px solid var(--rule); border-radius: 6px; padding: 12px; overflow-x: auto; }
+figure.plate img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.cap { font-size: 13px; color: var(--muted); margin: 0 0 22px; max-width: 80ch; }
+.tablewrap { overflow-x: auto; margin: 14px 0 6px; }
+table { border-collapse: collapse; font-size: 14px; min-width: 640px; width: 100%; }
+th { text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 2px solid var(--fg); padding: 8px 10px 6px 0; vertical-align: bottom; }
+td { border-bottom: 1px solid var(--rule); padding: 8px 10px 8px 0; vertical-align: top; }
+td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td .sub { display: block; font-size: 12px; color: var(--muted); }
+td.err { color: var(--accent); font-weight: 500; }
+td.bad { color: var(--warn); font-weight: 500; }
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; margin: 18px 0; border-radius: 0 6px 6px 0; }
+.callout p:last-child { margin-bottom: 0; }
+ol.steps, ul.plain { padding-left: 20px; }
+ol.steps li, ul.plain li { margin-bottom: 8px; }
+.diagram { overflow-x: auto; margin: 16px 0; }
+.diagram svg { display: block; min-width: 640px; width: 100%; height: auto; }
+.diagram text { font-family: var(--mono); font-size: 12px; fill: var(--fg); }
+.diagram .box { fill: var(--plate); stroke: var(--fg); stroke-width: 1.2; }
+.diagram .hot { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.diagram .edge { stroke: var(--muted); stroke-width: 1.3; fill: none; marker-end: url(#arr); }
+.diagram .lbl { fill: var(--muted); font-size: 11px; }
+footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
+@media (max-width: 520px) { body { font-size: 15px; } .lede { font-size: 17px; } h2 { font-size: 24px; } }
+</style>
+
+<main>
+<header class="hero">
+  <div class="kicker">rackscale research · study 1 · A100 → B300</div>
+  <h1>FlashAttention across generations, cycle by cycle</h1>
+  <p class="lede">We ran Dao-AILab's FlashAttention-2 and FlashAttention-4 on an A100 and a B300 and recorded the exact
+  instruction path of every warp. We then replayed those paths in a cycle-level simulator. The simulator matches
+  Nsight Compute to within 6% on all sixteen kernels we validated, so we can use it to ask what limits each generation and how
+  long-context attention behaves on 72 GPUs.</p>
+  <div class="facts">
+    <div class="fact"><b>1.52 PF/s</b><span>FA4 forward on B300, sustained (4×16×4k, d128, BF16); 1.88 PF/s on a single cold call</span></div>
+    <div class="fact"><b>4.1×</b><span>FA4 over FA2 on the same B300: FA2 is held to the legacy mma.sync rate</span></div>
+    <div class="fact"><b>±6%</b><span>simulated vs measured SM cycles, 16 kernels on 2 GPU generations</span></div>
+    <div class="fact"><b>0.79×</b><span>FA4 with a B200-like exp unit (half-rate MUFU.EX2): why FA4 emulates exp on B200</span></div>
+  </div>
+</header>
+
+<section class="col">
+<h2>What we measured</h2>
+<p>Forward attention, BF16, head dimension 128, 16 heads, 16k tokens per batch (batch × sequence), non-causal.
+Implementations: naive PyTorch (QKᵀ, softmax, PV as three kernels), PyTorch SDPA with its bundled FlashAttention-2 and
+with cuDNN, Dao-AILab <code>flash_attn</code> 2 (CUDA, built from source), and FlashAttention-4
+(<code>flash_attn/cute</code>, CuTe DSL, JIT-compiled). FA3 needs a Hopper GPU, which this study did not have.
+Timing is back-to-back calls between CUDA events, so host overhead is hidden and the GPU runs at its sustained
+clock. The A100 PCIe panel is the one exception: it was timed one call per event pair. Kernel cycles come from Nsight Compute with caches flushed.</p>
+</section>
+{{FIG_THROUGHPUT}}
+<p class="cap">TFLOP/s at fixed 16k tokens. On A100, FA2, FA4's Sm80 path, and PyTorch's FA2 land within
+15% of each other near 63–73% of the 312 TF/s peak. On B300, FA2 stays near 0.37 PF/s while FA4 and cuDNN sustain 1.4–1.7 PF/s.
+Naive attention stays below 80 TF/s on both because it writes S and P to HBM. Run back to back, the B300 delivers
+less than on a single call. FA4 at 4k drops from 1.88 to 1.52 PF/s, consistent with the power-limited clock
+below.</p>
+
+<section class="col">
+<h3>The B300 runs FA2 on a different tensor core</h3>
+<p>FA2 issues <code>mma.sync</code> (HMMA m16n8k16) from every warp. Blackwell keeps that instruction, but our
+calibration measures it at <b>2037 FLOP/clk/SM</b>, the same per-SM rate as an A100 and a quarter of
+<code>tcgen05.mma</code> (8192 FLOP/clk/SM). FA2 on B300 is an A100 kernel on a wider, faster-clocked chip, held to
+that legacy ceiling. Nothing in FA2's design is wrong for Blackwell: the
+hardware moved the fast path to an asynchronous, single-thread-issued MMA with its accumulator in tensor memory, and
+reaching it needs FA4's structure.</p>
+<h3>B300 drops its clock under FA4</h3>
+<p>Nsight Compute counted 510 k SM cycles in FA4's 290 µs, an effective <b>1.76 GHz</b> against the 2.03 GHz the
+chip holds on lighter kernels. FA4 keeps the tensor core busy enough that the B300 runs at a power-limited clock, and the sustained sweep
+loses another few percent to it. All
+comparisons below are in cycles, which removes the clock from the comparison.</p>
+</section>
+
+<section class="col">
+<h2>How the simulator sees a warp-specialised kernel</h2>
+<p>FA4 on Blackwell splits each CTA into roles. A load warp issues TMA copies, one warp issues 2-CTA
+<code>tcgen05.mma</code>, two softmax warpgroups read S from tensor memory and write P back, a correction
+warpgroup rescales O, and an epilogue warp stores the result. The roles hand work to each other through mbarriers and
+named barriers, and the CTA pair shares barriers across two SMs.</p>
+</section>
+<div class="diagram" role="img" aria-label="FA4 warp roles and the barriers between them">
+<svg viewBox="0 0 860 230" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#56645f"/></marker></defs>
+  <rect class="box" x="10" y="80" width="130" height="56" rx="4"/><text x="22" y="104">TMA load</text><text x="22" y="122" class="lbl">warp 14 · UTMALDG.2CTA</text>
+  <rect class="hot" x="215" y="80" width="150" height="56" rx="4"/><text x="227" y="104">MMA issue</text><text x="227" y="122" class="lbl">warp 12 · UTCHMMA.2CTA</text>
+  <rect class="box" x="445" y="20" width="175" height="56" rx="4"/><text x="457" y="44">softmax WG0 / WG1</text><text x="457" y="62" class="lbl">warps 0–7 · LDTM, EX2, STTM</text>
+  <rect class="box" x="445" y="150" width="175" height="56" rx="4"/><text x="457" y="174">correction WG</text><text x="457" y="192" class="lbl">warps 8–11 · rescale O</text>
+  <rect class="box" x="705" y="80" width="140" height="56" rx="4"/><text x="717" y="104">epilogue</text><text x="717" y="122" class="lbl">warp 13 · UTMASTG</text>
+  <path class="edge" d="M140,108 L213,108"/><text x="146" y="98" class="lbl">full[k] (tx bytes)</text>
+  <path class="edge" d="M365,96 L443,56"/><text x="370" y="62" class="lbl">S ready (commit)</text>
+  <path class="edge" d="M445,62 L367,104"/><text x="380" y="122" class="lbl">P ready</text>
+  <path class="edge" d="M532,76 L532,148"/><text x="540" y="118" class="lbl">bar.arrive / named bar</text>
+  <path class="edge" d="M620,178 L703,118"/><text x="632" y="164" class="lbl">O final</text>
+  <path class="edge" d="M215,130 C160,170 120,160 75,138"/><text x="92" y="176" class="lbl">empty[k] (commit)</text>
+</svg>
+</div>
+<section class="col">
+<p>A static listing with a branch profile cannot reproduce this: every role takes a different path through the same
+code. So we recorded the paths. A new NVBit tool, <code>warp_path</code>, records every instruction each warp of a few
+CTAs executed, together with what a timing model needs and SASS alone does not give: the mbarrier behind each
+<code>SYNCS</code> op, expect-tx byte counts, the outcome and parity of every <code>try_wait</code>, the source box of
+every TMA copy (for all CTAs), UMMA instruction descriptors, and the registers that name barriers. It also saves the
+128-bit instruction encodings, so the simulator uses the compiler's own stall counts and scoreboards.</p>
+<p>The converter removes spin loops (a failed <code>try_wait</code>, the sleep and the retries). The simulator
+then re-times the pipeline itself rather than replaying the spins the hardware happened to do. Each successful wait
+becomes an absolute phase count. A repeated parity means the warp skipped a phase, which FA4's lazy rescaling does
+on purpose. We confirmed each case against the hardware clock: exactly two commits landed between such waits.</p>
+<p>To make replay work, the simulator gained mbarrier transaction counts, cross-SM barriers for CTA pairs (at the
+measured 193-cycle DSMEM latency), 2-CTA MMAs on both SMs' tensor cores, register-named and generation-ordered
+named barriers, a separate <code>mma.sync</code> rate, and stall attribution per warp role and per barrier.</p>
+</section>
+
+<section class="col">
+<h2>Validation against Nsight Compute</h2>
+<p>We used each GPU's own calibration file and changed no free parameter per kernel. Instruction counts come from
+the recorded paths, so they match ncu exactly except where non-recorded CTAs of a persistent kernel replay a CTA
+that did one more tile.</p>
+</section>
+<div class="tablewrap"><table>
+<thead><tr><th>GPU</th><th>kernel</th><th class="num">ncu µs</th><th class="num">ncu cycles</th><th class="num">sim cycles</th><th class="num">cycles</th><th class="num">instructions</th><th class="num">DRAM MB sim / ncu</th></tr></thead>
+<tbody>
+{{VAL_ROWS}}
+</tbody></table></div>
+<p class="cap">Shape 4×16×4096, d128. Errors are simulated minus measured, over measured. The acceptance band in
+RESEARCH.md is ±10% with the same dominant stall. The three HMMA kernels moved from +1…+4% to −5…−6% when the
+shared simulator switched to a fractional <code>mma.sync</code> issue interval. That change came from the
+calibration work, not from this study, and the kernels stay inside the band.</p>
+{{FIG_STALLS}}
+<p class="cap">Stall reasons as shares of stalled warp-cycles. For the HMMA kernels, both hardware and simulator
+attribute about half to fixed-latency dependencies (<code>wait</code>) and a third to the math pipe. For FA4,
+Nsight counts a warp blocked in an mbarrier <code>try_wait</code> as long scoreboard, and the simulator counts it as an mbarrier wait,
+so the two are shown as one bucket. That bucket and named barriers dominate on both sides.</p>
+
+<section class="col">
+<h3>The ring-attention step kernels</h3>
+<p>The rack-scale runs below use FA4 and FA2 at the per-GPU shape of a ring step: one chunk of queries against one
+chunk of keys, 64 query heads, 8 or 64 KV heads. We recorded and validated those kernels too.</p>
+</section>
+<div class="tablewrap"><table>
+<thead><tr><th>GPU</th><th>kernel</th><th>shape</th><th class="num">ncu µs</th><th class="num">cycles</th><th class="num">instructions</th></tr></thead>
+<tbody>
+{{CP_ROWS}}
+</tbody></table></div>
+<p class="cap">All sixteen kernels are inside the ±10% band. The 1024-token FA4 kernels last only 32 µs, and they
+first came out 17–21% fast: the simulator was missing a fixed per-kernel cost (cluster launch, tensor-memory
+allocation, mbarrier setup, pipeline fill and drain). The calibration suite now measures that window on
+almost-empty kernels of the same launch shape under ncu, and the simulator charges it along each warp's own exit
+path, with a separately fitted <code>tcgen05.alloc</code> latency (1430 cycles for one CTA, 1990 for a pair). Those
+were fitted on synthetic prologue kernels, so FA4 is an out-of-sample check: its 1024-token steps now land at
+−3.7% and −2.7%.</p>
+
+<section class="col">
+<h2>Where FA4's cycles go on B300</h2>
+</section>
+{{FIG_ROLES}}
+<section class="col">
+<p class="cap">Per-role warp-cycles from the replay. Warp 12 includes the pair's peer CTA, whose MMA warp issues
+nothing and waits at a named barrier. In the leader CTA the tensor core is busy 91% of the kernel.</p>
+<p>The softmax warpgroups spend about 40% of their cycles waiting for the tensor core to finish S, and most of the
+rest in fixed-latency dependencies of the exp/scale/pack chain. The math pipes (MUFU.EX2, FFMA2) are rarely the
+reason a softmax warp stalls. The correction warpgroup is idle almost all the time, because lazy rescaling skips most of
+its work. The MMA warp is fed: on B300 the kernel is tensor-bound, with softmax latency on the critical path between
+the two GEMMs of each step.</p>
+</section>
+
+<section class="col">
+<h2>One hardware number at a time</h2>
+<p>Because the kernel is replayed from its real instructions, we can change one measured number in the calibration
+file and see what it does to this exact kernel.</p>
+</section>
+{{FIG_WHATIF}}
+<section class="col">
+<ul class="plain">
+<li><b>Exp unit at the B200 rate:</b> FA4's B300 kernel runs at <b>{{W:b300:fa4:ex2_half_rate}}</b> when MUFU.EX2
+issues at 16/clk/SM instead of the 32 we measured on B300. This is the bottleneck FA4 works around on B200 by
+computing part of exp2 on the FMA pipe. In FA4's tuning table the sm_103 configurations set
+<code>ex2_emu_freq = 0</code>, and our replay agrees: doubling EX2 again gains <b>{{W:b300:fa4:ex2_double_rate}}</b>.</li>
+<li><b>A faster tensor core alone stops paying early:</b> 1.5× the tcgen05 rate gives <b>{{W:b300:fa4:tensor_1.5x}}</b>,
+and 2× gives the same <b>{{W:b300:fa4:tensor_2x}}</b>. At 2× the exp unit is the limit again. Doubling MUFU.EX2 as
+well takes the kernel to <b>{{W:b300:fa4:tensor_2x+ex2_2x}}</b>, while doubling the FMA pipe instead gives only
+<b>{{W:b300:fa4:tensor_2x+fma2_2x}}</b>. B300 bought FA4 one generation of exp headroom by doubling EX2. A part
+that doubles tensor throughput again without doubling EX2 brings back the B200 situation, and with it the case for
+FA4's exp emulation.</li>
+<li><b>HBM bandwidth does not matter here:</b> halving it changes FA4 by {{W:b300:fa4:hbm_half}}. At 4k context the kernel
+reuses K and V from L2 (87% hit rate in the replay) and moves only the 201 MB ncu also counts.</li>
+<li><b>FA2's exp is not its problem either:</b> on both GPUs, FA2 changes by at most 2% with the exp rate halved or
+doubled. It is bound by HMMA issue and its dependency chains. Removing the A100's measured HMMA/FP32-pipe coupling
+gives {{W:a100:fa2:no_hmma_fp32_coupling}}.</li>
+</ul>
+</section>
+
+<section class="col">
+<h2>Long context on 72 GPUs</h2>
+<p>For prefill at long context, attention is split by context parallelism. Each GPU owns S/N tokens and runs N ring
+steps. Each step runs the validated kernel on its queries against one chunk of keys, while the next chunk of K and
+V moves to the neighbouring GPU (double buffered). The model is Llama-3-70B attention (64 query heads, head dim 128),
+with grouped-query (8 KV heads) and full multi-head (64 KV heads) variants. Every kernel is the replayed FA4 (B300)
+or FA2 (A100) kernel, and every transfer is simulated packet by packet on the fabric. The fabrics are not calibrated
+yet, so these results are <i>model behaviour</i> for the network.</p>
+</section>
+{{FIG_RING}}
+<div class="tablewrap"><table>
+<thead><tr><th>system</th><th class="num">GPUs</th><th class="num">context</th><th class="num">KV heads</th><th class="num">kernel alone µs</th><th class="num">kernel in ring µs</th><th class="num">slowest KV hop µs</th><th class="num">step µs</th><th class="num">efficiency</th><th class="num">TF/s per GPU</th></tr></thead>
+<tbody>
+{{RING_ROWS}}
+</tbody></table></div>
+<section class="col">
+<div class="callout" id="ring-finding">{{RING_FINDING}}</div>
+</section>
+
+<section class="col">
+<h2>Limits</h2>
+<ul class="plain">
+<li>FA3 (Hopper) is not in this study; Della's H100 partitions were not available to this account, and the GH200
+queue started the next day.</li>
+<li>The recordings sample four CTAs. Other CTAs replay a recorded CTA of the same cluster rank, with their real TMA
+sources (FA4) or per-instruction address strides (FA2). Persistent kernels whose CTAs process one tile fewer replay
+one tile too many, which adds 2–15% instructions on the smallest shapes.</li>
+<li>The fixed kernel window is measured on near-empty kernels of the same launch shape, not on FA4 itself. The
+rack runs below predate it and charge only the launch gap, which matters only for the 1024-token steps.</li>
+<li>FA4's Python dispatch costs about 50–80 µs per call on top of a 32 µs kernel at the 1024-token ring shape. A real
+ring would capture the steps in a CUDA graph; the rack runs launch them as a graph would.</li>
+<li>NVLink and InfiniBand numbers come from presets, not from a multi-GPU calibration.</li>
+</ul>
+</section>
+
+<footer>
+Code, data and the NVBit tool: branch <code>research/flash-attention</code> of
+<a href="https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation">ChewingOn_RackScaleSimulation</a>,
+directory <code>research/flash_attention/</code>. Reproduce with <code>python research/flash_attention/run_study.py all</code>.
+Hardware: B300 SXM6 (sm_103, driver 610.57, CUDA 13) and A100 80GB PCIe and SXM4 (sm_80) on Princeton's Della cluster.
+</footer>
+</main>

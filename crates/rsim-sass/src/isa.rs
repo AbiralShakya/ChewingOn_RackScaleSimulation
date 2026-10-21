@@ -124,6 +124,10 @@ impl OpClass {
 
 pub fn classify(opcode: &str) -> OpClass {
     use OpClass::*;
+    // `BAR.LE SBn, k` waits on a scoreboard counter (like DEPBAR), it is not a CTA barrier.
+    if opcode.starts_with("BAR.LE") {
+        return DepBar;
+    }
     let base = opcode.split('.').next().unwrap_or(opcode);
     match base {
         "IADD3" | "IADD" | "IABS" | "IMNMX" | "VIMNMX" | "VIADD" | "LOP3" | "LOP" | "SHF"
@@ -132,7 +136,9 @@ pub fn classify(opcode: &str) -> OpClass {
         | "IDP4A" | "ICMP" | "LEPC" | "R2UR" => IntAlu,
         "IMAD" | "IMUL" | "IMADSP" | "IMUL32I" | "IMAD32I" => Imad,
         "FADD" | "FMUL" | "FFMA" | "FSETP" | "FSET" | "FMNMX" | "FSEL" | "FCHK" | "FSWZADD"
-        | "FADD32I" | "FMUL32I" | "FFMA32I" | "FCMP" | "FRND" => Fp32,
+        | "FADD32I" | "FMUL32I" | "FFMA32I" | "FCMP" | "FRND" | "FHADD" | "FHFMA" => Fp32,
+        // Blackwell paired FP32 (f32x2): one instruction, two FMAs per lane.
+        "FFMA2" | "FADD2" | "FMUL2" | "FMNMX3" => Fp32,
         "HADD2" | "HMUL2" | "HFMA2" | "HSETP2" | "HSET2" | "HMNMX2" | "HADD2_32I" | "HFMA2_32I"
         | "HMUL2_32I" => Fp16,
         "DADD" | "DMUL" | "DFMA" | "DSETP" | "DMNMX" => Fp64,
@@ -140,7 +146,7 @@ pub fn classify(opcode: &str) -> OpClass {
         "F2F" | "F2I" | "I2F" | "I2I" | "F2FP" | "I2FP" | "F2IP" => Conv,
         "SHFL" | "VOTE" | "VOTEU" | "MATCH" | "REDUX" | "CREDUX" => Shfl,
         "S2R" | "S2UR" => S2R,
-        "LDC" | "ULDC" => Ldc,
+        "LDC" | "ULDC" | "LDCU" => Ldc,
         "LDG" | "STG" | "LDS" | "STS" | "LDL" | "STL" | "LD" | "ST" | "ATOM" | "ATOMG"
         | "ATOMS" | "RED" | "REDG" | "SUST" | "SULD" | "TEX" | "TLD" | "TLD4" | "LDSTS" => Mem,
         "LDGSTS" => AsyncCopy,
@@ -313,6 +319,8 @@ mod tests {
         );
         assert_eq!(classify("UIADD3"), OpClass::Uniform);
         assert_eq!(classify("FOOBAR"), OpClass::Misc);
+        assert_eq!(classify("FFMA2"), OpClass::Fp32);
+        assert_eq!(classify("LDCU.64"), OpClass::Ldc);
         let m = mem_info("LDG.E.128.CONSTANT", OpClass::Mem).unwrap();
         assert_eq!((m.space, m.width, m.store), (MemSpace::Global, 16, false));
     }

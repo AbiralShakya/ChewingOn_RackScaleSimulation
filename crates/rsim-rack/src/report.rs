@@ -1,6 +1,6 @@
 //! Reports: from rack makespan down to per-kernel scheduler bubbles.
 
-use crate::sim::{Lp, Outcome, Span};
+use crate::sim::{LinkUse, Lp, Outcome, RankOutcome, Span};
 use crate::workload::Workload;
 use rsim_core::pdes::PdesStats;
 use rsim_core::trace::TraceSink;
@@ -114,20 +114,39 @@ pub fn build_report(
     let mut insts = 0u64;
     let mut peak_flops = 0.0;
     let mut rank_lps = Vec::new();
+    let mut links = Vec::new();
     for lp in lps {
         match lp {
             Lp::Rank(r) => rank_lps.push(r),
             Lp::Net(n) => {
                 collectives = n.engine.records.clone();
                 trace.extend(n.engine.trace.clone());
+                links = n
+                    .engine
+                    .fabric
+                    .channels
+                    .iter()
+                    .map(|c| LinkUse {
+                        from: c.from,
+                        to: c.to,
+                        bytes: c.bytes,
+                        busy_ps: c.busy_ps,
+                        bins: c
+                            .busy_bins
+                            .iter()
+                            .map(|b| (*b as f64 / c.bin_ps) as f32)
+                            .collect(),
+                    })
+                    .collect();
             }
         }
     }
+    let mut outs = Vec::new();
     for r in &rank_lps {
         makespan = makespan.max(r.finish);
     }
     let makespan = makespan.max(1).min(end.max(1));
-    for r in rank_lps {
+    for mut r in rank_lps {
         let spec = r.gpu.spec.clone();
         let ghz = spec.sm_clock_mhz / 1000.0;
         let busy_us = r.gpu.busy_cycles as f64 / ghz / 1000.0;
@@ -212,6 +231,7 @@ pub fn build_report(
                 kind,
                 start,
                 end,
+                ..
             } = sp;
             trace.span(
                 label.clone(),
@@ -224,6 +244,22 @@ pub fn build_report(
             );
         }
         trace.extend(r.gpu.trace.clone());
+        let keep = r.gpu.cfg.detail.enabled();
+        outs.push(RankOutcome {
+            rank: r.rank,
+            spans: std::mem::take(&mut r.spans),
+            kernels: std::mem::take(&mut r.kernels)
+                .into_iter()
+                .map(|mut k| {
+                    if !keep {
+                        k.detail = None;
+                        k.stats.pc.clear();
+                    }
+                    k
+                })
+                .collect(),
+            busy_us,
+        });
     }
     let mut kernels: Vec<KernelAgg> = agg
         .into_values()
@@ -277,7 +313,12 @@ pub fn build_report(
             sim_minstr_per_s: insts as f64 / wall_s.max(1e-9) / 1e6,
         },
     };
-    Outcome { report, trace }
+    Outcome {
+        report,
+        trace,
+        ranks: outs,
+        links,
+    }
 }
 
 impl Report {

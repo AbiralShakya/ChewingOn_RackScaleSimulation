@@ -1,0 +1,13 @@
+# GB300 NVL72: 72 Blackwell Ultra (B300) GPUs with the SM model from our B300
+# calibration, on the NVL72 NVLink5 switch tray (18 switch chips, one 50 GB/s
+# link per GPU per switch = 900 GB/s per direction per GPU).
+preset: gb200_nvl72
+name: GB300 NVL72 (calibrated B300)
+gpus:
+  - preset: b300
+    count: 72
+    calibration: research/flash_attention/calibration/b300-sxm6-ac-sm103.json
+topology:
+  kind: switched
+  switches: 18
+  links_per_gpu_per_switch: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]

@@ -1,0 +1,95 @@
+{
+ "schema": "rackscale-ncu-reference/v1",
+ "kernels": [
+  {
+   "label": "ffma_throughput",
+   "binary": "build/bench_alu",
+   "args": [],
+   "kernel": "thr_kernel<OpFFMA>",
+   "launch_index": 0,
+   "error": "OpFADD     lat   4.07 cyc  thr   63.34 ops/clk/SM\nOpFMUL     lat   4.07 cyc  thr   63.34 ops/clk/SM\n==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 78754 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_alu)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-2f0a-7df7.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-2f0a-7df7.log\n==ERROR== Failed to profile \"thr_kernel\" in process 78754\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  },
+  {
+   "label": "ex2_throughput",
+   "binary": "build/bench_alu",
+   "args": [],
+   "kernel": "thr_kernel<OpEX2>",
+   "launch_index": 0,
+   "error": "OpFADD     lat   4.07 cyc  thr   63.34 ops/clk/SM\nOpFMUL     lat   4.07 cyc  thr   63.34 ops/clk/SM\nOpFFMA     lat   4.05 cyc  thr   63.38 ops/clk/SM\nOpFMNMX    lat   4.06 cyc  thr   63.23 ops/clk/SM\nOpHFMA2    lat   8.04 cyc  thr  124.74 ops/clk/SM\nOpHFMA2BF  lat   4.05 cyc  thr   63.65 ops/clk/SM\nOpHADD2    lat   8.04 cyc  thr  124.68 ops/clk/SM\nOpIADD     lat   2.05 cyc  thr  125.52 ops/clk/SM\nOpIMAD     lat   4.05 cyc  thr   63.57 ops/clk/SM\nOpLOP3     lat   4.05 cyc  thr   63.38 ops/clk/SM\nOpSHF      lat   4.05 cyc  thr   63.38 ops/clk/SM\nOpPRMT     lat   4.05 cyc  thr   63.38 ops/clk/SM\nOpPOPC     lat  17.00 cyc  thr   15.98 ops/clk/SM\nOpFLO      lat  17.00 cyc  thr   15.98 ops/clk/SM\nOpIMNMX    lat   4.05 cyc  thr   63.38 ops/clk/SM\n==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 78886 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_alu)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-4253-df69.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-4253-df69.log\n==ERROR== Failed to profile \"thr_kernel\" in process 78886\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  },
+  {
+   "label": "dfma_latency_chain",
+   "binary": "build/bench_alu",
+   "args": [],
+   "kernel": "lat_kernel<OpDFMA>",
+   "launch_index": 0,
+   "error": "OpFADD     lat   4.07 cyc  thr   63.34 ops/clk/SM\nOpFMUL     lat   4.07 cyc  thr   63.34 ops/clk/SM\nOpFFMA     lat   4.05 cyc  thr   63.38 ops/clk/SM\nOpFMNMX    lat   4.06 cyc  thr   63.23 ops/clk/SM\nOpHFMA2    lat   8.04 cyc  thr  124.72 ops/clk/SM\nOpHFMA2BF  lat   4.05 cyc  thr   63.65 ops/clk/SM\nOpHADD2    lat   8.04 cyc  thr  124.65 ops/clk/SM\nOpIADD     lat   2.05 cyc  thr  125.52 ops/clk/SM\nOpIMAD     lat   4.05 cyc  thr   63.57 ops/clk/SM\nOpLOP3     lat   4.05 cyc  thr   63.39 ops/clk/SM\nOpSHF      lat   4.05 cyc  thr   63.38 ops/clk/SM\nOpPRMT     lat   4.05 cyc  thr   63.38 ops/clk/SM\nOpPOPC     lat  17.00 cyc  thr   15.98 ops/clk/SM\nOpFLO      lat  17.00 cyc  thr   15.98 ops/clk/SM\nOpIMNMX    lat   4.05 cyc  thr   63.38 ops/clk/SM\nOpEX2      lat  17.00 cyc  thr   15.98 ops/clk/SM\nOpRSQ      lat  17.00 cyc  thr   15.98 ops/clk/SM\nOpRCP      lat  23.00 cyc  thr   15.96 ops/clk/SM\nOpSQRT     lat  17.00 cyc  thr   15.98 ops/clk/SM\nOpLG2      lat  17.00 cyc  thr   15.98 ops/clk/SM\nOpTANH     lat  17.00 cyc  thr   15.98 ops/clk/SM\nOpSIN      lat  22.98 cyc  thr   15.97 ops/clk/SM\n==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 79018 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_alu)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-c42b-0060.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-c42b-0060.log\n==ERROR== Failed to profile \"lat_kernel\" in process 79018\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  },
+  {
+   "label": "smem_conflict_free",
+   "binary": "build/bench_mem",
+   "args": [],
+   "kernel": "smem_bw_kernel",
+   "launch_index": 0,
+   "error": "==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 79150 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_mem)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-cbe4-a0b9.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-cbe4-a0b9.log\n==ERROR== Failed to profile \"smem_bw_kernel\" in process 79150\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  },
+  {
+   "label": "smem_32way_conflict",
+   "binary": "build/bench_mem",
+   "args": [],
+   "kernel": "smem_bw_kernel",
+   "launch_index": 5,
+   "error": "smem stride  1: 1.01 cyc/warp-load (SM-wide)\nsmem stride  2: 2.01 cyc/warp-load (SM-wide)\nsmem stride  4: 4.01 cyc/warp-load (SM-wide)\nsmem stride  8: 8.01 cyc/warp-load (SM-wide)\nsmem stride 16: 16.01 cyc/warp-load (SM-wide)\n==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 79282 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_mem)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-7001-9042.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-7001-9042.log\n==ERROR== Failed to profile \"smem_bw_kernel\" in process 79282\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  },
+  {
+   "label": "hbm_stream_read",
+   "binary": "build/bench_mem",
+   "args": [],
+   "kernel": "bw_read_kernel",
+   "launch_index": 1,
+   "error": "smem stride  1: 1.01 cyc/warp-load (SM-wide)\nsmem stride  2: 2.01 cyc/warp-load (SM-wide)\nsmem stride  4: 4.01 cyc/warp-load (SM-wide)\nsmem stride  8: 8.01 cyc/warp-load (SM-wide)\nsmem stride 16: 16.01 cyc/warp-load (SM-wide)\nsmem stride 32: 32.01 cyc/warp-load (SM-wide)\nsmem stride 33: 1.01 cyc/warp-load (SM-wide)\nsmem v4 bw 127.1 B/clk/SM\nsmem lat 29.1  (no DSMEM before sm_90)\n==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 79414 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_mem)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-3d59-4242.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-3d59-4242.log\n==ERROR== Failed to profile \"bw_read_kernel\" in process 79414\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  },
+  {
+   "label": "hbm_copy",
+   "binary": "build/bench_mem",
+   "args": [],
+   "kernel": "bw_copy_kernel",
+   "launch_index": 1,
+   "error": "smem stride  1: 1.01 cyc/warp-load (SM-wide)\nsmem stride  2: 2.01 cyc/warp-load (SM-wide)\nsmem stride  4: 4.01 cyc/warp-load (SM-wide)\nsmem stride  8: 8.01 cyc/warp-load (SM-wide)\nsmem stride 16: 16.01 cyc/warp-load (SM-wide)\nsmem stride 32: 32.01 cyc/warp-load (SM-wide)\nsmem stride 33: 1.01 cyc/warp-load (SM-wide)\nsmem v4 bw 127.1 B/clk/SM\nsmem lat 29.1  (no DSMEM before sm_90)\n==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 79546 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_mem)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-136a-5bb0.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-136a-5bb0.log\n==ERROR== Failed to profile \"bw_copy_kernel\" in process 79546\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  },
+  {
+   "label": "l2_pointer_chase",
+   "binary": "build/bench_mem",
+   "args": [],
+   "kernel": "chase_kernel<1>",
+   "launch_index": 20,
+   "error": "smem stride  1: 1.01 cyc/warp-load (SM-wide)\nsmem stride  2: 2.01 cyc/warp-load (SM-wide)\nsmem stride  4: 4.01 cyc/warp-load (SM-wide)\nsmem stride  8: 8.01 cyc/warp-load (SM-wide)\nsmem stride 16: 16.01 cyc/warp-load (SM-wide)\nsmem stride 32: 32.01 cyc/warp-load (SM-wide)\nsmem stride 33: 1.01 cyc/warp-load (SM-wide)\nsmem v4 bw 127.1 B/clk/SM\nsmem lat 29.1  (no DSMEM before sm_90)\nHBM read 853 write 780 copy 811 GB/s\nL2 read (12% of L2) 902 GB/s = 15.2 B/clk/SM\nL2 read (25% of L2) 1263 GB/s = 21.3 B/clk/SM\nL2 read (50% of L2) 1598 GB/s = 27.0 B/clk/SM\nL1 read 81.0 B/clk/SM\nHBM read with   1 SMs: 36 GB/s (35.9 per SM)\nHBM read with   2 SMs: 70 GB/s (35.2 per SM)\nHBM read with   4 SMs: 136 GB/s (33.9 per SM)\nHBM read with   8 SMs: 256 GB/s (31.9 per SM)\nHBM read with  16 SMs: 475 GB/s (29.7 per SM)\nHBM read with  32 SMs: 755 GB/s (23.6 per SM)\nHBM read with  42 SMs: 839 GB/s (20.0 per SM)\nchase       8192 B  ca    38.9  cg   202.6  cg-first   202.7  weak   202.5 cyc\nchase      16384 B  ca    38.9  cg   203.1  cg-first   203.3  weak   203.4 cyc\nchase      32768 B  ca    38.9  cg   203.3  cg-first   203.2  weak   213.4 cyc\nchase      65536 B  ca    38.9  cg   202.1  cg-first   202.3  weak   254.9 cyc\nchase     131072 B  ca    38.9  cg   202.2  cg-first   202.2  weak   306.6 cyc\nchase     262144 B  ca   201.9  cg   202.0  cg-first   202.0  weak   271.5 cyc\n==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 79678 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_mem)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-8ccf-c0bf.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-8ccf-c0bf.log\n==ERROR== Failed to profile \"chase_kernel\" in process 79678\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  },
+  {
+   "label": "hmma_bf16_throughput",
+   "binary": "build/bench_tc",
+   "args": [
+    "mma_sync"
+   ],
+   "kernel": "mma_sync_kernel<MmaBF16, 4>",
+   "launch_index": 0,
+   "error": "==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 79811 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_tc)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-a885-8dde.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-a885-8dde.log\n==ERROR== Failed to profile \"mma_sync_kernel\" in process 79811\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  },
+  {
+   "label": "cp_async_cg16_dram_stream",
+   "binary": "build/bench_cpasync",
+   "args": [],
+   "kernel": "stream_kernel<1, 4>",
+   "launch_index": 68,
+   "error": "L2   chase  ld.ca  202.0  ld.cg  201.8  cp.cg16  233.9  cp.ca16  236.1  cp.ca4  236.1  (lds 29.1)\nDRAM chase  ld.ca  475.7  ld.cg  475.9  cp.cg16  507.8  cp.ca16  509.8  cp.ca4  509.8  (lds 29.1)\nL2 stream (10 MB)\n  ld_global_v4_st_shared best   1100.3 GB/s\n  cp_async_cg16    best   1250.1 GB/s\n  cp_async_ca16    best   1187.0 GB/s\n  cp_async_ca8     best    976.0 GB/s\n  cp_async_ca4     best    710.5 GB/s\nDRAM stream (2048 MB)\n  ld_global_v4_st_shared best    791.8 GB/s\n==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 79943 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_cpasync)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-d838-20c3.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-d838-20c3.log\n==ERROR== Failed to profile \"stream_kernel\" in process 79943\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  },
+  {
+   "label": "hmma_f16_f32_m16n8k16_w32_ilp4",
+   "binary": "build/bench_mma_sync",
+   "args": [],
+   "kernel": "mma_thr_kernel<F16_F32_m16n8k16, 4>",
+   "launch_index": 17,
+   "error": "==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.\n==PROF== Connected to process 80094 (/scratch/gpfs/MZHASAN/as0714/rackcal-ampere/calibration/build/bench_mma_sync)\n\n==ERROR== An error was reported by the driver:\n==ERROR== For more information, see /tmp/nsight-compute-fdd1-aba1.log\n==ERROR== Profiling failed because a driver resource was unavailable. Ensure that no other tool (like DCGM) is concurrently collecting profiling data. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#faq for more details.\n==ERROR== For more information, see /tmp/nsight-compute-fdd1-aba1.log\n==ERROR== Failed to profile \"mma_thr_kernel\" in process 80094\n==PROF== Trying to shutdown target application\n==ERROR== The application returned an error code (9).\n"
+  }
+ ]
+}

@@ -118,6 +118,17 @@ pub struct KernelStats {
     /// Warp-cycle attribution (one sample per resident warp per cycle): the
     /// Nsight "warp state statistics" view.
     pub warp: StallCounts,
+    /// The warp view split by warp index within the CTA. For warp-specialised
+    /// kernels each index is one role (producer, MMA, softmax, ...).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub warp_by_index: Vec<StallCounts>,
+    /// Instructions issued per warp index within the CTA.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub issued_by_index: Vec<u64>,
+    /// Warp-cycles spent waiting on each mbarrier, keyed `w<warp index>:<barrier id>`
+    /// (recorded paths): which handoff in a warp-specialised pipeline is the bubble.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub mbar_wait: BTreeMap<String, u64>,
     pub tensor_busy_cycles: u64,
     pub tensor_flops: f64,
     pub dram_read_bytes: u64,
@@ -128,6 +139,10 @@ pub struct KernelStats {
     pub l1_misses: u64,
     pub smem_wavefronts: u64,
     pub unknown_opcodes: BTreeMap<String, u64>,
+    /// Per-PC issue counts and stall samples (only with `DetailConfig::pc_stats`),
+    /// keyed `role << 32 | pc` (static kernels give each warp role its own program).
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub pc: BTreeMap<u64, crate::detail::PcStat>,
     /// Hot-path class counters (indexed by `OpClass as usize`).
     #[serde(skip)]
     pub class_counts: [u64; 32],
