@@ -161,12 +161,10 @@ def model_ampere(raw):
     return m
 
 
-def model_power(outdir):
-    """Clock and power while CUTLASS GEMMs of each dtype run (scripts/cutlass_power.sh)."""
-    log = os.path.join(outdir, "raw", "cutlass_power.log")
-    trace = os.path.join(outdir, "raw", "cutlass_power.clk.csv")
-    if not (os.path.exists(log) and os.path.exists(trace)):
-        return None
+def _power_runs(log, trace, legacy_label=None):
+    """Runs of one power sweep: BEGIN/END windows in `log` over the nvidia-smi
+    `trace`. Old FP4-only logs (cutlass_fp4.log) have no label on BEGIN/END;
+    `legacy_label` names them."""
     ts = lambda t: datetime.datetime.strptime(t.strip(), "%Y/%m/%d %H:%M:%S.%f")
     samples = []
     for row in open(trace):
@@ -179,8 +177,12 @@ def model_power(outdir):
     runs, cur, verified = [], None, {}
     for line in open(log):
         p = line.split()
+        if legacy_label and p[:1] in (["BEGIN"], ["END"]):
+            p = [p[0], legacy_label] + p[1:]
         if p[:1] == ["VERIFY"]:
             verified[p[1]] = "Passed" in line
+        elif legacy_label and "Disposition: Passed" in line:
+            verified[legacy_label] = True
         elif p[:1] == ["BEGIN"]:
             cur = {"label": p[1], "size": int(p[2]), "t0": ts(" ".join(p[3:5])), "gflops": []}
         elif p[:1] == ["END"] and cur:
@@ -191,12 +193,12 @@ def model_power(outdir):
             cur["gflops"].append(float(line.split(":")[1]))
     med = lambda v: sorted(v)[len(v) // 2] if v else None
     cap = samples[0]["cap_w"] if samples else 0
-    out_runs = []
+    out = []
     for r in runs:
         # GEMM steady state inside the window: host setup and on-GPU data init run
         # far below the cap, so keep samples above half the cap.
         win = [s for s in samples if r["t0"] <= s["t"] <= r["t1"] and s["util"] >= 50 and s["w"] >= 0.5 * cap]
-        out_runs.append({
+        out.append({
             "gemm": r["label"], "verified": verified.get(r["label"]),
             "m": r["size"], "n": r["size"], "k": r["size"],
             "tflops": max(r["gflops"]) / 1e3 if r["gflops"] else None,
@@ -208,13 +210,34 @@ def model_power(outdir):
             "utilization_pct_median": med([s["util"] for s in win]),
             "power_capped_fraction": (sum("0x0000000000000004" in s["reasons"] for s in win) / len(win)) if win else None,
         })
+    meta = {"power_cap_w": cap or None, "max_sm_mhz": samples[0]["max_mhz"] if samples else None,
+            "idle_w": med([s["w"] for s in samples if s["util"] == 0])}
+    return out, meta
+
+
+def model_power(outdir):
+    """Clock and power while CUTLASS GEMMs of each dtype run (scripts/cutlass_power.sh).
+    Runs from the older FP4-only sweep (cutlass_fp4.*) fill in any GEMM the
+    current sweep has not recorded."""
+    raw = os.path.join(outdir, "raw")
+    sweeps = [("cutlass_power", None), ("cutlass_fp4", "nvfp4_ultra_k96")]
+    runs, meta = [], {}
+    for stem, legacy in sweeps:
+        log, trace = os.path.join(raw, stem + ".log"), os.path.join(raw, stem + ".clk.csv")
+        if not (os.path.exists(log) and os.path.exists(trace)):
+            continue
+        r, m = _power_runs(log, trace, legacy)
+        have = {(x["gemm"], x["m"]) for x in runs}
+        runs += [x for x in r if (x["gemm"], x["m"]) not in have and x["busy_samples"]]
+        for k, v in m.items():
+            meta.setdefault(k, v)
+    if not runs:
+        return None
     return {
         "source": "CUTLASS examples 70 (fp16, fp8), 72b (nvfp4 K=64), 89 (sm103 ultra nvfp4 K=96)",
-        "power_cap_w": cap or None,
-        "max_sm_mhz": samples[0]["max_mhz"] if samples else None,
-        "idle_w": med([s["w"] for s in samples if s["util"] == 0]),
+        **meta,
         "sample_interval_ms": 100,
-        "runs": out_runs,
+        "runs": runs,
     }
 
 

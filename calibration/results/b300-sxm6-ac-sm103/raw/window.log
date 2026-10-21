@@ -1,0 +1,6 @@
+t128_smem0                             back-to-back   2.40 us/kernel
+t512_smem0                             back-to-back   2.43 us/kernel
+t512_smem_max                          back-to-back   2.37 us/kernel
+t512_smem_max_cluster2                 back-to-back   2.37 us/kernel
+t512_smem_max_cluster2_fa4_prologue    back-to-back   2.17 us/kernel
+t512_smem_max_fa4_prologue             back-to-back   2.19 us/kernel
