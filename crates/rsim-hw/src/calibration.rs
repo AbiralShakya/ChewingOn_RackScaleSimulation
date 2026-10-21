@@ -153,6 +153,7 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
                 OpTiming {
                     latency: cyc(lat),
                     issue_interval: cyc(ii),
+                    issue_interval_exact: ii.max(1.0),
                 },
             );
         }
@@ -312,7 +313,8 @@ mod tests {
             g.opcode_timing["MUFU.EX2"],
             OpTiming {
                 latency: 14,
-                issue_interval: 4
+                issue_interval: 4,
+                issue_interval_exact: 4.01
             }
         );
         assert_eq!(g.opcode_timing.len(), 1);

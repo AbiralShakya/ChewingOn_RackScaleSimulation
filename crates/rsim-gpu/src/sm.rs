@@ -80,6 +80,8 @@ struct Warp {
 struct Smsp {
     warps: Vec<usize>,
     pipe_free: [u64; NUM_PIPES],
+    /// Accumulated fractional issue-interval debt per pipe.
+    pipe_debt: [f32; NUM_PIPES],
     tensor_tail: u64,
     next_eval: u64,
     last_eval: u64,
@@ -700,7 +702,16 @@ impl Sm {
         let mut read_done = c + spec.latency.store_read as u64;
 
         if t.pipe != Pipe::Mio && t.pipe != Pipe::Tensor {
-            self.smsps[sp].pipe_free[t.pipe as usize] = c + t.ii as u64;
+            let sps = &mut self.smsps[sp];
+            let debt = &mut sps.pipe_debt[t.pipe as usize];
+            *debt += t.ii_frac;
+            let extra = if *debt >= 1.0 {
+                *debt -= 1.0;
+                1
+            } else {
+                0
+            };
+            sps.pipe_free[t.pipe as usize] = c + t.ii as u64 + extra;
         }
 
         match inst.class {

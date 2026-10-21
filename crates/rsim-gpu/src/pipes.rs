@@ -34,6 +34,9 @@ pub struct Timing {
     /// Result latency for fixed-latency ops (or nominal for MIO ops).
     pub lat: u32,
     pub sb: Sb,
+    /// Fractional part of a measured issue interval (e.g. 0.033 for an
+    /// FFMA measured at 1.033 cycles); accumulated per SMSP pipe.
+    pub ii_frac: f32,
 }
 
 pub fn mma_shape(inst: &Inst) -> Option<(u64, u64, u64)> {
@@ -72,7 +75,13 @@ pub fn timing(g: &GpuSpec, inst: &Inst) -> Timing {
     let l = &g.latency;
     let p = &g.pipes;
     let ii = |lanes: u32| (32 / lanes.max(1)).max(1);
-    let t = |pipe, ii, lat, sb| Timing { pipe, ii, lat, sb };
+    let t = |pipe, ii, lat, sb| Timing {
+        pipe,
+        ii,
+        lat,
+        sb,
+        ii_frac: 0.0,
+    };
     let mut out = class_timing(g, inst, l, p, ii, t);
     // Measured per-opcode timing (calibration.json) for fixed/short-latency ops.
     if !g.opcode_timing.is_empty()
@@ -89,6 +98,10 @@ pub fn timing(g: &GpuSpec, inst: &Inst) -> Timing {
         if let Some(m) = m {
             out.lat = m.latency;
             out.ii = m.issue_interval;
+            if m.issue_interval_exact >= 1.0 {
+                out.ii = m.issue_interval_exact.floor() as u32;
+                out.ii_frac = (m.issue_interval_exact - m.issue_interval_exact.floor()) as f32;
+            }
         }
     }
     out

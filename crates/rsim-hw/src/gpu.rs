@@ -270,6 +270,9 @@ pub struct OpTiming {
     pub latency: u32,
     /// Issue interval of back-to-back independent instructions, cycles.
     pub issue_interval: u32,
+    /// The measured interval unrounded (0 = use `issue_interval`).
+    #[serde(default)]
+    pub issue_interval_exact: f64,
 }
 
 impl GpuSpec {
