@@ -1,166 +1,561 @@
 # rackscale
 
-A cycle-level GPU simulator that scales to a whole rack. You give it a hardware description
-(NVL72, HGX, a multi-node IB cluster, or your own wiring) and a workload. The workload can be a
-model config, a captured vLLM/SGLang/PyTorch profiler trace, real SASS, or an Accel-Sim trace.
-rackscale predicts step time and explains where every bubble comes from, down to the warp
-scheduler of each SM.
+**Cycle-level simulation of a whole GPU rack, from SASS instructions up to NVLink collectives.**
 
-```
-$ rackscale decode deepseek-v3 --system gb200_nvl72 --ep 72 --batch 64 --context 4096 --layers 4 --fast
-== deepseek-v3 decode b64 ctx4096 Parallel(tp=1, ep=72, dp=1, comm_sms=20) on GB200 NVL72 (72 GPUs) ==
-makespan 1899.3 us   MFU 10.2%
-GPU idle 5.2%   tensor-core idle in kernels 75.4%
-scheduler-cycle anatomy:
-  async_wait            58.30%  #############################
-  short_scoreboard      11.66%  ######
-  tma_wait              11.11%  ######
-  tensor_wait           10.46%  #####
-  ...
-kernel                                                       n   total_us   TFLOPS     GB/s    tc%
-sm100_fmha_decode_b64_hq128_hkv1_sq1_skv4096_d576          288    22735.7    979.3     4304   39.2
-sm100_gemm_bf16_64x129280x7168_tile128x256                  72    19458.2    877.8     7130   35.1
-sm100_gemm_bf16_64x7168x16384_tile128x256                  288    19446.8    445.2     3595   17.8
-  ...
-  AllToAll       Direct      3670016 B ranks=72  busbw 509 GB/s
-  AllToAll       Direct      7340032 B ranks=72  busbw 722 GB/s
-```
+rackscale simulates every SM of every GPU in a rack (up to a 72-GPU GB200 NVL72) at the level
+of warp schedulers, scoreboards, tensor-core queues, TMA and mbarriers, and couples that to a
+packet-level model of the NVLink/NVSwitch/InfiniBand fabric. You give it a hardware topology
+(YAML) and a workload: a model config, a captured vLLM/SGLang/PyTorch profiler trace, or raw
+SASS. It returns the step time, MFU, a cycle-accurate bubble breakdown with Nsight-style stall
+reasons, and a Perfetto timeline with one track per SM.
 
-Rust does the simulation. Python handles the front-end: model lowering, trace capture and
-reports. Results are deterministic, and the simulator runs in parallel across GPUs.
+It is written for three groups of people:
 
-## What is modelled
+- **Inference engineers** who want to know where a decode step's microseconds go before they
+  rent the rack: weight streaming, MLA attention, all-to-all, or launch gaps.
+- **ML researchers** who want to try a parallelism layout, a model shape or an async-RL
+  schedule on hardware they do not have.
+- **Hardware engineers** who want to change one number (L2 latency, NVLink bandwidth, UMMA
+  rate) and see what it does to a real model end to end.
 
-| Layer | Model |
-|---|---|
-| **SM** (`rsim-gpu`) | 4 SMSPs with GTO/LRR warp schedulers. Control-bit scoreboards (stall/yield/SB barriers decoded from real SASS) or per-register scoreboards. Per-pipe issue intervals, MIO/LSU queues, a sectored L1, shared-memory bank conflicts. CTA barriers, `cp.async` groups and mbarriers with phase tracking. **Hopper** `HGMMA` warpgroup queues and TMA (`UTMALDG`, multicast). **Blackwell** `tcgen05`/UMMA (`UTC*MMA`, `UTCBAR`, `LDTM`/`STTM`, TMEM) on an SM-wide tensor queue. Stall reasons use Nsight names: `long_scoreboard`, `mio_throttle`, `barrier`, and so on, plus `tma_wait` and `tensor_wait`. |
-| **GPU** | CTA dispatcher (occupancy from regs/smem/warps). Per-die L2 with bandwidth servers, HBM, and the B200 die-to-die link. Multiple concurrent kernels and streams. Comm kernels can reserve SMs. |
-| **Fabric** (`rsim-net`) | NVLink4/5 and NVSwitch (with in-network reduction), IB leaf/spine, any explicit graph. ECMP shortest paths and chunked cut-through transport with per-link FCFS. |
-| **Collectives** | Ring (multi-ring across islands), NVLS/SHARP, direct all-to-all with staggered peers, broadcast and send/recv. Reported as NCCL bus bandwidth. |
-| **Rack** (`rsim-rack`) | Conservative parallel discrete-event simulation. One logical process per GPU plus the network. Lookahead is the minimum link latency, and LPs run on rayon. |
-| **Workloads** | SPMD or per-rank programs with streams, events, loops, collectives and p2p. Kernels can be synthetic (GEMM, grouped GEMM, FA3/FA4-style attention, MLA decode, norms, elementwise), parsed SASS (`cuobjdump -sass`), Accel-Sim/NVBit traces, or measured fixed durations. |
+The core is Rust (deterministic, parallel discrete-event simulation). The front end is Python.
+Hardware numbers come from measured microbenchmarks on a B300 and an A100, not just datasheets.
 
-## Install
+![Per-SM CTA timeline of a simulated DeepSeek-V3 decode step on HGX B200](docs/img/deepseek_v3_ep8_b200_per_sm.png)
+
+<sub>GPU0 of a simulated DeepSeek-V3 decode step (4 layers, EP8 on HGX B200 ×8, 32 sequences
+per GPU at 4k context). Each row is one of the 148 SMs and each bar is one CTA. Visible at a
+glance: wave quantisation in the narrow GEMMs, idle SMs during low-parallelism kernels, the
+MoE layer's all-to-all (red ticks), and the LM head's partial second wave. Rendered from the
+`--per-sm` trace with [`docs/img/plot_per_sm.py`](docs/img/plot_per_sm.py).</sub>
+
+---
+
+## Contents
+
+- [Headline results](#headline-results)
+- [Quickstart](#quickstart)
+- [How to use it: recipes](#how-to-use-it-recipes)
+- [Architecture](#architecture)
+- [Hardware calibration](#hardware-calibration)
+- [What you can answer with this](#what-you-can-answer-with-this)
+- [How it compares](#how-it-compares)
+- [Status and roadmap](#status-and-roadmap)
+- [Citation](#citation) · [License](#license)
+
+---
+
+## Headline results
+
+All of these are reproducible with the commands shown. Simulator results use the built-in
+presets unless marked *calibrated*, so read them as model behaviour, not as hardware claims.
+More detail is in [docs/RESULTS.md](docs/RESULTS.md).
+
+### DeepSeek-V3 decode on GB200 NVL72 (EP72)
+
+Four layers (the 3 dense layers and the first MoE layer), 64 sequences per GPU at 4k context,
+BF16, MLA decode attention, experts spread over all 72 GPUs.
 
 ```bash
-# Rust CLI
-cargo build --release            # -> target/release/rsim
-# Python package (needs maturin)
-python -m venv .venv && . .venv/bin/activate
-pip install maturin && maturin develop --release
+python examples/deepseek_v3_nvl72.py --layers 4      # fast mode, both schedules in about half a minute
 ```
 
-## Use it
+| schedule | step time | MFU | GPU idle |
+|---|---|---|---|
+| single stream | 1899 µs | 10.2% | 5.2% |
+| two-micro-batch overlap (DeepSeek style) | 2456 µs | 7.9% | 0.9% |
 
-**From a model config** (Llama 3, Mixtral, Qwen3-MoE and DeepSeek-V3 presets are in
-`rackscale.models`):
+What the model shows:
+
+- **Decode is weight-bandwidth bound, even on GB200.** The LM head (129280×7168) and the dense
+  GEMMs stream weights at about 7.1 TB/s, close to 8 TB/s HBM times 0.9 streaming efficiency.
+  With M=64 against a 128-row UMMA tile, half the tensor work is padding (tensor-core
+  utilisation about 35%).
+- **MLA attention is compute heavy.** 128 query heads share one 576-wide latent, so the kernel
+  runs at about 980 TFLOPS rather than at HBM speed. It is the largest single kernel.
+- **Two-micro-batch overlap loses at this size.** Each half-batch reads the full weights again,
+  while the all-to-all it hides is only about 10 µs per layer on NVLink5 (509 to 722 GB/s
+  busbw). Overlap pays off only when dispatch and combine are a large part of the step, for
+  example over InfiniBand, at larger EP, or with FP8 weights.
+- **Bubble anatomy.** About 60% of scheduler cycles are `async_wait`: warps parked on
+  mbarriers while TMA and UMMA work is in flight, the expected signature of a warp-specialised
+  kernel. The bubbles that matter are the ~11% `tma_wait` (tensor core starved by loads) and
+  the 5% of wall time the GPU sits idle between kernels.
+
+### Fast mode vs exact co-simulation
+
+Fast mode simulates each distinct `(kernel, reserved SMs)` pair once, cycle-level, on a cold
+GPU and reuses the result across ranks and layers. The fabric, collectives and stream
+dependencies are still simulated exactly.
+
+| system | exact | fast | error | wall time (exact → fast) |
+|---|---|---|---|---|
+| HGX B200 ×8, EP8, batch 32 | 2110 µs | 2121 µs | +0.5% | |
+| GB200 NVL72, EP72, batch 32 | 1712 µs | 1729 µs | +1.0% | 6.5 min → 12 s |
+
+### Async RL on a mixed cluster
+
+8 H100 rollout GPUs and 8 B200 trainer GPUs on 400G InfiniBand
+([`configs/mixed_rl_h100_b200.yaml`](configs/mixed_rl_h100_b200.yaml)), Llama-3-8B, 4 decode
+steps, one training step, then a weight push. The step takes 25.9 ms and about 80% of it is
+the trainer→sampler weight transfer (872 MB per pair at 42 GB/s effective over one 50 GB/s
+NIC). Compute is about 5 ms per side, so in this setup weight sync is the thing to optimise.
+
+```bash
+python examples/async_rl_mixed.py
+```
+
+### Measured on real silicon
+
+From the [calibration suite](calibration/README.md), run on a B300 SXM6 (sm_103, Della) and an
+A100 80GB PCIe (sm_80, Della), each with its SASS checked so that ptxas cannot fuse, fold or
+hoist the instruction being timed:
+
+| | B300 (sm_103) | A100 80GB PCIe (sm_80) |
+|---|---|---|
+| SMs, measured clock | 148 SMs, 2030 MHz | 108 SMs, 1395 MHz |
+| dense BF16 tensor rate | 8192 FLOP/clk/SM (`tcgen05.mma`, 128×256×16) → 2.46 PFLOP/s | 2026 FLOP/clk/SM (HMMA m16n8k16), 99% of peak |
+| FP8 / FP4 | 16384 / 32768 FLOP/clk/SM → 4.92 / 9.85 PFLOP/s | IMMA s8 4046, s4 8091 FLOP/clk/SM |
+| L1 / L2 hit / HBM latency | 39 / 298 (near) / 852 cycles | 39 / 211 (`ld.cg`: 283) / 560–565 cycles |
+| HBM read bandwidth | 6.82 TB/s (TMA streaming: 7.2 TB/s) | 1.70 TB/s (88% of spec) |
+| launch: back to back / CUDA graph | 2.6 µs / 0.55 µs per kernel | 1.9 µs / 0.94 µs per kernel |
+
+Findings worth knowing:
+
+- **NVFP4 on this B300 measures at the B200 rate, not 1.5× it.** Every block-scaled FP4
+  variant (NVFP4 and MXFP4, 1-SM and 2-SM `cta_group::2`, A from shared memory or from TMEM)
+  measures 32768 FLOP/clk/SM, which is 2× FP8. The 1.5× B300 FP4 figure would need about 49k.
+  A CUTLASS NVFP4 GEMM cross-check is in progress.
+- **B300 MUFU.EX2 runs at twice the rate of the other MUFU functions** (32 vs 16 per clk per
+  SM), which matters for softmax. FP64 is about 1.2 TFLOP/s for the whole chip.
+- **B300 L2 is partitioned.** Repeat hits on the near partition cost 298 cycles, and the first
+  touch of a far-homed line costs about 706. **A100 shows two L2 sides about 150 cycles apart**,
+  and the SM-to-side assignment repeats every 14 SM ids.
+- **An A100 MIG 3g.40gb slice is not a scaled-down A100.** It sits on one L2 partition, so the
+  near/far split nearly disappears (210 vs 230 cycles per hop), L2 hit latency drops from 284 to
+  202 cycles and per-SM L2 bandwidth rises from 18.7 to 34.4 B/clk. Compute per SM is unchanged.
+- **Calibrated B300 vs preset.** [`configs/hgx_b300_8_calibrated.yaml`](configs/hgx_b300_8_calibrated.yaml)
+  loads the measured data. Llama-3-70B TP8 decode runs 2% slower than with the uncalibrated
+  preset, mostly from the lower measured clock and HBM efficiency.
+
+---
+
+## Quickstart
+
+Requirements: a Rust toolchain (pinned in `rust-toolchain.toml`) and Python 3.9+. No GPU is
+needed to run the simulator.
+
+```bash
+git clone https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation rackscale && cd rackscale
+
+# Rust CLI
+cargo build --release -p rsim-cli
+./target/release/rsim presets
+
+# Python package (builds the Rust core as an extension module)
+python -m venv .venv && . .venv/bin/activate
+pip install maturin && maturin develop --release
+python examples/deepseek_v3_nvl72.py --layers 4
+```
+
+`rsim presets` lists what is built in:
+
+```
+GPUs:
+  h100_sxm   H100 SXM5 80GB               132 SMs @ 1830 MHz     989 TFLOPS bf16   3350 GB/s HBM  NVLink4 18x25 GB/s
+  h200_sxm   H200 SXM 141GB               132 SMs @ 1830 MHz     989 TFLOPS bf16   4800 GB/s HBM  NVLink4 18x25 GB/s
+  b200       B200 (HGX, 1000 W)           148 SMs @ 1856 MHz    2250 TFLOPS bf16   7700 GB/s HBM  NVLink5 18x50 GB/s
+  gb200      B200 in GB200 (1200 W)       148 SMs @ 2062 MHz    2500 TFLOPS bf16   8000 GB/s HBM  NVLink5 18x50 GB/s
+  b300       B300 SXM                     148 SMs @ 2032 MHz    2464 TFLOPS bf16   7700 GB/s HBM  NVLink5 18x50 GB/s
+switches: nvswitch3, nvswitch_nvl5, ib_ndr_leaf
+systems:  hgx_h100_8, hgx_b200_8, gb200_nvl72, h100_2node_ib
+```
+
+### The Python API in ten lines
 
 ```python
 import rackscale as rs
 from rackscale import lower, models
 
-wl = lower.decode_step(models.DEEPSEEK_V3, rs.Parallel(ep=72), batch=64, context=4096, layers=4, overlap=True)
-rep = rs.simulate("gb200_nvl72", wl, fast=True, trace="out/ds.json")   # open in ui.perfetto.dev
-print(rep.summary())
+# Llama-3-70B, TP8, one decode step (2 layers to keep it quick), 32 sequences, 4k context.
+wl = lower.decode_step(models.LLAMA3_70B, rs.Parallel(tp=8), batch=32, context=4096, layers=2)
+
+for system in ["hgx_h100_8", "hgx_b200_8"]:
+    rep = rs.simulate(system, wl, fast=True, trace=f"out/l70_{system}.json")
+    print(system, f"{rep.makespan_us:.1f} us", rep.bubbles["gpu_idle_fraction"])
+
+print(rep.summary())          # bubble anatomy, top kernels, collectives
 ```
 
-`lower.prefill`, `lower.train_step` (DP gradient reduce-scatter overlapped on a comm stream) and
-`lower.async_rl` (rollout and trainer pools with weight push) cover the other workload families.
-See [`examples/`](examples).
+On the presets this prints 592.9 µs for HGX H100 and 378.7 µs for HGX B200. The `Report`
+object exposes `makespan_us`, `bubbles`, `kernels()`, per-rank stats in `rep["ranks"]`, and
+the full JSON in `rep.raw`.
 
-**From a real engine**. Profile vLLM, SGLang or a training loop with the PyTorch profiler
-(`record_shapes=True`) and feed in the trace. GEMMs are re-simulated for the *target* hardware.
-NCCL kernels become collectives on the target fabric. Everything else replays its measured
-duration. Details are in [docs/CAPTURE.md](docs/CAPTURE.md).
+---
+
+## How to use it: recipes
+
+Every recipe below runs against the current `main`. Each one is a starting point that you edit:
+change the model, the parallelism, or the hardware YAML, and re-run.
+
+### 1. One kernel on one GPU, at cycle level
 
 ```bash
-rackscale capture vllm_rank0.pt.trace.json.gz --system gb200_nvl72 --world 8 --group block:8
+rsim kernel --gpu b200 gemm 8192 8192 8192
+rsim kernel --gpu h100_sxm attention 8 64 8 1 8192 128   # B HQ HKV SQ SKV D (decode, GQA)
 ```
 
-**From SASS**:
+```
+sm100_gemm_bf16_8192x8192x8192_tile128x256
+  time        825.39 us   (1531926 cycles, 2048 CTAs, 1 CTA/SM)
+  compute     1332.1 TFLOPS  (59.2% of dense BF16 peak)
+  dram        464.1 MB read, 268.4 MB written; L2 hit 94.7%
+  scheduler-cycle anatomy:
+    async_wait            80.10%  ########################################
+    tma_wait              11.70%  ######
+    tensor_wait            3.31%  ##
+    ...
+```
+
+Kinds: `gemm M N K`, `attention B HQ HKV SQ SKV D` (D > 256 selects MLA),
+`elementwise N`, `rownorm ROWS COLS`. Add `--dtype fp8` or `--json`. From Python:
+`rs.kernel("b200", "gemm", 4096, 4096, 4096)`.
+
+### 2. Your own SASS
+
+Dump a kernel with `cuobjdump -sass` (or `nvdisasm`) and simulate exactly those instructions,
+control bits included:
 
 ```bash
-rsim sass examples/sass/vecadd_sm90.sass --inspect     # decoded control bits, classes
-rsim kernel --gpu h100_sxm gemm 4096 4096 4096         # one kernel, per-SM stall anatomy
+rsim sass examples/sass/vecadd_sm90.sass --gpu h100_sxm --grid 1024 --block 256
+rsim sass examples/sass/vecadd_sm90.sass --inspect     # parsed program, classes, control bits
 ```
 
-**Your own hardware**. A system is YAML. You can start from a preset and override anything,
-down to per-opcode latencies, or point at a calibration run. See [`configs/`](configs):
+### 3. A model on a rack, from the command line
+
+```bash
+rackscale decode  deepseek-v3   --system gb200_nvl72 --ep 72 --batch 64 --context 4096 --layers 4 --fast
+rackscale decode  llama3-70b    --system hgx_h100_8  --tp 8  --batch 32 --layers 2 --fast --trace out/l70.json
+rackscale prefill qwen3-235b-a22b --system gb200_nvl72 --ep 72 --seqlen 2048 --layers 2 --fast
+rackscale train   llama3-8b     --system hgx_b200_8  --dp 8  --layers 2 --fast
+```
+
+Built-in models: `llama3-8b`, `llama3-70b`, `llama3-405b`, `mixtral-8x22b`, `qwen3-235b-a22b`,
+`deepseek-v3`. Parallelism flags: `--tp`, `--ep`, `--dp`, `--comm-sms`. Useful switches:
+`--overlap` (two-micro-batch decode), `--launch-gap-ns 0` (CUDA graphs), `--report out.json`,
+`--dump-workload wl.json` (see what was lowered), and `--per-sm` (one Perfetto track per SM).
+
+### 4. Your own hardware
+
+A system is a YAML file. Start from a preset and override what you want to study:
 
 ```yaml
-preset: hgx_b200_8
+# configs/gb200_nvl72.yaml: 72 Blackwell GPUs, 18 NVLink5 switch chips,
+# one 50 GB/s link per GPU per switch (900 GB/s per direction per GPU).
+preset: gb200_nvl72
+name: GB200 NVL72
+gpus:
+  - preset: gb200
+    count: 72
+    # overrides: {sm_clock_mhz: 1800}      # e.g. a power-capped clock
+topology:
+  kind: switched
+  switches: 18
+  links_per_gpu_per_switch: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+```
+
+Multi-node and heterogeneous clusters use `kind: multi_node` with an intra-node fabric, a NIC
+and a leaf switch (see [`configs/mixed_rl_h100_b200.yaml`](configs/mixed_rl_h100_b200.yaml)).
+Check what you built with `rsim system <file.yaml>`:
+
+```
+GB200 NVL72: 72 GPUs, 90 nodes, 1296 links
+GPU0 injection bandwidth: 900 GB/s per direction; min link latency 80 ns
+```
+
+To use measured numbers instead of presets, add `calibration: <path to calibration.json>` to a
+GPU group (see [Hardware calibration](#hardware-calibration)).
+
+### 5. A hand-written workload
+
+Workloads are JSON or YAML: per-rank streams of kernels, collectives, send/recv, CUDA-style
+events and delays. This one overlaps an all-reduce with an independent kernel on 8 GPUs:
+
+```json
+{
+  "name": "tp8 mlp",
+  "spmd": {"world": 8, "program": {"streams": [
+    [ {"op": "kernel", "name": "up", "kernel": {"type": "gemm", "m": 4096, "n": 3584, "k": 8192}},
+      {"op": "record", "event": "x"},
+      {"op": "collective", "kind": "all_reduce", "bytes": 67108864, "group": "block:8", "sms": 16} ],
+    [ {"op": "wait", "event": "x"},
+      {"op": "kernel", "kernel": {"type": "fixed", "ns": 5000, "sms": 32}} ]
+  ]}}
+}
+```
+
+```bash
+rsim run --system configs/gb200_nvl72.yaml --workload tp8_mlp.json --fast
+#   AllReduce      Nvls       67108864 B  ranks=8       117.9 us  busbw   995.9 GB/s
+```
+
+The full op and kernel reference (including `sass` and Accel-Sim `trace` kernels) is in
+[docs/WORKLOAD_FORMAT.md](docs/WORKLOAD_FORMAT.md).
+
+### 6. A real engine trace (vLLM, SGLang, training)
+
+Profile a few steps with the PyTorch profiler (`record_shapes=True`), then re-simulate the
+trace on different hardware:
+
+```python
+from rackscale import capture
+import rackscale as rs
+
+wl = capture.from_file("rank0.pt.trace.json.gz", world=8, collective_group="block:8")
+print(rs.simulate("gb200_nvl72", wl, fast=True).summary())
+```
+
+```bash
+rackscale capture rank0.pt.trace.json.gz --world 8 --group block:8 --system gb200_nvl72 --fast
+```
+
+GEMMs with recoverable shapes are re-simulated on the target GPU, NCCL kernels become
+collectives, and everything else keeps its measured duration. `--mode replay` keeps every
+kernel as measured and re-simulates only launch gaps, overlap and communication. How to
+profile each engine is in [docs/CAPTURE.md](docs/CAPTURE.md).
+
+### 7. Look at the timeline
+
+Any run with `--trace out.json` (or `trace=` in Python) writes a Chrome/Perfetto trace. Open
+it at [ui.perfetto.dev](https://ui.perfetto.dev). Each GPU is a process with stream tracks
+(kernels and collectives), counter tracks (issue utilisation, tensor utilisation, DRAM GB/s,
+active SMs) and, with `--per-sm`, one track per SM with a span per CTA:
+
+```bash
+rackscale decode deepseek-v3 --system hgx_b200_8 --ep 8 --batch 32 --context 4096 --layers 4 \
+    --per-sm --trace out/deepseek_v3_ep8_b200_per_sm.json
+python docs/img/plot_per_sm.py out/deepseek_v3_ep8_b200_per_sm.json per_sm.png   # static PNG, needs matplotlib
+```
+
+### 8. Async RL on heterogeneous hardware
+
+```python
+wl = lower.async_rl(models.LLAMA3_8B, rollout_ranks=8, trainer_ranks=8, rollout_batch=64,
+                    context=2048, decode_steps=4, train_micro_batch=1, seqlen=2048, layers=2)
+rep = rs.simulate("configs/mixed_rl_h100_b200.yaml", wl, fast=True)
+```
+
+See [`examples/async_rl_mixed.py`](examples/async_rl_mixed.py).
+
+### More guides (planned)
+
+These are planned, not yet in the repo. Each will land as a runnable script in `examples/`
+with its expected output.
+
+| guide | status |
+|---|---|
+| vLLM serving trace → NVL72 vs HGX B200 what-if | planned |
+| SGLang DeepSeek-V3 EP serving: dispatch/combine over IB vs NVLink | planned |
+| FlashAttention / DeepGEMM kernel from `cuobjdump` to per-warp stall breakdown | planned |
+| Validating a kernel against Nsight Compute (`ncu_reference.json`) | planned |
+| Training step with TP + DP + gradient bucketing on NVL72 | planned |
+| Calibrating your own GPU with `calibration/` and loading the result | planned |
+| A100 / Ampere systems from measured calibration | planned |
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph Inputs
+        M["Model configs<br/>(Llama 3, Mixtral, Qwen3-MoE, DeepSeek-V3)"]
+        T["Profiler traces<br/>(vLLM, SGLang, PyTorch)"]
+        S["SASS listings<br/>(cuobjdump / nvdisasm)<br/>Accel-Sim traces"]
+        Y["System YAML<br/>(GPUs, switches, links)"]
+        C["calibration.json<br/>(measured on B300 / A100)"]
+    end
+
+    subgraph Python ["Python: rackscale"]
+        L["lower: model → kernels + collectives<br/>(TP / EP / DP, MLA, MoE, overlap, async RL)"]
+        CAP["capture: trace → workload<br/>(resimulate or replay)"]
+    end
+
+    subgraph Rust ["Rust core"]
+        HW["rsim-hw<br/>GpuSpec, topology, presets,<br/>calibration loader"]
+        SASS["rsim-sass<br/>parser, control bits,<br/>opcode classes"]
+        RACK["rsim-rack<br/>streams, events, collectives,<br/>PDES runner, fast mode"]
+        GPU["rsim-gpu (one LP per GPU)<br/>148 SMs × 4 SMSPs: GTO/LRR schedulers,<br/>scoreboards, pipes, MIO, L1/smem,<br/>HMMA / HGMMA / tcgen05, TMA, mbarriers,<br/>split L2, HBM, die-to-die"]
+        NET["rsim-net (one LP)<br/>ECMP routing, chunked cut-through,<br/>ring / NVLS / all-to-all / p2p"]
+        CORE["rsim-core<br/>picosecond time, conservative<br/>YAWNS windows, rayon"]
+    end
+
+    OUT["Report: step time, MFU, stall-reason bubble anatomy,<br/>per-kernel TFLOPS / GB/s / tensor %, collective busbw<br/>+ Perfetto trace (per stream, per SM, counters)"]
+
+    M --> L
+    T --> CAP
+    S --> SASS
+    Y --> HW
+    C --> HW
+    L --> RACK
+    CAP --> RACK
+    SASS --> GPU
+    HW --> GPU
+    HW --> NET
+    RACK --> GPU
+    RACK --> NET
+    CORE --- GPU
+    CORE --- NET
+    GPU --> OUT
+    NET --> OUT
+```
+
+Key design points (details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):
+
+- **Every SM is simulated.** Each SM has 4 SMSPs with their own warp lists and schedulers.
+  Before a warp issues it must pass, in order: the control-bit stall count and yield, the
+  scoreboard wait mask (SB0–5) or per-register scoreboard, pipe availability, MIO/LSU credits,
+  and barrier / mbarrier / `cp.async` / warpgroup-MMA dependencies. Each failed check maps to
+  an Nsight stall reason, and the *critical warp* decides how each bubble cycle is labelled.
+- **Event skipping.** When no warp can issue, an SM jumps straight to the next cycle at which
+  something becomes ready. Long stalls cost nothing to simulate, and every issue slot is still
+  accounted for.
+- **Blackwell and Hopper tensor cores as they actually work.** `tcgen05.mma` (UTC\*MMA) is
+  issued by one thread into an SM-wide queue, and `tcgen05.commit` arrives on an mbarrier when
+  the queued MMAs retire. Hopper HGMMA goes into a per-SMSP async queue waited on by
+  `WARPGROUP.DEPBAR`. TMA reserves bytes on an mbarrier transaction count and streams through
+  L2 and HBM, with cluster multicast.
+- **Fabric as a graph.** GPUs and switches form a topology. Transfers are chunked and reserve
+  every link on their ECMP path cut-through. Collectives are planned into DAGs (ring, NVLS
+  in-switch reduction, staggered direct all-to-all, broadcast, p2p) and reported as NCCL busbw.
+- **Parallel and deterministic.** One logical process per GPU plus one for the network,
+  advanced in conservative windows whose lookahead is the minimum GPU↔network latency (80 ns on
+  NVLink presets). Runs are bit-for-bit reproducible regardless of thread count.
+
+| crate | role |
+|---|---|
+| `rsim-core` | time base, event queues, conservative PDES |
+| `rsim-hw` | GPU, switch and topology specs, presets, calibration loader |
+| `rsim-sass` | SASS parser, control-bit decoder, opcode classifier (Volta through Blackwell) |
+| `rsim-gpu` | cycle-level SM, tensor cores, TMA, caches, HBM; synthetic GEMM/attention kernels |
+| `rsim-net` | NVLink / NVSwitch / InfiniBand fabric and NCCL-style collectives |
+| `rsim-rack` | workloads, rack runner, bubble reports, Perfetto output |
+| `rsim-cli` | the `rsim` binary |
+| `rsim-py` | Python bindings (`rackscale._native`) |
+
+---
+
+## Hardware calibration
+
+Every preset number carries a provenance tag: `spec`, `ubench`, `est` or `calibrated`. The
+[`calibration/`](calibration/README.md) suite measures a real GPU and writes
+`calibration/results/<gpu>/calibration.json` (schema `rackscale-calibration/v1`), which the
+simulator loads directly:
+
+```yaml
 gpus:
   - preset: b300
     count: 8
     calibration: calibration/results/b300-sxm6-ac-sm103/calibration.json
 ```
 
-### Exact and fast mode
+The suite covers ALU/FMA/MUFU/FP64/shuffle latency and issue rate (29 instructions), a
+pointer-chase sweep from 8 KB to 4 GB, L2 partition maps, shared-memory bank conflicts, DSMEM,
+HBM bandwidth vs active SMs, `mma.sync` and `tcgen05.mma` at every precision and shape, TMEM
+loads, TMA and `cp.async` latency and bandwidth, launch overhead and `__syncthreads`. It also
+records Nsight Compute reference kernels (SASS plus measured cycles and stall breakdown) as an
+end-to-end regression set. The field mapping is in [docs/CALIBRATION.md](docs/CALIBRATION.md).
 
-By default every GPU is co-simulated at cycle level. `fast=True` (`--fast`) simulates each
-distinct (kernel, free-SM) pair once on a cold GPU and reuses the result on every rank. On a
-symmetric workload this is 30× or more faster.
+Measured so far: B300 SXM6 (sm_103), A100 80GB PCIe (sm_80), and an A100 MIG 3g.40gb slice.
+The B300 data lands on `main` with the calibration merge, and the A100 data is on the
+`calibration-ampere` branch until its PR is merged.
 
-| DeepSeek-V3 decode, 4 layers, b32 | exact | fast |
-|---|---|---|
-| HGX B200 x8 (EP8) | 2109.9 us, 57 s | 2121.1 us (+0.5%) |
-| GB200 NVL72 (EP72) | 1712.3 us, 6.5 min | 1729.0 us (+1.0%), 12 s |
+---
 
-Fast mode ignores L2 reuse between kernels. It also treats concurrent kernels as sharing SMs in
-blocks rather than interleaving CTAs. Use exact mode when the question is about overlap.
+## What you can answer with this
 
-## Validation so far
+- Where does a decode step on NVL72 actually spend its time: weight streaming, attention,
+  all-to-all or launch gaps? Which of those bubbles go away with CUDA graphs?
+- Does DeepSeek-style two-micro-batch overlap pay off at my batch size, EP degree and fabric?
+- How much faster is the same model and parallelism on GB200 NVL72 than on HGX H100 or HGX
+  B200, and is the gain from compute, HBM or NVLink?
+- What happens to step time if NVLink bandwidth halves, the SM clock is power-capped, or L2
+  latency grows by 100 cycles?
+- How many SMs should a communication kernel reserve before it starts hurting compute?
+- For a specific kernel's SASS: which stall reason dominates, per warp and per cycle, and does
+  that change between Hopper and Blackwell?
+- In async RL with separate samplers and trainers, is the bottleneck rollout, training or
+  weight sync, and what does a faster interconnect buy?
+- Is wave quantisation or tail effect costing me a whole extra wave on 148 SMs?
 
-These are sanity checks against public numbers. They do not replace calibration
-(see [docs/CALIBRATION.md](docs/CALIBRATION.md)).
+---
 
-| Check | Simulated | Reference |
-|---|---|---|
-| H100 BF16 GEMM 4096³ | 676 TFLOPS (68% of peak) | cuBLAS ~600-750 |
-| B200 BF16 GEMM 8192³ | 1259 TFLOPS (56%) | early CUTLASS ~1.2-1.5 PF; tcgen05 timing uncalibrated |
-| H100 elementwise stream | 95% of HBM peak | ~90-93% |
-| H100 decode attention | ~89% of HBM | FlashDecoding ~85-90% |
-| HGX H100 ring all-reduce (large) | 340 GB/s busbw | nccl-tests ~360-370 |
-| GB200 NVL72 ring / NVLS all-reduce | 744 / 1462 GB/s | NVLS is optimistic (see limitations) |
-| NVL72 all-to-all | 764 GB/s | |
-| 2x HGX H100 over 400G IB | 340 GB/s (NVLink-bound ring) | |
+## How it compares
 
-Simulation speed is about 33M SM-cycles/s per core in exact mode.
+A rough guide to where rackscale sits relative to well-known open simulators, as we understand
+their public releases at the time of writing. Each of these tools is excellent at what it
+targets, and the comparison is about scope, not quality. Corrections are welcome.
 
-## Limitations
+| | rackscale | [Accel-Sim](https://accel-sim.github.io/) | [ASTRA-sim](https://astra-sim.github.io/) | [SimAI](https://github.com/aliyun/SimAI) |
+|---|---|---|---|---|
+| Primary scope | whole rack: every GPU's SMs + fabric | one GPU | distributed training systems | large-scale training clusters |
+| Compute model | cycle-level SM from SASS or synthetic kernels | cycle-level SM from SASS traces | analytical or trace-based per-op times | measured or analytical per-op times |
+| Network model | packet/chunk-level NVLink, NVSwitch (NVLS), IB | none | analytical, Garnet or ns-3 back ends | NCCL-level collectives over ns-3 |
+| Blackwell `tcgen05` / TMEM / TMA | yes | no | n/a | n/a |
+| Inference (decode, MoE EP, MLA) | yes | n/a | limited | limited |
+| Engine trace ingest | PyTorch profiler (vLLM, SGLang, training) | NVBit SASS traces | Chakra execution traces | its own workload generator |
+| Calibrated against | B300, A100 microbenchmarks | its own hardware validation suite | per-study | the authors' production clusters |
 
-These are the honest ones:
+rackscale can also consume Accel-Sim `.traceg` files as a kernel type, so the two can be used
+together.
 
-- **Parameters.** Hopper latencies come from microbenchmark papers. Blackwell `tcgen05`, TMEM and
-  L2 slicing are estimates until you load a calibration file. B300 has measured data in
-  `calibration/`. Every preset field carries a provenance tag (`spec`, `ubench`, `est`,
-  `calibrated`).
-- **No functional execution.** The SASS walker follows control flow using branch profiles (trip
-  counts and taken probabilities) and affine address generators. It does not compute register
-  values. Data-dependent control flow needs a trace (Accel-Sim/NVBit) or a profile.
-- **Synthetic kernels** follow CUTLASS/FA3/FA4 structure (warp roles, stages, barriers). They are
-  not bit-identical to vendor binaries. To study a specific binary, feed its SASS.
-- **Network.** There is no congestion control or adaptive routing. NVLS assumes ideal switch
-  reduction throughput, so it is optimistic. IB is modelled as lossless credit-free links.
-- **MoE routing** is balanced by default. Skew is expressed by giving `grouped_gemm` uneven `ms`.
+---
 
-## Layout
+## Status and roadmap
 
-```
-crates/
-  rsim-core   time, deterministic event queue, conservative PDES, Perfetto writer
-  rsim-hw     GPU/switch/link specs, presets, topology builder, calibration loader
-  rsim-sass   SASS parser, control bits, ISA classes, Accel-Sim traces, walker
-  rsim-gpu    SM / memory / GPU model, synthetic kernels
-  rsim-net    fabric, transport, collective algorithms
-  rsim-rack   workloads, rack runner, reports
-  rsim-cli    `rsim` binary
-  rsim-py     Python bindings (rackscale._native)
-python/rackscale   models, lowering, profiler capture, CLI
-configs/           example systems     examples/   runnable demos
-docs/              ARCHITECTURE, CALIBRATION, WORKLOAD_FORMAT, CAPTURE
-```
+**Working today (`main`)**
+
+- Cycle-level SM model for Hopper and Blackwell (HMMA, HGMMA, `tcgen05`, TMA, mbarriers)
+- Presets: H100, H200, B200, GB200, B300; HGX 8-GPU, GB200 NVL72, multi-node IB systems
+- NCCL-style collectives over NVLink/NVSwitch (including NVLS) and InfiniBand
+- Lowering for dense, GQA, MLA and MoE models (decode, prefill, training, async RL)
+- PyTorch-profiler trace capture, SASS and Accel-Sim trace kernels
+- Fast mode (within 1% of exact on the DeepSeek decode demos), per-SM Perfetto timelines
+- Calibration loader with measured B300 data
+
+**Next**
+
+- Wire the remaining B300 measurements: `tcgen05` round-trip and commit latency, near/far L2
+  partition latency, the TMA latency/size curve, HBM bandwidth vs active SMs
+- An Ampere (A100) preset driven by the measured A100 and MIG calibration
+- End-to-end regression of `rsim sass` against the Nsight Compute reference kernels
+- CUTLASS NVFP4 GEMM cross-check of the B300 FP4 ceiling
+- Hopper (H100/H200) calibration runs
+- NVLink / NVSwitch fabric calibration (the current suite is single-GPU)
+- TMEM stores and `tcgen05.cp`, multi-dimensional TMA tensor maps, sparse UMMA
+- The planned guides listed under [recipes](#more-guides-planned)
+
+---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The code is licensed under Apache-2.0.
+See [CONTRIBUTING.md](CONTRIBUTING.md). In short: `cargo fmt`, `cargo clippy -D warnings`,
+`cargo test --workspace --release`, `pytest`. Every hardware number needs a provenance tag,
+and determinism is a feature, so do not iterate a `HashMap` where order can affect timing.
+
+## Citation
+
+If you use rackscale in your work, please cite:
+
+```bibtex
+@software{rackscale2026,
+  author = {Shakya, Abiral},
+  title  = {rackscale: Cycle-Level Rack-Scale GPU Simulation from SASS to NVLink},
+  year   = {2026},
+  url    = {https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation}
+}
+```
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).
