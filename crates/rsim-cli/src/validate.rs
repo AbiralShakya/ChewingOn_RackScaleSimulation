@@ -58,7 +58,15 @@ fn solve_profile(p: &Program, warps: f64, inst_executed: f64) -> (BranchProfile,
 }
 
 fn simulate_done(gpu: &rsim_hw::GpuSpec, launch: KernelLaunch) -> Option<KernelDone> {
-    let mut g = Gpu::new(0, gpu.clone(), GpuConfig::default(), false);
+    let mut g = Gpu::new(
+        0,
+        gpu.clone(),
+        GpuConfig {
+            kernel_window: true,
+            ..Default::default()
+        },
+        false,
+    );
     g.submit(Arc::new(launch), 0, 0);
     let mut out = vec![];
     g.advance(u64::MAX / 2, &mut out);
