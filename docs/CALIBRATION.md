@@ -75,7 +75,7 @@ B300: 8 of 12 within 10%. A100: 8 of 11 within about 11% on both boards. What th
 - **umma_*** (−99.5%): the kernel picks its mode (latency vs throughput loop) and its issuing thread from runtime arguments, so the static walker takes the wrong path. Needs a `.rpath` recording of the throughput launch.
 - **dfma_latency_chain on A100** (−40%): a 7k-cycle kernel, so fixed launch and drain costs dominate. Not yet modelled at this granularity.
 - **l2_pointer_chase on A100** (+20-26%): the A100 near/far L2 split is applied, but the chase still runs slow. Open.
-- **ffma_throughput on B300** (−18%): open; the A100 version is within 1%.
+- **ffma_throughput on B300** (−18%): the simulated 67k cycles match ncu's `smsp__cycles_active.avg` (70k). The gap is about 12k cycles in which the SMs sit idle inside the kernel window. It is probably launch and shared-memory carveout cost (the kernel asks for 118 KB of dynamic smem), which the model does not have yet. The A100 version is within 1%.
 
 Two model fixes came out of the A100 data. `DEPBAR.LE SB0, N` (`cp.async.wait_group N`) now waits on LDGDEPBAR commit groups. CTAs now drain their async copies before retiring. Together these took cp_async_cg16_dram_stream from −76% to −3%. The FlashAttention-thread merge (HMMA rate from `sync_flops_per_cycle_per_sm`) took B300 hmma from −76% to +5%.
 
