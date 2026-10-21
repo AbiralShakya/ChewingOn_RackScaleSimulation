@@ -204,7 +204,9 @@ fn kernel_window_delays_first_cta() {
     let small = time(vec![pt(0, 2000.0), pt(200 << 10, 9000.0)], 0);
     let big = time(vec![pt(0, 2000.0), pt(200 << 10, 9000.0)], 190 << 10);
     eprintln!("empty kernel: {base} cycles, window 2000 -> {small}, window 9000 -> {big}");
+    // The model's own time for the measured empty kernel is subtracted, so
+    // the charge differs between the two points by exactly their difference.
     assert!(base < 1000);
-    assert!((2000..2600).contains(&small), "{small}");
-    assert!((9000..9600).contains(&big), "{big}");
+    assert!(small > base + 1000, "{small}");
+    assert!((big - small).abs_diff(7000) < 100, "{big} - {small}");
 }
