@@ -61,6 +61,30 @@ fn kernel(py: Python<'_>, gpu: &str, kind: &str, dims: Vec<u64>, dtype: &str) ->
         ),
         "elementwise" => rsim_gpu::synth::elementwise("elementwise", d(0)?, 2, 2.0, 1),
         "rownorm" => rsim_gpu::synth::row_norm("rmsnorm", d(0)?, d(1)?, 2.0),
+        "ssm_update" => {
+            rsim_gpu::synth_ssm::ssm_state_update(&g, d(0)?, d(1)?, d(2)?, d(3)?, d(4)?, 2.0)
+        }
+        "conv1d" => rsim_gpu::synth_ssm::conv1d(
+            &g,
+            d(0)?,
+            d(1)?,
+            d(2)?,
+            dims.get(3).copied().unwrap_or(4),
+        ),
+        s if s.starts_with("ssd_") => rsim_gpu::synth_ssm::ssd(
+            &g,
+            &s[4..],
+            rsim_gpu::synth_ssm::SsdShape {
+                batch: d(0)?,
+                seqlen: d(1)?,
+                heads: d(2)?,
+                headdim: d(3)?,
+                d_state: d(4)?,
+                groups: d(5)?,
+                chunk: dims.get(6).copied().unwrap_or(256),
+            },
+            None,
+        ),
         _ => return Err(PyValueError::new_err(format!("unknown kind {kind}"))),
     };
     let ghz = g.sm_clock_mhz / 1000.0;

@@ -83,8 +83,13 @@ def _attention_ops(m: Model, p: Parallel, batch: int, sq: int, skv: int, causal:
             _gemm(f"{tag}qkv_proj", t, (hq + 2 * hkv) * m.head_dim, h),
             _k(f"{tag}attention", type="attention", batch=batch, heads_q=hq, heads_kv=hkv, sq=sq, skv=skv, d=m.head_dim,
                causal=causal),
-            _gemm(f"{tag}o_proj", t, h, hq * m.head_dim),
         ]
+        if sq == 1:
+            # Split-KV decode (FA2/FA3/FA4) ends with a combine kernel over the
+            # fp32 partial outputs and log-sum-exps.
+            ops.append(_k(f"{tag}attn_combine", type="elementwise", n=batch * hq * m.head_dim * 4, inputs=1, elem_bytes=4.0,
+                          flops_per_elem=4))
+        ops.append(_gemm(f"{tag}o_proj", t, h, hq * m.head_dim))
     if tp > 1:
         ops.append(_coll("all_reduce", t * h * 2, f"block:{tp}", p.comm_sms, f"{tag}attn_allreduce"))
     ops.append(_k(f"{tag}residual", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
@@ -130,19 +135,92 @@ def _ffn_ops(m: Model, p: Parallel, layer: int, t: int, tag: str) -> List[dict]:
     return ops
 
 
+def _mamba2_ops(m: Model, p: Parallel, batch: int, sq: int, tag: str) -> List[dict]:
+    """Mamba-2 mixer block (state-spaces/mamba ``Mamba2``), heads split over TP.
+
+    Decode (``sq == 1``) is ``Mamba2.step``: in_proj, ``causal_conv1d_update``,
+    ``selective_state_update``, gated RMSNorm, out_proj. Prefill is
+    ``Mamba2.forward``: in_proj, ``causal_conv1d_fn``, the five Triton kernels of
+    ``mamba_chunk_scan_combined`` (SSD), gated RMSNorm, out_proj.
+    """
+    mb = m.mamba
+    tp = p.tp
+    t = batch * sq
+    h = m.hidden
+    heads = max(1, mb.nheads // tp)
+    groups = max(1, mb.ngroups // tp)
+    d_in = heads * mb.headdim
+    conv_dim = d_in + 2 * groups * mb.d_state
+    ops = [_k(f"{tag}input_norm", type="row_norm", rows=t, cols=h),
+           _gemm(f"{tag}in_proj", t, 2 * d_in + 2 * groups * mb.d_state + heads, h)]
+    ssm = dict(batch=batch, heads=heads, headdim=mb.headdim, d_state=mb.d_state, groups=groups)
+    ops.append(_k(f"{tag}conv1d", type="conv1d", batch=batch, dim=conv_dim, seqlen=sq, width=mb.d_conv))
+    if sq == 1:
+        extra = {"block_m": mb.state_block_m} if mb.state_block_m else {}
+        ops.append(_k(f"{tag}ssm_state_update", type="ssm_state_update", **ssm, **extra))
+    else:
+        for stage in ("chunk_cumsum", "chunk_state", "state_passing", "bmm_chunk", "chunk_scan"):
+            ops.append(_k(f"{tag}ssd_{stage}", type="ssd", stage=stage, seqlen=sq, chunk=mb.chunk, **ssm))
+    ops += [_k(f"{tag}gated_norm", type="row_norm", rows=t, cols=d_in),
+            _gemm(f"{tag}out_proj", t, h, d_in)]
+    if tp > 1:
+        ops.append(_coll("all_reduce", t * h * 2, f"block:{tp}", p.comm_sms, f"{tag}mamba_allreduce"))
+    ops.append(_k(f"{tag}residual", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
+    return ops
+
+
+def _mlp_ops(m: Model, p: Parallel, t: int, tag: str) -> List[dict]:
+    """Standalone MLP block (hybrid stacks): pre-norm, gate/up, act, down, residual."""
+    h = m.hidden
+    ffn = m.ffn // p.tp
+    ops = [_k(f"{tag}mlp_norm", type="row_norm", rows=t, cols=h),
+           _gemm(f"{tag}gate_up_proj", t, 2 * ffn, h),
+           _k(f"{tag}act_mul", type="elementwise", n=t * ffn, inputs=2, flops_per_elem=4),
+           _gemm(f"{tag}down_proj", t, h, ffn)]
+    if p.tp > 1:
+        ops.append(_coll("all_reduce", t * h * 2, f"block:{p.tp}", p.comm_sms, f"{tag}mlp_allreduce"))
+    ops.append(_k(f"{tag}mlp_residual", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
+    return ops
+
+
 def _layers(m: Model, p: Parallel, batch: int, sq: int, skv: int, causal: bool, tag: str = "") -> List[dict]:
     ops: List[dict] = []
     t = batch * sq
+    if m.blocks is not None:
+        for b in m.blocks:
+            if b == "M":
+                ops += _mamba2_ops(m, p, batch, sq, tag)
+            elif b == "A":
+                ops += _attention_ops(m, p, batch, sq, skv, causal, tag)
+            elif b == "F":
+                ops += _mlp_ops(m, p, t, tag)
+            else:
+                raise ValueError(f"unknown block {b!r} in {m.name}")
+        return ops
     for layer in range(m.layers):
         ops += _attention_ops(m, p, batch, sq, skv, causal, tag)
         ops += _ffn_ops(m, p, layer, t, tag)
     return ops
 
 
-def _model_flops(m: Model, tokens: int, skv: int, train: bool) -> float:
-    dense = 2.0 * m.active_params() * tokens
-    attn = 4.0 * m.layers * m.heads * m.head_dim * skv * tokens
-    return (3.0 if train else 1.0) * (dense + attn)
+def _model_flops(m: Model, tokens: int, skv: int, train: bool, lm_head: bool) -> float:
+    """Model FLOPs of the lowered work: matmuls over the active parameters,
+    attention score/value FLOPs at mean KV length ``skv``, the SSD scan, and the
+    LM head only when the workload contains one (prefill and training lower no
+    LM head, so counting it inflated their MFU)."""
+    dense = 2.0 * m.active_params(lm_head=lm_head) * tokens
+    attn = 4.0 * m.attn_layers() * m.heads * m.head_dim * skv * tokens
+    ssm = 0.0
+    if m.mamba is not None:
+        mb = m.mamba
+        n_m = m.block_list().count("M")
+        # Per token and head: state update + output contraction (decode), or
+        # chunk state + inter-chunk output + intra-chunk (C B^T) x (prefill).
+        per_head = 4.0 * mb.headdim * mb.d_state
+        if skv > 1:
+            per_head += 2.0 * mb.headdim * (mb.chunk / 2) + 2.0 * mb.d_state * (mb.chunk / 2) / max(1, mb.nheads // mb.ngroups)
+        ssm = n_m * mb.nheads * per_head * tokens
+    return (3.0 if train else 1.0) * (dense + attn + ssm)
 
 
 def decode_step(m: Model, p: Parallel, batch: int, context: int, *, overlap: bool = False,
@@ -163,7 +241,7 @@ def decode_step(m: Model, p: Parallel, batch: int, context: int, *, overlap: boo
     return {
         "name": f"{m.name} decode b{batch} ctx{context} {p}",
         "spmd": {"world": world, "program": {"streams": streams}},
-        "model_flops": _model_flops(m, batch * world // max(1, p.tp), context, False),
+        "model_flops": _model_flops(m, batch * world // max(1, p.tp), context, False, lm_head),
     }
 
 
@@ -175,7 +253,7 @@ def prefill(m: Model, p: Parallel, batch: int, seqlen: int, *, layers: Optional[
     return {
         "name": f"{m.name} prefill b{batch} s{seqlen} {p}",
         "spmd": {"world": world, "program": {"streams": [ops]}},
-        "model_flops": _model_flops(m, batch * seqlen * world // max(1, p.tp), seqlen // 2, False),
+        "model_flops": _model_flops(m, batch * seqlen * world // max(1, p.tp), seqlen // 2, False, lm_head=False),
     }
 
 
@@ -208,7 +286,7 @@ def train_step(m: Model, p: Parallel, micro_batch: int, seqlen: int, *, layers: 
     return {
         "name": f"{m.name} train mb{micro_batch} s{seqlen} {p}",
         "spmd": {"world": world, "program": {"streams": streams}},
-        "model_flops": _model_flops(m, t * world // max(1, p.tp), seqlen // 2, True),
+        "model_flops": _model_flops(m, t * world // max(1, p.tp), seqlen // 2, True, lm_head=False),
     }
 
 

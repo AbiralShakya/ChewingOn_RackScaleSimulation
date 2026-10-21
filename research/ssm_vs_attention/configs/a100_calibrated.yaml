@@ -1,0 +1,8 @@
+# A100 80GB PCIe with the SM model driven by the measured A100 calibration.
+# The HGX topology is a placeholder: single-GPU validation uses GPU0 only.
+preset: hgx_b200_8
+name: A100 80GB PCIe (calibrated)
+gpus:
+  - preset: a100_pcie
+    count: 8
+    calibration: calibration/results/a100-80gb-pcie-sm80/calibration.json

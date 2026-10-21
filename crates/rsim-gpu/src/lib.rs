@@ -29,6 +29,7 @@ pub mod pipes;
 pub mod sm;
 pub mod stats;
 pub mod synth;
+pub mod synth_ssm;
 
 pub use gpu::{dvfs_stretch, Gpu, GpuConfig, KernelDone, SchedPolicy};
 pub use kernel::{BarInit, BarOp, KernelLaunch, KernelSource, WarpRole};

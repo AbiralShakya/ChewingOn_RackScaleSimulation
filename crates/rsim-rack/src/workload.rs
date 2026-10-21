@@ -152,6 +152,44 @@ pub enum KernelSpec {
         #[serde(default = "two_f")]
         elem_bytes: f64,
     },
+    /// Causal depthwise conv1d + SiLU (Dao-AILab/causal-conv1d): the decode
+    /// update kernel when `seqlen == 1`, the channel-last forward otherwise.
+    Conv1d {
+        batch: u64,
+        dim: u64,
+        seqlen: u64,
+        #[serde(default = "four")]
+        width: u64,
+    },
+    /// Mamba-2 decode recurrence (`selective_state_update`).
+    SsmStateUpdate {
+        batch: u64,
+        heads: u64,
+        headdim: u64,
+        d_state: u64,
+        #[serde(default = "one_u64")]
+        groups: u64,
+        #[serde(default = "two_f")]
+        state_bytes: f64,
+        /// What-if: headdim rows per CTA (default: the kernel's own table).
+        #[serde(default)]
+        block_m: Option<u64>,
+    },
+    /// One kernel of the Mamba-2 SSD chunked scan (`mamba_chunk_scan_combined`):
+    /// `stage` is `chunk_cumsum`, `chunk_state`, `state_passing`, `bmm_chunk`
+    /// or `chunk_scan`.
+    Ssd {
+        stage: String,
+        batch: u64,
+        seqlen: u64,
+        heads: u64,
+        headdim: u64,
+        d_state: u64,
+        #[serde(default = "one_u64")]
+        groups: u64,
+        #[serde(default = "chunk")]
+        chunk: u64,
+    },
     /// Real SASS from `cuobjdump -sass` / `nvdisasm`.
     Sass {
         path: String,
@@ -200,6 +238,15 @@ fn one() -> u32 {
 }
 fn two_f() -> f64 {
     2.0
+}
+fn four() -> u64 {
+    4
+}
+fn one_u64() -> u64 {
+    1
+}
+fn chunk() -> u64 {
+    256
 }
 fn regs() -> u32 {
     32
