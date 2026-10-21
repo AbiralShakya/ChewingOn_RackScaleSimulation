@@ -411,7 +411,7 @@ void run_smem(Json& j, const DeviceInfo& d) {
   j.key("bank_conflict_sweep");
   j.arr();
   for (int stride : {1, 2, 4, 8, 16, 32, 33}) {
-    double span = per_sm_span([&] { smem_bw_kernel<<<cal_grid(d.sm_count), threads, smem>>>(iters, stride, out, sink); });
+    double span = per_sm_span([&] { smem_bw_kernel<<<cal_grid(d.sm_count), threads, smem>>>(cal_iters(iters), stride, out, sink); });
     double warp_loads = (threads / 32.0) * iters * 16;
     j.obj();
     j.kvi("stride_words", stride);
@@ -498,15 +498,18 @@ __global__ void l1_bw_kernel(const uint4* p, int reps, uint64_t* out, uint32_t* 
 }
 
 void run_bandwidth(Json& j, const DeviceInfo& d, double mhz) {
-  size_t bytes = cal_bytes(8ull << 30);
+  // The buffers stay full size (the L2 and per-SM sweeps below index into
+  // them); trace mode only shortens the HBM streams.
+  const size_t alloc = 8ull << 30;
+  size_t bytes = cal_bytes(alloc);
   uint4 *a, *b;
   uint32_t* sink;
   uint64_t* out;
-  CK(cudaMalloc(&a, bytes));
-  CK(cudaMalloc(&b, bytes));
+  CK(cudaMalloc(&a, alloc));
+  CK(cudaMalloc(&b, alloc));
   CK(cudaMalloc(&sink, 64));
   CK(cudaMalloc(&out, 8 * d.sm_count));
-  CK(cudaMemset(a, 1, bytes));
+  CK(cudaMemset(a, 1, alloc));
   size_t n = bytes / 16;
   int grid = cal_grid(d.sm_count * 4), blk = 1024;
 
@@ -603,9 +606,12 @@ int main(int argc, char** argv) {
   j.kvi("smem_per_block_optin_bytes", (long long)d.p.sharedMemPerBlockOptin);
   j.kvi("regs_per_sm", d.p.regsPerMultiprocessor);
   j.kvi("max_threads_per_sm", d.p.maxThreadsPerMultiProcessor);
-  run_smem(j, d);
-  run_bandwidth(j, d, mhz);
-  run_latency_sweep(j, d);
+  // CAL_SECTIONS=smem,bandwidth,latency runs a subset (trace mode).
+  const char* sec = getenv("CAL_SECTIONS");
+  auto want = [&](const char* s) { return !sec || strstr(sec, s); };
+  if (want("smem")) run_smem(j, d);
+  if (want("bandwidth")) run_bandwidth(j, d, mhz);
+  if (want("latency")) run_latency_sweep(j, d);
   j.end_obj();
   printf("%s\n", j.s.c_str());
   return 0;

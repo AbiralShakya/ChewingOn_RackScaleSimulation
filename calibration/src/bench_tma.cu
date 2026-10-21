@@ -136,11 +136,12 @@ int main() {
     if ((int)smem > max_smem) continue;
     CK(cudaFuncSetAttribute(tma_bw_kernel<STAGES>, cudaFuncAttributeMaxDynamicSharedMemorySize, max_smem));
     // Force one CTA per SM with the full opt-in smem.
-    size_t per_cta = big / d.sm_count / chunk * chunk;
-    tma_bw_kernel<STAGES><<<d.sm_count, 32, max_smem>>>(src, per_cta, chunk, out);
-    double ms = time_ms([&] { tma_bw_kernel<STAGES><<<d.sm_count, 32, max_smem>>>(src, per_cta, chunk, out); }, 3);
-    std::vector<uint64_t> h(d.sm_count);
-    CK(cudaMemcpy(h.data(), out, 8 * d.sm_count, cudaMemcpyDeviceToHost));
+    int grid = cal_grid(d.sm_count);
+    size_t per_cta = cal_bytes(big) / grid / chunk * chunk;
+    tma_bw_kernel<STAGES><<<grid, 32, max_smem>>>(src, per_cta, chunk, out);
+    double ms = time_ms([&] { tma_bw_kernel<STAGES><<<grid, 32, max_smem>>>(src, per_cta, chunk, out); }, 3);
+    std::vector<uint64_t> h(grid);
+    CK(cudaMemcpy(h.data(), out, 8 * grid, cudaMemcpyDeviceToHost));
     double med = median(std::vector<double>(h.begin(), h.end()));
     // single SM, same pipeline, 256 MB
     size_t one = 256ull << 20;
@@ -151,13 +152,13 @@ int main() {
     j.obj();
     j.kvi("chunk_bytes", chunk);
     j.kvi("stages", STAGES);
-    j.kv("allsm_GBps", per_cta * d.sm_count / ms / 1e6);
+    j.kv("allsm_GBps", per_cta * grid / ms / 1e6);
     j.kv("allsm_bytes_per_clk_per_sm", per_cta / med);
     j.kv("one_sm_bytes_per_clk", one / (double)c1);
     j.kv("one_sm_GBps", one / (double)c1 * mhz / 1e3);
     j.end_obj();
     fprintf(stderr, "bulk copy bw chunk %5u x%d: all-SM %.0f GB/s (%.1f B/clk/SM), one SM %.1f B/clk\n", chunk, STAGES,
-            per_cta * d.sm_count / ms / 1e6, per_cta / med, one / (double)c1);
+            per_cta * grid / ms / 1e6, per_cta / med, one / (double)c1);
   }
   j.end_arr();
   j.end_obj();
