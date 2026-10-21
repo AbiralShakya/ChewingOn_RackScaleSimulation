@@ -85,7 +85,14 @@ fn within(mut st: Stream, footprint: u64) -> Stream {
 /// A per-(chunk, head)-block operand shared by the `share` consecutive CTAs
 /// of the output-tile grid dimension (`cta_div`), optionally repeating every
 /// `period` blocks (`cta_mod`, e.g. one chunk's `C B^T` for every head).
-fn blocked(bytes: u64, base: u64, block_bytes: u64, share: u64, period: u64, iter_stride: i64) -> Stream {
+fn blocked(
+    bytes: u64,
+    base: u64,
+    block_bytes: u64,
+    share: u64,
+    period: u64,
+    iter_stride: i64,
+) -> Stream {
     Stream {
         bytes,
         addr: AddrGen {
@@ -185,7 +192,11 @@ impl TileKernel {
                         ..st.addr
                     },
                 );
-                r = if r >= first_reg + 12 { first_reg } else { r + 4 };
+                r = if r >= first_reg + 12 {
+                    first_reg
+                } else {
+                    r + 4
+                };
             }
         }
     }
@@ -243,7 +254,10 @@ impl TileKernel {
             }
             DotPath::Tcgen05 => {
                 if self.restage_bytes > 0 {
-                    a.ops("STS.128 [R7], R24", self.vec_insts(self.restage_bytes) as usize);
+                    a.ops(
+                        "STS.128 [R7], R24",
+                        self.vec_insts(self.restage_bytes) as usize,
+                    );
                     a.op("FENCE.VIEW.ASYNC.S");
                     a.op("BAR.SYNC.DEFER_BLOCKING 0x0");
                 }
@@ -364,7 +378,13 @@ impl TileKernel {
 const SSU_SM103: &str = include_str!("../sass/selective_state_update_sm103.sass");
 const SSU_SM80: &str = include_str!("../sass/selective_state_update_sm80.sass");
 
-fn state_update_real_sass(g: &GpuSpec, batch: u64, heads: u64, headdim: u64, d_state: u64) -> Option<KernelLaunch> {
+fn state_update_real_sass(
+    g: &GpuSpec,
+    batch: u64,
+    heads: u64,
+    headdim: u64,
+    d_state: u64,
+) -> Option<KernelLaunch> {
     if d_state != 128 {
         return None;
     }
@@ -387,7 +407,13 @@ fn state_update_real_sass(g: &GpuSpec, batch: u64, heads: u64, headdim: u64, d_s
         }
         let g = if m.width == 8 {
             // The recurrent state: 8 B (4 x bf16) per thread, 1 KB per CTA.
-            AddrGen { base: region(40), cta_stride: state_cta, lane_stride: 8, warp_stride: 256, ..Default::default() }
+            AddrGen {
+                base: region(40),
+                cta_stride: state_cta,
+                lane_stride: 8,
+                warp_stride: 256,
+                ..Default::default()
+            }
         } else {
             // dt, dt_bias, A, B, C, D, x, z, out: small per-(sequence, head) vectors.
             small += 1;
@@ -432,7 +458,16 @@ pub fn ssm_state_update(
     groups: u64,
     state_bytes: f64,
 ) -> KernelLaunch {
-    ssm_state_update_tiled(_g, batch, heads, headdim, d_state, groups, state_bytes, None)
+    ssm_state_update_tiled(
+        _g,
+        batch,
+        heads,
+        headdim,
+        d_state,
+        groups,
+        state_bytes,
+        None,
+    )
 }
 
 /// [`ssm_state_update`] with an optional `BLOCK_SIZE_M` override: `Some(m)`
@@ -509,7 +544,7 @@ pub fn ssm_state_update_tiled(
     a.ops("IADD3 R3, P0, R2, UR8, RZ", 6);
     // All loads issue up front (Triton hoists them); consumers follow.
     for i in 0..n_st {
-        let pc = a.op(&format!("LDG.E.{} R{}, desc[UR4][R2.64]", st_op.replace("U16", "U16"), 8 + 4 * i));
+        let pc = a.op(&format!("LDG.E.{} R{}, desc[UR4][R2.64]", st_op, 8 + 4 * i));
         a.addr(
             pc,
             AddrGen {
@@ -519,14 +554,32 @@ pub fn ssm_state_update_tiled(
         );
     }
     for (op, g) in [
-        ("LDG.E R20, desc[UR4][R4.64]", AddrGen { base: region(41), ..Default::default() }), // dt (tied)
-        ("LDG.E R21, desc[UR4][R4.64]", AddrGen { base: region(42), ..Default::default() }), // dt_bias
-        ("LDG.E R22, desc[UR4][R4.64]", AddrGen { base: region(43), ..Default::default() }), // A
-        ("LDG.E.64 R24, desc[UR4][R6.64]", bc(region(44))),                                   // B
-        ("LDG.E.64 R26, desc[UR4][R6.64]", bc(region(45))),                                   // C
-        ("LDG.E.U16 R28, desc[UR4][R4.64]", per_row(region(46), 2)),                         // x
-        ("LDG.E R29, desc[UR4][R4.64]", per_row(region(47), 4)),                             // D
-        ("LDG.E.U16 R30, desc[UR4][R4.64]", per_row(region(48), 2)),                         // z
+        (
+            "LDG.E R20, desc[UR4][R4.64]",
+            AddrGen {
+                base: region(41),
+                ..Default::default()
+            },
+        ), // dt (tied)
+        (
+            "LDG.E R21, desc[UR4][R4.64]",
+            AddrGen {
+                base: region(42),
+                ..Default::default()
+            },
+        ), // dt_bias
+        (
+            "LDG.E R22, desc[UR4][R4.64]",
+            AddrGen {
+                base: region(43),
+                ..Default::default()
+            },
+        ), // A
+        ("LDG.E.64 R24, desc[UR4][R6.64]", bc(region(44))), // B
+        ("LDG.E.64 R26, desc[UR4][R6.64]", bc(region(45))), // C
+        ("LDG.E.U16 R28, desc[UR4][R4.64]", per_row(region(46), 2)), // x
+        ("LDG.E R29, desc[UR4][R4.64]", per_row(region(47), 4)), // D
+        ("LDG.E.U16 R30, desc[UR4][R4.64]", per_row(region(48), 2)), // z
     ] {
         let pc = a.op(op);
         a.addr(pc, g);
@@ -627,9 +680,21 @@ pub fn conv1d(_g: &GpuSpec, batch: u64, dim: u64, seqlen: u64, width: u64) -> Ke
             ..Default::default()
         };
         let pc = a.op("LDG.E.64 R8, desc[UR4][R4.64]"); // weight row
-        a.addr(pc, AddrGen { cta_mod: dim.div_ceil(threads), ..ch(region(50), (width * 2) as i64) });
+        a.addr(
+            pc,
+            AddrGen {
+                cta_mod: dim.div_ceil(threads),
+                ..ch(region(50), (width * 2) as i64)
+            },
+        );
         let pc = a.op("LDG.E.U16 R12, desc[UR4][R4.64]"); // bias
-        a.addr(pc, AddrGen { cta_mod: dim.div_ceil(threads), ..ch(region(51), 2) });
+        a.addr(
+            pc,
+            AddrGen {
+                cta_mod: dim.div_ceil(threads),
+                ..ch(region(51), 2)
+            },
+        );
         for i in 0..(w - 1) {
             let pc = a.op(&format!("LDG.E.U16 R{}, desc[UR4][R4.64]", 13 + i));
             a.addr(pc, ch(region(52) + 2 * i as u64, ((width - 1) * 2) as i64));
@@ -686,7 +751,13 @@ pub fn conv1d(_g: &GpuSpec, batch: u64, dim: u64, seqlen: u64, width: u64) -> Ke
         a.addr(pc, vec(region(55) + i * 16 * threads, tile_out as i64));
     }
     let pc = a.op("LDG.E.128 R16, desc[UR4][R6.64]"); // weights for my channels
-    a.addr(pc, AddrGen { footprint: dim * width * 2, ..vec(region(56), 0) });
+    a.addr(
+        pc,
+        AddrGen {
+            footprint: dim * width * 2,
+            ..vec(region(56), 0)
+        },
+    );
     a.ops("STS.128 [R5], R8", n_ld as usize);
     a.op("BAR.SYNC.DEFER_BLOCKING 0x0");
     let outs = (tl * tc / threads) as usize; // outputs per thread
@@ -758,7 +829,13 @@ impl SsdShape {
 /// 64, chunk 256: on sm_103 every `tl.dot` stage picks a 2-warp 64x32 tile;
 /// on sm_80 `chunk_state` takes 64x64 and `bmm_chunk` the 8-warp 128x256.
 fn ssd_tiles(g: &GpuSpec, stage: &str) -> SsdTiles {
-    let t = |bm, bn, bk, warps, stages| SsdTiles { bm, bn, bk, warps, stages };
+    let t = |bm, bn, bk, warps, stages| SsdTiles {
+        bm,
+        bn,
+        bk,
+        warps,
+        stages,
+    };
     match (g.arch, stage) {
         (Arch::Ampere, "chunk_state") => t(64, 64, 32, 2, 4),
         (Arch::Ampere, "bmm_chunk") => t(128, 256, 64, 8, 3),
@@ -778,7 +855,12 @@ pub fn ssd(g: &GpuSpec, stage: &str, s: SsdShape, tiles: Option<SsdTiles>) -> Ke
             // grid (batch, nchunks, heads / BLOCK_H), tile [BLOCK_H, chunk];
             // the autotuner picks BLOCK_H = 64 on both GPUs.
             let bh = 64u64.min(h);
-            let mut k = TileKernel::new(format!("ssd_chunk_cumsum_{tag}"), s.bc() * h.div_ceil(bh), 4, path);
+            let mut k = TileKernel::new(
+                format!("ssd_chunk_cumsum_{tag}"),
+                s.bc() * h.div_ceil(bh),
+                4,
+                path,
+            );
             let elems = (bh * cs).div_ceil(k.threads()) as usize;
             k.pre_loads = vec![stream(bh * cs * 2, region(60), (bh * cs * 2) as i64, 0)];
             k.pre_alu = vec![
@@ -808,20 +890,44 @@ pub fn ssd(g: &GpuSpec, stage: &str, s: SsdShape, tiles: Option<SsdTiles>) -> Ke
         }
         "chunk_state" => {
             // states[b, c, h] (P x N, fp32) = x^T (B * exp(dA_last - dA) * dt), K = chunk.
-            let t = tiles.unwrap_or(SsdTiles { bm: 64, bn: 128, bk: 32, warps: 4, stages: 4 });
+            let t = tiles.unwrap_or(SsdTiles {
+                bm: 64,
+                bn: 128,
+                bk: 32,
+                warps: 4,
+                stages: 4,
+            });
             let tiles_mn = p.div_ceil(t.bm) * n.div_ceil(t.bn);
-            let mut k = TileKernel::new(format!("ssd_chunk_state_{tag}"), tiles_mn * s.bc() * h, t.warps, path);
+            let mut k = TileKernel::new(
+                format!("ssd_chunk_state_{tag}"),
+                tiles_mn * s.bc() * h,
+                t.warps,
+                path,
+            );
             k.stages = t.stages;
             k.k_iters = cs.div_ceil(t.bk);
             let x_it = t.bm * t.bk * 2;
             let b_it = t.bk * t.bn * 2;
-            let (x_fp, bc_fp, da_fp) = (s.batch * s.seqlen * h * p * 2, s.batch * s.seqlen * s.groups * n * 2, s.batch * s.seqlen * h * 8);
+            let (x_fp, bc_fp, da_fp) = (
+                s.batch * s.seqlen * h * p * 2,
+                s.batch * s.seqlen * s.groups * n * 2,
+                s.batch * s.seqlen * h * 8,
+            );
             k.iter_loads = vec![
                 // CTA = tile + tiles_mn * (b*c + BC * head): x per (chunk, head),
                 // B per chunk (shared by the heads of a group).
-                within(blocked(x_it, region(63), cs * t.bm * 2, tiles_mn, 0, x_it as i64), x_fp),
-                within(blocked(b_it, region(64), cs * n * 2, tiles_mn, s.bc(), b_it as i64), bc_fp),
-                within(blocked(t.bk * 8, region(65), cs * 8, tiles_mn, 0, (t.bk * 8) as i64), da_fp),
+                within(
+                    blocked(x_it, region(63), cs * t.bm * 2, tiles_mn, 0, x_it as i64),
+                    x_fp,
+                ),
+                within(
+                    blocked(b_it, region(64), cs * n * 2, tiles_mn, s.bc(), b_it as i64),
+                    bc_fp,
+                ),
+                within(
+                    blocked(t.bk * 8, region(65), cs * 8, tiles_mn, 0, (t.bk * 8) as i64),
+                    da_fp,
+                ),
             ];
             let per_thr = (t.bk * t.bn).div_ceil(k.threads()) as usize;
             k.iter_alu = vec![
@@ -840,21 +946,35 @@ pub fn ssd(g: &GpuSpec, stage: &str, s: SsdShape, tiles: Option<SsdTiles>) -> Ke
             k.restage_bytes = b_it;
             k.mma = Some((t.bm, t.bn, t.bk));
             k.pre_loads = vec![stream(64, region(66), 0, 0)];
-            k.out = vec![stream(t.bm * t.bn * 4, region(67), (t.bm * t.bn * 4) as i64, 0)];
+            k.out = vec![stream(
+                t.bm * t.bn * 4,
+                region(67),
+                (t.bm * t.bn * 4) as i64,
+                0,
+            )];
             k.flops = 2.0 * (s.bc() * h * p * n * cs) as f64;
-            k.bytes = (s.batch * s.seqlen * (h * p + s.groups * n) * 2) as f64 + (s.bc() * h * p * n * 4) as f64;
+            k.bytes = (s.batch * s.seqlen * (h * p + s.groups * n) * 2) as f64
+                + (s.bc() * h * p * n * 4) as f64;
             k.build()
         }
         "state_passing" => {
             // grid (P*N / BLOCK, batch, heads); sequential over chunks.
             let dim = p * n;
             let block = 1024u64.min(dim);
-            let mut k = TileKernel::new(format!("ssd_state_passing_{tag}"), dim.div_ceil(block) * s.batch * h, 4, path);
+            let mut k = TileKernel::new(
+                format!("ssd_state_passing_{tag}"),
+                dim.div_ceil(block) * s.batch * h,
+                4,
+                path,
+            );
             k.direct = true;
             k.k_iters = s.nchunks();
             let it = block * 4;
             let chunk_stride = (h * dim * 4) as i64;
-            k.iter_loads = vec![stream(it, region(68), it as i64, chunk_stride), stream(16, region(69), 0, 4)];
+            k.iter_loads = vec![
+                stream(it, region(68), it as i64, chunk_stride),
+                stream(16, region(69), 0, 4),
+            ];
             let e = block.div_ceil(k.threads()) as usize;
             k.iter_alu = vec![
                 ("FMUL R30, R28, 1.4426950216293334961", 1),
@@ -870,36 +990,73 @@ pub fn ssd(g: &GpuSpec, stage: &str, s: SsdShape, tiles: Option<SsdTiles>) -> Ke
         }
         "bmm_chunk" => {
             // CB[b, c, g] (chunk x chunk, fp32) = C B^T, K = d_state; causal tiles above the diagonal exit.
-            let t = tiles.unwrap_or(SsdTiles { bm: 64, bn: 64, bk: 32, warps: 4, stages: 4 });
+            let t = tiles.unwrap_or(SsdTiles {
+                bm: 64,
+                bn: 64,
+                bk: 32,
+                warps: 4,
+                stages: 4,
+            });
             let tm = cs.div_ceil(t.bm);
             let tn = cs.div_ceil(t.bn);
-            let mut k = TileKernel::new(format!("ssd_bmm_chunk_{tag}"), tm * tn * s.bc() * s.groups, t.warps, path);
+            let mut k = TileKernel::new(
+                format!("ssd_bmm_chunk_{tag}"),
+                tm * tn * s.bc() * s.groups,
+                t.warps,
+                path,
+            );
             k.stages = t.stages;
             k.k_iters = n.div_ceil(t.bk);
             let a_it = t.bm * t.bk * 2;
             let b_it = t.bn * t.bk * 2;
             k.iter_loads = vec![
-                within(blocked(a_it, region(71), cs * n * 2, tm * tn, 0, a_it as i64), s.batch * s.seqlen * s.groups * n * 2),
-                within(blocked(b_it, region(72), cs * n * 2, tm * tn, 0, b_it as i64), s.batch * s.seqlen * s.groups * n * 2),
+                within(
+                    blocked(a_it, region(71), cs * n * 2, tm * tn, 0, a_it as i64),
+                    s.batch * s.seqlen * s.groups * n * 2,
+                ),
+                within(
+                    blocked(b_it, region(72), cs * n * 2, tm * tn, 0, b_it as i64),
+                    s.batch * s.seqlen * s.groups * n * 2,
+                ),
             ];
             k.mma = Some((t.bm, t.bn, t.bk));
             // ncu: ~950 (sm_103) to ~1500 (sm_80) instructions per warp.
-            k.iter_alu = vec![("IMAD {r}, {r}, UR8, R2", 160), ("ISETP.GE.AND P3, PT, {r}, UR9, PT", 20)];
+            k.iter_alu = vec![
+                ("IMAD {r}, {r}, UR8, R2", 160),
+                ("ISETP.GE.AND P3, PT, {r}, UR9, PT", 20),
+            ];
             let above = (0..tm)
                 .map(|i| (0..tn).filter(|&j| j * t.bn >= (i + 1) * t.bm).count() as u64)
                 .sum::<u64>();
             k.early_exit = above as f64 / (tm * tn) as f64;
-            k.out = vec![stream(t.bm * t.bn * 4, region(73), (t.bm * t.bn * 4) as i64, 0)];
+            k.out = vec![stream(
+                t.bm * t.bn * 4,
+                region(73),
+                (t.bm * t.bn * 4) as i64,
+                0,
+            )];
             k.flops = (s.bc() * s.groups * cs * (cs + 1)) as f64 * n as f64;
-            k.bytes = (s.batch * s.seqlen * s.groups * n * 4) as f64 + (s.bc() * s.groups * cs * cs * 4) as f64 / 2.0;
+            k.bytes = (s.batch * s.seqlen * s.groups * n * 4) as f64
+                + (s.bc() * s.groups * cs * cs * 4) as f64 / 2.0;
             k.build()
         }
         "chunk_scan" => {
             // out[b, c, h] (chunk x P) = (CB * exp(dA_i - dA_j) * dt_j, masked) x + C states^T * exp(dA_i).
-            let t = tiles.unwrap_or(SsdTiles { bm: 64, bn: 64, bk: 32, warps: 4, stages: 2 });
+            let t = tiles.unwrap_or(SsdTiles {
+                bm: 64,
+                bn: 64,
+                bk: 32,
+                warps: 4,
+                stages: 2,
+            });
             let tm = cs.div_ceil(t.bm);
             let tiles_mn = tm * p.div_ceil(t.bn);
-            let mut k = TileKernel::new(format!("ssd_chunk_scan_{tag}"), tiles_mn * s.bc() * h, t.warps, path);
+            let mut k = TileKernel::new(
+                format!("ssd_chunk_scan_{tag}"),
+                tiles_mn * s.bc() * h,
+                t.warps,
+                path,
+            );
             k.stages = t.stages;
             // Inter-chunk term (K = d_state) + causal intra-chunk term: the
             // m-th row block runs (m + 1) * bm / bk iterations; use the mean.
@@ -910,9 +1067,25 @@ pub fn ssd(g: &GpuSpec, stage: &str, s: SsdShape, tiles: Option<SsdTiles>) -> Ke
             k.iter_loads = vec![
                 // CTA = tile + tiles_mn * (b*c + BC * head): C B^T per chunk
                 // (re-read by every head), x and dA per (chunk, head).
-                within(blocked(cb_it, region(74), cs * cs * 4, tiles_mn, s.bc(), cb_it as i64), s.bc() * s.groups * cs * cs * 4),
-                within(blocked(x_it, region(75), cs * p * 2, tiles_mn, 0, x_it as i64), s.batch * s.seqlen * h * p * 2),
-                within(blocked(t.bk * 8, region(76), cs * 8, tiles_mn, 0, (t.bk * 8) as i64), s.batch * s.seqlen * h * 8),
+                within(
+                    blocked(
+                        cb_it,
+                        region(74),
+                        cs * cs * 4,
+                        tiles_mn,
+                        s.bc(),
+                        cb_it as i64,
+                    ),
+                    s.bc() * s.groups * cs * cs * 4,
+                ),
+                within(
+                    blocked(x_it, region(75), cs * p * 2, tiles_mn, 0, x_it as i64),
+                    s.batch * s.seqlen * h * p * 2,
+                ),
+                within(
+                    blocked(t.bk * 8, region(76), cs * 8, tiles_mn, 0, (t.bk * 8) as i64),
+                    s.batch * s.seqlen * h * 8,
+                ),
             ];
             let per_thr = (t.bm * t.bk).div_ceil(k.threads()) as usize;
             k.iter_alu = vec![
@@ -928,7 +1101,10 @@ pub fn ssd(g: &GpuSpec, stage: &str, s: SsdShape, tiles: Option<SsdTiles>) -> Ke
             k.restage_bytes = t.bm * t.bk * 2;
             k.mma = Some((t.bm, t.bn, t.bk));
             // Previous chunk's state (P x N fp32) for the inter-chunk term.
-            k.pre_loads = vec![within(blocked(t.bn * n * 4, region(77), p * n * 4, tiles_mn, 0, 0), s.bc() * h * p * n * 4)];
+            k.pre_loads = vec![within(
+                blocked(t.bn * n * 4, region(77), p * n * 4, tiles_mn, 0, 0),
+                s.bc() * h * p * n * 4,
+            )];
             let out_e = (t.bm * t.bn).div_ceil(k.threads()) as usize;
             k.epi_loads = vec![
                 stream(t.bm * t.bn * 2, region(78), (t.bm * t.bn * 2) as i64, 0),
@@ -944,7 +1120,12 @@ pub fn ssd(g: &GpuSpec, stage: &str, s: SsdShape, tiles: Option<SsdTiles>) -> Ke
                 ("FMUL {r}, {r}, {r}", out_e),
                 ("F2FP.BF16.F32.PACK_AB {r}, {r}, {r}", out_e.div_ceil(2)),
             ];
-            k.out = vec![stream(t.bm * t.bn * 2, region(80), (t.bm * t.bn * 2) as i64, 0)];
+            k.out = vec![stream(
+                t.bm * t.bn * 2,
+                region(80),
+                (t.bm * t.bn * 2) as i64,
+                0,
+            )];
             k.flops = 2.0 * (s.bc() * h * p) as f64 * (cs * (cs + 1) / 2 + cs * n) as f64;
             k.bytes = (s.batch * s.seqlen * h * p * 2 * 3) as f64
                 + (s.bc() * s.groups * cs * cs * 4) as f64 / 2.0
@@ -976,13 +1157,23 @@ pub fn attention_fa2(
     let group = (heads_q / heads_kv.max(1)).max(1);
     let decode = sq * group <= 64 && sq <= 16;
     let warps = 4u64;
-    let (bm, bn) = if decode { (64u64, 128u64) } else if d <= 64 { (128, 128) } else { (128, 64) };
+    let (bm, bn) = if decode {
+        (64u64, 128u64)
+    } else if d <= 64 {
+        (128, 128)
+    } else {
+        (128, 64)
+    };
     let rows_total = if decode {
         batch * heads_kv * (sq * group).div_ceil(bm)
     } else {
         batch * heads_q * sq.div_ceil(bm)
     };
-    let eff_kv = if causal && !decode { skv.div_ceil(2) } else { skv };
+    let eff_kv = if causal && !decode {
+        skv.div_ceil(2)
+    } else {
+        skv
+    };
     let kv_iters = eff_kv.div_ceil(bn).max(1);
     let splits = if decode {
         ((g.sm_count as u64 * 2) / rows_total.max(1)).clamp(1, kv_iters.min(128))
@@ -1032,15 +1223,29 @@ pub fn attention_fa2(
     alu.push(("FFMA {r}, {r}, R42, -R40", s_elems));
     alu.push(("MUFU.EX2 {r}, {r}", s_elems));
     alu.push(("FADD {r}, {r}, R43", s_elems / 2));
-    alu.push(("FMUL {r}, {r}, R45", (bm * d).div_ceil(k.threads()) as usize));
+    alu.push((
+        "FMUL {r}, {r}, R45",
+        (bm * d).div_ceil(k.threads()) as usize,
+    ));
     alu.push(("F2FP.BF16.F32.PACK_AB {r}, {r}, {r}", s_elems / 2));
     alu.push(("LDSM.16.M88.4.TRANS R8, [R6]", ldsm / 2));
     alu.push(("@HMMA_O", hmma_o));
     k.iter_alu = alu;
     k.pre_loads = vec![stream(bm * d * 2, region(81), (bm * d * 2) as i64, 0)];
-    k.epi_alu = vec![("MUFU.RCP R46, R43", 1), ("FMUL {r}, {r}, R46", (bm * d).div_ceil(k.threads()) as usize)];
+    k.epi_alu = vec![
+        ("MUFU.RCP R46, R43", 1),
+        (
+            "FMUL {r}, {r}, R46",
+            (bm * d).div_ceil(k.threads()) as usize,
+        ),
+    ];
     let out_bytes = if decode && splits > 1 { 4 } else { 2 };
-    k.out = vec![stream(bm * d * out_bytes, region(5), (bm * d * out_bytes) as i64, 0)];
+    k.out = vec![stream(
+        bm * d * out_bytes,
+        region(5),
+        (bm * d * out_bytes) as i64,
+        0,
+    )];
     k.regs = 255;
     k.dt = dt;
     k.flops = 4.0 * (batch * heads_q * sq * eff_kv * d) as f64;
@@ -1058,7 +1263,15 @@ mod tests {
 
     #[test]
     fn ssm_programs_build_and_fit() {
-        let s = SsdShape { batch: 1, seqlen: 4096, heads: 128, headdim: 64, d_state: 128, groups: 8, chunk: 256 };
+        let s = SsdShape {
+            batch: 1,
+            seqlen: 4096,
+            heads: 128,
+            headdim: 64,
+            d_state: 128,
+            groups: 8,
+            chunk: 256,
+        };
         for g in [presets::a100_pcie(), presets::h100_sxm(), presets::b300()] {
             let mut ks = vec![
                 ssm_state_update(&g, 8, 128, 64, 128, 8, 2.0),
@@ -1067,12 +1280,23 @@ mod tests {
                 attention_fa2(&g, 8, 32, 8, 1, 4096, 128, false),
                 attention_fa2(&g, 1, 32, 8, 4096, 4096, 128, true),
             ];
-            for st in ["chunk_cumsum", "chunk_state", "state_passing", "bmm_chunk", "chunk_scan"] {
+            for st in [
+                "chunk_cumsum",
+                "chunk_state",
+                "state_passing",
+                "bmm_chunk",
+                "chunk_scan",
+            ] {
                 ks.push(ssd(&g, st, s, None));
             }
             for k in ks {
                 assert!(k.num_ctas() > 0, "{}", k.name);
-                assert!(crate::sm::Sm::occupancy(&g, &k) >= 1, "{} does not fit on {}", k.name, g.name);
+                assert!(
+                    crate::sm::Sm::occupancy(&g, &k) >= 1,
+                    "{} does not fit on {}",
+                    k.name,
+                    g.name
+                );
             }
         }
     }

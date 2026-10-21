@@ -80,12 +80,15 @@ fn run_clock_mhz(k: &Value) -> Option<f64> {
     (ns > 100e3).then(|| cycles / ns * 1e3)
 }
 
-pub fn run(reference: &Path, base: &rsim_hw::GpuSpec) -> Result<Vec<Row>> {
+pub fn run(reference: &Path, base: &rsim_hw::GpuSpec, only: &[String]) -> Result<Vec<Row>> {
     let doc: Value = serde_json::from_str(&std::fs::read_to_string(reference)?)?;
     let dir = reference.parent().unwrap_or(Path::new("."));
     let mut rows = Vec::new();
     for k in doc["kernels"].as_array().context("no `kernels` array")? {
         let label = k["label"].as_str().unwrap_or("?").to_string();
+        if !only.is_empty() && !only.contains(&label) {
+            continue;
+        }
         let mut gpu = base.clone();
         if let Some(mhz) = run_clock_mhz(k) {
             gpu.sm_clock_mhz = mhz;

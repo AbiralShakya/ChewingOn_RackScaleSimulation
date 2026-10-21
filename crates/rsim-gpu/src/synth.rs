@@ -315,7 +315,12 @@ fn hopper_consumer(
 fn softmax_body(a: &mut Asm, elems: u64) {
     let e = elems as usize;
     for i in 0..(e / 2) {
-        a.op(&format!("FMNMX R{}, R{}, R{}, !PT", 40 + i % 4, 100 + (2 * i) % 32, 40 + i % 4));
+        a.op(&format!(
+            "FMNMX R{}, R{}, R{}, !PT",
+            40 + i % 4,
+            100 + (2 * i) % 32,
+            40 + i % 4
+        ));
     }
     a.op("FMNMX R40, R40, R41, !PT");
     a.op("FMNMX R42, R42, R43, !PT");
@@ -327,7 +332,12 @@ fn softmax_body(a: &mut Asm, elems: u64) {
     a.ops("FFMA {r}, {r}, R44, -R40", e);
     a.ops("MUFU.EX2 {r}, {r}", e);
     for i in 0..(e / 2) {
-        a.op(&format!("FADD R{}, R{}, R{}", 48 + i % 4, 100 + (2 * i) % 32, 48 + i % 4));
+        a.op(&format!(
+            "FADD R{}, R{}, R{}",
+            48 + i % 4,
+            100 + (2 * i) % 32,
+            48 + i % 4
+        ));
     }
     a.op("FMUL R45, R45, R46");
     a.ops("F2FP.BF16.F32.PACK_AB {r}, {r}, {r}", e / 2);
@@ -525,7 +535,11 @@ fn gemm_blackwell(m: u64, n: u64, k: u64, dt: Dtype, sms: u64, ultra_fp4: bool) 
         name: format!(
             "sm100_gemm_{}_{m}x{n}x{k}_tile{tm}x{tn}{}",
             dt.name,
-            if split > 1 { format!("_splitk{split}") } else { String::new() }
+            if split > 1 {
+                format!("_splitk{split}")
+            } else {
+                String::new()
+            }
         ),
         grid: [(tiles_m * tiles_n * split) as u32, 1, 1],
         block: [256, 1, 1],
@@ -550,7 +564,15 @@ fn split_k(sms: u64, tiles: u64, k_iters: u64) -> u64 {
 
 /// A operand (activations, `m x k`) addresses: CTA `i` works on tile
 /// `(i / split) / tiles_n` rows and k-slice `i % split`.
-fn operand_a(tm: u64, k: u64, k_iters: u64, kb: u64, tiles_n: u64, split: u64, dt: Dtype) -> AddrGen {
+fn operand_a(
+    tm: u64,
+    k: u64,
+    k_iters: u64,
+    kb: u64,
+    tiles_n: u64,
+    split: u64,
+    dt: Dtype,
+) -> AddrGen {
     let a_bytes = (tm * kb) as f64 * dt.bytes;
     if split > 1 {
         // Few rows, shared by every CTA: one m x k slab per k-slice.
@@ -574,7 +596,15 @@ fn operand_a(tm: u64, k: u64, k_iters: u64, kb: u64, tiles_n: u64, split: u64, d
 
 /// B operand (weights, `n x k`): with split-K every CTA streams its own
 /// `tn x (k / split)` slice exactly once.
-fn operand_b(tn: u64, k: u64, k_iters: u64, kb: u64, tiles_n: u64, split: u64, dt: Dtype) -> AddrGen {
+fn operand_b(
+    tn: u64,
+    k: u64,
+    k_iters: u64,
+    kb: u64,
+    tiles_n: u64,
+    split: u64,
+    dt: Dtype,
+) -> AddrGen {
     let b_bytes = (tn * kb) as f64 * dt.bytes;
     if split > 1 {
         AddrGen {
@@ -604,7 +634,11 @@ fn gemm_mma_sync(m: u64, n: u64, k: u64, dt: Dtype, sms: u64) -> KernelLaunch {
     // 64x64x64 ring for skinny decode GEMMs (enough bytes in flight per SM
     // to stream weights with a few dozen CTAs) and 128x256x32, 3 stages,
     // for large ones.
-    let (tm, tn, kb, warps, stages) = if small { (64u64, 64u64, 64u64, 4u64, 6u64) } else { (128, 256, 32, 8, 3) };
+    let (tm, tn, kb, warps, stages) = if small {
+        (64u64, 64u64, 64u64, 4u64, 6u64)
+    } else {
+        (128, 256, 32, 8, 3)
+    };
     let (wm, wn) = if small { (32u64, 32u64) } else { (64, 64) };
     let k_total = k.div_ceil(kb).max(1);
     let tiles_n = n.div_ceil(tn);
@@ -634,7 +668,7 @@ fn gemm_mma_sync(m: u64, n: u64, k: u64, dt: Dtype, sms: u64) -> KernelLaunch {
     let a_tile = (tm.min(m.next_power_of_two().max(16)) * kb) as f64 * dt.bytes;
     for _ in 0..(stages - 1).min(k_iters) {
         ld(&mut a, a_tile as u64, a_st);
-        ld(&mut a, (tn * kb) as u64 * dt.bytes as u64, b_st);
+        ld(&mut a, (tn * kb) * dt.bytes as u64, b_st);
         a.op("LDGDEPBAR");
     }
     // CUTLASS sm80 multistage mainloop: fragments are double-buffered, and
@@ -656,7 +690,7 @@ fn gemm_mma_sync(m: u64, n: u64, k: u64, dt: Dtype, sms: u64) -> KernelLaunch {
             a.ops(&format!("LDSM.16.M88.4 R{}, [R6]", frag(j + 1).0), ldsm);
         } else {
             ld(&mut a, a_tile as u64, a_st);
-            ld(&mut a, (tn * kb) as u64 * dt.bytes as u64, b_st);
+            ld(&mut a, (tn * kb) * dt.bytes as u64, b_st);
             a.op("LDGDEPBAR");
             wait_stage(&mut a);
             a.ops(&format!("LDSM.16.M88.4 R{}, [R6]", frag(j + 1).0), ldsm);
@@ -679,7 +713,11 @@ fn gemm_mma_sync(m: u64, n: u64, k: u64, dt: Dtype, sms: u64) -> KernelLaunch {
         name: format!(
             "mma_sync_gemm_{}_{m}x{n}x{k}_tile{tm}x{tn}{}",
             dt.name,
-            if split > 1 { format!("_splitk{split}") } else { String::new() }
+            if split > 1 {
+                format!("_splitk{split}")
+            } else {
+                String::new()
+            }
         ),
         grid: [(tiles * split) as u32, 1, 1],
         block: [threads as u32, 1, 1],
@@ -769,7 +807,11 @@ pub fn attention(
         tile_q /= 2;
     }
     // Blackwell prefill packs two Q tiles per CTA (FA4 `q_stage = 2`).
-    let q_stage: u32 = if g.arch == Arch::Blackwell && !decode && sq > tile_q { 2 } else { 1 };
+    let q_stage: u32 = if g.arch == Arch::Blackwell && !decode && sq > tile_q {
+        2
+    } else {
+        1
+    };
     let rows_total = if decode {
         batch * heads_kv * (sq * group).div_ceil(tile_q)
     } else {
@@ -910,8 +952,20 @@ pub fn attention(
                 Asm::new().role("idle", 2..4),
             ];
             for st in 0..q_stage {
-                barriers.insert(S_READY + 10 * st, BarInit { count: 1, initial_phases: 0 });
-                barriers.insert(P_READY + 10 * st, BarInit { count: 4, initial_phases: 0 });
+                barriers.insert(
+                    S_READY + 10 * st,
+                    BarInit {
+                        count: 1,
+                        initial_phases: 0,
+                    },
+                );
+                barriers.insert(
+                    P_READY + 10 * st,
+                    BarInit {
+                        count: 4,
+                        initial_phases: 0,
+                    },
+                );
                 let mut sm = Asm::new();
                 let top = sm.here();
                 let w = sm.op("SYNCS.PHASECHK.TRANS64.TRYWAIT P0, [UR26], R3");
@@ -934,12 +988,12 @@ pub fn attention(
                     sm.op("LDTM.32x32b.x32 R24, tmem[UR12]");
                 }
                 epilogue_store(&mut sm, d, 2.0, out);
-                let w0 = 4 + 4 * st as u32;
+                let w0 = 4 + 4 * st;
                 roles.push(sm.role("softmax", w0..w0 + 4));
             }
             (
                 roles,
-                128 * (1 + q_stage as u32),
+                128 * (1 + q_stage),
                 format!(
                     "sm100_fmha_{}b{batch}_hq{heads_q}_hkv{heads_kv}_sq{sq}_skv{skv}_d{d}",
                     if decode { "decode_" } else { "" }
@@ -980,7 +1034,8 @@ pub fn attention(
         grid: [ctas as u32, 1, 1],
         block: [block, 1, 1],
         regs_per_thread: 160,
-        smem_per_cta: ((kv_mult as f64 * kv_bytes) as u32) * ml.stages + (q_stage as u64 * tile_q * d * 2) as u32,
+        smem_per_cta: ((kv_mult as f64 * kv_bytes) as u32) * ml.stages
+            + (q_stage as u64 * tile_q * d * 2) as u32,
         cluster: 1,
         source: KernelSource::Static { roles, barriers },
         flops: flops_real,

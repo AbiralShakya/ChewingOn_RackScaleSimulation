@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, integration, use-b300-calibration]
   pull_request:
 
 jobs:
@@ -32,3 +32,22 @@ jobs:
           pip install maturin pytest
           maturin develop --release
           pytest -q python/tests
+
+  validate:
+    # Smoke test against measured ncu cycles: the fast reference kernels only.
+    # The full sets take ~20 min; see docs/CALIBRATION.md.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p rsim-cli
+      - name: B300
+        run: >
+          target/release/rsim validate calibration/results/b300-sxm6-ac-sm103/ncu_reference.json
+          --gpu b300 --only dfma_latency_chain,l2_pointer_chase,hmma_bf16_throughput --max-error 12
+      - name: A100 SXM4
+        run: >
+          target/release/rsim validate calibration/results/a100-sxm4-80gb-sm80/ncu_reference.json
+          --gpu a100_sxm --calibration calibration/results/a100-sxm4-80gb-sm80/calibration.json
+          --only hmma_bf16_throughput,hmma_f16_f32_m16n8k16_w32_ilp4 --max-error 12

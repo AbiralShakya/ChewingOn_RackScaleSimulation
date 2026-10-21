@@ -69,6 +69,8 @@ Results (simulated vs measured cycles; saved as `validation.json` next to each r
 | umma_bf16_m128n256k16 | −99.5% | n/a | n/a |
 | umma_nvfp4_m128n256k64 | −99.5% | n/a | n/a |
 
+`--only a,b` restricts the run to some labels and `--max-error N` fails when any |error| exceeds N%; CI runs the fast kernels this way.
+
 B300: 8 of 12 within 10%. A100: 8 of 11 within about 11% on both boards. What the remaining misses need:
 
 - **smem_32way_conflict** (−96% everywhere): bank conflicts need addresses, and bare SASS has none. A `.traceg` or `.rpath` recording fixes it; `rsim validate` replays `trace_file` / `path_file` entries exactly.

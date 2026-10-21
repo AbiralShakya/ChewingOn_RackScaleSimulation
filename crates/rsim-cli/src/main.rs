@@ -59,6 +59,12 @@ enum Cmd {
         /// Apply a rackscale-calibration/v1 JSON on top of the preset.
         #[arg(long)]
         calibration: Option<PathBuf>,
+        /// Only these reference labels (comma separated).
+        #[arg(long, value_delimiter = ',')]
+        only: Vec<String>,
+        /// Fail if any kernel's |error| exceeds this many percent.
+        #[arg(long)]
+        max_error: Option<f64>,
         #[arg(long)]
         json: bool,
     },
@@ -288,13 +294,7 @@ fn main() -> Result<()> {
                 "ssm_update" => {
                     need(5)?;
                     rsim_gpu::synth_ssm::ssm_state_update(
-                        &g,
-                        dims[0],
-                        dims[1],
-                        dims[2],
-                        dims[3],
-                        dims[4],
-                        2.0,
+                        &g, dims[0], dims[1], dims[2], dims[3], dims[4], 2.0,
                     )
                 }
                 "conv1d" => {
@@ -332,13 +332,15 @@ fn main() -> Result<()> {
             reference,
             gpu,
             calibration,
+            only,
+            max_error,
             json,
         } => {
             let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
             if let Some(c) = &calibration {
                 rsim_hw::calibration::apply_file(&mut g, c)?;
             }
-            let rows = validate::run(&reference, &g)?;
+            let rows = validate::run(&reference, &g, &only)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&rows)?);
             } else {
@@ -351,6 +353,23 @@ fn main() -> Result<()> {
                         "{:<26} {:>12.0} {:>12.0} {:>7.1}% {:>8}",
                         r.label, r.measured_cycles, r.simulated_cycles, r.error_pct, r.trip_count
                     );
+                }
+            }
+            if !only.is_empty() && rows.len() < only.len() {
+                bail!(
+                    "{} of {} requested kernels did not run",
+                    only.len() - rows.len(),
+                    only.len()
+                );
+            }
+            if let Some(tol) = max_error {
+                let bad: Vec<_> = rows.iter().filter(|r| r.error_pct.abs() > tol).collect();
+                if !bad.is_empty() {
+                    let names: Vec<_> = bad
+                        .iter()
+                        .map(|r| format!("{} ({:+.1}%)", r.label, r.error_pct))
+                        .collect();
+                    bail!("outside ±{tol}%: {}", names.join(", "));
                 }
             }
         }

@@ -64,13 +64,9 @@ fn kernel(py: Python<'_>, gpu: &str, kind: &str, dims: Vec<u64>, dtype: &str) ->
         "ssm_update" => {
             rsim_gpu::synth_ssm::ssm_state_update(&g, d(0)?, d(1)?, d(2)?, d(3)?, d(4)?, 2.0)
         }
-        "conv1d" => rsim_gpu::synth_ssm::conv1d(
-            &g,
-            d(0)?,
-            d(1)?,
-            d(2)?,
-            dims.get(3).copied().unwrap_or(4),
-        ),
+        "conv1d" => {
+            rsim_gpu::synth_ssm::conv1d(&g, d(0)?, d(1)?, d(2)?, dims.get(3).copied().unwrap_or(4))
+        }
         s if s.starts_with("ssd_") => rsim_gpu::synth_ssm::ssd(
             &g,
             &s[4..],
