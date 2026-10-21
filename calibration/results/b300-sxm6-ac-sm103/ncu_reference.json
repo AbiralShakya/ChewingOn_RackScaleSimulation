@@ -871,7 +871,12 @@
     "wait": 3.38
    },
    "sass_file": "sass/window_t128_smem0.sass",
-   "kernel_mangled": "_Z13window_kernelILi0ELi0ELi1EEvPj"
+   "kernel_mangled": "_Z13window_kernelILi0ELi0ELi1EEvPj",
+   "path_file": "paths/window_t128_smem0.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "window_t512_smem0",
@@ -933,7 +938,12 @@
     "wait": 3.38
    },
    "sass_file": "sass/window_t512_smem0.sass",
-   "kernel_mangled": "_Z13window_kernelILi1ELi0ELi1EEvPj"
+   "kernel_mangled": "_Z13window_kernelILi1ELi0ELi1EEvPj",
+   "path_file": "paths/window_t512_smem0.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "window_t512_smem_max",
@@ -995,7 +1005,12 @@
     "wait": 3.38
    },
    "sass_file": "sass/window_t512_smem_max.sass",
-   "kernel_mangled": "_Z13window_kernelILi2ELi0ELi1EEvPj"
+   "kernel_mangled": "_Z13window_kernelILi2ELi0ELi1EEvPj",
+   "path_file": "paths/window_t512_smem_max.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "window_t512_smem_max_cluster2",
@@ -1057,7 +1072,12 @@
     "wait": 3.38
    },
    "sass_file": "sass/window_t512_smem_max_cluster2.sass",
-   "kernel_mangled": "_Z13window_kernelILi3ELi0ELi2EEvPj"
+   "kernel_mangled": "_Z13window_kernelILi3ELi0ELi2EEvPj",
+   "path_file": "paths/window_t512_smem_max_cluster2.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "window_t512_smem_max_cluster2_fa4_prologue",
@@ -1119,7 +1139,12 @@
     "wait": 6.03
    },
    "sass_file": "sass/window_t512_smem_max_cluster2_fa4_prologue.sass",
-   "kernel_mangled": "_Z13window_kernelILi4ELi1ELi2EEvPj"
+   "kernel_mangled": "_Z13window_kernelILi4ELi1ELi2EEvPj",
+   "path_file": "paths/window_t512_smem_max_cluster2_fa4_prologue.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "window_t512_smem_max_fa4_prologue",
@@ -1181,7 +1206,12 @@
     "wait": 6.6
    },
    "sass_file": "sass/window_t512_smem_max_fa4_prologue.sass",
-   "kernel_mangled": "_Z13window_kernelILi5ELi1ELi1EEvPj"
+   "kernel_mangled": "_Z13window_kernelILi5ELi1ELi1EEvPj",
+   "path_file": "paths/window_t512_smem_max_fa4_prologue.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "window_g1_t128_smem0",
@@ -1243,7 +1273,12 @@
     "wait": 3.44
    },
    "sass_file": "sass/window_g1_t128_smem0.sass",
-   "kernel_mangled": "_Z13window_kernelILi6ELi0ELi1EEvPj"
+   "kernel_mangled": "_Z13window_kernelILi6ELi0ELi1EEvPj",
+   "path_file": "paths/window_g1_t128_smem0.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   },
   {
    "label": "window_g1_t512_smem_max",
@@ -1305,7 +1340,12 @@
     "wait": 3.39
    },
    "sass_file": "sass/window_g1_t512_smem_max.sass",
-   "kernel_mangled": "_Z13window_kernelILi7ELi0ELi1EEvPj"
+   "kernel_mangled": "_Z13window_kernelILi7ELi0ELi1EEvPj",
+   "path_file": "paths/window_g1_t512_smem_max.rpath.gz",
+   "path_ctas_recorded": [
+    0,
+    1
+   ]
   }
  ]
 }
