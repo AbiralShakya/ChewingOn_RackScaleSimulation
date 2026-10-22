@@ -118,7 +118,7 @@ impl KernelTable {
                     ])
                 })
                 .collect();
-        let v = json!({
+        let mut v = json!({
             "ctas": d.ctas,
             "roles": d.roles,
             "warps": d.warps,
@@ -132,6 +132,9 @@ impl KernelTable {
             "l2_hits": s.l2_hits, "l2_misses": s.l2_misses,
             "smem_wavefronts": s.smem_wavefronts,
         });
+        if !d.probes.is_empty() {
+            v["probes"] = json!(d.probes);
+        }
         self.details.push(v);
         self.by_ptr.insert(key, self.details.len() - 1);
         self.details.len() - 1
