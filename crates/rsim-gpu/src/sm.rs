@@ -10,7 +10,7 @@ use crate::stats::{AccMap, Stall, StallCounts};
 use rsim_hw::GpuSpec;
 use rsim_sass::inst::flags;
 use rsim_sass::walker::DynOp;
-use rsim_sass::{MbarRef, MemSpace, OpClass, Reg};
+use rsim_sass::{Inst, MbarRef, MemSpace, OpClass, Reg, NO_REG};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -26,6 +26,8 @@ const TCGEN05_QUEUE_CYCLES: u64 = 4096;
 pub enum Policy {
     Gto,
     Lrr,
+    /// Greedy, then the youngest (most recently launched) ready warp.
+    Gty,
 }
 
 struct MBar {
@@ -95,6 +97,9 @@ struct Warp {
     bar_gen: HashMap<u32, u32>,
     /// mbarrier the warp is currently blocked on (u32::MAX = none).
     wait_bar: u32,
+    /// Operand reuse cache: the register each source slot (a, b, c, d)
+    /// keeps for the warp's next instruction (`NO_REG` = empty).
+    reuse: [Reg; 4],
     exited: bool,
     // Cached evaluation.
     until: u64,
@@ -109,6 +114,9 @@ struct Smsp {
     /// Accumulated fractional issue-interval debt per pipe.
     pipe_debt: [f32; NUM_PIPES],
     tensor_tail: u64,
+    /// Register-file banks: each bank delivers one operand per cycle, and
+    /// reads queue per bank across instructions (and warps).
+    bank_free: [u64; 8],
     next_eval: u64,
     last_eval: u64,
     sched_state: Option<(Stall, u32)>,
@@ -131,8 +139,13 @@ pub struct Sm {
     pub reserved: bool,
     mio: Server,
     smem_srv: Server,
+    /// Per sub-partition TMEM port (`issue.tmem`).
+    tmem_srv: Vec<Server>,
     tma: Server,
     tensor_tail: u64,
+    /// Completion times of tcgen05 MMAs in flight on this SM, oldest first
+    /// (for `issue.tcgen05_queue_depth`).
+    tc_inflight: std::collections::VecDeque<u64>,
     l1: Cache,
     use_ctrl: bool,
     age: u64,
@@ -173,8 +186,10 @@ impl Sm {
             mio: Server::new(lsu_rate),
             // One 32-bank wavefront (128 B) per cycle at the default 128 B/clk.
             smem_srv: Server::new((spec.pipes.l1_bytes_per_cycle.max(1) as f64) / 128.0),
+            tmem_srv: (0..spec.sub_partitions).map(|_| Server::new(1.0)).collect(),
             tma: Server::new(spec.tma.bytes_per_cycle),
             tensor_tail: 0,
+            tc_inflight: Default::default(),
             l1,
             use_ctrl,
             age: 0,
@@ -291,6 +306,7 @@ impl Sm {
                 at_bar: None,
                 bar_gen: HashMap::new(),
                 wait_bar: u32::MAX,
+                reuse: [NO_REG; 4],
                 exited: false,
                 until: 0,
                 state: Stall::Wait,
@@ -491,15 +507,20 @@ impl Sm {
             None
         } else {
             match self.policy {
-                Policy::Gto => {
+                Policy::Gto | Policy::Gty => {
                     let g = self.smsps[sp].greedy;
                     if g.map(|g| eligible.contains(&g)).unwrap_or(false) {
                         g
-                    } else {
+                    } else if self.policy == Policy::Gto {
                         eligible
                             .iter()
                             .copied()
                             .min_by_key(|&ws| self.warps[ws].as_ref().unwrap().age)
+                    } else {
+                        eligible
+                            .iter()
+                            .copied()
+                            .max_by_key(|&ws| self.warps[ws].as_ref().unwrap().age)
                     }
                 }
                 Policy::Lrr => {
@@ -769,6 +790,18 @@ impl Sm {
                 OpClass::MmaWarpgroup if sps.tensor_tail > c + WGMMA_QUEUE_CYCLES => {
                     return (Stall::TensorThrottle, sps.tensor_tail - WGMMA_QUEUE_CYCLES)
                 }
+                // Measured: the issuing thread blocks once a fixed number of
+                // MMAs are in flight (B300: 7, whatever their size).
+                OpClass::MmaTcgen05 if spec.issue.tcgen05_queue_depth > 0 => {
+                    let q = &self.tc_inflight;
+                    let live = q.iter().filter(|&&t| t > c).count();
+                    let d = spec.issue.tcgen05_queue_depth as usize;
+                    if live >= d {
+                        let mut v: Vec<u64> = q.iter().copied().filter(|&t| t > c).collect();
+                        v.sort_unstable();
+                        return (Stall::TensorThrottle, v[live - d]);
+                    }
+                }
                 OpClass::MmaTcgen05 if tensor_tail > c + TCGEN05_QUEUE_CYCLES => {
                     return (Stall::TensorThrottle, tensor_tail - TCGEN05_QUEUE_CYCLES)
                 }
@@ -785,6 +818,22 @@ impl Sm {
                 if f > c {
                     return (Stall::MathPipeThrottle, f);
                 }
+            }
+        }
+        // Register-file operand reads: a bank this instruction reads is
+        // still busy with earlier (bank-conflicted) reads.
+        if spec.issue.rf_banks > 0 {
+            let w = self.warps[ws].as_ref().unwrap();
+            let per = rf_bank_reads(&spec, &inst, &w.reuse);
+            let busy = per
+                .iter()
+                .zip(&sps.bank_free)
+                .filter(|(n, _)| **n > 0)
+                .map(|(_, &f)| f)
+                .max()
+                .unwrap_or(0);
+            if busy > c {
+                return (Stall::Dispatch, busy);
             }
         }
         (Stall::Selected, c)
@@ -946,9 +995,48 @@ impl Sm {
         // compiler stall count when control bits are honoured).
         let mut next_ready = c + 1;
         let mut next_reason = Stall::Wait;
+        // Multi-cycle dispatch holds the warp before its stall count starts.
+        let dispatch = dispatch_cycles(&spec, &inst);
         if self.use_ctrl {
             if let Some(ctrl) = inst.ctrl {
-                next_ready = c + (ctrl.stall.max(1) as u64);
+                let mut stall = ctrl.stall.max(1) as u64;
+                // Yield bit clear: the warp gives up its slot (the scheduler
+                // moves on, and the warp cannot issue on the next cycle).
+                if !ctrl.yield_hint && spec.issue.yield_min_stall > 0 {
+                    stall = stall.max(spec.issue.yield_min_stall as u64);
+                    self.smsps[sp].greedy = None;
+                }
+                next_ready = c + dispatch + stall;
+            }
+        } else {
+            next_ready = c + dispatch.max(1);
+        }
+        if spec.issue.warp_min_interval > 1 {
+            next_ready = next_ready.max(c + spec.issue.warp_min_interval as u64);
+        }
+        // Operand reads through the banked register file (and reuse cache).
+        if spec.issue.rf_banks > 0 {
+            let w = self.warps[ws].as_mut().unwrap();
+            let per = rf_bank_reads(&spec, &inst, &w.reuse);
+            if spec.issue.reuse_cache {
+                let bits = inst.ctrl.map(|x| x.reuse).unwrap_or(0);
+                if !spec.issue.reuse_sticky {
+                    w.reuse = [NO_REG; 4];
+                }
+                for o in &inst.meta.rf[..inst.meta.rf_n as usize] {
+                    let e = &mut w.reuse[o.slot as usize];
+                    if bits >> o.slot & 1 == 1 {
+                        *e = o.reg;
+                    } else if *e != o.reg {
+                        *e = NO_REG;
+                    }
+                }
+            }
+            let bf = &mut self.smsps[sp].bank_free;
+            for (b, &n) in per.iter().enumerate() {
+                if n > 0 {
+                    bf[b] = bf[b].max(c) + n as u64;
+                }
             }
         }
         // Result time and scoreboard kind for destination registers.
@@ -978,7 +1066,7 @@ impl Sm {
                 let r = if op.active == 0 {
                     c + 1
                 } else {
-                    self.mem_op(&op, c, mem, kid)
+                    self.mem_op(&op, c, mem, kid, sp)
                 };
                 result = Some((r, t.sb));
                 if inst.class == OpClass::AsyncCopy {
@@ -1058,6 +1146,12 @@ impl Sm {
                 self.tensor_tail = start + dur;
                 // Visible to tcgen05.commit after the pipeline latency.
                 let fin = start + dur + spec.tensor.tcgen05_latency as u64;
+                if spec.issue.tcgen05_queue_depth > 0 {
+                    while self.tc_inflight.front().is_some_and(|&t| t <= c) {
+                        self.tc_inflight.pop_front();
+                    }
+                    self.tc_inflight.push_back(fin);
+                }
                 // The SM's four tensor cores work as one engine here.
                 self.tensor_busy_total += dur * spec.sub_partitions as u64;
                 let st = self.acc.get(kid);
@@ -1306,7 +1400,7 @@ impl Sm {
     }
 
     /// LSU path for loads/stores/atomics/ldmatrix/cp.async/TMEM.
-    fn mem_op(&mut self, op: &DynOp, c: u64, mem: &mut MemSystem, kid: u32) -> u64 {
+    fn mem_op(&mut self, op: &DynOp, c: u64, mem: &mut MemSystem, kid: u32, sp: usize) -> u64 {
         let inst = &op.inst;
         let m = inst.mem.unwrap_or(rsim_sass::MemInfo {
             space: MemSpace::Global,
@@ -1335,6 +1429,23 @@ impl Sm {
                 t1 + spec.latency.lds as u64
             }
             MemSpace::Const => c + spec.latency.ldc as u64,
+            MemSpace::Tensor if spec.issue.tmem.ld_base > 0.0 => {
+                let (bytes, slow) = tmem_shape(&inst.opcode);
+                let t = &spec.issue.tmem;
+                let (base, rate) = if m.store {
+                    (t.st_base, t.st_rate_32x32b / slow)
+                } else {
+                    (t.ld_base, t.ld_rate_32x32b / slow)
+                };
+                // The port time in cycles of this sub-partition (a unit-rate
+                // server fed with cycles).
+                let busy = (bytes as f64 / rate).ceil() as u64;
+                let srv = &mut self.tmem_srv[sp];
+                let done = srv.serve(c, busy);
+                // Latency counts the transfer once: base + bytes / rate after
+                // the port became free for this access.
+                done + base as u64
+            }
             MemSpace::Tensor => {
                 // TMEM <-> RF: 32 lanes x width bytes; ~16 B/lane/cycle (est).
                 let bytes = (m.width as u64) * active as u64;
@@ -1400,6 +1511,78 @@ impl Sm {
             }
         }
     }
+}
+
+/// Register-file reads `inst` makes in each bank: distinct 32-bit source
+/// registers (a register named twice is read once), minus sources served by
+/// the warp's reuse cache. Bank = register index mod `rf_banks`.
+fn rf_bank_reads(spec: &GpuSpec, inst: &Inst, reuse: &[Reg; 4]) -> [u8; 8] {
+    let mut per = [0u8; 8];
+    let banks = (spec.issue.rf_banks as usize).min(8);
+    if banks == 0 || inst.meta.rf_n == 0 {
+        return per;
+    }
+    let mut seen = [NO_REG; 16];
+    let mut ns = 0;
+    for o in &inst.meta.rf[..inst.meta.rf_n as usize] {
+        if spec.issue.reuse_cache
+            && o.width == 1
+            && (reuse[o.slot as usize] == o.reg
+                || (spec.issue.reuse_any_slot && reuse.contains(&o.reg)))
+        {
+            continue;
+        }
+        for k in 0..o.width as u16 {
+            let r = o.reg + k;
+            if seen[..ns].contains(&r) {
+                continue;
+            }
+            if ns < seen.len() {
+                seen[ns] = r;
+                ns += 1;
+            }
+            per[r as usize % banks] += 1;
+        }
+    }
+    per
+}
+
+/// Bytes per warp moved by an `LDTM`/`STTM` and the shape's slowdown
+/// relative to 32x32b: `LDTM[.16dp{64,128,256}bit][.xN]`.
+fn tmem_shape(opcode: &str) -> (u64, f64) {
+    let mut n = 1u64;
+    let mut per = 128u64; // bytes per repeat per warp (32x32b, 16x64b)
+    let mut slow = 1.0;
+    for m in opcode.split('.').skip(1) {
+        if let Some(x) = m.strip_prefix('x').and_then(|x| x.parse().ok()) {
+            n = x;
+        }
+        match m {
+            "16dp64bit" => slow = 2.0,
+            "16dp128bit" => {
+                per = 256;
+                slow = 2.0
+            }
+            "16dp256bit" => {
+                per = 512;
+                slow = 4.0
+            }
+            _ => {}
+        }
+    }
+    (n * per, slow)
+}
+
+/// Cycles `inst` holds its warp in dispatch before the stall count starts.
+fn dispatch_cycles(spec: &GpuSpec, inst: &Inst) -> u64 {
+    let d = &spec.issue.dispatch_cycles;
+    if d.is_empty() {
+        return 0;
+    }
+    d.get(&*inst.opcode)
+        .or_else(|| d.get(inst.base_opcode()))
+        .map(|x| x.round().max(0.0) as u64)
+        .unwrap_or(0)
 }
 
 /// Shared-memory wavefronts for a warp access (32 banks x 4 B).

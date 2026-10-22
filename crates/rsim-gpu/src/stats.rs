@@ -41,6 +41,9 @@ pub enum Stall {
     Drain,
     /// Scheduler cycle with no resident warps at all (SM idle).
     Idle,
+    /// Operand collection: the sub-partition's register-file read stage
+    /// is busy with bank-conflicted reads (Nsight's `dispatch_stall`).
+    Dispatch,
 }
 
 pub const ALL_STALLS: &[Stall] = &[
@@ -61,10 +64,11 @@ pub const ALL_STALLS: &[Stall] = &[
     Stall::Membar,
     Stall::Drain,
     Stall::Idle,
+    Stall::Dispatch,
 ];
 
 #[derive(Clone, Debug, Default, Serialize)]
-pub struct StallCounts(pub [u64; 17]);
+pub struct StallCounts(pub [u64; 18]);
 
 impl StallCounts {
     #[inline]

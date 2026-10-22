@@ -87,6 +87,8 @@ pub enum FlatOp {
     Record(u32),
     Wait(u32),
     Delay(f64),
+    /// Earliest start of the next op (host issue time).
+    Until(Time),
 }
 
 #[derive(Clone, Debug)]
@@ -202,15 +204,19 @@ impl RankLp {
     /// the GPU has no power model or the kernel cannot hit the cap).
     /// `nominal` is the kernel's cold run with `reserved` SMs held back when
     /// the caller has it (fast mode); exact mode simulates one here.
+    /// `done` is the finished run, which decides whether the tcgen05 clock
+    /// applies.
     fn dvfs_factor(
         &self,
         k: &Arc<KernelLaunch>,
         reserved: u32,
         nominal: Option<&KernelDone>,
+        done: &KernelDone,
     ) -> f64 {
         let spec = &self.gpu.spec;
+        let tc = rsim_gpu::tcgen05_stretch(spec, done);
         if !rsim_gpu::dvfs_possible(spec, k) {
-            return 1.0;
+            return tc;
         }
         let cell = self
             .dvfs
@@ -219,7 +225,7 @@ impl RankLp {
             .entry((Arc::as_ptr(k) as usize, reserved))
             .or_default()
             .clone();
-        *cell.get_or_init(|| {
+        cell.get_or_init(|| {
             let cfg = GpuConfig {
                 detail: Default::default(),
                 ..self.gpu.cfg.clone()
@@ -234,6 +240,7 @@ impl RankLp {
             };
             rsim_gpu::dvfs_stretch(spec, &cfg, k, nominal, reserved)
         })
+        .max(tc)
     }
 
     fn ps(&self, cycle: u64) -> Time {
@@ -326,6 +333,13 @@ impl RankLp {
                         }
                     }
                 }
+                FlatOp::Until(at) => {
+                    self.streams[s].pc += 1;
+                    if at > t {
+                        self.q.push(at, Local::StreamNext(s));
+                        return;
+                    }
+                }
                 FlatOp::Delay(ns) => {
                     // A busy period on this stream ending at t + ns.
                     st.busy = true;
@@ -361,7 +375,7 @@ impl RankLp {
             let mut d = memo.get(&self.gpu.spec, &self.gpu.cfg, &k, n - held);
             self.memo_held += held;
             let dur = ((d.end_cycle - d.start_cycle) as f64
-                * self.dvfs_factor(&k, n - held, Some(&d))) as u64;
+                * self.dvfs_factor(&k, n - held, Some(&d), &d)) as u64;
             d.tag = tag;
             d.start_cycle = c;
             d.end_cycle = c + dur;
@@ -415,7 +429,7 @@ impl LogicalProcess for RankLp {
                     let s = (d.tag >> 32) as usize;
                     let mut end = self.ps(d.end_cycle);
                     if let FlatOp::Kernel { k, .. } = &self.streams[s].ops[self.streams[s].pc] {
-                        let x = self.dvfs_factor(&k.clone(), 0, None);
+                        let x = self.dvfs_factor(&k.clone(), 0, None, &d);
                         if x > 1.0 {
                             // Power-capped clock: stretch this kernel's span.
                             let start = self.streams[s].op_start;
@@ -855,6 +869,7 @@ impl Flattener<'_> {
                     out.push(FlatOp::Wait(*self.events.entry(event.clone()).or_insert(n)));
                 }
                 Op::Delay { ns } => out.push(FlatOp::Delay(*ns)),
+                Op::Host { at_ns } => out.push(FlatOp::Until((at_ns * 1000.0) as Time)),
             }
         }
         Ok(())

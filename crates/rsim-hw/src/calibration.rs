@@ -358,8 +358,21 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
                 idle_w: idle,
                 max_mhz: f(m, &["power", "max_sm_mhz"]).unwrap_or(spec.sm_clock_mhz),
                 runs,
+                tcgen05_mhz: f(m, &["power", "tcgen05_sm_mhz"]).unwrap_or(0.0),
             });
             set("power", &mut took);
+        }
+    }
+
+    // Issue stage (calibration/dissect): register banks, reuse cache,
+    // per-opcode dispatch occupancy, yield, tcgen05 queue depth.
+    if let Some(iss) = m.get("issue").filter(|v| v.is_object()) {
+        match serde_json::from_value::<crate::gpu::IssueSpec>(iss.clone()) {
+            Ok(x) => {
+                spec.issue = x;
+                set("issue", &mut took);
+            }
+            Err(e) => return Err(CalError::Json(e)),
         }
     }
 

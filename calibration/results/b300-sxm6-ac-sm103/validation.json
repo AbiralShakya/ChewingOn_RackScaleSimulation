@@ -2,15 +2,15 @@
   {
     "label": "ffma_throughput (path)",
     "measured_cycles": 82102.88,
-    "simulated_cycles": 76371.0,
-    "error_pct": -6.981338535262106,
+    "simulated_cycles": 76739.0,
+    "error_pct": -6.533120397238202,
     "trip_count": 0
   },
   {
     "label": "ex2_throughput (path)",
     "measured_cycles": 271263.55,
-    "simulated_cycles": 271540.0,
-    "error_pct": 0.10191195978966273,
+    "simulated_cycles": 271561.0,
+    "error_pct": 0.10965350855284894,
     "trip_count": 0
   },
   {
@@ -23,29 +23,29 @@
   {
     "label": "smem_conflict_free (path)",
     "measured_cycles": 142278.19,
-    "simulated_cycles": 156440.0,
-    "error_pct": 9.953605679127628,
+    "simulated_cycles": 152023.0,
+    "error_pct": 6.849124240335077,
     "trip_count": 0
   },
   {
     "label": "smem_32way_conflict (path)",
     "measured_cycles": 4214900.93,
-    "simulated_cycles": 4204191.0,
-    "error_pct": -0.25409683828558466,
+    "simulated_cycles": 4204189.0,
+    "error_pct": -0.25414428898568925,
     "trip_count": 0
   },
   {
     "label": "hbm_stream_read (path)",
     "measured_cycles": 2562048.93,
-    "simulated_cycles": 2569062.0,
-    "error_pct": 0.27372896426298277,
+    "simulated_cycles": 2569384.0,
+    "error_pct": 0.28629703024445485,
     "trip_count": 0
   },
   {
     "label": "hbm_copy (path)",
     "measured_cycles": 5377991.92,
-    "simulated_cycles": 5105672.0,
-    "error_pct": -5.063598533632604,
+    "simulated_cycles": 5106182.0,
+    "error_pct": -5.054115440173438,
     "trip_count": 0
   },
   {
@@ -58,29 +58,29 @@
   {
     "label": "hmma_bf16_throughput (path)",
     "measured_cycles": 139972.43,
-    "simulated_cycles": 139807.0,
-    "error_pct": -0.11818756022167581,
+    "simulated_cycles": 139781.0,
+    "error_pct": -0.13676264675836022,
     "trip_count": 0
   },
   {
     "label": "umma_bf16_m128n256k16 (path)",
     "measured_cycles": 534974.16,
-    "simulated_cycles": 534475.0,
-    "error_pct": -0.0933054411450513,
+    "simulated_cycles": 534513.0,
+    "error_pct": -0.0862022943313809,
     "trip_count": 0
   },
   {
     "label": "umma_nvfp4_m128n256k64 (path)",
     "measured_cycles": 534660.26,
-    "simulated_cycles": 534472.0,
-    "error_pct": -0.03521114511110463,
+    "simulated_cycles": 534510.0,
+    "error_pct": -0.028103828027168,
     "trip_count": 0
   },
   {
     "label": "tma_bulk_stream (path)",
     "measured_cycles": 4569373.7,
-    "simulated_cycles": 4286963.0,
-    "error_pct": -6.18051222205792,
+    "simulated_cycles": 4286913.0,
+    "error_pct": -6.181606463923058,
     "trip_count": 0
   },
   {
@@ -93,36 +93,36 @@
   {
     "label": "window_t512_smem0 (path)",
     "measured_cycles": 6247.28,
-    "simulated_cycles": 6262.0,
-    "error_pct": 0.23562254293068752,
+    "simulated_cycles": 6257.0,
+    "error_pct": 0.15558771177216732,
     "trip_count": 0
   },
   {
     "label": "window_t512_smem_max (path)",
     "measured_cycles": 6818.23,
-    "simulated_cycles": 6833.0,
-    "error_pct": 0.2166251358490464,
+    "simulated_cycles": 6828.0,
+    "error_pct": 0.14329232073427323,
     "trip_count": 0
   },
   {
     "label": "window_t512_smem_max_cluster2 (path)",
     "measured_cycles": 6475.93,
-    "simulated_cycles": 6490.0,
-    "error_pct": 0.21726609151117612,
+    "simulated_cycles": 6485.0,
+    "error_pct": 0.14005710376733085,
     "trip_count": 0
   },
   {
     "label": "window_t512_smem_max_cluster2_fa4_prologue (path)",
     "measured_cycles": 9188.31,
-    "simulated_cycles": 9189.0,
-    "error_pct": 0.007509542015893122,
+    "simulated_cycles": 9199.0,
+    "error_pct": 0.1163434842751334,
     "trip_count": 0
   },
   {
     "label": "window_t512_smem_max_fa4_prologue (path)",
     "measured_cycles": 8713.3,
-    "simulated_cycles": 8705.0,
-    "error_pct": -0.09525667657488292,
+    "simulated_cycles": 8730.0,
+    "error_pct": 0.19166102395189802,
     "trip_count": 0
   },
   {
@@ -135,8 +135,8 @@
   {
     "label": "window_g1_t512_smem_max (path)",
     "measured_cycles": 6984.47,
-    "simulated_cycles": 6999.0,
-    "error_pct": 0.20803296456280498,
+    "simulated_cycles": 6994.0,
+    "error_pct": 0.13644557138909244,
     "trip_count": 0
   }
 ]

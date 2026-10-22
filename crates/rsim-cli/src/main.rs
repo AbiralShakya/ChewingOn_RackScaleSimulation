@@ -9,6 +9,7 @@
 //! rsim run     --system configs/gb200_nvl72.yaml --workload wl.json \
 //!              --trace trace.json --report report.json
 //! rsim viz path fa4.rpath --gpu b300 -o fa4.html  # rack -> GPU -> SM -> warp -> SASS viewer
+//! rsim timeline k.sass --kernel t_alu --block 128 --gpu b300 -o t.json  # per-warp issue times
 //! ```
 
 use anyhow::{bail, Context, Result};
@@ -90,6 +91,47 @@ enum Cmd {
         #[arg(long)]
         inspect: bool,
     },
+    /// Simulate one kernel from a SASS listing and dump every warp's issue
+    /// timeline (cycle and PC of each issued instruction) on SM 0. Used to
+    /// compare against clock64 probes read on hardware
+    /// (calibration/dissect/timeline.py).
+    Timeline {
+        path: PathBuf,
+        /// Function name in the listing (default: the first one).
+        #[arg(long)]
+        kernel: Option<String>,
+        #[arg(long, default_value = "b300")]
+        gpu: String,
+        #[arg(long)]
+        calibration: Option<PathBuf>,
+        #[arg(long, default_value_t = 1)]
+        grid: u32,
+        #[arg(long, default_value_t = 32)]
+        block: u32,
+        #[arg(long, default_value_t = 64)]
+        regs: u32,
+        #[arg(long, default_value_t = 0)]
+        smem: u32,
+        /// Loose round-robin warp scheduling instead of greedy-then-oldest.
+        #[arg(long)]
+        lrr: bool,
+        /// Greedy-then-youngest warp scheduling.
+        #[arg(long)]
+        gty: bool,
+        /// Ignore the compiler's control bits (per-register scoreboarding).
+        #[arg(long)]
+        no_control_bits: bool,
+        /// SMs whose warps are traced (default: all).
+        #[arg(long, value_delimiter = ',')]
+        sms: Vec<u32>,
+        /// Run the kernel this many times first (warm caches, as a
+        /// hardware measurement after warm-up launches); the timeline is the
+        /// last run's.
+        #[arg(long, default_value_t = 0)]
+        warm: u32,
+        #[arg(short, long)]
+        out: PathBuf,
+    },
     /// Simulate a kernel recorded on hardware with the NVBit warp_path tool
     /// (exact per-warp paths, mbarrier/TMA/UMMA operands; see research/flash_attention).
     Path {
@@ -157,7 +199,9 @@ pub(crate) fn sim_kernel(
     let wall = t0.elapsed().as_secs_f64();
     let mut d = out.pop().context("kernel did not finish")?;
     let stretch = rsim_gpu::dvfs_stretch(&spec, &cfg, &launch, &d, 0);
-    let sustained = rsim_gpu::dvfs_clock_mhz(&spec, &launch, &d).unwrap_or(spec.sm_clock_mhz);
+    let sustained = rsim_gpu::dvfs_clock_mhz(&spec, &launch, &d)
+        .unwrap_or(spec.sm_clock_mhz)
+        .min(spec.sm_clock_mhz / rsim_gpu::tcgen05_stretch(&spec, &d));
     if stretch > 1.0 {
         d.end_cycle = d.start_cycle + ((d.end_cycle - d.start_cycle) as f64 * stretch) as u64;
         eprintln!(
@@ -439,6 +483,104 @@ fn main() -> Result<()> {
                 k.regs_per_thread = r;
             }
             run_kernel(g, k, json)?;
+        }
+        Cmd::Timeline {
+            path,
+            kernel,
+            gpu,
+            calibration,
+            grid,
+            block,
+            regs,
+            smem,
+            lrr,
+            gty,
+            no_control_bits,
+            sms,
+            warm,
+            out,
+        } => {
+            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            if let Some(c) = &calibration {
+                rsim_hw::calibration::apply_file(&mut g, c)?;
+            }
+            let ps = path.to_string_lossy();
+            let k = if ps.ends_with(".rpath") || ps.ends_with(".rpath.gz") {
+                // An NVBit warp-path recording: exact per-warp paths and
+                // addresses (grid and block come from the recording).
+                let p =
+                    rsim_sass::PathKernel::from_file(&ps).map_err(|e| anyhow::anyhow!("{e}"))?;
+                let mut k = KernelLaunch::from_path(p);
+                k.regs_per_thread = regs;
+                k
+            } else {
+                let src = std::fs::read_to_string(&path)?;
+                let progs = rsim_sass::parse_listing(&src)?;
+                let p = match &kernel {
+                    Some(k) => progs
+                        .into_iter()
+                        .find(|p| &p.name == k)
+                        .with_context(|| format!("no function {k} in {}", path.display()))?,
+                    None => progs.into_iter().next().context("empty listing")?,
+                };
+                let name = p.name.clone();
+                KernelLaunch::from_program(
+                    &name,
+                    p,
+                    [grid, 1, 1],
+                    [block, 1, 1],
+                    regs,
+                    smem,
+                    Default::default(),
+                )
+            };
+            let name = k.name.clone();
+            let sms: Vec<u32> = if sms.is_empty() {
+                (0..g.sm_count).collect()
+            } else {
+                sms
+            };
+            let mut sim = Gpu::new(
+                0,
+                g,
+                GpuConfig {
+                    kernel_window: false,
+                    use_control_bits: !no_control_bits,
+                    policy: if lrr {
+                        rsim_gpu::SchedPolicy::Lrr
+                    } else if gty {
+                        rsim_gpu::SchedPolicy::Gty
+                    } else {
+                        rsim_gpu::SchedPolicy::Gto
+                    },
+                    detail: rsim_gpu::DetailConfig {
+                        warp_sms: sms,
+                        max_warp_events: 20_000_000,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                false,
+            );
+            let k = Arc::new(k);
+            let mut done = vec![];
+            let mut t = 0;
+            for _ in 0..=warm {
+                done.clear();
+                sim.submit(k.clone(), t, 0);
+                sim.advance_to_completion(u64::MAX / 2, &mut done);
+                t = done.last().context("kernel did not finish")?.end_cycle + 1;
+            }
+            let d = done.pop().context("kernel did not finish")?;
+            let mut detail = (*d.detail.context("no warp timeline captured")?).clone();
+            // Only SMs that ran warps of this launch.
+            detail.warps.retain(|t| !t.warps.is_empty());
+            std::fs::write(&out, serde_json::to_string(&detail)?)?;
+            eprintln!(
+                "{name}: {} cycles, timeline -> {}",
+                d.end_cycle - d.start_cycle,
+                out.display()
+            );
         }
         Cmd::Sass {
             path,

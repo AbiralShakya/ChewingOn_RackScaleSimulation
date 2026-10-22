@@ -13,22 +13,25 @@ NVFLAGS   ?= -O3 -std=c++17 -lineinfo $(ARCH) -Xptxas -v -DCAL_SM=$(SM)
 BUILD     := build
 
 # Arch-specific benches only build where the hardware has the feature.
-BENCHES := alu mem tc misc window loaded
+BENCHES := alu mem tc misc window loaded tlb
 ifeq ($(shell test $(SM) -ge 80 && echo y),y)
 BENCHES += mma_sync cpasync l2part overlap
 endif
 ifeq ($(shell test $(SM) -ge 90 && echo y),y)
 BENCHES += tma tmat
 endif
+ifeq ($(shell test $(SM) -ge 100 -a $(SM) -lt 120 && echo y),y)
+BENCHES += tc05x dvfs
+endif
 BINS    := $(addprefix $(BUILD)/bench_,$(BENCHES))
 
 all: $(BINS) $(addsuffix .ptx,$(BINS))
 
-$(BUILD)/bench_%: src/bench_%.cu src/common.cuh | $(BUILD)
+$(BUILD)/bench_%: src/bench_%.cu src/common.cuh src/tc05.cuh | $(BUILD)
 	$(NVCC) $(NVFLAGS) -o $@ $< -lcuda 2> $@.ptxas.log || (cat $@.ptxas.log; false)
 
 # PTX next to each binary: scripts/sass_check.py compares PTX and SASS counts.
-$(BUILD)/bench_%.ptx: src/bench_%.cu src/common.cuh | $(BUILD)
+$(BUILD)/bench_%.ptx: src/bench_%.cu src/common.cuh src/tc05.cuh | $(BUILD)
 	$(NVCC) -O3 -std=c++17 -arch=compute_$(SM)$(SUFFIX) -DCAL_SM=$(SM) -ptx -o $@ $<
 
 $(BUILD):

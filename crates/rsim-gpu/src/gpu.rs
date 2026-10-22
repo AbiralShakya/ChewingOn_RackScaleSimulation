@@ -23,6 +23,8 @@ pub enum SchedPolicy {
     Gto,
     /// Loose round-robin.
     Lrr,
+    /// Greedy, then the youngest ready warp.
+    Gty,
 }
 
 /// `calibration/src/bench_window.cu`'s kernel as compiled for sm_103, up
@@ -140,10 +142,21 @@ pub struct Gpu {
 impl Gpu {
     pub fn new(rank: usize, spec: GpuSpec, cfg: GpuConfig, trace_enabled: bool) -> Self {
         let spec = Arc::new(spec);
-        let policy = match cfg.policy {
+        let mut policy = match cfg.policy {
             SchedPolicy::Gto => Policy::Gto,
             SchedPolicy::Lrr => Policy::Lrr,
+            SchedPolicy::Gty => Policy::Gty,
         };
+        // A measured scheduler for this GPU (calibration `issue.scheduler`)
+        // replaces the default greedy-then-oldest; an explicit LRR/GTY
+        // request still wins.
+        if cfg.policy == SchedPolicy::Gto {
+            match spec.issue.scheduler.as_str() {
+                "lrr" => policy = Policy::Lrr,
+                "gty" => policy = Policy::Gty,
+                _ => {}
+            }
+        }
         let sms = (0..spec.sm_count)
             .map(|i| {
                 let mut sm = Sm::new(i, spec.clone(), policy, cfg.use_control_bits);
@@ -760,9 +773,13 @@ pub fn dvfs_stretch(
     nominal: &KernelDone,
     reserved: u32,
 ) -> f64 {
+    let tc = tcgen05_stretch(spec, nominal);
     let Some(f) = dvfs_clock_mhz(spec, launch, nominal) else {
-        return 1.0;
+        return tc;
     };
+    if spec.sm_clock_mhz / f <= tc {
+        return tc;
+    }
     let mut slow = spec.clone();
     slow.sm_clock_mhz = f;
     let cfg = GpuConfig {
@@ -771,5 +788,21 @@ pub fn dvfs_stretch(
     };
     let d = run_alone(&slow, &cfg, launch, reserved);
     let ns = |d: &KernelDone, mhz: f64| (d.end_cycle - d.start_cycle).max(1) as f64 / mhz;
-    (ns(&d, f) / ns(nominal, spec.sm_clock_mhz)).max(1.0)
+    (ns(&d, f) / ns(nominal, spec.sm_clock_mhz)).max(tc)
+}
+
+/// Wall-time factor of the fixed lower SM clock that tcgen05 MMAs pin
+/// (B300: 1905 MHz, `power.tcgen05_sm_mhz`) for a kernel that issued any;
+/// 1.0 otherwise. Tensor-bound kernels at a fixed clock scale almost
+/// entirely, so this is a plain ratio rather than a re-simulation.
+pub fn tcgen05_stretch(spec: &GpuSpec, d: &KernelDone) -> f64 {
+    match &spec.power {
+        Some(p)
+            if p.tcgen05_mhz > 0.0
+                && d.stats.class_counts[rsim_sass::OpClass::MmaTcgen05 as usize] > 0 =>
+        {
+            (spec.sm_clock_mhz / p.tcgen05_mhz).max(1.0)
+        }
+        _ => 1.0,
+    }
 }

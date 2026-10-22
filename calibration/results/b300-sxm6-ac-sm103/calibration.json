@@ -1153,7 +1153,22 @@
       "gemm_mamba_in_proj_m32768"
      ]
     }
-   ]
+   ],
+   "tcgen05_sm_mhz": 1905.1
+  },
+  "issue": {
+   "rf_banks": 2,
+   "reuse_cache": true,
+   "reuse_any_slot": true,
+   "yield_min_stall": 2,
+   "tcgen05_queue_depth": 7,
+   "tmem": {
+    "ld_base": 40.9,
+    "ld_rate_32x32b": 256.0,
+    "st_base": 14.6,
+    "st_rate_32x32b": 264.1
+   },
+   "scheduler": "lrr"
   }
  },
  "raw": {

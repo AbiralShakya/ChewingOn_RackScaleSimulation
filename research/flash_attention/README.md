@@ -14,13 +14,13 @@ softmax warpgroups, a correction warpgroup and an epilogue warp run different co
 through one binary and hand work to each other through mbarriers and named barriers. A static
 SASS listing plus a branch profile cannot reproduce that, so this study adds an exact path:
 
-* **`nvbit_warp_path/`**: an NVBit 1.8 tool that records, for a few sampled CTAs, every
+* **`warp_path`** ([`capture/nvbit/`](../../capture/nvbit/), shared with `rackscale capture`): an NVBit 1.8 tool that records, for a few sampled CTAs, every
   instruction each warp executed, with what a timing model cannot recover statically: lane
   addresses, the mbarrier behind every `SYNCS` op, expect-tx byte counts, try_wait results
   and parities, TMA source boxes (address runs and bytes) for every CTA, tcgen05 instruction
   descriptors (UMMA shapes), and the registers that name barriers. It also writes the
   function's SASS with its 128-bit encodings, so the simulator decodes the real control bits.
-* **`trace_to_rsim.py`**: turns a recording into an `.rpath` file. It removes mbarrier spin
+* **`trace_to_rsim.py`** (now `python/rackscale/nvbit/trace_to_rsim.py`; the script here runs it): turns a recording into an `.rpath` file. It removes mbarrier spin
   loops (a failed try_wait, the sleep and branch around it, the retries), keeps non-blocking
   polls, converts each successful wait into an absolute phase count (a repeated parity means
   the warp skipped a phase; FA4's lazy rescaling does), and derives each barrier's arrival
@@ -64,8 +64,8 @@ python research/flash_attention/run_study.py all       # validate, what-ifs, rac
 | `remote/fa_bench.py` | one implementation, timed back to back (naive, SDPA flash/cuDNN, FA2, FA4) |
 | `remote/ncu_attn.py` | Nsight Compute ground truth for the profiled call |
 | `remote/trace.sh`, `remote/*.sh`, `remote/*.sbatch` | NVBit recording and the GPU runs |
-| `nvbit_warp_path/` | the NVBit tool |
-| `trace_to_rsim.py`, `wpread.py` | recording to `.rpath` |
+| [`capture/nvbit/`](../../capture/nvbit/) | the NVBit tool (moved; also used by `rackscale capture`) |
+| `trace_to_rsim.py` | recording to `.rpath` (runs `python/rackscale/nvbit/trace_to_rsim.py`) |
 | `run_study.py`, `figures.py` | validation, what-ifs, ring attention, figures |
 | `configs/` | GB300 NVL72, 9x HGX B300 over IB, 9x DGX A100 over IB |
 | `calibration/` | the B300 and A100 calibration files used |
