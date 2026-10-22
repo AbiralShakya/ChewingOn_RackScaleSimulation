@@ -242,6 +242,55 @@ fn is_pred_only(op: &str) -> bool {
         || (t.starts_with("UP") && t[2..].parse::<u16>().is_ok())
 }
 
+/// Vector-register source operands by encoding slot (a, b, c, d), for the
+/// register-file bank and reuse-cache model. The destination and trailing
+/// predicate destinations are skipped as in [`parse_inst`]; MMA fragments
+/// and vector store data take their full register width.
+pub(crate) fn rf_operands(opcode: &str, class: OpClass, ops: &str) -> ([RfOperand; 4], u8) {
+    let mut out = [RfOperand::default(); 4];
+    let mut n = 0u8;
+    let base = opcode.split('.').next().unwrap_or("");
+    let mem = mem_info(opcode, class);
+    let vec_w = mem.map(|m| (m.width / 4).max(1) as u16).unwrap_or(1);
+    let operands = split_operands(ops);
+    let mut first_src = 0;
+    if !operands.is_empty() && !first_operand_is_src(base) {
+        first_src = 1;
+        if writes_trailing_predicates(base) {
+            while first_src < operands.len() && first_src <= 2 && is_pred_only(operands[first_src])
+            {
+                first_src += 1;
+            }
+        }
+    }
+    let store = mem.map(|m| m.store).unwrap_or(false);
+    for (i, op) in operands.iter().enumerate().skip(first_src) {
+        let slot = (i - first_src).min(3) as u8;
+        for (r, w) in regs_in(op) {
+            if r >= 256 || n as usize >= out.len() {
+                continue; // predicates and uniform registers
+            }
+            let w = if store && !op.contains('[') {
+                w.max(vec_w)
+            } else {
+                w
+            };
+            let w = if class == OpClass::MmaSync && i <= 3 {
+                w.max(if i == 2 { 2 } else { 4 })
+            } else {
+                w
+            };
+            out[n as usize] = RfOperand {
+                slot,
+                reg: r,
+                width: w as u8,
+            };
+            n += 1;
+        }
+    }
+    (out, n)
+}
+
 pub fn parse_inst(pc: u32, text: &str) -> Result<(Inst, Option<String>), String> {
     let mut text = text.trim();
     let mut guard = None;
@@ -420,5 +469,33 @@ mod tests {
         assert_eq!(p.name, "kern");
         assert_eq!(p.insts[3].branch_target, Some(0x10));
         assert!(!p.has_control_bits());
+    }
+
+    #[test]
+    fn rf_operand_slots() {
+        let (i, _) = parse_inst(0, "FFMA R6, R0.reuse, R6, R7").unwrap();
+        let rf = &i.meta.rf[..i.meta.rf_n as usize];
+        assert_eq!(
+            rf.iter()
+                .map(|o| (o.slot, o.reg, o.width))
+                .collect::<Vec<_>>(),
+            vec![(0, 0, 1), (1, 6, 1), (2, 7, 1)]
+        );
+        // Immediate in slot b: R2 stays in slot c.
+        let (i, _) = parse_inst(0, "IMAD R4, R3, 0x4, R2").unwrap();
+        let rf = &i.meta.rf[..i.meta.rf_n as usize];
+        assert_eq!(
+            rf.iter().map(|o| (o.slot, o.reg)).collect::<Vec<_>>(),
+            vec![(0, 3), (2, 2)]
+        );
+        // HMMA fragments: A 4 regs, B 2, C 4; uniform regs are not RF reads.
+        let (i, _) = parse_inst(0, "HMMA.16816.F32.BF16 R4, R8, R12, R4").unwrap();
+        let rf = &i.meta.rf[..i.meta.rf_n as usize];
+        assert_eq!(rf.iter().map(|o| o.width).sum::<u8>(), 10, "{rf:?}");
+        let (i, _) = parse_inst(0, "IADD3 R8, P0, PT, R8, UR6, RZ").unwrap();
+        assert_eq!(i.meta.rf_n, 1);
+        let (i, _) = parse_inst(0, "STG.E.128 desc[UR4][R4.64], R8").unwrap();
+        let rf = &i.meta.rf[..i.meta.rf_n as usize];
+        assert_eq!(rf.iter().map(|o| o.width).sum::<u8>(), 6);
     }
 }

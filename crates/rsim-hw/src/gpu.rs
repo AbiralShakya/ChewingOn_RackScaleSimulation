@@ -280,6 +280,70 @@ pub struct GpuSpec {
     /// clock is always `sm_clock_mhz`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub power: Option<PowerSpec>,
+    /// Issue-stage details measured by `calibration/dissect` (register
+    /// banks, operand reuse, multi-cycle dispatch, yield, tcgen05 queue).
+    /// The default turns all of it off.
+    #[serde(default)]
+    pub issue: IssueSpec,
+}
+
+/// How one SM sub-partition issues instructions, beyond pipe rates and
+/// latencies (docs/BLACKWELL.md, "Issue"). All fields default to "not
+/// modelled", so presets without a calibration behave as before.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct IssueSpec {
+    /// Register-file banks per sub-partition; a register's bank is its
+    /// index mod `rf_banks`. Each bank delivers one 32-bit-per-lane operand
+    /// per cycle, so an instruction whose register sources share a bank
+    /// holds the operand-read stage for more than one cycle. 0 = off.
+    pub rf_banks: u32,
+    /// Honour the operand reuse flags: a source read in the same slot by the
+    /// warp's previous instruction, with that slot's reuse flag set, comes
+    /// from the reuse cache instead of the register file.
+    pub reuse_cache: bool,
+    /// Reuse-cache entries outlive the next instruction: an entry stays
+    /// until its slot reads a different register (rather than only serving
+    /// the immediately following instruction, the Volta rule).
+    pub reuse_sticky: bool,
+    /// A cached operand serves a read in any slot, not only the slot it was
+    /// cached from (B300: FFMA pairs that swap the reused registers between
+    /// slots a and c every instruction still issue one per cycle).
+    pub reuse_any_slot: bool,
+    /// Cycles an instruction keeps its warp in dispatch before the warp's
+    /// stall count starts (warp-instruction operand collection: HMMA reads
+    /// 10 registers, DFMA runs at 1/64 rate, ...), keyed by full opcode or
+    /// base opcode. Missing = 0.
+    pub dispatch_cycles: BTreeMap<String, f64>,
+    /// Minimum cycles between two issues of the same warp (0 = 1).
+    pub warp_min_interval: u32,
+    /// A yielding instruction (yield bit clear) waits at least this many
+    /// cycles before its warp issues again (0 = no extra rule).
+    pub yield_min_stall: u32,
+    /// tcgen05 MMAs an SM accepts before the issuing thread blocks (0 = use
+    /// the cycle-based backlog limit).
+    pub tcgen05_queue_depth: u32,
+    /// Tensor-memory load/store timing (`LDTM`/`STTM`, i.e. tcgen05.ld/st).
+    pub tmem: TmemSpec,
+    /// Warp scheduler measured for this GPU: "lrr" (loose round-robin),
+    /// "gty" (greedy, then youngest) or empty (greedy-then-oldest).
+    pub scheduler: String,
+}
+
+/// `tcgen05.ld/st` timing (calibration/src/bench_tc05x.cu). Each warp
+/// reaches only its lane quadrant of TMEM, which is the sub-partition's own
+/// port: an access of B bytes per warp occupies that port for B / rate cycles
+/// and completes `base + B / rate` cycles after issue. The rate depends on
+/// the shape: 32x32b and 16x64b move `rate_32x32b` resp. half of it, 16x128b
+/// half, 16x256b a quarter. 0 = the old estimate (smem latency + B / 512).
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct TmemSpec {
+    pub ld_base: f64,
+    pub st_base: f64,
+    /// Bytes per cycle of one sub-partition's TMEM port for 32x32b.
+    pub ld_rate_32x32b: f64,
+    pub st_rate_32x32b: f64,
 }
 
 /// Power-capped clock model fitted to measured steady-state runs.
@@ -295,6 +359,11 @@ pub struct PowerSpec {
     pub idle_w: f64,
     pub max_mhz: f64,
     pub runs: Vec<PowerRun>,
+    /// SM clock whenever tcgen05 MMAs run, independent of power (B300: the
+    /// clock drops from 2032 to 1905 MHz within 10 us of the first UMMA and
+    /// stays there, measured by calibration/src/bench_dvfs.cu). 0 = none.
+    #[serde(default)]
+    pub tcgen05_mhz: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

@@ -37,6 +37,8 @@ gpus:
 | `tensor.tcgen05_*`: median of `roundtrip_latency_cycles − cycles_per_mma_1sm` | `tensor.tcgen05_latency` (commit visibility after the MMA leaves the engine) |
 | `tensor.tcgen05x2_nvfp4_k96_m256n256k96.flop_per_clk_per_sm_allsm` | `tensor.flops_per_cycle_per_sm.fp4_k96` (Blackwell Ultra K=96 FP4 UMMA; FP4 GEMMs use it when present, `fp4_k64` forces the old form) |
 | `power.{power_cap_w, idle_w, max_sm_mhz, runs[]}` | `power`: power-capped clock model (below) |
+| `power.tcgen05_sm_mhz` | `power.tcgen05_mhz`: the SM clock whenever tcgen05 MMAs run (B300: 1905 MHz) |
+| `issue.{rf_banks, reuse_cache, reuse_any_slot, yield_min_stall, tcgen05_queue_depth, tmem, scheduler}` | `issue`: register banks, operand reuse, yield, UMMA issue queue, TMEM port timing, warp scheduler. Written by `calibration/dissect/fit_issue.py` from the dissect measurements; see docs/BLACKWELL.md |
 
 Opcode lookup tries the full opcode first (`MUFU.EX2`) and then the base (`FFMA`).
 
@@ -60,10 +62,10 @@ Results (simulated vs measured cycles; saved as `validation.json` next to each r
 | hbm_copy | −5.1% | −23.5% | −21.8% |
 | cp_async_cg16_dram_stream | n/a | −3.1% | −3.7% |
 | tma_bulk_stream | −6.2% | n/a | n/a |
-| ffma_throughput | −7.0% | +0.8% | +0.9% |
+| ffma_throughput | −6.5% | +0.8% | +0.9% |
 | ex2_throughput | +0.1% | +0.1% | +0.2% |
 | dfma_latency_chain | +3.2% | −2.3% | +1.3% |
-| smem_conflict_free | +10.0% | +6.4% | +3.9% |
+| smem_conflict_free | +6.8% | +6.4% | +3.9% |
 | smem_32way_conflict | −0.3% | −0.0% | −0.1% |
 | l2_pointer_chase | −3.7% | +16.3% | +11.8% |
 | hmma_bf16_throughput | −0.1% | +0.5% | +0.2% |
@@ -73,7 +75,7 @@ Results (simulated vs measured cycles; saved as `validation.json` next to each r
 | window_* (plain shapes) | +0.2% | ±0.5% | ±0.6% |
 | window_* (FA4 prologue, fit points) | 0.0%, −0.1% | n/a | n/a |
 
-B300: 11 of 12 kernels within 7%, and smem_conflict_free at +10.0%. A100: 9 of 11 within 8% on both boards.
+B300: 12 of 12 kernels within 7% (smem_conflict_free went from +10.0% to +6.8% with the issue-stage model and round-robin scheduling of docs/BLACKWELL.md). A100: 9 of 11 within 8% on both boards.
 
 `--only a,b` restricts the run to some labels, and `--max-error N` fails when any |error| exceeds N%. CI runs the fast kernels this way. `RSIM_VALIDATE_STATS=1` dumps each kernel's simulated stats (stalls, cache hits, instruction mix) to stderr.
 
@@ -81,7 +83,7 @@ What the remaining misses need:
 
 - **hbm_copy on A100** (about −23%): at the traced size (2 CTAs, 1 MB) each warp keeps one 512 B load in flight. The model's round trip is about 680 cycles; the hardware's is about 940. The model has no per-SM limit on the SM-to-L2 path, and stores share it with loads. The read-only stream is within 8%.
 - **l2_pointer_chase on A100** (+12–16%): the chase runs slow even with the near/far L2 split scaled to the measured mean.
-- **smem_conflict_free on B300** (+10%) and **ffma_throughput on B300** (−7%): open.
+- **ffma_throughput on B300** (−6.5%): open. Its FFMAs reuse-cache two operands, so the register banks do not explain it.
 - **tma_bulk_stream on B300** (−6%): 4 KB chunks, 4 stages. HBM latency under load now comes from the measured loaded-latency probe (`raw/loaded`: 417 ns idle, 471 ns at 5.4 TB/s), which took this from −10.6% to −6.2%. The rest is probably in the TMA engine.
 
 Model fixes behind this table:

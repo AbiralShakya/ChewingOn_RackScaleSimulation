@@ -23,6 +23,8 @@ pub enum SchedPolicy {
     Gto,
     /// Loose round-robin.
     Lrr,
+    /// Greedy, then the youngest ready warp.
+    Gty,
 }
 
 /// `calibration/src/bench_window.cu`'s kernel as compiled for sm_103, up
@@ -140,10 +142,21 @@ pub struct Gpu {
 impl Gpu {
     pub fn new(rank: usize, spec: GpuSpec, cfg: GpuConfig, trace_enabled: bool) -> Self {
         let spec = Arc::new(spec);
-        let policy = match cfg.policy {
+        let mut policy = match cfg.policy {
             SchedPolicy::Gto => Policy::Gto,
             SchedPolicy::Lrr => Policy::Lrr,
+            SchedPolicy::Gty => Policy::Gty,
         };
+        // A measured scheduler for this GPU (calibration `issue.scheduler`)
+        // replaces the default greedy-then-oldest; an explicit LRR/GTY
+        // request still wins.
+        if cfg.policy == SchedPolicy::Gto {
+            match spec.issue.scheduler.as_str() {
+                "lrr" => policy = Policy::Lrr,
+                "gty" => policy = Policy::Gty,
+                _ => {}
+            }
+        }
         let sms = (0..spec.sm_count)
             .map(|i| {
                 let mut sm = Sm::new(i, spec.clone(), policy, cfg.use_control_bits);
@@ -696,6 +709,23 @@ pub fn dvfs_stretch(spec: &GpuSpec, launch: &KernelLaunch, d: &KernelDone) -> f6
     let Some(p) = &spec.power else {
         return 1.0;
     };
+    // A fixed lower clock whenever tcgen05 MMAs run (B300: 1905 MHz).
+    let tc = if p.tcgen05_mhz > 0.0
+        && d.stats.class_counts[rsim_sass::OpClass::MmaTcgen05 as usize] > 0
+    {
+        spec.sm_clock_mhz / p.tcgen05_mhz
+    } else {
+        1.0
+    };
+    tc.max(cap_stretch(spec, p, launch, d))
+}
+
+fn cap_stretch(
+    spec: &GpuSpec,
+    p: &rsim_hw::PowerSpec,
+    launch: &KernelLaunch,
+    d: &KernelDone,
+) -> f64 {
     let name = launch.name.to_ascii_lowercase();
     let Some(dtype) = ["fp4", "fp8", "bf16", "fp16", "tf32"]
         .into_iter()

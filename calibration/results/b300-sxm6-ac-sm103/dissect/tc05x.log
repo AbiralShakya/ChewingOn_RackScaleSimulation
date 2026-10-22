@@ -1,0 +1,137 @@
+tmem_ld 32x32b.x1        128 B/warp  lat   13.4      38 B/clk (4w)    118 (16w)
+tmem_ld 32x32b.x2        256 B/warp  lat   41.9      25 B/clk (4w)     79 (16w)
+tmem_ld 32x32b.x4        512 B/warp  lat   42.9      48 B/clk (4w)    152 (16w)
+tmem_ld 32x32b.x8       1024 B/warp  lat   44.9      92 B/clk (4w)    301 (16w)
+tmem_ld 32x32b.x16      2048 B/warp  lat   48.9     168 B/clk (4w)    599 (16w)
+tmem_ld 32x32b.x32      4096 B/warp  lat   56.9     289 B/clk (4w)    862 (16w)
+tmem_ld 32x32b.x64      8192 B/warp  lat   72.9     450 B/clk (4w)    936 (16w)
+tmem_ld 32x32b.x128    16384 B/warp  lat  104.9     626 B/clk (4w)    inf (16w)
+tmem_ld 16x64b.x1        128 B/warp  lat   13.4      38 B/clk (4w)    115 (16w)
+tmem_ld 16x64b.x2        256 B/warp  lat   42.9      24 B/clk (4w)     78 (16w)
+tmem_ld 16x64b.x4        512 B/warp  lat   44.9      46 B/clk (4w)    138 (16w)
+tmem_ld 16x64b.x8       1024 B/warp  lat   48.9      84 B/clk (4w)    301 (16w)
+tmem_ld 16x64b.x16      2048 B/warp  lat   56.9     144 B/clk (4w)    473 (16w)
+tmem_ld 16x64b.x32      4096 B/warp  lat   72.9     225 B/clk (4w)    492 (16w)
+tmem_ld 16x64b.x64      8192 B/warp  lat  104.9     313 B/clk (4w)    504 (16w)
+tmem_ld 16x64b.x128    16384 B/warp  lat  168.9     388 B/clk (4w)    inf (16w)
+tmem_ld 16x128b.x1       256 B/warp  lat   42.9      24 B/clk (4w)     75 (16w)
+tmem_ld 16x128b.x2       512 B/warp  lat   44.9      46 B/clk (4w)    147 (16w)
+tmem_ld 16x128b.x4      1024 B/warp  lat   48.9      84 B/clk (4w)    309 (16w)
+tmem_ld 16x128b.x8      2048 B/warp  lat   56.9     144 B/clk (4w)    481 (16w)
+tmem_ld 16x128b.x16     4096 B/warp  lat   72.9     225 B/clk (4w)    513 (16w)
+tmem_ld 16x128b.x32     8192 B/warp  lat  104.9     313 B/clk (4w)    512 (16w)
+tmem_ld 16x128b.x64    16384 B/warp  lat  168.9     388 B/clk (4w)    inf (16w)
+tmem_ld 16x256b.x1       512 B/warp  lat   48.9      42 B/clk (4w)    150 (16w)
+tmem_ld 16x256b.x2      1024 B/warp  lat   56.9      72 B/clk (4w)    249 (16w)
+tmem_ld 16x256b.x4      2048 B/warp  lat   72.9     113 B/clk (4w)    256 (16w)
+tmem_ld 16x256b.x8      4096 B/warp  lat  104.9     156 B/clk (4w)    256 (16w)
+tmem_ld 16x256b.x16     8192 B/warp  lat  168.9     194 B/clk (4w)    256 (16w)
+tmem_ld 16x256b.x32    16384 B/warp  lat  296.9     221 B/clk (4w)    inf (16w)
+tmem_st 32x32b.x1        128 B/warp  lat   16.3      32 B/clk (4w)     81 (16w)
+tmem_st 32x32b.x2        256 B/warp  lat   17.3      59 B/clk (4w)    139 (16w)
+tmem_st 32x32b.x4        512 B/warp  lat   16.8     122 B/clk (4w)    263 (16w)
+tmem_st 32x32b.x8       1024 B/warp  lat   18.3     224 B/clk (4w)    435 (16w)
+tmem_st 32x32b.x16      2048 B/warp  lat   22.1     372 B/clk (4w)    611 (16w)
+tmem_st 32x32b.x32      4096 B/warp  lat   30.1     546 B/clk (4w)    781 (16w)
+tmem_st 32x32b.x64      8192 B/warp  lat   46.0     712 B/clk (4w)    888 (16w)
+tmem_st 32x32b.x128    16384 B/warp  lat   76.5     857 B/clk (4w)    inf (16w)
+tmem_st 16x64b.x1        128 B/warp  lat   16.3      32 B/clk (4w)     81 (16w)
+tmem_st 16x64b.x2        256 B/warp  lat   17.8      58 B/clk (4w)    139 (16w)
+tmem_st 16x64b.x4        512 B/warp  lat   18.3     112 B/clk (4w)    271 (16w)
+tmem_st 16x64b.x8       1024 B/warp  lat   22.1     186 B/clk (4w)    452 (16w)
+tmem_st 16x64b.x16      2048 B/warp  lat   30.1     273 B/clk (4w)    482 (16w)
+tmem_st 16x64b.x32      4096 B/warp  lat   46.0     356 B/clk (4w)    496 (16w)
+tmem_st 16x64b.x64      8192 B/warp  lat   78.0     420 B/clk (4w)    503 (16w)
+tmem_st 16x64b.x128    16384 B/warp  lat  140.4     467 B/clk (4w)    inf (16w)
+tmem_st 16x128b.x1       256 B/warp  lat   17.8      58 B/clk (4w)    139 (16w)
+tmem_st 16x128b.x2       512 B/warp  lat   18.3     112 B/clk (4w)    272 (16w)
+tmem_st 16x128b.x4      1024 B/warp  lat   22.1     186 B/clk (4w)    455 (16w)
+tmem_st 16x128b.x8      2048 B/warp  lat   30.1     273 B/clk (4w)    482 (16w)
+tmem_st 16x128b.x16     4096 B/warp  lat   46.0     356 B/clk (4w)    496 (16w)
+tmem_st 16x128b.x32     8192 B/warp  lat   78.0     420 B/clk (4w)    503 (16w)
+tmem_st 16x128b.x64    16384 B/warp  lat  140.4     467 B/clk (4w)    inf (16w)
+tmem_st 16x256b.x1       512 B/warp  lat   22.1      93 B/clk (4w)    228 (16w)
+tmem_st 16x256b.x2      1024 B/warp  lat   30.1     137 B/clk (4w)    240 (16w)
+tmem_st 16x256b.x4      2048 B/warp  lat   46.0     178 B/clk (4w)    248 (16w)
+tmem_st 16x256b.x8      4096 B/warp  lat   78.0     210 B/clk (4w)    252 (16w)
+tmem_st 16x256b.x16     8192 B/warp  lat  142.0     231 B/clk (4w)    254 (16w)
+tmem_st 16x256b.x32    16384 B/warp  lat  268.4     244 B/clk (4w)    inf (16w)
+umma_pipeline_bf16_m128n64k16 k=  1 arrival    335  last issue returns    144
+umma_pipeline_bf16_m128n64k16 k=  2 arrival    379  last issue returns    224
+umma_pipeline_bf16_m128n64k16 k=  3 arrival    492  last issue returns    301
+umma_pipeline_bf16_m128n64k16 k=  4 arrival    452  last issue returns    297
+umma_pipeline_bf16_m128n64k16 k=  6 arrival    632  last issue returns    477
+umma_pipeline_bf16_m128n64k16 k=  8 arrival    660  last issue returns    471
+umma_pipeline_bf16_m128n64k16 k= 12 arrival    929  last issue returns    774
+umma_pipeline_bf16_m128n64k16 k= 16 arrival   1078  last issue returns    889
+umma_pipeline_bf16_m128n64k16 k= 24 arrival   1496  last issue returns   1307
+umma_pipeline_bf16_m128n64k16 k= 32 arrival   1914  last issue returns   1725
+umma_pipeline_bf16_m128n64k16 k= 48 arrival   2750  last issue returns   2561
+umma_pipeline_bf16_m128n64k16 k= 64 arrival   3586  last issue returns   3397
+umma_pipeline_bf16_m128n64k16 k= 96 arrival   5258  last issue returns   5069
+umma_pipeline_bf16_m128n64k16 k=128 arrival   6930  last issue returns   6741
+umma_pipeline_bf16_m128n128k16 k=  1 arrival    335  last issue returns    144
+umma_pipeline_bf16_m128n128k16 k=  2 arrival    379  last issue returns    224
+umma_pipeline_bf16_m128n128k16 k=  3 arrival    492  last issue returns    301
+umma_pipeline_bf16_m128n128k16 k=  4 arrival    452  last issue returns    297
+umma_pipeline_bf16_m128n128k16 k=  6 arrival    632  last issue returns    477
+umma_pipeline_bf16_m128n128k16 k=  8 arrival    820  last issue returns    471
+umma_pipeline_bf16_m128n128k16 k= 12 arrival   1089  last issue returns    774
+umma_pipeline_bf16_m128n128k16 k= 16 arrival   1260  last issue returns    911
+umma_pipeline_bf16_m128n128k16 k= 24 arrival   1772  last issue returns   1423
+umma_pipeline_bf16_m128n128k16 k= 32 arrival   2284  last issue returns   1935
+umma_pipeline_bf16_m128n128k16 k= 48 arrival   3308  last issue returns   2959
+umma_pipeline_bf16_m128n128k16 k= 64 arrival   4332  last issue returns   3983
+umma_pipeline_bf16_m128n128k16 k= 96 arrival   6380  last issue returns   6031
+umma_pipeline_bf16_m128n128k16 k=128 arrival   8428  last issue returns   8079
+umma_pipeline_bf16_m128n256k16 k=  1 arrival    335  last issue returns    144
+umma_pipeline_bf16_m128n256k16 k=  2 arrival    539  last issue returns    224
+umma_pipeline_bf16_m128n256k16 k=  3 arrival    654  last issue returns    301
+umma_pipeline_bf16_m128n256k16 k=  4 arrival    762  last issue returns    297
+umma_pipeline_bf16_m128n256k16 k=  6 arrival   1092  last issue returns    477
+umma_pipeline_bf16_m128n256k16 k=  8 arrival   1318  last issue returns    506
+umma_pipeline_bf16_m128n256k16 k= 12 arrival   1830  last issue returns   1018
+umma_pipeline_bf16_m128n256k16 k= 16 arrival   2342  last issue returns   1530
+umma_pipeline_bf16_m128n256k16 k= 24 arrival   3366  last issue returns   2554
+umma_pipeline_bf16_m128n256k16 k= 32 arrival   4390  last issue returns   3578
+umma_pipeline_bf16_m128n256k16 k= 48 arrival   6438  last issue returns   5626
+umma_pipeline_bf16_m128n256k16 k= 64 arrival   8486  last issue returns   7674
+umma_pipeline_bf16_m128n256k16 k= 96 arrival  12582  last issue returns  11770
+umma_pipeline_bf16_m128n256k16 k=128 arrival  16678  last issue returns  15866
+umma_pipeline_fp8_m128n256k32 k=  1 arrival    335  last issue returns    144
+umma_pipeline_fp8_m128n256k32 k=  2 arrival    539  last issue returns    224
+umma_pipeline_fp8_m128n256k32 k=  3 arrival    654  last issue returns    301
+umma_pipeline_fp8_m128n256k32 k=  4 arrival    762  last issue returns    297
+umma_pipeline_fp8_m128n256k32 k=  6 arrival   1092  last issue returns    477
+umma_pipeline_fp8_m128n256k32 k=  8 arrival   1318  last issue returns    506
+umma_pipeline_fp8_m128n256k32 k= 12 arrival   1830  last issue returns   1018
+umma_pipeline_fp8_m128n256k32 k= 16 arrival   2342  last issue returns   1530
+umma_pipeline_fp8_m128n256k32 k= 24 arrival   3366  last issue returns   2554
+umma_pipeline_fp8_m128n256k32 k= 32 arrival   4390  last issue returns   3578
+umma_pipeline_fp8_m128n256k32 k= 48 arrival   6438  last issue returns   5626
+umma_pipeline_fp8_m128n256k32 k= 64 arrival   8486  last issue returns   7674
+umma_pipeline_fp8_m128n256k32 k= 96 arrival  12582  last issue returns  11770
+umma_pipeline_fp8_m128n256k32 k=128 arrival  16678  last issue returns  15866
+umma_pipeline_nvfp4_m128n256k64 k=  1 arrival    337  last issue returns    146
+umma_pipeline_nvfp4_m128n256k64 k=  2 arrival    541  last issue returns    226
+umma_pipeline_nvfp4_m128n256k64 k=  3 arrival    659  last issue returns    305
+umma_pipeline_nvfp4_m128n256k64 k=  4 arrival    764  last issue returns    299
+umma_pipeline_nvfp4_m128n256k64 k=  6 arrival   1096  last issue returns    481
+umma_pipeline_nvfp4_m128n256k64 k=  8 arrival   1321  last issue returns    510
+umma_pipeline_nvfp4_m128n256k64 k= 12 arrival   1833  last issue returns   1022
+umma_pipeline_nvfp4_m128n256k64 k= 16 arrival   2345  last issue returns   1534
+umma_pipeline_nvfp4_m128n256k64 k= 24 arrival   3369  last issue returns   2558
+umma_pipeline_nvfp4_m128n256k64 k= 32 arrival   4393  last issue returns   3582
+umma_pipeline_nvfp4_m128n256k64 k= 48 arrival   6441  last issue returns   5630
+umma_pipeline_nvfp4_m128n256k64 k= 64 arrival   8489  last issue returns   7678
+umma_pipeline_nvfp4_m128n256k64 k= 96 arrival  12585  last issue returns  11774
+umma_pipeline_nvfp4_m128n256k64 k=128 arrival  16681  last issue returns  15870
+tcgen05_cp_128x256b: round trip 322.0 cyc, 193.0 cyc/cp, 21.2 B/clk
+tcgen05_cp_128x128b: round trip 322.0 cyc, 193.0 cyc/cp, 10.6 B/clk
+tcgen05_cp_4x256b: round trip 322.0 cyc, 193.0 cyc/cp, 0.7 B/clk
+tcgen05.alloc  32 cols: 243 cyc, dealloc 201 cyc
+tcgen05.alloc  64 cols: 243 cyc, dealloc 201 cyc
+tcgen05.alloc 128 cols: 243 cyc, dealloc 201 cyc
+tcgen05.alloc 256 cols: 243 cyc, dealloc 201 cyc
+tcgen05.alloc 512 cols: 243 cyc, dealloc 201 cyc
+overlap: 256 MMAs 33030 cyc alone, 33030 with TMEM loads; ld 281 B/clk alone, 273 with MMA
