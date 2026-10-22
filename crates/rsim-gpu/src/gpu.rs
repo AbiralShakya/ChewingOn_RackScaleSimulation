@@ -625,7 +625,7 @@ impl Gpu {
                 ]);
                 false
             });
-            for p in st.probes.chunks_exact(5) {
+            for p in st.probes.as_chunks::<5>().0 {
                 d.probes
                     .extend_from_slice(&[p[0], p[1], p[2], p[3], p[4].saturating_sub(start)]);
             }
