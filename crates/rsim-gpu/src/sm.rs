@@ -1525,7 +1525,11 @@ fn rf_bank_reads(spec: &GpuSpec, inst: &Inst, reuse: &[Reg; 4]) -> [u8; 8] {
     let mut seen = [NO_REG; 16];
     let mut ns = 0;
     for o in &inst.meta.rf[..inst.meta.rf_n as usize] {
-        if spec.issue.reuse_cache && o.width == 1 && reuse[o.slot as usize] == o.reg {
+        if spec.issue.reuse_cache
+            && o.width == 1
+            && (reuse[o.slot as usize] == o.reg
+                || (spec.issue.reuse_any_slot && reuse.contains(&o.reg)))
+        {
             continue;
         }
         for k in 0..o.width as u16 {

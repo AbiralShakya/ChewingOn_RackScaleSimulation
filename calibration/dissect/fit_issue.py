@@ -47,7 +47,10 @@ def queue_depth(tc):
 def bank_count(regfile_path):
     """Best bank function (index mod 2/4/8) by regression R^2 on the random trials."""
     import numpy as np
-    d = json.load(open(regfile_path))
+    import gzip
+    if not os.path.exists(regfile_path) and os.path.exists(regfile_path + ".gz"):
+        regfile_path += ".gz"
+    d = json.load(gzip.open(regfile_path) if regfile_path.endswith(".gz") else open(regfile_path))
     best = {}
     for fn, r in d.items():
         nsrc = r["nsrc"]
@@ -84,9 +87,14 @@ def main(cal_path, d):
     iss = {
         "rf_banks": banks,
         "reuse_cache": True,
+        # bankcheck.py / t_alu timelines: a cached operand serves any slot.
+        "reuse_any_slot": True,
         "yield_min_stall": 2,
         "tcgen05_queue_depth": queue_depth(tc),
         "tmem": tmem(tc),
+        # Per-warp clock64 timelines (timeline_compare.py): loose round-robin
+        # fits multi-warp progress better than greedy-then-oldest.
+        "scheduler": "lrr",
     }
     cal["model"]["issue"] = iss
     cal["model"].setdefault("power", {})["tcgen05_sm_mhz"] = tcgen05_mhz(dv)

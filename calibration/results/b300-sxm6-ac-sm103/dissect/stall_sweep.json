@@ -1,0 +1,3949 @@
+{
+ "c_hmma_bf16": {
+  "opcode": "HMMA",
+  "sass": [
+   "HMMA.16816.F32.BF16"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "HMMA": 64,
+   "UIADD3": 63
+  },
+  "orig_stalls": [
+   1,
+   11
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 1267,
+  "latency": 6,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 637,
+    "cycles_per_op": 9.953125
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 701,
+    "cycles_per_op": 10.953125
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 765,
+    "cycles_per_op": 11.953125
+   },
+   {
+    "stall": 4,
+    "correct": false,
+    "cycles": 829,
+    "cycles_per_op": 12.953125
+   },
+   {
+    "stall": 5,
+    "correct": false,
+    "cycles": 893,
+    "cycles_per_op": 13.953125
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 957,
+    "cycles_per_op": 14.953125
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 1021,
+    "cycles_per_op": 15.953125
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 1085,
+    "cycles_per_op": 16.953125
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 1149,
+    "cycles_per_op": 17.953125
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 1213,
+    "cycles_per_op": 18.953125
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 1277,
+    "cycles_per_op": 19.953125
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1341,
+    "cycles_per_op": 20.953125
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1405,
+    "cycles_per_op": 21.953125
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1469,
+    "cycles_per_op": 22.953125
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1533,
+    "cycles_per_op": 23.953125
+   }
+  ]
+ },
+ "c_hmma_bf16:UIADD3": {
+  "opcode": "UIADD3",
+  "sass": [
+   "UIADD3"
+  ],
+  "n_chain": 63,
+  "body_ops": {
+   "HMMA": 64,
+   "UIADD3": 63
+  },
+  "orig_stalls": [
+   9
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 1267,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 763,
+    "cycles_per_op": 12.11111111111111
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 826,
+    "cycles_per_op": 13.11111111111111
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 889,
+    "cycles_per_op": 14.11111111111111
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 952,
+    "cycles_per_op": 15.11111111111111
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 1015,
+    "cycles_per_op": 16.11111111111111
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 1078,
+    "cycles_per_op": 17.11111111111111
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 1141,
+    "cycles_per_op": 18.11111111111111
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 1204,
+    "cycles_per_op": 19.11111111111111
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 1267,
+    "cycles_per_op": 20.11111111111111
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 1330,
+    "cycles_per_op": 21.11111111111111
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 1393,
+    "cycles_per_op": 22.11111111111111
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1456,
+    "cycles_per_op": 23.11111111111111
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1519,
+    "cycles_per_op": 24.11111111111111
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1582,
+    "cycles_per_op": 25.11111111111111
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1645,
+    "cycles_per_op": 26.11111111111111
+   }
+  ]
+ },
+ "c_dfma": {
+  "opcode": "NOP",
+  "sass": [
+   "NOP"
+  ],
+  "n_chain": 255,
+  "body_ops": {
+   "NOP": 255,
+   "DFMA": 64
+  },
+  "orig_stalls": [
+   4,
+   9,
+   15
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 4106,
+  "latency": 1,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": true,
+    "cycles": 3440,
+    "cycles_per_op": 13.490196078431373
+   },
+   {
+    "stall": 2,
+    "correct": true,
+    "cycles": 3443,
+    "cycles_per_op": 13.501960784313725
+   },
+   {
+    "stall": 3,
+    "correct": true,
+    "cycles": 3446,
+    "cycles_per_op": 13.513725490196078
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 3449,
+    "cycles_per_op": 13.525490196078431
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 3452,
+    "cycles_per_op": 13.537254901960784
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 3455,
+    "cycles_per_op": 13.549019607843137
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 3458,
+    "cycles_per_op": 13.56078431372549
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 3461,
+    "cycles_per_op": 13.572549019607843
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 3464,
+    "cycles_per_op": 13.584313725490196
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 3530,
+    "cycles_per_op": 13.843137254901961
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 3785,
+    "cycles_per_op": 14.843137254901961
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 4040,
+    "cycles_per_op": 15.843137254901961
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 4295,
+    "cycles_per_op": 16.84313725490196
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 4550,
+    "cycles_per_op": 17.84313725490196
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 4805,
+    "cycles_per_op": 18.84313725490196
+   }
+  ]
+ },
+ "c_dfma:DFMA": {
+  "opcode": "DFMA",
+  "sass": [
+   "DFMA"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "NOP": 255,
+   "DFMA": 64
+  },
+  "orig_stalls": [
+   2,
+   15
+  ],
+  "orig_scoreboarded": true,
+  "ref_cycles": 4106,
+  "latency": null,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 3205,
+    "cycles_per_op": 50.078125
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 3287,
+    "cycles_per_op": 51.359375
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 3350,
+    "cycles_per_op": 52.34375
+   },
+   {
+    "stall": 4,
+    "correct": false,
+    "cycles": 3413,
+    "cycles_per_op": 53.328125
+   },
+   {
+    "stall": 5,
+    "correct": false,
+    "cycles": 3476,
+    "cycles_per_op": 54.3125
+   },
+   {
+    "stall": 6,
+    "correct": false,
+    "cycles": 3539,
+    "cycles_per_op": 55.296875
+   },
+   {
+    "stall": 7,
+    "correct": false,
+    "cycles": 3602,
+    "cycles_per_op": 56.28125
+   },
+   {
+    "stall": 8,
+    "correct": false,
+    "cycles": 3665,
+    "cycles_per_op": 57.265625
+   },
+   {
+    "stall": 9,
+    "correct": false,
+    "cycles": 3728,
+    "cycles_per_op": 58.25
+   },
+   {
+    "stall": 10,
+    "correct": false,
+    "cycles": 3791,
+    "cycles_per_op": 59.234375
+   },
+   {
+    "stall": 11,
+    "correct": false,
+    "cycles": 3854,
+    "cycles_per_op": 60.21875
+   },
+   {
+    "stall": 12,
+    "correct": false,
+    "cycles": 3917,
+    "cycles_per_op": 61.203125
+   },
+   {
+    "stall": 13,
+    "correct": false,
+    "cycles": 3980,
+    "cycles_per_op": 62.1875
+   },
+   {
+    "stall": 14,
+    "correct": false,
+    "cycles": 4043,
+    "cycles_per_op": 63.171875
+   },
+   {
+    "stall": 15,
+    "correct": false,
+    "cycles": 4106,
+    "cycles_per_op": 64.15625
+   }
+  ]
+ },
+ "c_ffma2": {
+  "opcode": "FFMA2",
+  "sass": [
+   "FFMA2"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "FFMA2": 64
+  },
+  "orig_stalls": [
+   1,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 254,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 145,
+    "cycles_per_op": 2.265625
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 146,
+    "cycles_per_op": 2.28125
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_shfl": {
+  "opcode": "SHFL",
+  "sass": [
+   "SHFL.BFLY"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "SHFL": 64,
+   "IMAD": 32,
+   "IADD3": 32
+  },
+  "orig_stalls": [
+   2
+  ],
+  "orig_scoreboarded": true,
+  "ref_cycles": 1891,
+  "latency": null,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 419,
+    "cycles_per_op": 6.546875
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 483,
+    "cycles_per_op": 7.546875
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 547,
+    "cycles_per_op": 8.546875
+   },
+   {
+    "stall": 4,
+    "correct": false,
+    "cycles": 611,
+    "cycles_per_op": 9.546875
+   },
+   {
+    "stall": 5,
+    "correct": false,
+    "cycles": 675,
+    "cycles_per_op": 10.546875
+   },
+   {
+    "stall": 6,
+    "correct": false,
+    "cycles": 739,
+    "cycles_per_op": 11.546875
+   },
+   {
+    "stall": 7,
+    "correct": false,
+    "cycles": 803,
+    "cycles_per_op": 12.546875
+   },
+   {
+    "stall": 8,
+    "correct": false,
+    "cycles": 867,
+    "cycles_per_op": 13.546875
+   },
+   {
+    "stall": 9,
+    "correct": false,
+    "cycles": 931,
+    "cycles_per_op": 14.546875
+   },
+   {
+    "stall": 10,
+    "correct": false,
+    "cycles": 995,
+    "cycles_per_op": 15.546875
+   },
+   {
+    "stall": 11,
+    "correct": false,
+    "cycles": 1059,
+    "cycles_per_op": 16.546875
+   },
+   {
+    "stall": 12,
+    "correct": false,
+    "cycles": 1123,
+    "cycles_per_op": 17.546875
+   },
+   {
+    "stall": 13,
+    "correct": false,
+    "cycles": 1187,
+    "cycles_per_op": 18.546875
+   },
+   {
+    "stall": 14,
+    "correct": false,
+    "cycles": 1251,
+    "cycles_per_op": 19.546875
+   },
+   {
+    "stall": 15,
+    "correct": false,
+    "cycles": 1315,
+    "cycles_per_op": 20.546875
+   }
+  ]
+ },
+ "c_shfl:IMAD": {
+  "opcode": "IMAD",
+  "sass": [
+   "IMAD.IADD"
+  ],
+  "n_chain": 32,
+  "body_ops": {
+   "SHFL": 64,
+   "IMAD": 32,
+   "IADD3": 32
+  },
+  "orig_stalls": [
+   5,
+   6
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 1891,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 1746,
+    "cycles_per_op": 54.5625
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 1778,
+    "cycles_per_op": 55.5625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 1810,
+    "cycles_per_op": 56.5625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 1842,
+    "cycles_per_op": 57.5625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 1874,
+    "cycles_per_op": 58.5625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 1906,
+    "cycles_per_op": 59.5625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 1938,
+    "cycles_per_op": 60.5625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 1970,
+    "cycles_per_op": 61.5625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 2002,
+    "cycles_per_op": 62.5625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 2034,
+    "cycles_per_op": 63.5625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 2066,
+    "cycles_per_op": 64.5625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 2098,
+    "cycles_per_op": 65.5625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 2130,
+    "cycles_per_op": 66.5625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 2162,
+    "cycles_per_op": 67.5625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 2194,
+    "cycles_per_op": 68.5625
+   }
+  ]
+ },
+ "c_shfl:IADD3": {
+  "opcode": "IADD3",
+  "sass": [
+   "IADD3"
+  ],
+  "n_chain": 32,
+  "body_ops": {
+   "SHFL": 64,
+   "IMAD": 32,
+   "IADD3": 32
+  },
+  "orig_stalls": [
+   2,
+   5,
+   6
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 1891,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 1748,
+    "cycles_per_op": 54.625
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 1779,
+    "cycles_per_op": 55.59375
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 1811,
+    "cycles_per_op": 56.59375
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 1843,
+    "cycles_per_op": 57.59375
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 1875,
+    "cycles_per_op": 58.59375
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 1907,
+    "cycles_per_op": 59.59375
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 1939,
+    "cycles_per_op": 60.59375
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 1971,
+    "cycles_per_op": 61.59375
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 2003,
+    "cycles_per_op": 62.59375
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 2035,
+    "cycles_per_op": 63.59375
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 2067,
+    "cycles_per_op": 64.59375
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 2099,
+    "cycles_per_op": 65.59375
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 2131,
+    "cycles_per_op": 66.59375
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 2163,
+    "cycles_per_op": 67.59375
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 2195,
+    "cycles_per_op": 68.59375
+   }
+  ]
+ },
+ "c_sel": {
+  "opcode": "ISETP",
+  "sass": [
+   "ISETP.GE.U32.AND"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "ISETP": 64,
+   "SEL": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 767,
+  "latency": 1,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": true,
+    "cycles": 639,
+    "cycles_per_op": 9.984375
+   },
+   {
+    "stall": 2,
+    "correct": true,
+    "cycles": 639,
+    "cycles_per_op": 9.984375
+   },
+   {
+    "stall": 3,
+    "correct": true,
+    "cycles": 703,
+    "cycles_per_op": 10.984375
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 767,
+    "cycles_per_op": 11.984375
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 831,
+    "cycles_per_op": 12.984375
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 895,
+    "cycles_per_op": 13.984375
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 959,
+    "cycles_per_op": 14.984375
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 1023,
+    "cycles_per_op": 15.984375
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 1087,
+    "cycles_per_op": 16.984375
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 1151,
+    "cycles_per_op": 17.984375
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 1215,
+    "cycles_per_op": 18.984375
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1279,
+    "cycles_per_op": 19.984375
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1343,
+    "cycles_per_op": 20.984375
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1407,
+    "cycles_per_op": 21.984375
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1471,
+    "cycles_per_op": 22.984375
+   }
+  ]
+ },
+ "c_sel:SEL": {
+  "opcode": "SEL",
+  "sass": [
+   "SEL"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "ISETP": 64,
+   "SEL": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 767,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 639,
+    "cycles_per_op": 9.984375
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 639,
+    "cycles_per_op": 9.984375
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 703,
+    "cycles_per_op": 10.984375
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 767,
+    "cycles_per_op": 11.984375
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 831,
+    "cycles_per_op": 12.984375
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 895,
+    "cycles_per_op": 13.984375
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 959,
+    "cycles_per_op": 14.984375
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 1023,
+    "cycles_per_op": 15.984375
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 1087,
+    "cycles_per_op": 16.984375
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 1151,
+    "cycles_per_op": 17.984375
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 1215,
+    "cycles_per_op": 18.984375
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1279,
+    "cycles_per_op": 19.984375
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1343,
+    "cycles_per_op": 20.984375
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1407,
+    "cycles_per_op": 21.984375
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1471,
+    "cycles_per_op": 22.984375
+   }
+  ]
+ },
+ "c_sel:LOP3": {
+  "opcode": "LOP3",
+  "sass": [
+   "LOP3.LUT"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "ISETP": 64,
+   "SEL": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   2,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 767,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 1025,
+    "cycles_per_op": 16.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 1089,
+    "cycles_per_op": 17.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 1153,
+    "cycles_per_op": 18.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 1217,
+    "cycles_per_op": 19.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1281,
+    "cycles_per_op": 20.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1345,
+    "cycles_per_op": 21.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1409,
+    "cycles_per_op": 22.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1473,
+    "cycles_per_op": 23.015625
+   }
+  ]
+ },
+ "c_mufu_tanh": {
+  "opcode": "MUFU",
+  "sass": [
+   "MUFU.TANH"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "MUFU": 64
+  },
+  "orig_stalls": [
+   2,
+   8
+  ],
+  "orig_scoreboarded": true,
+  "ref_cycles": 1148,
+  "latency": null,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 1011623598,
+    "cycles_per_op": 15806618.71875
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 518,
+    "cycles_per_op": 8.09375
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 518,
+    "cycles_per_op": 8.09375
+   },
+   {
+    "stall": 4,
+    "correct": false,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 5,
+    "correct": false,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 6,
+    "correct": false,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 7,
+    "correct": false,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 8,
+    "correct": false,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 9,
+    "correct": false,
+    "cycles": 580,
+    "cycles_per_op": 9.0625
+   },
+   {
+    "stall": 10,
+    "correct": false,
+    "cycles": 643,
+    "cycles_per_op": 10.046875
+   },
+   {
+    "stall": 11,
+    "correct": false,
+    "cycles": 706,
+    "cycles_per_op": 11.03125
+   },
+   {
+    "stall": 12,
+    "correct": false,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": false,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_mufu_rsq": {
+  "opcode": "MUFU",
+  "sass": [
+   "MUFU.RSQ"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "MUFU": 64
+  },
+  "orig_stalls": [
+   2,
+   8
+  ],
+  "orig_scoreboarded": true,
+  "ref_cycles": 1148,
+  "latency": 1,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": true,
+    "cycles": 3346839098,
+    "cycles_per_op": 52294360.90625
+   },
+   {
+    "stall": 2,
+    "correct": true,
+    "cycles": 518,
+    "cycles_per_op": 8.09375
+   },
+   {
+    "stall": 3,
+    "correct": true,
+    "cycles": 518,
+    "cycles_per_op": 8.09375
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 580,
+    "cycles_per_op": 9.0625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 643,
+    "cycles_per_op": 10.046875
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 706,
+    "cycles_per_op": 11.03125
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_mufu_ex2": {
+  "opcode": "MUFU",
+  "sass": [
+   "MUFU.EX2"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "MUFU": 64
+  },
+  "orig_stalls": [
+   2,
+   4
+  ],
+  "orig_scoreboarded": true,
+  "ref_cycles": 896,
+  "latency": 5,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 3363181728,
+    "cycles_per_op": 52549714.5
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 266,
+    "cycles_per_op": 4.15625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 266,
+    "cycles_per_op": 4.15625
+   },
+   {
+    "stall": 4,
+    "correct": false,
+    "cycles": 266,
+    "cycles_per_op": 4.15625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 328,
+    "cycles_per_op": 5.125
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 391,
+    "cycles_per_op": 6.109375
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 454,
+    "cycles_per_op": 7.09375
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 517,
+    "cycles_per_op": 8.078125
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 580,
+    "cycles_per_op": 9.0625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 643,
+    "cycles_per_op": 10.046875
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 706,
+    "cycles_per_op": 11.03125
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_popc": {
+  "error": " \"/scratch/gpfs/MZHASAN/as0714/blackwell/dissect/cudrv.py\", line 61, in sync\n    ck(_cu.cuCtxSynchronize(), \"sync\")\n    ~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/scratch/gpfs/MZHASAN/as0714/blackwell/dissect/cudrv.py\", line 14, in ck\n    raise RuntimeError(f\"{what}: CUDA error {r} {s.value.decode() if s.value else ''}\")\nRuntimeError: sync: CUDA error 700 an illegal memory access was encountered\n"
+ },
+ "c_i2fp": {
+  "opcode": "I2FP",
+  "sass": [
+   "I2FP.F32.U32"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "I2FP": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 511,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 383,
+    "cycles_per_op": 5.984375
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 383,
+    "cycles_per_op": 5.984375
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 447,
+    "cycles_per_op": 6.984375
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 511,
+    "cycles_per_op": 7.984375
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 575,
+    "cycles_per_op": 8.984375
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 639,
+    "cycles_per_op": 9.984375
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 703,
+    "cycles_per_op": 10.984375
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 767,
+    "cycles_per_op": 11.984375
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 831,
+    "cycles_per_op": 12.984375
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 895,
+    "cycles_per_op": 13.984375
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 959,
+    "cycles_per_op": 14.984375
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1023,
+    "cycles_per_op": 15.984375
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1087,
+    "cycles_per_op": 16.984375
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1151,
+    "cycles_per_op": 17.984375
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1215,
+    "cycles_per_op": 18.984375
+   }
+  ]
+ },
+ "c_i2fp:LOP3": {
+  "opcode": "LOP3",
+  "sass": [
+   "LOP3.LUT"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "I2FP": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   2,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 511,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1025,
+    "cycles_per_op": 16.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1089,
+    "cycles_per_op": 17.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1153,
+    "cycles_per_op": 18.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1217,
+    "cycles_per_op": 19.015625
+   }
+  ]
+ },
+ "c_f2fp_bf16": {
+  "opcode": "F2FP",
+  "sass": [
+   "F2FP.BF16.F32.PACK_AB"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "F2FP": 64
+  },
+  "orig_stalls": [
+   2,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 255,
+  "latency": 1,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": true,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 2,
+    "correct": true,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": true,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_fmnmx": {
+  "opcode": "FMNMX",
+  "sass": [
+   "FMNMX"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "FMNMX": 64,
+   "FADD": 64
+  },
+  "orig_stalls": [
+   5
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 637,
+  "latency": 5,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 381,
+    "cycles_per_op": 5.953125
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 445,
+    "cycles_per_op": 6.953125
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 509,
+    "cycles_per_op": 7.953125
+   },
+   {
+    "stall": 4,
+    "correct": false,
+    "cycles": 573,
+    "cycles_per_op": 8.953125
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 637,
+    "cycles_per_op": 9.953125
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 701,
+    "cycles_per_op": 10.953125
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 765,
+    "cycles_per_op": 11.953125
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 829,
+    "cycles_per_op": 12.953125
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 893,
+    "cycles_per_op": 13.953125
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 957,
+    "cycles_per_op": 14.953125
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 1021,
+    "cycles_per_op": 15.953125
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1085,
+    "cycles_per_op": 16.953125
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1149,
+    "cycles_per_op": 17.953125
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1213,
+    "cycles_per_op": 18.953125
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1277,
+    "cycles_per_op": 19.953125
+   }
+  ]
+ },
+ "c_fmnmx:FADD": {
+  "opcode": "FADD",
+  "sass": [
+   "FADD"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "FMNMX": 64,
+   "FADD": 64
+  },
+  "orig_stalls": [
+   1,
+   5
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 637,
+  "latency": 5,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 4,
+    "correct": false,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 1025,
+    "cycles_per_op": 16.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1089,
+    "cycles_per_op": 17.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1153,
+    "cycles_per_op": 18.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1217,
+    "cycles_per_op": 19.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1281,
+    "cycles_per_op": 20.015625
+   }
+  ]
+ },
+ "c_imnmx": {
+  "opcode": "VIMNMX",
+  "sass": [
+   "VIMNMX"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "VIMNMX": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 511,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 383,
+    "cycles_per_op": 5.984375
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 383,
+    "cycles_per_op": 5.984375
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 447,
+    "cycles_per_op": 6.984375
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 511,
+    "cycles_per_op": 7.984375
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 575,
+    "cycles_per_op": 8.984375
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 639,
+    "cycles_per_op": 9.984375
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 703,
+    "cycles_per_op": 10.984375
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 767,
+    "cycles_per_op": 11.984375
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 831,
+    "cycles_per_op": 12.984375
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 895,
+    "cycles_per_op": 13.984375
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 959,
+    "cycles_per_op": 14.984375
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1023,
+    "cycles_per_op": 15.984375
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1087,
+    "cycles_per_op": 16.984375
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1151,
+    "cycles_per_op": 17.984375
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1215,
+    "cycles_per_op": 18.984375
+   }
+  ]
+ },
+ "c_imnmx:LOP3": {
+  "opcode": "LOP3",
+  "sass": [
+   "LOP3.LUT"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "VIMNMX": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   2,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 511,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1025,
+    "cycles_per_op": 16.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1089,
+    "cycles_per_op": 17.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1153,
+    "cycles_per_op": 18.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1217,
+    "cycles_per_op": 19.015625
+   }
+  ]
+ },
+ "c_prmt": {
+  "opcode": "PRMT",
+  "sass": [
+   "PRMT"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "PRMT": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 511,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 383,
+    "cycles_per_op": 5.984375
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 383,
+    "cycles_per_op": 5.984375
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 447,
+    "cycles_per_op": 6.984375
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 511,
+    "cycles_per_op": 7.984375
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 575,
+    "cycles_per_op": 8.984375
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 639,
+    "cycles_per_op": 9.984375
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 703,
+    "cycles_per_op": 10.984375
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 767,
+    "cycles_per_op": 11.984375
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 831,
+    "cycles_per_op": 12.984375
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 895,
+    "cycles_per_op": 13.984375
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 959,
+    "cycles_per_op": 14.984375
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1023,
+    "cycles_per_op": 15.984375
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1087,
+    "cycles_per_op": 16.984375
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1151,
+    "cycles_per_op": 17.984375
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1215,
+    "cycles_per_op": 18.984375
+   }
+  ]
+ },
+ "c_prmt:LOP3": {
+  "opcode": "LOP3",
+  "sass": [
+   "LOP3.LUT"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "PRMT": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   2,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 511,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1025,
+    "cycles_per_op": 16.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1089,
+    "cycles_per_op": 17.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1153,
+    "cycles_per_op": 18.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1217,
+    "cycles_per_op": 19.015625
+   }
+  ]
+ },
+ "c_shf": {
+  "opcode": "SHF",
+  "sass": [
+   "SHF.L.W.U32.HI"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "SHF": 64
+  },
+  "orig_stalls": [
+   2,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 255,
+  "latency": 1,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": true,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 2,
+    "correct": true,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": true,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_iadd3": {
+  "opcode": "IMAD",
+  "sass": [
+   "IMAD.IADD"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "IMAD": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   5
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 638,
+  "latency": 5,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 382,
+    "cycles_per_op": 5.96875
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 446,
+    "cycles_per_op": 6.96875
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 510,
+    "cycles_per_op": 7.96875
+   },
+   {
+    "stall": 4,
+    "correct": false,
+    "cycles": 574,
+    "cycles_per_op": 8.96875
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 638,
+    "cycles_per_op": 9.96875
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 702,
+    "cycles_per_op": 10.96875
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 766,
+    "cycles_per_op": 11.96875
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 830,
+    "cycles_per_op": 12.96875
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 894,
+    "cycles_per_op": 13.96875
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 958,
+    "cycles_per_op": 14.96875
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 1022,
+    "cycles_per_op": 15.96875
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1086,
+    "cycles_per_op": 16.96875
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1150,
+    "cycles_per_op": 17.96875
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1214,
+    "cycles_per_op": 18.96875
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1278,
+    "cycles_per_op": 19.96875
+   }
+  ]
+ },
+ "c_iadd3:LOP3": {
+  "opcode": "LOP3",
+  "sass": [
+   "LOP3.LUT"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "IMAD": 64,
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   2,
+   5
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 638,
+  "latency": 5,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 386,
+    "cycles_per_op": 6.03125
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 4,
+    "correct": false,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 1025,
+    "cycles_per_op": 16.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 1089,
+    "cycles_per_op": 17.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 1153,
+    "cycles_per_op": 18.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1217,
+    "cycles_per_op": 19.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1281,
+    "cycles_per_op": 20.015625
+   }
+  ]
+ },
+ "c_lop3": {
+  "opcode": "LOP3",
+  "sass": [
+   "LOP3.LUT"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "LOP3": 64
+  },
+  "orig_stalls": [
+   2,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 255,
+  "latency": 1,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": true,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 2,
+    "correct": true,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": true,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_imad_hi": {
+  "opcode": "IMAD",
+  "sass": [
+   "IMAD.HI.U32"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "HFMA2": 1,
+   "IMAD": 64
+  },
+  "orig_stalls": [
+   1,
+   6
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 573,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 290,
+    "cycles_per_op": 4.53125
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 293,
+    "cycles_per_op": 4.578125
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 326,
+    "cycles_per_op": 5.09375
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 579,
+    "cycles_per_op": 9.046875
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 580,
+    "cycles_per_op": 9.0625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 581,
+    "cycles_per_op": 9.078125
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 582,
+    "cycles_per_op": 9.09375
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 646,
+    "cycles_per_op": 10.09375
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 710,
+    "cycles_per_op": 11.09375
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 774,
+    "cycles_per_op": 12.09375
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 838,
+    "cycles_per_op": 13.09375
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 902,
+    "cycles_per_op": 14.09375
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 966,
+    "cycles_per_op": 15.09375
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 1030,
+    "cycles_per_op": 16.09375
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 1094,
+    "cycles_per_op": 17.09375
+   }
+  ]
+ },
+ "c_imad": {
+  "opcode": "IMAD",
+  "sass": [
+   "IMAD"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "IMAD": 64
+  },
+  "orig_stalls": [
+   1,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 254,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 128,
+    "cycles_per_op": 2.0
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_hfma2_bf16": {
+  "opcode": "HFMA2",
+  "sass": [
+   "HFMA2.BF16_V2"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "HFMA2": 64
+  },
+  "orig_stalls": [
+   1,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 254,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 128,
+    "cycles_per_op": 2.0
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_hfma2": {
+  "opcode": "HFMA2",
+  "sass": [
+   "HFMA2"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "HFMA2": 64
+  },
+  "orig_stalls": [
+   1,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 254,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 128,
+    "cycles_per_op": 2.0
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_fmul": {
+  "opcode": "FMUL",
+  "sass": [
+   "FMUL"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "FMUL": 64
+  },
+  "orig_stalls": [
+   1,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 254,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 105,
+    "cycles_per_op": 1.640625
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_fadd": {
+  "opcode": "FADD",
+  "sass": [
+   "FADD"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "FADD": 64
+  },
+  "orig_stalls": [
+   1,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 254,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 105,
+    "cycles_per_op": 1.640625
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_ffma_b": {
+  "opcode": "FFMA",
+  "sass": [
+   "FFMA"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "FFMA": 64
+  },
+  "orig_stalls": [
+   1,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 254,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 128,
+    "cycles_per_op": 2.0
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_ffma_c": {
+  "opcode": "FFMA",
+  "sass": [
+   "FFMA"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "FFMA": 64
+  },
+  "orig_stalls": [
+   1,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 254,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 128,
+    "cycles_per_op": 2.0
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ },
+ "c_ffma_a": {
+  "opcode": "FFMA",
+  "sass": [
+   "FFMA"
+  ],
+  "n_chain": 64,
+  "body_ops": {
+   "FFMA": 64
+  },
+  "orig_stalls": [
+   1,
+   4
+  ],
+  "orig_scoreboarded": false,
+  "ref_cycles": 254,
+  "latency": 4,
+  "sweep": [
+   {
+    "stall": 1,
+    "correct": false,
+    "cycles": 128,
+    "cycles_per_op": 2.0
+   },
+   {
+    "stall": 2,
+    "correct": false,
+    "cycles": 129,
+    "cycles_per_op": 2.015625
+   },
+   {
+    "stall": 3,
+    "correct": false,
+    "cycles": 193,
+    "cycles_per_op": 3.015625
+   },
+   {
+    "stall": 4,
+    "correct": true,
+    "cycles": 257,
+    "cycles_per_op": 4.015625
+   },
+   {
+    "stall": 5,
+    "correct": true,
+    "cycles": 321,
+    "cycles_per_op": 5.015625
+   },
+   {
+    "stall": 6,
+    "correct": true,
+    "cycles": 385,
+    "cycles_per_op": 6.015625
+   },
+   {
+    "stall": 7,
+    "correct": true,
+    "cycles": 449,
+    "cycles_per_op": 7.015625
+   },
+   {
+    "stall": 8,
+    "correct": true,
+    "cycles": 513,
+    "cycles_per_op": 8.015625
+   },
+   {
+    "stall": 9,
+    "correct": true,
+    "cycles": 577,
+    "cycles_per_op": 9.015625
+   },
+   {
+    "stall": 10,
+    "correct": true,
+    "cycles": 641,
+    "cycles_per_op": 10.015625
+   },
+   {
+    "stall": 11,
+    "correct": true,
+    "cycles": 705,
+    "cycles_per_op": 11.015625
+   },
+   {
+    "stall": 12,
+    "correct": true,
+    "cycles": 769,
+    "cycles_per_op": 12.015625
+   },
+   {
+    "stall": 13,
+    "correct": true,
+    "cycles": 833,
+    "cycles_per_op": 13.015625
+   },
+   {
+    "stall": 14,
+    "correct": true,
+    "cycles": 897,
+    "cycles_per_op": 14.015625
+   },
+   {
+    "stall": 15,
+    "correct": true,
+    "cycles": 961,
+    "cycles_per_op": 15.015625
+   }
+  ]
+ }
+}

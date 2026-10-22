@@ -306,6 +306,10 @@ pub struct IssueSpec {
     /// until its slot reads a different register (rather than only serving
     /// the immediately following instruction, the Volta rule).
     pub reuse_sticky: bool,
+    /// A cached operand serves a read in any slot, not only the slot it was
+    /// cached from (B300: FFMA pairs that swap the reused registers between
+    /// slots a and c every instruction still issue one per cycle).
+    pub reuse_any_slot: bool,
     /// Cycles an instruction keeps its warp in dispatch before the warp's
     /// stall count starts (warp-instruction operand collection: HMMA reads
     /// 10 registers, DFMA runs at 1/64 rate, ...), keyed by full opcode or
@@ -321,6 +325,9 @@ pub struct IssueSpec {
     pub tcgen05_queue_depth: u32,
     /// Tensor-memory load/store timing (`LDTM`/`STTM`, i.e. tcgen05.ld/st).
     pub tmem: TmemSpec,
+    /// Warp scheduler measured for this GPU: "lrr" (loose round-robin),
+    /// "gty" (greedy, then youngest) or empty (greedy-then-oldest).
+    pub scheduler: String,
 }
 
 /// `tcgen05.ld/st` timing (calibration/src/bench_tc05x.cu). Each warp

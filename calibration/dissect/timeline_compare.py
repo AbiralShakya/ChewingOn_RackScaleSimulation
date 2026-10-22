@@ -32,10 +32,10 @@ def probe_pcs(insts):
     return [i.pc for i in insts if "CLOCK" in " ".join(i.operands)]
 
 
-def sim_timeline(rsim, sass, kernel, block, calib, extra):
+def sim_timeline(rsim, sass, kernel, block, calib, extra, rpath=None):
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
         path = f.name
-    cmd = [rsim, "timeline", sass, "--kernel", kernel, "--block", str(block), "--gpu", "b300",
+    cmd = [rsim, "timeline", rpath or sass, "--kernel", kernel, "--block", str(block), "--gpu", "b300",
            "--regs", "64", "-o", path] + (["--calibration", calib] if calib else []) + extra
     subprocess.run(cmd, check=True, capture_output=True)
     d = json.load(open(path))
@@ -43,7 +43,7 @@ def sim_timeline(rsim, sass, kernel, block, calib, extra):
     return d["warps"][0]["warps"]
 
 
-def compare(hw, sass_funcs, rsim, sass, calib, extra):
+def compare(hw, sass_funcs, rsim, sass, calib, extra, paths=None):
     out = {}
     for cfg, h in hw.items():
         k, block = h["kernel"], h["block"]
@@ -52,7 +52,9 @@ def compare(hw, sass_funcs, rsim, sass, calib, extra):
         if len(pcs) != np_:
             print(f"{cfg}: {len(pcs)} probe instructions in SASS, {np_} probes recorded; skipped")
             continue
-        warps = sim_timeline(rsim, sass, k, block, calib, extra)
+        rp = os.path.join(paths, f"{k}_{block}.rpath.gz") if paths else None
+        rp = rp if rp and os.path.exists(rp) else None
+        warps = sim_timeline(rsim, sass, k, block, calib, extra, rp)
         sim = {}
         for w in warps:
             iss = w["iss"]
@@ -105,6 +107,8 @@ def main():
                     help="leave the first segment out of the segment error (its global loads use "
                          "synthetic addresses in a static-SASS replay)")
     ap.add_argument("--kernels", help="comma-separated kernel names to compare (default: all)")
+    ap.add_argument("--paths", help="directory of NVBit recordings <kernel>_<block>.rpath.gz, "
+                                    "used instead of the static SASS when present (real addresses)")
     a = ap.parse_args()
     global SKIP
     SKIP = 1 if a.skip_first else 0
@@ -112,7 +116,7 @@ def main():
     if a.kernels:
         hw = {k: v for k, v in hw.items() if v["kernel"] in a.kernels.split(",")}
     funcs = parse(open(a.sass).read())
-    res = compare(hw, funcs, a.rsim, a.sass, a.calibration, a.extra.split())
+    res = compare(hw, funcs, a.rsim, a.sass, a.calibration, a.extra.split(), a.paths)
     tot_seg = sum(r["seg_err"] for r in res.values()) / max(len(res), 1)
     tot_span = sum(abs(r["span_err"]) for r in res.values()) / max(len(res), 1)
     print(f"mean segment error {100 * tot_seg:.1f}%, mean |span error| {100 * tot_span:.1f}% over {len(res)} configs")

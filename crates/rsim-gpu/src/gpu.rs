@@ -142,11 +142,21 @@ pub struct Gpu {
 impl Gpu {
     pub fn new(rank: usize, spec: GpuSpec, cfg: GpuConfig, trace_enabled: bool) -> Self {
         let spec = Arc::new(spec);
-        let policy = match cfg.policy {
+        let mut policy = match cfg.policy {
             SchedPolicy::Gto => Policy::Gto,
             SchedPolicy::Lrr => Policy::Lrr,
             SchedPolicy::Gty => Policy::Gty,
         };
+        // A measured scheduler for this GPU (calibration `issue.scheduler`)
+        // replaces the default greedy-then-oldest; an explicit LRR/GTY
+        // request still wins.
+        if cfg.policy == SchedPolicy::Gto {
+            match spec.issue.scheduler.as_str() {
+                "lrr" => policy = Policy::Lrr,
+                "gty" => policy = Policy::Gty,
+                _ => {}
+            }
+        }
         let sms = (0..spec.sm_count)
             .map(|i| {
                 let mut sm = Sm::new(i, spec.clone(), policy, cfg.use_control_bits);

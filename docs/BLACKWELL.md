@@ -9,18 +9,34 @@ experiments on patched cubins) and `calibration/src/bench_tc05x.cu`,
 
 The short version:
 
-* **A kernel-total error hides much larger per-warp errors.** On straight-line
-  microkernels the simulator matched ncu totals while its per-warp timelines
-  between clock64 probes were off by 30 to 50 percent. FA4 is the target that
-  matters, so the headline check is FA4's per-role timelines. Those are now
-  measured inside the real kernel, and the per-role error dropped from
-  **4.1% to 2.8%** of each warp's run time (section 9).
-* Things that were not modelled and now are: register-file banks, operand
-  reuse, the yield bit, the tcgen05 issue queue depth, and TMEM ld/st timing
-  by shape (section 8).
-* Things that were measured and need no new model: TLB reach (flat to
-  16 GB), operand-slot-independent ALU latency (4 cycles), stall counts
-  honoured exactly (1 to 15 with yield, 1 to 11 without).
+* **A kernel-total error hides much larger per-warp errors.** The simulator
+  matched ncu totals on straight-line microkernels while its per-warp
+  timelines between clock64 probes were off by 30 to 50 percent per segment.
+  FA4 is the kernel that matters, so the headline check is FA4's per-role
+  timeline, measured inside the real kernel (section 10.1). There, *where*
+  each role's events happen matches hardware to **1.6%** of its run time,
+  and the sim runs about 3% fast overall.
+* **What changed in the simulator:**
+  * register-file banks (2 banks; register index mod 2);
+  * operand reuse, served from any slot;
+  * the yield bit;
+  * the tcgen05 issue queue depth (7 MMAs);
+  * TMEM ld/st timing by shape;
+  * the tcgen05 clock offset (1905 MHz whenever UMMA runs);
+  * loose round-robin warp scheduling.
+
+  All of it sits behind `model.issue` and `model.power.tcgen05_sm_mhz` in
+  calibration.json, which `calibration/dissect/fit_issue.py` writes from the
+  measurements.
+* **Effect on the existing checks:**
+  * B300 reference set: `smem_conflict_free` goes from +10.0% to +6.8%, so
+    **12 of 12 kernels are now within 7%**.
+  * FlashAttention on B300: mean |error| over 8 kernels goes from 3.9% to 3.3%.
+  * Per-warp microkernel timelines: segment error goes from 30% to 24%.
+* **Measured and found not to need a model:**
+  * TLB reach is flat to 16 GB.
+  * ALU latency is 4 cycles whichever operand slot carries the dependence.
+  * Stall counts are honoured exactly: 1 to 15 with yield, 1 to 11 without.
 
 ## 1. Method
 
@@ -143,23 +159,21 @@ for free.
 
 ## 4. Issue rates
 
-Per SMSP, warp-instructions per cycle at saturation (8 warps per SMSP):
+One warp issues an independent FMUL every cycle at stall 1 (1.01 cycles per
+instruction over 1024 instructions, `ifetch.py`). There is no extra per-warp
+issue interval: an apparent "+1 cycle per instruction" in early sweeps turned
+out to be load latency inside the timed window (section 1.2). Pipe rates per
+SMSP, from bench_alu throughput (many warps):
 
-| pipe / op | cycles per warp-instruction | note |
-|---|---|---|
-| FFMA, FMUL, FADD (no bank conflict) | 1 | two 16-lane FMA pipes |
-| IMAD, LOP3, SHF, HFMA2, I2FP, F2FP | 2 | 16 lanes |
-| MUFU.EX2 | 4 | twice the other MUFU functions |
-| MUFU.RSQ / TANH, POPC, F2I | 8 | |
-| SHFL | 4 | per SMSP, independent of warp count |
-| HMMA m16n8k16 BF16 | 8 | 2037 FLOP/clk/SM |
-| DFMA | 64 | 1.2 TFLOP/s chip |
-
-A single warp issues an FMUL every cycle at stall 1. HMMA interleaved with
-FP32 work is expensive: HMMA+FMUL pairs take ~15 cycles per pair per SMSP
-against 8 for HMMA alone, so every FP32 instruction between HMMAs costs
-about 7 cycles of tensor-pipe time (A100: about 4). This is the softmax
-penalty an FA2-style kernel pays on B300.
+| pipe / op | cycles per warp-instruction per SMSP |
+|---|---|
+| FFMA, FMUL, FADD (operands not bank-conflicted) | 1 |
+| IMAD, LOP3, SHF, HFMA2, I2FP, F2FP | 2 |
+| MUFU.EX2 | 4 (twice the other MUFU functions) |
+| MUFU.RSQ / TANH / RCP, POPC, F2I | 8 |
+| SHFL | 4 |
+| HMMA m16n8k16 BF16 | 8 (2037 FLOP/clk/SM) |
+| DFMA | 64 (1.2 TFLOP/s chip) |
 
 ## 5. Register file and operand reuse
 
@@ -174,24 +188,30 @@ penalty an FA2-style kernel pays on B300.
   slot by the previous instruction of that warp, with that slot's reuse flag
   set, is not read from the register file.
 
-Measured, 8 warps per SMSP, cycles per instruction:
+Measured on clean FMUL streams (`bankcheck.py`, stall 1, load-free window):
 
-| FFMA sources | cycles | FMUL sources | cycles |
-|---|---|---|---|
-| 3 in one bank | 3.0 | 2 in one bank | 2.0 |
-| 2 + 1 | 2.0 | 1 + 1 | 1.0 |
-| 2 + 1 with a reuse hit | 1.0 | | |
-| a == b, plus c in the other bank | 1.0 | | |
-| alternating banks between instructions | 1.5 | | |
+| sources | 1 warp | 8 warps per SMSP |
+|---|---|---|
+| a, b in different banks | 1.06 | 1.07 |
+| a, b in the same bank | 2.05 | 2.05 |
+| same bank, a reuse-cached | 1.08 | 1.08 |
+| a == b (one register read once) | 1.06 | 1.07 |
 
-Without reuse, an FFMA can never issue faster than every 2 cycles on an
-SMSP. ptxas marks reuse aggressively for that reason. bench_alu's FFMA
-throughput (124 FLOP/clk/SM) is reached only because its operands are
-reuse-cached.
+FA4-style code shows that the reuse cache is not tied to the slot. FFMA pairs
+that swap the reused registers between slots a and c on every instruction
+(`FFMA R5, R3.reuse, R5, R2.reuse` / `FFMA R6, R2.reuse, R6, R3.reuse`) issue
+one per cycle on hardware, where a per-slot cache would cost a second cycle
+on every instruction.
 
-**Simulator:** `issue.rf_banks = 2`, `issue.reuse_cache = true`; per-bank
-read queues per SMSP, deduplicated reads, a per-warp reuse cache, and a new
-warp state `dispatch` (Nsight's `dispatch_stall`) while a bank is busy.
+Without reuse, an FFMA whose three sources land 2+1 in the banks can never
+issue faster than every 2 cycles. ptxas marks reuse aggressively for that
+reason. bench_alu's FFMA throughput (124 FLOP/clk/SM) is reached only because
+its two constant operands are reuse-cached.
+
+**Simulator:** `issue.rf_banks = 2`, `issue.reuse_cache = true`,
+`issue.reuse_any_slot = true`. Each SMSP has per-bank read queues, reads are
+deduplicated, each warp has a reuse cache, and a new warp state `dispatch`
+(Nsight's `dispatch_stall`) covers the time a bank is busy.
 
 ## 6. Instruction fetch
 
@@ -278,43 +298,151 @@ parsed from the SASS opcode.
   leave them out. The loaded-latency and L2 near/far results are in
   docs/CALIBRATION.md.
 
-## 9. Validation
+## 9. Clocks
 
-### 9.1 FA4 per-role timelines (the headline)
+`bench_dvfs` keeps every SM busy for 2 s. Eight SMs sample (%globaltimer,
+%clock64) every ~10 µs, giving the SM clock in 100 µs bins. %globaltimer
+advances in ~1 µs steps.
+
+| load (all 148 SMs) | SM clock, first 100 µs | over 700 ms |
+|---|---|---|
+| idle (samplers only) | 2032 MHz | 2032 MHz |
+| FFMA | 2032 MHz | 2032 MHz |
+| tcgen05 BF16 (1 SM, N=256) | 1905 MHz | 1905 MHz |
+| tcgen05 NVFP4 K=64 | 1905 MHz | 1905 MHz |
+| tcgen05 NVFP4 K=96 | 1905 MHz | 1905 MHz |
+
+Any tcgen05 UMMA load pins the clock at **1905 MHz**, 6.3% below the 2032 MHz
+maximum. The clock is already there in the first 10 µs sample and holds for
+the whole run, with no ramp and no dependence on dtype or power. This is a
+fixed tensor-core clock offset, separate from the 1100 W power cap that
+throttles large FP4 GEMMs further (docs/CALIBRATION.md, "Power-capped
+clocks").
+
+**Simulator:** `power.tcgen05_sm_mhz = 1905`. Any kernel that issues a tcgen05
+MMA runs at most at that clock when cycles are converted to time; the power
+cap can lower it further.
+
+## 10. Validation
+
+### 10.1 FA4 per-role timelines (the headline)
 
 `calibration/dissect/fa4/` measures timelines inside the real FA4 kernel
-without editing its source. `fa4_probe.py` wraps every pipeline method FA4
-uses (consumer_wait, producer_acquire, producer_commit, consumer_release, for
-every pipeline class) so that each warp stores (%clock64, tag) after each
-call. Records go to a per-warp ring indexed by `clock64 >> 4`, so no counter,
-atomic or loop-carried state is needed. The probes cost FA4 about 3%.
+without editing its source:
+
+* `fa4_probe.py` wraps every pipeline method FA4 uses (consumer_wait,
+  producer_acquire, producer_commit, consumer_release, for every pipeline
+  class). After each outermost call, each warp stores (%clock64, tag).
+* Records go to a per-warp ring indexed by `clock64 >> 4`, so no counter,
+  atomic or loop-carried state is needed.
+* The probed kernel runs ~1.6% slower (CTA 0 spans ~518K cycles; ncu
+  measures 510K unprobed).
 
 `fa4_compare.py` replays the NVBit recording of the same configuration
-(b=4, h=16, s=4096, d=128, BF16, non-causal) and compares each warp's
-progress through its synchronisation events with hardware. "Timeline error"
-is the mean |t_sim(q) − t_hw(q)| over q = 5%..100% of a warp's events, as a
-fraction of its hardware run time. CTAs 0 to 3, 116 warps.
+(b=4, h=16, s=4096, d=128, BF16, non-causal) in rsim. For each warp it
+compares progress through the synchronisation events (probe stamps on
+hardware; SYNCS/UTCBAR issues in the replay) at q = 5%..100% of the warp's
+events. Two errors are reported, both as a fraction of the warp's hardware
+run time:
 
-| role | end, before | end, after | timeline error, before | timeline error, after |
-|---|---|---|---|---|
-| MMA | −5.2% | −2.9% | 2.6% | 0.9% |
-| load (TMA) | −5.6% | −3.2% | 1.6% | 0.7% |
-| softmax (2 warpgroups) | −7.8 / −5.7% | −5.4 / −3.3% | 3.9 / 2.5% | 2.7 / 1.2% |
-| correction | −5.7% | −3.3% | 2.4% | 1.1% |
-| all warps | | | 4.1% | 2.8% |
+* **Timeline error:** mean |t_sim(q) − t_hw(q)|.
+* **Shape error:** the same with both curves normalised to their own end, so
+  a uniform rate difference (such as the probes' cost) drops out.
 
-FA4_V2_PLACEHOLDER
+Results cover CTAs 0 to 3 (116 warps), with the original model (main) and the
+final calibration:
+
+| role | end vs probed hw, main | final | timeline error, main | final | shape error, main | final |
+|---|---|---|---|---|---|---|
+| MMA | −4.0% | −4.4% | 1.9% | 1.5% | 0.5% | 0.9% |
+| load (TMA) | −4.4% | −4.7% | 1.0% | 1.2% | 1.6% | 1.6% |
+| softmax, warpgroup 0 | −6.6% | −6.9% | 3.3% | 3.4% | 1.0% | 0.9% |
+| softmax, warpgroup 1 | −4.5% | −4.8% | 1.8% | 2.0% | 0.7% | 0.7% |
+| correction | −4.5% | −4.8% | 1.7% | 1.9% | 0.9% | 0.9% |
+| all warps | | | 3.4% | 3.5% | 1.6% | 1.6% |
+
+What this says:
+
+* **FA4's structure is right.** Where each role spends its time and when its
+  barriers fire matches hardware to ~1% of the run in every role.
+* **What is left is rate.** The replay runs ~4.5% ahead of the probed run,
+  about 3% after taking out the probes' cost, and uniformly across roles.
+* **FA4 is not issue-bound.** The issue-stage model barely moves it. In the
+  replay its MMA warp sits in `tensor_throttle` (the 7-deep UMMA queue) about a
+  third of the time, so FA4 is tensor-bound there.
+* **A candidate for the 3%: shared-memory contention.** An N=128 BF16 UMMA
+  reads 128 B/clk of smem operands. With other warps streaming LDS.128 at
+  60 B/clk, it slows from 65.2 to 68.4 cycles (+5%); STS traffic and N=256 are
+  not affected (`bench_tc05x smem`). FA4's QK GEMM is N=128 with both operands
+  in smem, so concurrent smem reads (the TMA store of O, correction-warp
+  loads) can take a few percent. This is measured but not yet modelled.
+
+An earlier version of this table showed per-role errors falling from 4.1% to
+2.8%. That came from a "minimum 2 cycles between a warp's instructions" rule,
+which section 1.2 shows was a measurement artifact; it is not in the final
+model.
 
 The epilogue warp still ends ~37% early in the replay. It never gates the
 kernel, but its per-tile waits release too early. Replaying its waits with
 try_wait.parity semantics made that worse (−48%), so the cause is elsewhere,
-probably the TMA store's wait_group.read.
+probably the TMA store's `wait_group.read`.
 
-### 9.2 Microbenchmark replay and reference set
+### 10.2 Kernel totals
 
-HARNESS_PLACEHOLDER
+B300 reference set (`rsim validate`, ncu `sm__cycles_elapsed`), main vs final:
 
-## 10. Prior art
+| kernel | main | final |
+|---|---|---|
+| ffma_throughput | −7.0% | −6.5% |
+| ex2_throughput | +0.1% | +0.1% |
+| dfma_latency_chain | +3.2% | +3.2% |
+| **smem_conflict_free** | **+10.0%** | **+6.8%** |
+| smem_32way_conflict | −0.3% | −0.3% |
+| hbm_stream_read | +0.3% | +0.3% |
+| hbm_copy | −5.1% | −5.1% |
+| l2_pointer_chase | −3.7% | −3.7% |
+| hmma_bf16_throughput | −0.1% | −0.1% |
+| umma_bf16 / umma_nvfp4 | −0.1% / −0.0% | −0.1% / −0.0% |
+| tma_bulk_stream | −6.2% | −6.2% |
+| window_* (8 shapes) | ≤ 0.2% | ≤ 0.2% |
+
+B300 goes from 11 of 12 kernels within 7% to **12 of 12**. smem_conflict_free
+improves because round-robin scheduling spreads the 32 warps' LDS stream the
+way the hardware does.
+
+FlashAttention on B300 (research/flash_attention recordings):
+
+| kernel | main | final |
+|---|---|---|
+| FA2 s4096 | −4.9% | +1.6% |
+| FA4 s4096 | +0.2% | +0.4% |
+| FA4 ring step c1024 kv8 / kv64 | −6.6% / −10.2% | −5.4% / −7.3% |
+| FA4 ring step c2048 kv8 / kv64 | +4.9% / +1.9% | +6.1% / +2.1% |
+| FA4 ring step c4096 kv8 / kv64 | +2.7% / +0.1% | +3.1% / +0.3% |
+| mean \|error\| (8 kernels) | 3.9% | 3.3% |
+
+### 10.3 Per-instruction and per-warp checks
+
+* **Patched microbenchmarks replayed in rsim** (`harness.py`). The stall
+  sweep covers 216 configurations of dependent chains at patched stalls: 175
+  are within 5% (median 0.0%). The misses are DFMA (FP64 issue on sm_103),
+  SHFL latency (the model has 27 cycles where the chains imply ~23) and
+  IMAD.HI (two passes). The independent-issue sweep covers 187
+  configurations: 178 are within 5% (median 0.1%).
+* **Per-warp clock64 timelines** (`kernels/timeline.cu`, 1 to 32 warps,
+  compute kernels t_alu / t_softmax / t_hmma, 15 configurations). Mean
+  per-segment error goes from 30% to 24% and mean span error from 4.0% to
+  3.2%. The best change is round-robin scheduling: under the old greedy
+  policy each warp's own segments ran back to back instead of interleaving.
+  Single-warp timelines are exact to within 1% on t_alu and t_hmma.
+* **Memory timelines need real addresses.** With NVBit recordings and a warm
+  L2, t_smem spans are within −0.2% to +11.5%, against −50% from static SASS.
+  t_global is still +26% to +49%: a small hot L2 working set costs ~380
+  cycles per dependent hop on hardware and ~600 in the model, which charges
+  the far-partition first-touch latency too often. This is the next memory
+  item.
+
+## 11. Prior art
 
 * Z. Jia, M. Maggioni, B. Staiger, D. Scarpazza, *Dissecting the NVIDIA Volta
   GPU Architecture via Microbenchmarking* (2018); Z. Jia, M. Maggioni, J. Smith,
@@ -338,7 +466,7 @@ HARNESS_PLACEHOLDER
   Trace-driven simulation and binary instrumentation; the warp-path recorder in
   research/flash_attention is built on NVBit.
 
-## 11. Reproducing
+## 12. Reproducing
 
 ```bash
 # on the GPU node (GPU 3 is shared: every run takes the lock)
