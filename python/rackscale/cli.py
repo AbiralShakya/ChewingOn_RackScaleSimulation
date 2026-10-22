@@ -291,13 +291,7 @@ def _plan(a) -> int:
     out = sw.best_plan(a.model, a.system, a.phase, context=a.context, seqlen=a.seqlen, batches=_ints(a.batches),
                        min_tps_user=a.min_tps_user, max_ttft_ms=a.max_ttft_ms, launch=a.launch, jobs=a.jobs)
     if a.json:
-        keep = ("model", "system", "phase", "plan", "batch", "context", "seqlen", "fits", "memory_total_gb", "hbm_gb",
-                "step_us", "tok_s_gpu", "tok_s_user", "ttft_ms", "mfu", "breakdown_us", "dominant", "classes_us",
-                "top_kernels", "error")
-        slim = lambda r: r and {k: r[k] for k in keep if k in r}  # noqa: E731
-        print(json.dumps(dict(best=slim(out["best"]), pareto=[slim(r) for r in out["pareto"]],
-                              points=[slim(r) for r in out["points"]], system=sw.SYSTEMS[a.system].label,
-                              caveat=sw.SYSTEMS[a.system].caveat), indent=1))
+        print(json.dumps(sw.plan_report(out, a.system), indent=1))
         return 0
     for r in out["points"]:
         print(_point_line(r))

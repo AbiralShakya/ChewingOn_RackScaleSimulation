@@ -105,13 +105,13 @@ behaviour:
 |---|---|---|
 | H100 / H200 (all numbers) | chapters 2, 4, 8 | the calibration suite on an H100 (`calibration/run.sh`) |
 | B200 / GB200 GPU (clock, HBM, power) | chapters 1, 5, 6 | the suite on a B200, including the power runs |
-| NVLink link bandwidth and latency, NVSwitch latency, NVLS efficiency | chapters 4, 5, 6 | `nccl-tests` all-reduce / all-gather / all-to-all sweeps on an HGX board and an NVL72 |
-| InfiniBand NIC and switch latency, rail routing (no PXN) | chapters 4, 5, 8 | `nccl-tests` across two nodes; `ib_write_bw` / `ib_write_lat` |
+| NVLink and InfiniBand collectives (checked against published numbers only, [NETWORK.md](../NETWORK.md)) | chapters 4, 5, 6, 8 | our own `nccl-tests` sweeps on an HGX board, an NVL72 and two IB nodes |
 | BF16 power draw on B300 (derived from ncu cycles over CUDA-graph time, not a power trace), FP8 power draw | chapters 1, 6 | the `cutlass_power` runs with BF16 and FP8 GEMMs |
 | a GB300 board (vs the HGX B300 we measured) | chapters 5, 6 | the suite on a GB300 tray |
 
-The network is the largest gap. All of chapter 4 and every multi-GPU number is a prediction
-from link rates and a chunked cut-through model, with no multi-GPU measurement behind it yet.
+The network is the largest gap. The model follows NCCL's algorithms, protocols and channel
+counts and is checked against published nccl-tests, TensorRT-LLM and DeepEP numbers
+([NETWORK.md](../NETWORK.md)), but none of those were measured by us on the same machines.
 
 ## 9.6 Reading a result
 

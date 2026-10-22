@@ -20,20 +20,29 @@ pub const GPU_PRESETS: &[&str] = &[
     "a100_sxm",
     "a100_pcie",
     "h100_sxm",
+    "h800",
     "h200_sxm",
     "b200",
     "gb200",
     "b300",
     "gb300",
 ];
-pub const SWITCH_PRESETS: &[&str] = &["nvswitch3", "nvswitch_nvl5", "ib_ndr_leaf"];
+pub const SWITCH_PRESETS: &[&str] = &["nvswitch3", "nvswitch_nvl5", "ib_ndr_leaf", "ib_ndr_sharp"];
 pub const SYSTEM_PRESETS: &[&str] = &[
     "hgx_h100_8",
     "hgx_b200_8",
     "hgx_b300_8",
+    "hgx_h800_8",
     "gb200_nvl72",
     "gb300_nvl72",
     "h100_2node_ib",
+    "h100_8node_ib",
+    "h100_8node_ib_sharp",
+    "h800_2node_ib",
+    "h800_4node_ib",
+    "h800_8node_ib",
+    "hgx_b200_2node_ib",
+    "gb200_nvl72_2rack_ib",
 ];
 
 fn flops(pairs: &[(&str, f64)]) -> BTreeMap<String, f64> {
@@ -45,6 +54,7 @@ pub fn gpu(name: &str) -> Option<GpuSpec> {
         "a100_sxm" => a100_sxm(),
         "a100_pcie" => a100_pcie(),
         "h100_sxm" => h100_sxm(),
+        "h800" => h800(),
         "h200_sxm" => h200_sxm(),
         "b200" => b200(),
         "gb200" => gb200(),
@@ -77,6 +87,12 @@ pub fn switch(name: &str) -> Option<SwitchSpec> {
             gbps_per_port_per_dir: 50.0,
             latency_ns: 130.0, // est (~100-150 ns cut-through)
             in_network_reduction: false,
+        },
+        // Quantum-2 with SHARPv3 enabled (NCCL CollNet).
+        "ib_ndr_sharp" => SwitchSpec {
+            in_network_reduction: true,
+            name: "InfiniBand NDR leaf (SHARP)".into(),
+            ..switch("ib_ndr_leaf").unwrap()
         },
         _ => return None,
     })
@@ -149,6 +165,8 @@ pub fn h100_sxm() -> GpuSpec {
             tmem_alloc_2cta_latency: 0,
             hmma_fma_pipe_cycles: 0,
             sync_flops_per_cycle_per_sm: BTreeMap::new(),
+            umma_smem_bytes_per_clk: 0.0,
+            umma_lds_interference: 0.0,
         },
         latency: LatencyTable {
             int_alu: 4,
@@ -188,6 +206,14 @@ pub fn h100_sxm() -> GpuSpec {
 
 /// A100 SXM4 80GB (sm_80): HMMA tensor cores issued per SMSP (mma.sync), cp.async,
 /// no TMA, no clusters. Two L2 partitions joined by a crossbar.
+/// H800: H100 SXM with 8 of 18 NVLink4 links (export variant).
+pub fn h800() -> GpuSpec {
+    let mut g = h100_sxm();
+    g.name = "H800 SXM".into();
+    g.nvlink.ports = 8;
+    g
+}
+
 pub fn a100_sxm() -> GpuSpec {
     let mut g = h100_sxm();
     g.name = "A100 SXM4 80GB".into();
@@ -310,6 +336,10 @@ pub fn b200() -> GpuSpec {
             hmma_fma_pipe_cycles: 0,
             // Legacy mma.sync path: measured 2037 FLOP/clk/SM BF16 on B300.
             sync_flops_per_cycle_per_sm: flops(&[("bf16", 2048.0), ("fp16", 2048.0), ("tf32", 1024.0)]),
+            // Measured on B300 (bench_tc05x); SemiAnalysis's Blackwell
+            // microbenchmarks report the same 48-cycle M128N64K16.
+            umma_smem_bytes_per_clk: 128.0,
+            umma_lds_interference: 0.107,
         },
         latency: LatencyTable {
             int_alu: 4,
@@ -403,6 +433,7 @@ fn nvlink_link(gpu: &GpuSpec) -> LinkSpec {
     LinkSpec {
         gbps_per_dir: gpu.nvlink.gbps_per_port_per_dir,
         latency_ns: 20.0,
+        tech: None,
     }
 }
 
@@ -478,13 +509,90 @@ pub fn system(name: &str) -> Option<SystemSpec> {
                     nic: LinkSpec {
                         gbps_per_dir: 50.0,
                         latency_ns: 600.0,
+                        tech: None,
                     },
                     leaf: switch("ib_ndr_leaf").unwrap(),
+                    spines: 0,
+                    oversubscription: 1.0,
+                    spine: None,
+                },
+            }
+        }
+        "h100_8node_ib" => multinode(
+            "8x HGX H100, 400G IB rail-optimised",
+            "h100_sxm",
+            "hgx_h100_8",
+            8,
+            8,
+            false,
+        ),
+        "h100_8node_ib_sharp" => multinode(
+            "8x HGX H100, 400G IB + SHARP",
+            "h100_sxm",
+            "hgx_h100_8",
+            8,
+            8,
+            true,
+        ),
+        "h800_2node_ib" => multinode("2x HGX H800, 400G IB", "h800", "hgx_h800_8", 2, 0, false),
+        "h800_4node_ib" => multinode("4x HGX H800, 400G IB", "h800", "hgx_h800_8", 4, 4, false),
+        "h800_8node_ib" => multinode("8x HGX H800, 400G IB", "h800", "hgx_h800_8", 8, 8, false),
+        "hgx_b200_2node_ib" => multinode("2x HGX B200, 400G IB", "b200", "hgx_b200_8", 2, 0, false),
+        "gb200_nvl72_2rack_ib" => multinode(
+            "2x GB200 NVL72, 400G IB",
+            "gb200",
+            "gb200_nvl72",
+            2,
+            0,
+            false,
+        ),
+        // HGX H800: H100 with 8 NVLink4 links (400 GB/s bidirectional).
+        "hgx_h800_8" => {
+            let g = h800();
+            SystemSpec {
+                name: "HGX H800 8-GPU".into(),
+                gpus: vec![GpuGroup::preset("h800", 8)],
+                topology: TopologySpec::Switched {
+                    switches: 4,
+                    switch: switch("nvswitch3").unwrap(),
+                    links_per_gpu_per_switch: vec![2, 2, 2, 2],
+                    link: nvlink_link(&g),
                 },
             }
         }
         _ => return None,
     })
+}
+
+/// `nodes` copies of system preset `base`, one 400G NIC per GPU on a
+/// rail-optimised fabric (`spines` = 0: ideal spine).
+fn multinode(
+    name: &str,
+    gpu: &str,
+    base: &str,
+    nodes: u32,
+    spines: u32,
+    sharp: bool,
+) -> SystemSpec {
+    let b = system(base).unwrap();
+    let per: u32 = b.gpus.iter().map(|g| g.count).sum();
+    SystemSpec {
+        name: name.into(),
+        gpus: vec![GpuGroup::preset(gpu, per * nodes)],
+        topology: TopologySpec::MultiNode {
+            nodes,
+            intra: Box::new(b.topology),
+            nic: LinkSpec {
+                gbps_per_dir: 50.0,
+                latency_ns: 600.0,
+                tech: None,
+            },
+            leaf: switch(if sharp { "ib_ndr_sharp" } else { "ib_ndr_leaf" }).unwrap(),
+            spines,
+            oversubscription: 1.0,
+            spine: None,
+        },
+    }
 }
 
 #[cfg(test)]

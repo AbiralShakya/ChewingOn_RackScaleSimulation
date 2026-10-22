@@ -64,6 +64,13 @@ def test_plan_cli_json(capsys):
     assert {p["plan"]["tp"] for p in out["points"]} == {1, 2, 4, 8}
 
 
+def test_best_layout_tool_matches_cli():
+    from rackscale import tools
+    out = tools.call("best_layout", dict(model="llama3.2-1b", system="b300", context=256, batches=[1, 4]))
+    assert "error" not in out and out["best"]["batch"] == 4
+    assert tools.call("best_layout", dict(model="llama3.2-1b", system="tpu"))["error"].startswith("ValueError")
+
+
 def test_moe_small_batch_runs_only_visited_experts():
     # 8 tokens x top-8 over 128 experts: 64 experts get one token each, none get zero.
     wl = lower.decode_step(models.QWEN3_30B_A3B, rs.Parallel(), batch=8, context=256, layers=1)

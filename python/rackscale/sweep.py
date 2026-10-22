@@ -498,6 +498,20 @@ def best_plan(model: str, system: str, phase: str = "decode", *, context: int = 
                 points=res, pareto=pareto(res) if phase == "decode" else [])
 
 
+_PLAN_KEEP = ("model", "system", "phase", "plan", "batch", "context", "seqlen", "fits", "memory_total_gb", "hbm_gb",
+              "step_us", "tok_s_gpu", "tok_s_user", "ttft_ms", "mfu", "breakdown_us", "dominant", "classes_us",
+              "top_kernels", "error")
+
+
+def plan_report(out: dict, system: str) -> dict:
+    """``best_plan``'s result as compact JSON, for scripts and agents."""
+    def slim(r):
+        return r and {k: r[k] for k in _PLAN_KEEP if k in r}
+    return dict(best=slim(out["best"]), pareto=[slim(r) for r in out["pareto"]],
+                points=[slim(r) for r in out["points"]], system=SYSTEMS[system].label,
+                caveat=SYSTEMS[system].caveat)
+
+
 def save(results: List[dict], path: str, **meta) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     systems = {k: dict(asdict(v), peaks=_peaks(v.gpu)) for k, v in SYSTEMS.items()}
