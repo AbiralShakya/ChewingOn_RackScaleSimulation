@@ -165,7 +165,8 @@ def megakernel_sim_runs(tmp, warp_sms, capture=None, label="Hazy megakernel, bat
             {"op": "kernel", "name": "argmax over the logits (torch reduce)",
              "kernel": {"type": "fixed", "ns": argmax_us * 1e3, "sms": 1}}]]}}}
         out = os.path.join(tmp, f"mksim_{dp}.json")
-        rs.viz(system, wl, out, name=f"{label} · {sname}", detail_ranks=[0], warp_sms=warp_sms)
+        # warp timelines only on the 1-GPU run: they are the same launch, and 15 MB each
+        rs.viz(system, wl, out, name=f"{label} · {sname}", detail_ranks=[0], warp_sms=warp_sms if dp == 1 else [])
         run = bundle_runs(out)[0]
         run["span_sms"] = {"argmax over the logits (torch reduce)": 1}
         ki = next(i for i, k in enumerate(run["kernels"]) if k["rank"] == 0 and k.get("d", -1) >= 0)
