@@ -163,6 +163,13 @@ def _rsim(argv, prog: str = "rackscale") -> int:
     return _need_native().rsim_main([str(x) for x in argv], prog)
 
 
+def rsim_entry() -> None:
+    """The ``rsim`` console script installed by pip (the Rust CLI, run in-process)."""
+    if hasattr(signal, "SIGPIPE"):
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    sys.exit(_rsim(sys.argv[1:], "rsim"))
+
+
 def _extra_commands(sub) -> None:
     dm = sub.add_parser("demo", help="a 30-second tour: Llama-3-70B decode on HGX H100 vs B200, then the viewer")
     dm.add_argument("-o", "--out", default="rackscale_demo.html", help="viewer page to write")
@@ -331,13 +338,6 @@ def _replay(a) -> int:
         with open(a.report, "w") as f:
             json.dump(rep.raw, f, indent=1)
     return 0
-
-
-def rsim_entry() -> None:
-    """The ``rsim`` console script installed by pip (the Rust CLI, run in-process)."""
-    if hasattr(signal, "SIGPIPE"):
-        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    sys.exit(_rsim(sys.argv[1:], "rsim"))
 
 
 if __name__ == "__main__":
