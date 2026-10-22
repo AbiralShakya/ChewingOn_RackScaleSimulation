@@ -88,7 +88,7 @@ def run(cmd: Sequence[str], out: str, *, region: str = "marked",
                     break
                 print(f"rackscale capture: paths pass {i + 1} recorded {len(new)} kernels", file=sys.stderr)
         elif p == "timing":
-            _timing_pass(cmd, os.path.join(out, "timing"), gpu_lock, extra_env)
+            _timing_pass(cmd, os.path.join(out, "timing"), gpu_lock, extra_env, region)
         else:
             _run_pass(cmd, os.path.join(out, p), p, tool, region, modules, key, max_paths, max_mb, kernel_filter,
                       gpu_lock, extra_env, None)
@@ -140,8 +140,14 @@ def nsys_path() -> Optional[str]:
     return None
 
 
-def _timing_pass(cmd, d, gpu_lock, extra_env):
-    """Run the program natively under Nsight Systems: exact kernel times and the host launch timeline."""
+def _timing_pass(cmd, d, gpu_lock, extra_env, region="marked"):
+    """Run the program natively under Nsight Systems: exact kernel times and the host launch timeline.
+
+    Unless the region is the whole program, the site package starts and stops
+    the profiler at the region marks (cudaProfilerStart/Stop), so only the
+    region is recorded and the data of engine subprocesses is flushed before
+    the engine tears them down.
+    """
     nsys = nsys_path()
     if not nsys:
         print("rackscale capture: no nsys, skipping the timing pass (kernel times come from CUDA events)",
@@ -151,8 +157,13 @@ def _timing_pass(cmd, d, gpu_lock, extra_env):
     os.makedirs(d)
     rep = os.path.join(d, "timing")
     env = dict(os.environ, **(extra_env or {}))
+    rng = []
+    if region != "all":
+        env.update({"RSIM_CAP_PROFILER": "1", "RSIM_CAP_REGION": region, "RSIM_CAP_ARM_FILE": os.path.join(d, "armed"),
+                    "PYTHONPATH": SITE_DIR + os.pathsep + env.get("PYTHONPATH", "")})
+        rng = ["--capture-range=cudaProfilerApi", "--capture-range-end=stop"]
     full = (["flock", gpu_lock] if gpu_lock else []) + [nsys, "profile", "-t", "cuda", "-s", "none",
-                                                         "--cpuctxsw=none", "-o", rep, "-f", "true"] + list(cmd)
+                                                         "--cpuctxsw=none"] + rng + ["-o", rep, "-f", "true"] + list(cmd)
     print(f"rackscale capture: timing pass (nsys): {' '.join(cmd)}", file=sys.stderr)
     for attempt in range(3):
         if subprocess.run(full, env=env).returncode == 0:
@@ -371,7 +382,11 @@ def build(out: str, *, key: str = "config", convert: bool = True) -> str:
             p["pid"] = int(os.path.basename(os.path.dirname(ev))[1:])
             procs.append(p)
     native_db = os.path.join(out, "timing", "timing.sqlite")
-    native = _native(native_db) if os.path.exists(native_db) else {}
+    try:
+        native = _native(native_db) if os.path.exists(native_db) else {}
+    except Exception as e:  # an empty or partial export: fall back to the tool's events
+        print(f"rackscale capture: warning: timing pass unreadable ({e})", file=sys.stderr)
+        native = {}
     for p in procs:
         p["native"] = _attach_native(p["regions"], p["functions"], native)
         if native and not p["native"]:

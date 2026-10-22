@@ -116,6 +116,24 @@ static void wp_instrument(CUcontext ctx, CUfunction f, uint64_t s01, uint64_t s2
             if (second_ureg < 0 && urs.size() > 1) second_ureg = urs.back();
         }
         if (ins->isTMAMem()) {
+            if (strstr(op, "MULTICAST")) {
+                // The CTA mask of a multicast copy is its last uniform-register operand:
+                // record it (as a WP_UREG record of the same instruction) ahead of the copy.
+                int mask_ur = -1;
+                for (int i = 0; i < ins->getNumOperands(); i++)
+                    if (ins->getOperand(i)->type == InstrType::OperandType::UREG) mask_ur = ins->getOperand(i)->u.reg.num;
+                if (mask_ur >= 0) {
+                    nvbit_insert_call(ins, "wp_ureg", IPOINT_BEFORE);
+                    nvbit_add_call_arg_guard_pred_val(ins);
+                    nvbit_add_call_arg_const_val32(ins, idx);
+                    nvbit_add_call_arg_ureg_val(ins, mask_ur);
+                    nvbit_add_call_arg_const_val32(ins, 0xffffffffu);
+                    nvbit_add_call_arg_const_val32(ins, 0xffffffffu);
+                    nvbit_add_call_arg_const_val64(ins, s01);
+                    nvbit_add_call_arg_const_val64(ins, s23);
+                    nvbit_add_call_arg_const_val64(ins, (uint64_t)channel_dev);
+                }
+            }
             nvbit_insert_call(ins, "wp_tma", IPOINT_BEFORE);
             nvbit_add_call_arg_guard_pred_val(ins);
             nvbit_add_call_arg_const_val32(ins, idx);

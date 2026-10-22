@@ -36,6 +36,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 
 class _State:
     lib = None
+    # Timing pass (no tool, under Nsight Systems): the region starts and stops the profiler.
+    profiler = os.environ.get("RSIM_CAP_PROFILER") == "1"
     active = False
     region = os.environ.get("RSIM_CAP_REGION", "marked")
     modules = os.environ.get("RSIM_CAP_MODULES", "1") == "1"
@@ -54,6 +56,12 @@ class _State:
 def _mark(kind, payload=""):
     if _State.lib is not None:
         _State.lib(kind.encode(), payload.encode())
+    elif _State.profiler and kind in ("region_begin", "region_end"):
+        torch = sys.modules.get("torch")
+        if torch is not None and torch.cuda.is_initialized():
+            torch.cuda.synchronize()
+            rt = torch.cuda.cudart()
+            (rt.cudaProfilerStart if kind == "region_begin" else rt.cudaProfilerStop)()
 
 
 def _load_tool():
@@ -220,8 +228,10 @@ class _TorchFinder(importlib.abc.MetaPathFinder):
 
 def _setup():
     _load_tool()
-    if _State.lib is None:
+    if _State.lib is None and not _State.profiler:
         return
+    if _State.profiler:
+        _State.modules = False
     r = _State.region
     if r == "all":
         _State.active = True

@@ -117,11 +117,37 @@ class Conv:
                 return None
         return None
 
+    def first_signal(self, cta):
+        """Barrier id -> SM clock of the first op in CTA `cta` that can complete one of its phases."""
+        if not hasattr(self, "_first_signal"):
+            self._first_signal = {}
+        if cta not in self._first_signal:
+            out = {}
+            for (c, _w), recs in self.warps.items():
+                if c != cta:
+                    continue
+                for r in recs:
+                    op = self.L[r["idx"]]["op"]
+                    if r["kind"] in (WP_MBAR, WP_MBARV) and not op.startswith("SYNCS.ARRIVE"):
+                        continue  # mbarrier.init (SYNCS.EXCH) and the like complete nothing
+                    if r["kind"] in (WP_MBAR, WP_MBARV, WP_TMA) and r["predon"]:
+                        if r["kind"] == WP_TMA:
+                            bid = (struct.unpack("<16Q", r["handle"])[0] >> 32) & 0xFFFFFF
+                        else:
+                            bid = r["a"] & 0xFFFFFF
+                        out[bid] = min(out.get(bid, r["clk"]), r["clk"])
+                    elif r["kind"] == WP_UREG and r["predon"] and self.L[r["idx"]]["op"].startswith("UTCBAR"):
+                        bid = r["a"] & 0xFFFFFF
+                        out[bid] = min(out.get(bid, r["clk"]), r["clk"])
+            self._first_signal[cta] = out
+        return self._first_signal[cta]
+
     def convert_warp(self, cta, recs):
         """Records of one warp -> list of op tuples. Spin loops on mbarriers (a failed wait, the
         branch and sleep around it, the failed retries) are removed; the simulator times the wait."""
         ops = []
         need_last = {}  # barrier id -> last needed phase count
+        failed_before = set()  # barriers this warp has polled unsuccessfully
         own = self.rank(cta)
         drop = set()
         i = 0
@@ -140,11 +166,15 @@ class Conv:
                 self.stats["polls_kept"] += 1
             i += 1
         for n, r in enumerate(recs):
+            if r["kind"] == WP_WAIT and r["predon"] and not (r["b"] >> r["aux"]) & 1:
+                failed_before.add(r["a"] & 0xFFFFFF)
             if n in drop:
                 self.stats["spin_ops_dropped"] += 1
                 continue
             op = self.L[r["idx"]]["op"]
             kind = r["kind"]
+            if kind == WP_UREG and op.startswith("UTMA"):
+                continue  # the CTA mask of the multicast copy that follows, not an instruction
             mk, mid, marg, mn, mranks = K_NONE, 0, 0, 0, 0
             payload, run_bytes, addrs = 0, 0, []
             active = r["active"]
@@ -157,6 +187,13 @@ class Conv:
                 # against the hardware clock: every repeat had exactly two commits between.
                 if bid not in need_last:
                     need = 0 if parity == 1 else 1
+                    # A first wait that passed at once, before anything in this CTA could have
+                    # completed a phase of the barrier, found it already complete: the kernel
+                    # initialised it in the completed state (cuBLAS does), whatever the parity.
+                    first = self.first_signal(cta).get(bid)
+                    if need == 1 and bid not in failed_before and (first is None or r["clk"] < first):
+                        need = 0
+                        self.stats["waits_on_completed_init"] += 1
                 else:
                     last, last_p = need_last[bid]
                     need = last + (1 if parity != last_p else 2)
@@ -205,6 +242,9 @@ class Conv:
                 handle = struct.unpack("<16Q", r["handle"])
                 baddr = (handle[0] >> 32) & 0xFFFFFFFF
                 arank = (baddr >> 24) & 0xF if ".2CTA" in op else own
+                mask = None
+                if "MULTICAST" in op and n > 0 and recs[n - 1]["kind"] == WP_UREG and recs[n - 1]["idx"] == r["idx"]:
+                    mask = recs[n - 1]["a"] & 0xFFFF  # destination CTAs (cluster ranks)
                 bytes_ = r["a"]
                 runs = r["runs"]
                 payload = bytes_
@@ -213,7 +253,16 @@ class Conv:
                     run_bytes = lens.most_common(1)[0][0]
                     addrs = [a for a, _n in runs]
                 if not op.startswith("UTMASTG"):
-                    mk, mid, marg, mranks = K_TXDONE, baddr & 0xFFFFFF, bytes_, self.ranks_of(arank)
+                    mranks = self.ranks_of(arank)
+                    if mask is not None and self.cluster > 1:
+                        # The box lands in every destination CTA and completes its bytes on that
+                        # CTA's barrier (on the pair leader's for a 2-CTA copy).
+                        mranks = 0
+                        for rk in range(16):
+                            if (mask >> rk) & 1:
+                                mranks |= 1 << ((rk & ~1) if ".2CTA" in op else rk)
+                        self.stats["tma_multicast"] += 1
+                    mk, mid, marg, mranks = K_TXDONE, baddr & 0xFFFFFF, bytes_, mranks
                 self.stats["tma"] += 1
             elif kind == WP_UREG and "MMA" in op and r["predon"]:
                 fl, shape = umma_flops(op, r["a"])

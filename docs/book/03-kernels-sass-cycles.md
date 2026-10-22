@@ -206,7 +206,7 @@ view.*
 
 A static listing cannot say which path each warp of FA4 takes, how many times it spins on an
 mbarrier, or which TMA box it loads. So the FlashAttention study added an NVBit tool,
-[`nvbit_warp_path`](../../research/flash_attention/nvbit_warp_path/), that records for a few
+[`warp_path`](../../capture/nvbit/), that records for a few
 CTAs every instruction each warp executed, with the operands a timing model needs: lane
 addresses, the mbarrier behind each `SYNCS` op, expect-tx byte counts, the result and parity
 of every `try_wait`, TMA source boxes for every CTA, UMMA instruction descriptors and the

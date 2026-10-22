@@ -71,7 +71,8 @@ def main(argv=None) -> int:
                    help="marked (rsim_capture.region() in the program) | all | forward:SKIP:COUNT[:CLASS_REGEX]")
     c.add_argument("--key", choices=["config", "func"], default="config",
                    help="what makes two launches the same kernel (one recording each)")
-    c.add_argument("--passes", default="graph,paths")
+    c.add_argument("--passes", default="graph,paths,timing",
+                   help="graph (launch graph), paths (warp paths), timing (native nsys run for exact times)")
     c.add_argument("--no-modules", action="store_true", help="do not mark module calls (cleaner host timeline)")
     c.add_argument("--max-paths", type=int, default=1024)
     c.add_argument("--max-mb", type=int, default=2048, help="drop recordings larger than this")

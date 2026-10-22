@@ -122,7 +122,7 @@ pub fn run(reference: &Path, base: &rsim_hw::GpuSpec, only: &[String]) -> Result
         }
         let gpu = &gpu;
         // An NVBit warp-path recording (`.rpath`, research/flash_attention/
-        // nvbit_warp_path): exact per-warp paths and barrier operands.
+        // capture/nvbit/warp_path): exact per-warp paths and barrier operands.
         if let (Some(pf), Some(meas)) = (k["path_file"].as_str(), num(k, "sm__cycles_elapsed.avg"))
         {
             let p = rsim_sass::PathKernel::from_file(&dir.join(pf).to_string_lossy())
