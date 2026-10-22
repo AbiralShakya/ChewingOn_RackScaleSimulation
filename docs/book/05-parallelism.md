@@ -155,6 +155,20 @@ because the stage times are uniform; the simulator earns its keep when they are 
 embedding or LM head on the first and last stage, MoE layers with uneven routing, or
 stages split across InfiniBand).
 
+The script above times each stage once and replays fixed-length stages, which keeps it to
+seconds. The library lowers the same schedules with every kernel of every stage, TP and DP
+inside each stage, the DP gradient reduce-scatter and (with `--optimizer`) the Adam step:
+
+```bash
+rackscale train llama3-70b --system hgx_b200_8 --pp 8 --micro-batches 16 --schedule 1f1b --fast
+rackscale train llama3-70b --system hgx_b200_8 --pp 8 --micro-batches 16 --schedule zb --fast
+```
+
+`zb` is a ZB-H1-style schedule (Qi et al. 2023): each backward is split into the input
+gradient (sent upstream at once) and the weight gradient, which waits until the drain where
+1F1B would idle. The report also states the fullest stage's memory, which is where 1F1B's bound of
+*p* in-flight micro-batches shows up.
+
 **Interleaving** (virtual stages, Narayanan et al. 2021) gives each GPU *v* non-contiguous
 slices and cuts the bubble to about (*p*−1)/(*v*·*m*), at *v*× the point-to-point traffic. Zero
 bubble schedules (Qi et al. 2023) split the backward into input-gradient and weight-gradient

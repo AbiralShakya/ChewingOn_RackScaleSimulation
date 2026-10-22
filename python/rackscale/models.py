@@ -118,6 +118,26 @@ class Model:
             return sum(per[b] for b in self.blocks) + head
         return sum(self.attn_params() + self.ffn_active_params(l) for l in range(self.layers)) + head
 
+    def bytes_per_param(self) -> float:
+        return {"fp8": 1.0, "fp4": 0.5, "nvfp4": 0.5625, "fp32": 4.0}.get(self.dtype, 2.0)
+
+    def ffn_params(self, layer: int) -> int:
+        """All FFN parameters of a layer (every expert, the router)."""
+        h = self.hidden
+        if self.moe and layer >= self.moe.first_dense_layers:
+            m = self.moe
+            return 3 * h * m.expert_ffn * (m.experts + m.shared_experts) + h * m.experts
+        ffn = self.moe.dense_ffn if self.moe and self.moe.dense_ffn else self.ffn
+        return 3 * h * ffn
+
+    def total_params(self) -> int:
+        """Every parameter, embedding and (untied) LM head included."""
+        emb = 2 * self.vocab * self.hidden
+        if self.blocks is not None:
+            per = {"M": self.mamba_params() if self.mamba else 0, "A": self.attn_params(), "F": self.mlp_params()}
+            return sum(per[b] for b in self.blocks) + emb
+        return sum(self.attn_params() + self.ffn_params(l) for l in range(self.layers)) + emb
+
     def attn_layers(self) -> int:
         return self.block_list().count("A")
 

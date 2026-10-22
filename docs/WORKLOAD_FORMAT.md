@@ -20,6 +20,20 @@ A workload is JSON or YAML. You can write it by hand or emit it from `rackscale.
 
 Instead of `spmd` you can give `"ranks": [{"streams": [...]}, ...]`, one entry per rank.
 
+Keys are checked: a key no field takes is an error that names the closest valid key
+(`unknown key \`spmd.program.streams[0][0].kernel.dtpye\` (did you mean \`dtype\`?)`), rather
+than being dropped and silently running the default. System YAMLs and GPU `overrides` are
+checked the same way.
+
+### Memory
+
+`"memory": {"weights": 1.76e10, "kv_cache": 5.4e9}` states the bytes each rank needs, by
+category (any names). The report shows the fullest GPU against its HBM capacity and adds a
+warning when a rank does not fit. With explicit `ranks`, `"memory_per_rank": [{...}, ...]`
+gives one map per rank. `rackscale.lower` fills `memory` for the full model (weights in the
+model dtype, KV cache, Mamba-2 state, activations, BF16 gradients and FP32 Adam state sharded
+over DP), even when only a few `layers` are simulated; see `lower.memory`.
+
 ## Ops
 
 | op | fields |

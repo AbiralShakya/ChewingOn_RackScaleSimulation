@@ -186,28 +186,27 @@ pub(crate) fn sim_kernel(
 ) -> Result<(KernelDone, f64)> {
     let spec = gpu.clone();
     let launch = Arc::new(k);
-    let mut g = Gpu::new(
-        0,
-        gpu,
-        GpuConfig {
-            kernel_window: true,
-            detail,
-            ..Default::default()
-        },
-        false,
-    );
+    let cfg = GpuConfig {
+        kernel_window: true,
+        detail,
+        ..Default::default()
+    };
+    let mut g = Gpu::new(0, gpu, cfg.clone(), false);
     g.submit(launch.clone(), 0, 0);
     let mut out = vec![];
     let t0 = std::time::Instant::now();
     g.advance(u64::MAX / 2, &mut out);
     let wall = t0.elapsed().as_secs_f64();
     let mut d = out.pop().context("kernel did not finish")?;
-    let stretch = rsim_gpu::dvfs_stretch(&spec, &launch, &d);
+    let stretch = rsim_gpu::dvfs_stretch(&spec, &cfg, &launch, &d, 0);
+    let sustained = rsim_gpu::dvfs_clock_mhz(&spec, &launch, &d)
+        .unwrap_or(spec.sm_clock_mhz)
+        .min(spec.sm_clock_mhz / rsim_gpu::tcgen05_stretch(&spec, &d));
     if stretch > 1.0 {
         d.end_cycle = d.start_cycle + ((d.end_cycle - d.start_cycle) as f64 * stretch) as u64;
         eprintln!(
             "  power cap: sustained SM clock {:.0} MHz (x{stretch:.3} on time)",
-            spec.sm_clock_mhz / stretch
+            sustained
         );
     }
     Ok((d, wall))
@@ -648,9 +647,9 @@ fn main() -> Result<()> {
             let sys = SystemSpec::from_yaml(&std::fs::read_to_string(&system)?)?.build()?;
             let wsrc = std::fs::read_to_string(&workload)?;
             let wl = if workload.extension().map(|e| e == "json").unwrap_or(false) {
-                Workload::from_json(&wsrc)?
+                Workload::from_json(&wsrc).map_err(anyhow::Error::msg)?
             } else {
-                Workload::from_yaml(&wsrc)?
+                Workload::from_yaml(&wsrc).map_err(anyhow::Error::msg)?
             };
             let mut cfg = RunConfig {
                 trace: trace.is_some(),

@@ -243,10 +243,17 @@ def model_power(outdir):
         runs += [x for x in r if (x["gemm"], x["m"]) not in have and x["busy_samples"]]
         for k, v in m.items():
             meta.setdefault(k, v)
+    # Sustained clocks derived from ncu cycles and CUDA-graph timing for dtypes
+    # the power sweep did not record (scripts/fit_sustained_clock.py).
+    derived = os.path.join(raw, "sustained_clock_bf16.json")
+    if runs and os.path.exists(derived):
+        have = {x["dtype"] for x in runs}
+        runs += [x for x in json.load(open(derived))["runs"] if x["dtype"] not in have]
     if not runs:
         return None
     return {
-        "source": "CUTLASS examples 70 (fp16, fp8), 72b (nvfp4 K=64), 89 (sm103 ultra nvfp4 K=96)",
+        "source": "CUTLASS examples 70 (fp16, fp8), 72b (nvfp4 K=64), 89 (sm103 ultra nvfp4 K=96); "
+                  "derived runs: scripts/fit_sustained_clock.py",
         **meta,
         "sample_interval_ms": 100,
         "runs": runs,

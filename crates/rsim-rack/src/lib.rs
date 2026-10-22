@@ -28,9 +28,9 @@ pub fn simulate(system_yaml: &str, workload_src: &str, cfg: RunConfig) -> Result
         .build()
         .map_err(|e| e.to_string())?;
     let wl = if workload_src.trim_start().starts_with('{') {
-        Workload::from_json(workload_src).map_err(|e| e.to_string())?
+        Workload::from_json(workload_src)?
     } else {
-        Workload::from_yaml(workload_src).map_err(|e| e.to_string())?
+        Workload::from_yaml(workload_src)?
     };
     Simulation::new(sys, wl, cfg)
         .run()

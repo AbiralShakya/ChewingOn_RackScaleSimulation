@@ -6,7 +6,7 @@
 
 use crate::fabric::{LinkSpec, SwitchSpec};
 use crate::gpu::GpuSpec;
-use crate::merge::deep_merge;
+use crate::merge::{deep_merge, unknown_keys};
 use crate::{presets, HwError};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
@@ -22,7 +22,8 @@ pub struct GpuGroup {
     /// Nested field overrides applied on top of the preset/spec.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub overrides: Option<Value>,
-    /// Path to a `rackscale-calibration/v1` JSON applied after `overrides`.
+    /// Path to a `rackscale-calibration/v1` JSON, applied before `overrides`
+    /// so an explicit override (e.g. a capped clock) wins over the measurement.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub calibration: Option<String>,
     pub count: u32,
@@ -51,17 +52,26 @@ impl GpuGroup {
                 ))
             }
         };
-        let mut spec = match &self.overrides {
-            None => base,
-            Some(o) => {
-                let mut v = serde_yaml::to_value(&base)?;
-                deep_merge(&mut v, o.clone());
-                serde_yaml::from_value(v)?
-            }
-        };
+        let mut spec = base;
         if let Some(path) = &self.calibration {
             crate::calibration::apply_file(&mut spec, std::path::Path::new(path))
                 .map_err(|e| HwError::Invalid(format!("calibration `{path}`: {e}")))?;
+        }
+        if let Some(o) = &self.overrides {
+            let mut v = serde_yaml::to_value(&spec)?;
+            deep_merge(&mut v, o.clone());
+            spec = serde_yaml::from_value(v)?;
+            let errs = unknown_keys(
+                o,
+                &serde_yaml::to_value(&spec)?,
+                &["power", "opcode_timing"],
+            );
+            if !errs.is_empty() {
+                return Err(HwError::Invalid(format!(
+                    "GPU overrides: {}",
+                    errs.join("; ")
+                )));
+            }
         }
         Ok(spec)
     }
@@ -178,10 +188,14 @@ impl SystemSpec {
             if let Value::Mapping(m) = &mut v {
                 m.remove("preset");
             }
-            deep_merge(&mut bv, v);
-            v = bv;
+            deep_merge(&mut bv, v.clone());
+            let spec: Self = serde_yaml::from_value(bv)?;
+            check_keys(&v, &spec)?;
+            return Ok(spec);
         }
-        Ok(serde_yaml::from_value(v)?)
+        let spec: Self = serde_yaml::from_value(v.clone())?;
+        check_keys(&v, &spec)?;
+        Ok(spec)
     }
 
     pub fn build(&self) -> Result<System, HwError> {
@@ -212,6 +226,20 @@ impl SystemSpec {
             gpus,
             topology: topo,
         })
+    }
+}
+
+/// Reject keys of a system YAML that no field took (typos).
+fn check_keys(user: &Value, spec: &SystemSpec) -> Result<(), HwError> {
+    let errs = unknown_keys(
+        user,
+        &serde_yaml::to_value(spec)?,
+        &["preset", "spec", "overrides", "calibration"],
+    );
+    if errs.is_empty() {
+        Ok(())
+    } else {
+        Err(HwError::Invalid(errs.join("; ")))
     }
 }
 
@@ -433,6 +461,35 @@ gpus:
         assert_eq!(sys.num_gpus(), 36);
         assert_eq!(sys.gpus[0].sm_clock_mhz, 1900.0);
         assert_eq!(sys.name, "NVL36 test");
+    }
+
+    #[test]
+    fn overrides_win_over_calibration() {
+        let y = r#"
+preset: hgx_b200_8
+gpus:
+  - preset: b300
+    count: 8
+    calibration: ../../calibration/results/b300-sxm6-ac-sm103/calibration.json
+    overrides: {sm_clock_mhz: 1500}
+"#;
+        let sys = SystemSpec::from_yaml(y).unwrap().build().unwrap();
+        assert_eq!(sys.gpus[0].sm_clock_mhz, 1500.0);
+    }
+
+    #[test]
+    fn unknown_keys_are_rejected() {
+        let typo =
+            "preset: hgx_h100_8\ngpus: [{preset: h100_sxm, count: 8, overides: {sm_clock_mhz: 1}}]";
+        let e = SystemSpec::from_yaml(typo).unwrap_err().to_string();
+        assert!(e.contains("did you mean `overrides`"), "{e}");
+        let field = "preset: hgx_h100_8\ngpus: [{preset: h100_sxm, count: 8, overrides: {hbm: {bw_gpbs: 1}}}]";
+        let e = SystemSpec::from_yaml(field)
+            .unwrap()
+            .build()
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("`hbm.bw_gpbs` (did you mean `bw_gbps`?)"), "{e}");
     }
 
     #[test]

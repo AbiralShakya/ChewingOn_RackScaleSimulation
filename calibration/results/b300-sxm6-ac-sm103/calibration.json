@@ -1009,7 +1009,7 @@
    "shared_same_address_ops_per_clk_per_sm": 29.7654
   },
   "power": {
-   "source": "CUTLASS examples 70 (fp16, fp8), 72b (nvfp4 K=64), 89 (sm103 ultra nvfp4 K=96)",
+   "source": "CUTLASS examples 70 (fp16, fp8), 72b (nvfp4 K=64), 89 (sm103 ultra nvfp4 K=96); derived runs: scripts/fit_sustained_clock.py",
    "power_cap_w": 1100.0,
    "max_sm_mhz": 2032.0,
    "idle_w": 260.99,
@@ -1065,6 +1065,93 @@
      "board_w_max": 1116.09,
      "utilization_pct_median": 100.0,
      "power_capped_fraction": 0.8026315789473685
+    },
+    {
+     "gemm": "cublas_bf16_sustained",
+     "dtype": "bf16",
+     "derived": true,
+     "flops": 17180000000.0,
+     "sm_mhz_median": 2032.0,
+     "board_w_median": 1100.0,
+     "cases": [
+      "gemm_attn_qkv_m256",
+      "gemm_mamba_in_proj_m128",
+      "gemm_mamba_out_proj_m256",
+      "gemm_mlp_down_m128",
+      "gemm_mlp_down_m256",
+      "gemm_mlp_gate_up_m128",
+      "gemm_mlp_gate_up_m64"
+     ]
+    },
+    {
+     "gemm": "cublas_bf16_sustained",
+     "dtype": "bf16",
+     "derived": true,
+     "flops": 55830000000.0,
+     "sm_mhz_median": 1932.1,
+     "board_w_median": 1100.0,
+     "cases": [
+      "gemm_attn_qkv_m1024",
+      "gemm_mamba_in_proj_m256",
+      "gemm_mamba_out_proj_m1024",
+      "gemm_mlp_gate_up_m256"
+     ]
+    },
+    {
+     "gemm": "cublas_bf16_sustained",
+     "dtype": "bf16",
+     "derived": true,
+     "flops": 180900000000.0,
+     "sm_mhz_median": 1591.2,
+     "board_w_median": 1100.0,
+     "cases": [
+      "gemm_attn_qkv_m2048",
+      "gemm_attn_qkv_m4096",
+      "gemm_mamba_in_proj_m1024",
+      "gemm_mamba_in_proj_m2048",
+      "gemm_mamba_out_proj_m2048",
+      "gemm_mamba_out_proj_m4096"
+     ]
+    },
+    {
+     "gemm": "cublas_bf16_sustained",
+     "dtype": "bf16",
+     "derived": true,
+     "flops": 586300000000.0,
+     "sm_mhz_median": 1300.9,
+     "board_w_median": 1100.0,
+     "cases": [
+      "gemm_attn_qkv_m16384",
+      "gemm_attn_qkv_m8192",
+      "gemm_mamba_in_proj_m4096",
+      "gemm_mamba_out_proj_m8192"
+     ]
+    },
+    {
+     "gemm": "cublas_bf16_sustained",
+     "dtype": "bf16",
+     "derived": true,
+     "flops": 1649000000000.0,
+     "sm_mhz_median": 1304.1,
+     "board_w_median": 1100.0,
+     "cases": [
+      "gemm_attn_qkv_m32768",
+      "gemm_mamba_in_proj_m16384",
+      "gemm_mamba_in_proj_m8192",
+      "gemm_mamba_out_proj_m16384",
+      "gemm_mamba_out_proj_m32768"
+     ]
+    },
+    {
+     "gemm": "cublas_bf16_sustained",
+     "dtype": "bf16",
+     "derived": true,
+     "flops": 4982000000000.0,
+     "sm_mhz_median": 1235.4,
+     "board_w_median": 1100.0,
+     "cases": [
+      "gemm_mamba_in_proj_m32768"
+     ]
     }
    ],
    "tcgen05_sm_mhz": 1905.1

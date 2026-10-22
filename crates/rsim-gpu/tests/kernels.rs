@@ -265,3 +265,37 @@ fn detail_capture_is_consistent() {
         assert!(issues > 0);
     }
 }
+
+#[test]
+fn multi_wave_blackwell_gemm_overlaps_epilogue() {
+    // Many waves of tiles: two CTAs per SM, so one tile's epilogue drains
+    // while the next one's mainloop runs (CLC-style persistence).
+    let spec = presets::b300();
+    let big = synth::gemm(&spec, 8192, 8192, 4096, "bf16");
+    assert!(big.smem_per_cta * 2 <= spec.smem_per_sm_bytes);
+    let (d, _) = run(spec.clone(), big);
+    let slots = (d.end_cycle - d.start_cycle) as f64 * (spec.sm_count * spec.sub_partitions) as f64;
+    let util = d.stats.tensor_busy_cycles as f64 / slots;
+    assert!(util > 0.8, "tensor utilisation {util}");
+    // One wave keeps one CTA per SM with the deep ring.
+    let one = synth::gemm(&spec, 1024, 2048, 4096, "bf16");
+    assert!(one.smem_per_cta * 2 > spec.smem_per_sm_bytes);
+}
+
+#[test]
+fn dvfs_resimulates_at_the_sustained_clock() {
+    let spec = presets::b300();
+    let k = Arc::new(synth::gemm(&spec, 8192, 8192, 8192, "bf16"));
+    let cfg = GpuConfig::default();
+    let nominal = rsim_gpu::run_alone(&spec, &cfg, &k, 0);
+    let f =
+        rsim_gpu::dvfs_clock_mhz(&spec, &k, &nominal).expect("a 1.1 PFLOP BF16 GEMM hits the cap");
+    assert!((1200.0..1500.0).contains(&f), "{f}");
+    let x = rsim_gpu::dvfs_stretch(&spec, &cfg, &k, &nominal, 0);
+    // Slower than nominal, but not slower than scaling all of it by the clock.
+    assert!(x > 1.2 && x <= spec.sm_clock_mhz / f + 1e-9, "{x}");
+    // Decode-sized GEMMs stream weights and keep the full clock.
+    let small = Arc::new(synth::gemm(&spec, 32, 8192, 8192, "bf16"));
+    let d = rsim_gpu::run_alone(&spec, &cfg, &small, 0);
+    assert_eq!(rsim_gpu::dvfs_stretch(&spec, &cfg, &small, &d, 0), 1.0);
+}
