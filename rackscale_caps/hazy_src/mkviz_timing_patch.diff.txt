@@ -1,0 +1,22 @@
+Changes in the timing build (/scratch/gpfs/MZHASAN/as0714/mkviz/Megakernels_timing), relative to the
+stock checkout (/scratch/gpfs/MZHASAN/as0714/capture/src/Megakernels, commit 7309cec):
+
+include/config.cuh:
+-    static constexpr bool TIMING_RECORD_ENABLED = false;
++    static constexpr bool TIMING_RECORD_ENABLED = true;
+
+include/controller/controller.cuh, right after kvms.record(TEVENT_CONTROLLER_START):
++            if constexpr (config::TIMING_RECORD_ENABLED) {
++                // mkviz patch: absolute clock64 + globaltimer at controller start, and the CTA start clock
++                uint64_t c_abs = clock64();
++                uint64_t g_abs;
++                asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(g_abs));
++                kvms.timing()[116] = (int)(c_abs & 0xffffffffull);
++                kvms.timing()[117] = (int)(c_abs >> 32);
++                kvms.timing()[118] = (int)(g_abs & 0xffffffffull);
++                kvms.timing()[119] = (int)(g_abs >> 32);
++                kvms.timing()[126] = (int)(kvms.start_clock & 0xffffffffull);
++                kvms.timing()[127] = (int)(kvms.start_clock >> 32);
++            }
+Slots 116-119 and 126-127 are unused by the stock kernel (100-125 is the unused TRIPLES range, except 123).
+Built with the same Makefile (sm_103a, nvcc 13.0, -O3 -lineinfo) as the stock build.

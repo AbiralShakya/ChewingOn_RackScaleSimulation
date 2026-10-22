@@ -1,0 +1,224 @@
+"""Dump the Hazy low-latency Llama-1B megakernel's per-SM schedule and per-instruction timing slots.
+
+    python mk_timing_dump.py --model L1B --mk-dir <demos/low-latency-llama> --out out.json [--prompt-len 512]
+
+Runs prefill with the PyTorch model, warms the megakernel up, then records one decode token with the
+timings tensor zeroed (the kernel must be built with TIMING_RECORD_ENABLED), and times 50 tokens.
+"""
+import argparse
+import dataclasses
+import json
+import random
+import subprocess
+import time
+
+import torch
+from transformers import AutoTokenizer
+
+from megakernels.dispatch import make_mk_interpreter, make_schedule_builder
+from megakernels.generators import MK_Generator
+from megakernels.llama import LlamaForCausalLM
+from megakernels.model_types import BatchState, ExtraModelConfig
+from megakernels.scheduler import assign_to_sms, tensorize_instructions
+
+OPCODES = {0: "NoOp", 1: "RMS_QKV_MatVecRopeAppend", 2: "PartialAttention", 3: "AttentionReduction",
+           4: "O_ProjResidual", 5: "RMS_DoubleMatVecSiLU", 6: "DownProjResidual", 7: "RMS_LM_Head"}
+
+
+def slot_names():
+    n = {0: "controller_start", 1: "ifetch_done", 2: "page_alloc_done", 3: "sems_setup", 4: "controller_end",
+         5: "loader_start", 6: "loader_end", 7: "launcher_start", 8: "launcher_end", 9: "storer_start",
+         10: "storer_end"}
+    for w in range(16):
+        n[11 + 2 * w] = f"consumer{w}_start"
+        n[12 + 2 * w] = f"consumer{w}_end"
+    n.update({44: "at_gmem_wait", 45: "done_gmem_wait", 46: "at_gmem_store", 47: "done_gmem_store",
+              48: "first_load", 49: "first_use", 50: "first_store", 51: "last_load", 52: "last_use",
+              53: "last_store", 54: "output_ready", 123: "attn_partial_qol_stored",
+              116: "abs_clock64_at_controller_start_lo", 117: "abs_clock64_at_controller_start_hi",
+              118: "globaltimer_ns_at_controller_start_lo", 119: "globaltimer_ns_at_controller_start_hi",
+              126: "cta_start_clock64_lo", 127: "cta_start_clock64_hi"})
+    return n
+
+
+def smi(q):
+    try:
+        return subprocess.run(["nvidia-smi", "-i", "3", f"--query-gpu={q}", "--format=csv,noheader,nounits"],
+                              capture_output=True, text=True, timeout=20).stdout.strip()
+    except Exception as e:  # noqa: BLE001
+        return f"error: {e}"
+
+
+def u64(lo, hi):
+    return (int(hi) & 0xffffffff) << 32 | (int(lo) & 0xffffffff)
+
+
+@torch.inference_mode()
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", required=True)
+    ap.add_argument("--mk-dir", required=True)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--prompt", default="tell me a funny joke about cookies")
+    ap.add_argument("--prompt-len", type=int, default=0, help="random-token prompt of this length instead of --prompt")
+    ap.add_argument("--warmup", type=int, default=8)
+    ap.add_argument("--tokens", type=int, default=50)
+    ap.add_argument("--no-timings", action="store_true", help="only time tokens (build without timing)")
+    ap.add_argument("--capture-token", action="store_true",
+                    help="under rackscale's NVBit tool: put the timed token inside a capture region, skip wall timing")
+    ap.add_argument("--ptrs-out", help="also write the instructions/timings/barriers tensor addresses here")
+    a = ap.parse_args()
+    dev = "cuda:0"
+    torch.cuda.set_device(dev)
+    tok = AutoTokenizer.from_pretrained(a.model)
+    model = LlamaForCausalLM.from_pretrained(a.model, device=dev, extra_config=ExtraModelConfig(
+        interleave_rope=True, max_len_override=16384, max_batch_size=1))
+    if a.prompt_len:
+        rng = random.Random(0)
+        ids = torch.tensor([[rng.randrange(100, 32000) for _ in range(a.prompt_len)]])
+    else:
+        ids = tok(a.prompt, return_tensors="pt", add_special_tokens=True)["input_ids"]
+    ids = ids.to(dev)
+    prompt_len = ids.shape[-1]
+    pre = model(BatchState(input_ids=ids, position_ids=torch.arange(prompt_len, device=dev)))
+    total = a.warmup + 1 + a.tokens + 2
+    out_tok = torch.zeros(1, total + 1, device=dev, dtype=torch.long)
+    out_tok[:, 0] = pre.output_ids[:, -1]
+
+    schedule = make_schedule_builder("latency").build(model)
+    queues = assign_to_sms("rr", schedule=schedule, memory_fraction=None)
+    tensorize_instructions(schedule.globs, queues)  # pads every queue with NoOps in place
+    globs = schedule.globs
+    gen = MK_Generator(model, make_mk_interpreter("latency", a.mk_dir), schedule)
+
+    pos = [prompt_len]  # position of the token being fed
+    k = [0]
+
+    def step():
+        inp = out_tok[:, k[0]:k[0] + 1]
+        o = gen.run(inp, pos_id=pos[0])
+        out_tok[:, k[0] + 1] = o.squeeze(-1)
+        k[0] += 1
+        pos[0] += 1
+
+    for _ in range(a.warmup):
+        step()
+    torch.cuda.synchronize()
+
+    res = {"model": a.model, "mk_dir": a.mk_dir, "num_sms": globs.sm_count(), "batch": 1,
+           "prompt_len": prompt_len, "gpu": torch.cuda.get_device_name(0),
+           "nvidia_smi_before": {"clocks.sm_MHz": smi("clocks.sm"), "clocks.max.sm_MHz": smi("clocks.max.sm"),
+                                 "clocks.mem_MHz": smi("clocks.mem"), "utilization.gpu": smi("utilization.gpu"),
+                                 "power.draw_W": smi("power.draw")}}
+    res["tensors"] = {n: {"data_ptr": t.data_ptr(), "data_ptr_hex": hex(t.data_ptr()), "shape": list(t.shape),
+                          "dtype": str(t.dtype), "nbytes": t.numel() * t.element_size()}
+                      for n, t in (("instructions", globs.instructions), ("timings", globs.timings),
+                                   ("barriers", globs.barriers))}
+    if a.ptrs_out:
+        with open(a.ptrs_out, "w") as f:
+            json.dump(res["tensors"], f)
+
+    if not a.no_timings:
+        globs.timings.zero_()
+        torch.cuda.synchronize()
+        e0, e1 = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        rec_pos = pos[0]
+        e0.record()
+        if a.capture_token:
+            from rsim_capture import region
+            with region("megakernel token"):
+                step()
+        else:
+            step()
+        e1.record()
+        torch.cuda.synchronize()
+        t = globs.timings.cpu().tolist()
+        instr = globs.instructions.cpu().tolist()
+        sms = []
+        abs_starts = []
+        for sm, q in enumerate(queues):
+            rows = []
+            for i, ins in enumerate(q):
+                d = dataclasses.asdict(ins) if dataclasses.is_dataclass(ins) else {}
+                slots = t[sm][i]
+                rows.append({"idx": i, "opcode": ins.opcode(), "name": OPCODES.get(ins.opcode(), type(ins).__name__),
+                             "args": d, "words": instr[sm][i], "timings": slots})
+            s0 = t[sm][0]
+            abs_starts.append(u64(s0[126], s0[127]))
+            sms.append({"sm": sm, "cta_start_clock64": abs_starts[-1], "instructions": rows})
+        # SM clock from clock64 vs globaltimer pairs taken at each controller start
+        freqs = []
+        for sm in range(len(queues)):
+            pts = [(u64(r[116], r[117]), u64(r[118], r[119])) for r in t[sm] if r[118] or r[119]]
+            if len(pts) >= 2 and pts[-1][1] > pts[0][1]:
+                freqs.append((pts[-1][0] - pts[0][0]) / (pts[-1][1] - pts[0][1]) * 1e3)
+        freqs.sort()
+        res.update({"timed_token": {"pos_id": rec_pos, "event_ms_incl_embed_argmax": e0.elapsed_time(e1),
+                                    "sm_clock_MHz_from_clock64_vs_globaltimer":
+                                        {"median": freqs[len(freqs) // 2] if freqs else None,
+                                         "min": freqs[0] if freqs else None, "max": freqs[-1] if freqs else None},
+                                    "cta_start_clock64_spread_cycles": max(abs_starts) - min(abs_starts)},
+                    "timing_units": "slots 0..115 and 120..125: int32 clock64() cycles since this CTA's start "
+                                    "(clock64 at kernel entry, slot 126/127); 0 = not recorded. 116/117 and "
+                                    "126/127: absolute clock64 (lo/hi words); 118/119: %globaltimer ns (lo/hi).",
+                    "slot_names": slot_names(), "sms": sms})
+
+    if a.capture_token:
+        with open(a.out, "w") as f:
+            json.dump(res, f)
+        print(json.dumps(res["tensors"]))
+        return
+
+    # wall time per token: whole MK_Generator.run (embedding copy, barrier fill, megakernel, argmax) and the kernel alone
+    torch.cuda.synchronize()
+    per_tok, per_kernel = [], []
+    orig = gen.interpreter.interpret
+    ks, ke = [], []
+
+    def timed_interpret(g):
+        s, e = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        s.record()
+        orig(g)
+        e.record()
+        ks.append(s)
+        ke.append(e)
+
+    gen.interpreter.interpret = timed_interpret
+    starts, ends = [], []
+    for _ in range(a.tokens):
+        s, e = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        s.record()
+        step()
+        e.record()
+        starts.append(s)
+        ends.append(e)
+    torch.cuda.synchronize()
+    per_tok = [s.elapsed_time(e) * 1e3 for s, e in zip(starts, ends)]
+    per_kernel = [s.elapsed_time(e) * 1e3 for s, e in zip(ks, ke)]
+    gen.interpreter.interpret = orig
+    # back-to-back throughput like generate.py: total time for the 50 tokens / 50
+    torch.cuda.synchronize()
+    c0 = time.perf_counter()
+    s, e = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+    s.record()
+    for _ in range(a.tokens):
+        step()
+    e.record()
+    torch.cuda.synchronize()
+    srt = sorted(per_tok)
+    srk = sorted(per_kernel)
+    res["wall"] = {"tokens": a.tokens,
+                   "per_token_us": per_tok, "per_token_us_median": srt[len(srt) // 2], "per_token_us_min": srt[0],
+                   "megakernel_us": per_kernel, "megakernel_us_median": srk[len(srk) // 2], "megakernel_us_min": srk[0],
+                   "back_to_back_us_per_token": s.elapsed_time(e) * 1e3 / a.tokens,
+                   "back_to_back_host_us_per_token": (time.perf_counter() - c0) * 1e6 / a.tokens}
+    res["nvidia_smi_after"] = {"clocks.sm_MHz": smi("clocks.sm"), "utilization.gpu": smi("utilization.gpu")}
+    res["output_text"] = tok.decode(out_tok[0, :k[0] + 1].tolist())
+    with open(a.out, "w") as f:
+        json.dump(res, f)
+    print(json.dumps({x: res[x] for x in res if x not in ("sms", "slot_names")}
+                     | {"wall": {x: v for x, v in res["wall"].items() if not isinstance(v, list)}}, indent=1))
+
+
+if __name__ == "__main__":
+    main()
