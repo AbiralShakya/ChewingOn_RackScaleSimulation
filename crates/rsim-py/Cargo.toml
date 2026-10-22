@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 rsim-hw.workspace = true
 rsim-gpu.workspace = true
 rsim-rack.workspace = true
+rsim-cli = { path = "../rsim-cli" }
 serde_json.workspace = true
 pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }
 

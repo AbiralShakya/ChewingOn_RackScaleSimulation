@@ -26,7 +26,9 @@ except ImportError as e:  # pragma: no cover - only when the extension is not bu
     _native = None
     _IMPORT_ERROR = e
 
-__all__ = ["simulate", "viz", "kernel", "presets", "Report", "Parallel", "lower", "models", "capture", "api", "tools"]
+__version__ = _native.version() if _native is not None else "0.0.0+unbuilt"
+
+__all__ = ["__version__", "simulate", "viz", "kernel", "presets", "Report", "Parallel", "lower", "models", "capture", "api", "tools"]
 
 
 def _need_native():
@@ -90,13 +92,52 @@ class Report:
         lines.append(f"GPU idle {100 * b['gpu_idle_fraction']:.1f}%   tensor-core idle in kernels {100 * b['tensor_idle_fraction']:.1f}%")
         lines.append("scheduler-cycle anatomy:")
         for k, v in sorted(b["sched"].items(), key=lambda kv: -kv[1]):
-            lines.append(f"  {k:<20} {100 * v:6.2f}%  " + "#" * round(50 * v))
+            if v >= 0.0005:
+                lines.append(f"  {k:<20} {100 * v:6.2f}%  " + "#" * round(50 * v))
         lines.append(f"{'kernel':<56} {'n':>5} {'total_us':>10} {'TFLOPS':>8} {'GB/s':>8} {'tc%':>6}")
         for k in r["kernels"][:12]:
             lines.append(f"{k['name'][:56]:<56} {k['count']:>5} {k['total_us']:>10.1f} {k['tflops']:>8.1f} {k['gbps']:>8.0f} {100 * k['tensor_util']:>6.1f}")
-        for c in r["collectives"][:6]:
-            lines.append(f"  {c['kind']:<14} {c['algo']:<6} {c['bytes']:>12} B ranks={c['ranks']:<3} busbw {c['busbw_gbps']:.0f} GB/s")
+        if len(r["kernels"]) > 12:
+            lines.append(f"  ... {len(r['kernels']) - 12} more kernels (Report.kernels(top=N) or --report)")
+        colls = _group_collectives(r.get("collectives", []))
+        if colls:
+            lines.append(f"{'collective':<14} {'algo':<6} {'size':>10} {'ranks':>5} {'n':>5} {'mean_us':>9} {'busbw GB/s':>11}")
+            for c in colls[:8]:
+                lines.append(f"{c['kind']:<14} {c['algo']:<6} {_bytes(c['bytes']):>10} {c['ranks']:>5} {c['n']:>5} "
+                             f"{c['mean_us']:>9.1f} {c['busbw_gbps']:>11.0f}")
+        sim = r.get("sim") or {}
+        if sim.get("wallclock_s") is not None:
+            lines.append(f"[simulated in {sim['wallclock_s']:.2f} s]")
         return "\n".join(lines)
+
+    def __repr__(self) -> str:
+        r = self.raw
+        return f"<Report {r.get('workload')!r} on {r.get('system')!r}: makespan {r.get('makespan_us', 0):.1f} us>"
+
+
+def _bytes(n: float) -> str:
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if n < 1024 or unit == "GiB":
+            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} GiB"
+
+
+def _group_collectives(colls: list) -> list:
+    """Identical collectives (kind, algorithm, size, group size) collapsed into one row each, in first-seen order."""
+    groups: dict = {}
+    for c in colls:
+        key = (c["kind"], c["algo"], c["bytes"], c["ranks"])
+        g = groups.setdefault(key, {"kind": c["kind"], "algo": c["algo"], "bytes": c["bytes"], "ranks": c["ranks"],
+                                    "n": 0, "_us": 0.0, "_bw": 0.0})
+        g["n"] += 1
+        g["_us"] += (c.get("done_ps", 0) - c.get("last_post_ps", 0)) / 1e6
+        g["_bw"] += c.get("busbw_gbps", 0.0)
+    out = []
+    for g in groups.values():
+        g["mean_us"], g["busbw_gbps"] = g.pop("_us") / g["n"], g.pop("_bw") / g["n"]
+        out.append(g)
+    return out
 
 
 def simulate(system: Union[str, os.PathLike], workload: Union[dict, str], *, trace: Optional[str] = None,

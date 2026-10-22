@@ -378,6 +378,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "libc",
  "rayon",
  "rsim-core",
  "rsim-gpu",
@@ -435,6 +436,7 @@ name = "rsim-py"
 version = "0.1.0"
 dependencies = [
  "pyo3",
+ "rsim-cli",
  "rsim-gpu",
  "rsim-hw",
  "rsim-rack",

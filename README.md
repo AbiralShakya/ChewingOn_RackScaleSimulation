@@ -2,6 +2,20 @@
 
 **Cycle-level simulation of a whole GPU rack, from SASS instructions up to NVLink collectives.**
 
+[![CI](https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation/actions/workflows/ci.yml)
+[![Docs](https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation/actions/workflows/docs.yml/badge.svg?branch=main)](https://abiralshakya.github.io/ChewingOn_RackScaleSimulation/)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)
+![Rust](https://img.shields.io/badge/core-Rust-orange.svg)
+
+**[Documentation](https://abiralshakya.github.io/ChewingOn_RackScaleSimulation/)** · [Quickstart](#quickstart) · [Tutorials](https://abiralshakya.github.io/ChewingOn_RackScaleSimulation/tutorials/single-kernel/) ·
+[Examples](https://abiralshakya.github.io/ChewingOn_RackScaleSimulation/examples/) · [The guide](docs/book/README.md) · [Contributing](CONTRIBUTING.md)
+
+```bash
+pip install git+https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation    # no GPU needed
+rackscale demo --open       # 30 seconds: Llama-3-70B on HGX H100 vs B200, then the rack-to-SASS viewer
+```
+
 rackscale simulates every SM of every GPU in a rack (up to a 72-GPU GB200 NVL72) at the level
 of warp schedulers, scoreboards, tensor-core queues, TMA and mbarriers, and couples that to a
 packet-level model of the NVLink/NVSwitch/InfiniBand fabric. You give it a hardware topology
@@ -64,8 +78,8 @@ python examples/deepseek_v3_nvl72.py --layers 4      # fast mode, both schedules
 
 | schedule | step time | MFU | GPU idle |
 |---|---|---|---|
-| single stream | 1416 µs | 13.7% | 6.9% |
-| two-micro-batch overlap (DeepSeek style) | 2354 µs | 8.3% | 0.9% |
+| single stream | 1557 µs | 12.5% | 8.4% |
+| two-micro-batch overlap (DeepSeek style) | 2488 µs | 7.8% | 2.2% |
 
 What the model shows:
 
@@ -74,15 +88,15 @@ What the model shows:
   With M=64 against a 128-row UMMA tile, half the tensor work is padding (tensor-core
   utilisation about 35%).
 - **MLA attention is compute heavy.** 128 query heads share one 576-wide latent, so the kernel
-  runs at about 1100 TFLOPS rather than at HBM speed. It is the largest single kernel.
+  runs at about 800 TFLOPS rather than at HBM speed. It is the largest single kernel.
 - **Two-micro-batch overlap loses at this size.** Each half-batch reads the full weights again,
-  while the all-to-all it hides is only about 10 µs per layer on NVLink5 (509 to 722 GB/s
+  while the all-to-all it hides is only about 25 µs per call on NVLink5 (150 to 270 GB/s
   busbw). Overlap pays off only when dispatch and combine are a large part of the step, for
   example over InfiniBand, at larger EP, or with FP8 weights.
 - **Bubble anatomy.** About 60% of scheduler cycles are `async_wait`: warps parked on
   mbarriers while TMA and UMMA work is in flight, the expected signature of a warp-specialised
   kernel. The bubbles that matter are the ~11% `tma_wait` (tensor core starved by loads) and
-  the 7% of wall time the GPU sits idle between kernels.
+  the 8% of wall time the GPU sits idle between kernels.
 
 ### Fast mode vs exact co-simulation
 
@@ -168,33 +182,45 @@ every result:
 
 ## Quickstart
 
-Requirements: a Rust toolchain (pinned in `rust-toolchain.toml`) and Python 3.9+. No GPU is
-needed to run the simulator.
+No GPU is needed to run the simulator; a GPU is only needed to capture a new workload or calibrate
+new hardware.
+
+```bash
+pip install git+https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation      # builds the Rust core: needs a Rust toolchain (rustup.rs)
+rackscale --version
+rackscale demo --open                                                      # the 30-second tour
+rackscale decode deepseek-v3 --system gb200_nvl72 --ep 72 --layers 4 --fast --viz ds.html --open
+```
+
+One install gives three commands: `rackscale` (models, captures, reports), `rsim` (the simulator
+core: kernels, SASS, validation, network sweeps, the viewer; also reachable as
+`rackscale kernel ...`, `rackscale viz ...`), and `rackscale-mcp` (the MCP server). Prebuilt
+wheels (`pip install rackscale`) come with the first tagged release.
+
+For development, from a clone:
 
 ```bash
 git clone https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation rackscale && cd rackscale
-
-# Rust CLI
-cargo build --release -p rsim-cli
-./target/release/rsim presets
-
-# Python package (builds the Rust core as an extension module)
 python -m venv .venv && . .venv/bin/activate
-pip install maturin && maturin develop --release
-python examples/deepseek_v3_nvl72.py --layers 4
+pip install maturin && maturin develop --release     # editable install of the Python package + Rust core
+cargo build --release -p rsim-cli                     # optional: the standalone target/release/rsim
 ```
 
-`rsim presets` lists what is built in:
+`rackscale presets` lists what is built in:
 
 ```
 GPUs:
+  a100_sxm   A100 SXM4 80GB               108 SMs @ 1410 MHz     312 TFLOPS bf16   2039 GB/s HBM  NVLink3 12x25 GB/s
+  a100_pcie  A100 80GB PCIe               108 SMs @ 1410 MHz     312 TFLOPS bf16   1935 GB/s HBM  NVLink3 12x25 GB/s
   h100_sxm   H100 SXM5 80GB               132 SMs @ 1830 MHz     989 TFLOPS bf16   3350 GB/s HBM  NVLink4 18x25 GB/s
+  h800       H800 SXM                     132 SMs @ 1830 MHz     989 TFLOPS bf16   3350 GB/s HBM  NVLink4 8x25 GB/s
   h200_sxm   H200 SXM 141GB               132 SMs @ 1830 MHz     989 TFLOPS bf16   4800 GB/s HBM  NVLink4 18x25 GB/s
   b200       B200 (HGX, 1000 W)           148 SMs @ 1856 MHz    2250 TFLOPS bf16   7700 GB/s HBM  NVLink5 18x50 GB/s
   gb200      B200 in GB200 (1200 W)       148 SMs @ 2062 MHz    2500 TFLOPS bf16   8000 GB/s HBM  NVLink5 18x50 GB/s
-  b300       B300 SXM                     148 SMs @ 2032 MHz    2464 TFLOPS bf16   7700 GB/s HBM  NVLink5 18x50 GB/s
-switches: nvswitch3, nvswitch_nvl5, ib_ndr_leaf
-systems:  hgx_h100_8, hgx_b200_8, gb200_nvl72, h100_2node_ib
+  b300       NVIDIA B300 SXM6 AC          148 SMs @ 2032 MHz    2464 TFLOPS bf16   7672 GB/s HBM  NVLink5 18x50 GB/s
+  gb300      GB300 (NVIDIA B300 SXM6 AC)  148 SMs @ 2032 MHz    2464 TFLOPS bf16   7672 GB/s HBM  NVLink5 18x50 GB/s
+switches: nvswitch3, nvswitch_nvl5, ib_ndr_leaf, ib_ndr_sharp
+systems:  hgx_h100_8, hgx_b200_8, hgx_b300_8, hgx_h800_8, gb200_nvl72, gb300_nvl72, h100_2node_ib, h100_8node_ib, h100_8node_ib_sharp, h800_2node_ib, h800_4node_ib, h800_8node_ib, hgx_b200_2node_ib, gb200_nvl72_2rack_ib
 ```
 
 ### The Python API in ten lines
@@ -213,7 +239,7 @@ for system in ["hgx_h100_8", "hgx_b200_8"]:
 print(rep.summary())          # bubble anatomy, top kernels, collectives
 ```
 
-On the presets this prints 596.9 µs for HGX H100 and 272.0 µs for HGX B200. The `Report`
+On the presets this prints 703.2 µs for HGX H100 and 323.9 µs for HGX B200. The `Report`
 object exposes `makespan_us`, `bubbles`, `kernels()`, `memory` (the fullest GPU's weights, KV
 cache, activations and optimizer state against its HBM), `warnings`, per-rank stats in
 `rep["ranks"]`, and the full JSON in `rep.raw`.

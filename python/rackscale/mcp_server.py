@@ -19,9 +19,9 @@ import functools
 import inspect
 from typing import Annotated, Any, Optional
 
-from pydantic import Field
-
 from . import tools
+
+_NEED_SDK = "rackscale-mcp needs the MCP SDK: pip install 'rackscale[agent]' (or: pip install mcp)"
 
 
 def _server_class():
@@ -33,7 +33,7 @@ def _server_class():
             from mcp.server.fastmcp import FastMCP
             return FastMCP
         except ImportError as e:
-            raise SystemExit("rackscale-mcp needs the MCP SDK: pip install mcp") from e
+            raise SystemExit(_NEED_SDK) from e
 
 
 _TYPES = {"string": str, "integer": int, "number": float, "object": dict, "array": list}
@@ -41,6 +41,8 @@ _TYPES = {"string": str, "integer": int, "number": float, "object": dict, "array
 
 def _wrap(t: dict):
     """A named function with the tool's parameters, so the SDK can derive its schema."""
+    from pydantic import Field  # installed with the MCP SDK
+
     props = t["input_schema"]["properties"]
     required = set(t["input_schema"]["required"])
     params = []

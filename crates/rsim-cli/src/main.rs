@@ -15,7 +15,7 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use rsim_gpu::{synth, Gpu, GpuConfig, KernelDone, KernelLaunch};
-use rsim_hw::{presets, SystemSpec};
+use rsim_hw::presets;
 use rsim_rack::{RunConfig, Simulation, Workload};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -187,6 +187,11 @@ enum Cmd {
         #[command(subcommand)]
         cmd: viz::VizCmd,
     },
+}
+
+/// Read a file, naming it in the error.
+pub(crate) fn read(p: &std::path::Path) -> Result<String> {
+    std::fs::read_to_string(p).with_context(|| format!("cannot read {}", p.display()))
 }
 
 /// Simulate one kernel alone on a cold GPU (kernel window charged, as ncu times it).
@@ -365,8 +370,41 @@ fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> 
     Ok(())
 }
 
-fn main() -> Result<()> {
-    let cli = Cli::parse();
+fn main() -> std::process::ExitCode {
+    // Exit quietly when the reader goes away (`rsim presets | head`) instead of
+    // panicking in println!; Rust's runtime ignores SIGPIPE by default.
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+    run_args(std::env::args_os())
+}
+
+/// Parse `args` (program name first) and run, printing errors like a CLI.
+/// Shared by the `rsim` binary and `rackscale._native.rsim_main`, so the pip
+/// package ships the same command line without a separate binary.
+pub fn run_args<I, T>(args: I) -> std::process::ExitCode
+where
+    I: IntoIterator<Item = T>,
+    T: Into<std::ffi::OsString> + Clone,
+{
+    let cli = match Cli::try_parse_from(args) {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = e.print();
+            return std::process::ExitCode::from(e.exit_code() as u8);
+        }
+    };
+    match dispatch(cli) {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("rsim: error: {e:#}");
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
+
+fn dispatch(cli: Cli) -> Result<()> {
     match cli.cmd {
         Cmd::Viz { cmd } => viz::main(cmd)?,
         Cmd::Net { cmd } => net::main(cmd)?,
@@ -391,8 +429,7 @@ fn main() -> Result<()> {
             println!("systems:  {}", presets::SYSTEM_PRESETS.join(", "));
         }
         Cmd::System { path } => {
-            let src = std::fs::read_to_string(&path)?;
-            let sys = SystemSpec::from_yaml(&src)?.build()?;
+            let sys = net::load_system(&path.to_string_lossy())?;
             println!(
                 "{}: {} GPUs, {} nodes, {} links",
                 sys.name,
@@ -420,7 +457,12 @@ fn main() -> Result<()> {
             calibration,
             json,
         } => {
-            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            let mut g = presets::gpu(&gpu).with_context(|| {
+                format!(
+                    "unknown gpu preset `{gpu}` (presets: {})",
+                    presets::GPU_PRESETS.join(", ")
+                )
+            })?;
             if let Some(c) = &calibration {
                 rsim_hw::calibration::apply_file(&mut g, c)?;
             }
@@ -436,7 +478,12 @@ fn main() -> Result<()> {
             max_error,
             json,
         } => {
-            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            let mut g = presets::gpu(&gpu).with_context(|| {
+                format!(
+                    "unknown gpu preset `{gpu}` (presets: {})",
+                    presets::GPU_PRESETS.join(", ")
+                )
+            })?;
             if let Some(c) = &calibration {
                 rsim_hw::calibration::apply_file(&mut g, c)?;
             }
@@ -480,7 +527,12 @@ fn main() -> Result<()> {
             regs,
             json,
         } => {
-            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            let mut g = presets::gpu(&gpu).with_context(|| {
+                format!(
+                    "unknown gpu preset `{gpu}` (presets: {})",
+                    presets::GPU_PRESETS.join(", ")
+                )
+            })?;
             if let Some(c) = &calibration {
                 let took = rsim_hw::calibration::apply_file(&mut g, c)
                     .map_err(|e| anyhow::anyhow!("calibration {}: {e}", c.display()))?;
@@ -512,7 +564,12 @@ fn main() -> Result<()> {
             warm,
             out,
         } => {
-            let mut g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            let mut g = presets::gpu(&gpu).with_context(|| {
+                format!(
+                    "unknown gpu preset `{gpu}` (presets: {})",
+                    presets::GPU_PRESETS.join(", ")
+                )
+            })?;
             if let Some(c) = &calibration {
                 rsim_hw::calibration::apply_file(&mut g, c)?;
             }
@@ -526,7 +583,7 @@ fn main() -> Result<()> {
                 k.regs_per_thread = regs;
                 k
             } else {
-                let src = std::fs::read_to_string(&path)?;
+                let src = read(&path)?;
                 let progs = rsim_sass::parse_listing(&src)?;
                 let p = match &kernel {
                     Some(k) => progs
@@ -603,7 +660,7 @@ fn main() -> Result<()> {
             smem,
             inspect,
         } => {
-            let src = std::fs::read_to_string(&path)?;
+            let src = read(&path)?;
             let progs = rsim_sass::parse_listing(&src)?;
             if inspect {
                 for p in &progs {
@@ -632,7 +689,12 @@ fn main() -> Result<()> {
                 }
                 return Ok(());
             }
-            let g = presets::gpu(&gpu).with_context(|| format!("unknown gpu preset {gpu}"))?;
+            let g = presets::gpu(&gpu).with_context(|| {
+                format!(
+                    "unknown gpu preset `{gpu}` (presets: {})",
+                    presets::GPU_PRESETS.join(", ")
+                )
+            })?;
             let p = progs.into_iter().next().unwrap();
             let name = p.name.clone();
             let k = KernelLaunch::from_program(
@@ -657,8 +719,8 @@ fn main() -> Result<()> {
             fast,
             no_fold,
         } => {
-            let sys = SystemSpec::from_yaml(&std::fs::read_to_string(&system)?)?.build()?;
-            let wsrc = std::fs::read_to_string(&workload)?;
+            let sys = net::load_system(&system.to_string_lossy())?;
+            let wsrc = read(&workload)?;
             let wl = if workload.extension().map(|e| e == "json").unwrap_or(false) {
                 Workload::from_json(&wsrc).map_err(anyhow::Error::msg)?
             } else {

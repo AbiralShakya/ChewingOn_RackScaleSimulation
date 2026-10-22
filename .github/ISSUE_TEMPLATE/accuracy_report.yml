@@ -1,0 +1,36 @@
+name: Accuracy report
+description: The simulator disagrees with a measurement on real hardware.
+labels: [accuracy]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Accuracy reports are the most valuable issues we get. The simulator is only as good as the
+        measurements behind it, so please include how the hardware number was taken.
+  - type: textarea
+    id: workload
+    attributes:
+      label: Workload and command
+      description: The rackscale command or Python code, and the workload (kernel shape, model, layout, or capture).
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: numbers
+    attributes:
+      label: Simulated vs measured
+      description: Both numbers with units. For a kernel, SM cycles or time at a stated clock; for a step, time per step.
+    validations:
+      required: true
+  - type: textarea
+    id: measurement
+    attributes:
+      label: How it was measured
+      description: GPU model and SKU, driver and CUDA version, clocks (locked or not), tool (Nsight Compute, Nsight Systems, CUDA events), and warm-up.
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Recordings or profiles
+      description: Links to an ncu report, an nsys export, an NVBit recording (`.rpath`) or a capture, if you can share them.

@@ -18,6 +18,7 @@ agent = ["mcp>=1.2"]
 [project.scripts]
 rackscale = "rackscale.cli:main"
 rackscale-mcp = "rackscale.mcp_server:main"
+rsim = "rackscale.cli:rsim_entry"
 
 [tool.maturin]
 manifest-path = "crates/rsim-py/Cargo.toml"

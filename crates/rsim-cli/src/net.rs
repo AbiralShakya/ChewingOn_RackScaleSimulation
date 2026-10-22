@@ -89,8 +89,9 @@ pub enum NetCmd {
 }
 
 pub fn load_system(s: &str) -> Result<System> {
-    let spec = if Path::new(s).exists() {
-        SystemSpec::from_yaml(&std::fs::read_to_string(s)?)?
+    let looks_like_file = s.ends_with(".yaml") || s.ends_with(".yml") || s.contains('/');
+    let spec = if looks_like_file || Path::new(s).exists() {
+        SystemSpec::from_yaml(&super::read(Path::new(s))?)?
     } else {
         presets::system(s).with_context(|| {
             format!(
