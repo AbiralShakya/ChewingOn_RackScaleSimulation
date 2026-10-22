@@ -69,7 +69,65 @@ pub struct Report {
     pub kernels: Vec<KernelAgg>,
     pub collectives: Vec<CollRecord>,
     pub bubbles: Bubbles,
+    /// Device memory of the fullest GPU, when the workload states it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory: Option<MemoryReport>,
+    /// Things that make the result suspect (e.g. a rank that cannot fit in
+    /// its GPU's HBM). The simulation still runs.
+    pub warnings: Vec<String>,
     pub sim: SimMeta,
+}
+
+/// Device memory needed on one GPU against its HBM capacity.
+#[derive(Clone, Debug, Serialize)]
+pub struct MemoryReport {
+    pub rank: usize,
+    pub gpu: String,
+    pub total_gb: f64,
+    pub capacity_gb: f64,
+    pub by_category_gb: BTreeMap<String, f64>,
+}
+
+/// The fullest rank's memory, and a warning per GPU type that overflows.
+fn memory_check(sys: &System, wl: &Workload) -> (Option<MemoryReport>, Vec<String>) {
+    let mut worst: Option<MemoryReport> = None;
+    let mut over: BTreeMap<String, (usize, f64, f64)> = BTreeMap::new();
+    for rank in 0..wl.world() {
+        let mem = wl.memory_of(rank);
+        if mem.is_empty() {
+            continue;
+        }
+        let spec = &sys.gpus[rank];
+        let total: f64 = mem.values().sum::<f64>() / 1e9;
+        let cap = spec.hbm.capacity_gb;
+        if total > cap {
+            let e = over.entry(spec.name.clone()).or_insert((0, total, cap));
+            e.0 += 1;
+            e.1 = e.1.max(total);
+        }
+        if worst
+            .as_ref()
+            .is_none_or(|w| total / cap > w.total_gb / w.capacity_gb)
+        {
+            worst = Some(MemoryReport {
+                rank,
+                gpu: spec.name.clone(),
+                total_gb: total,
+                capacity_gb: cap,
+                by_category_gb: mem.iter().map(|(k, v)| (k.clone(), v / 1e9)).collect(),
+            });
+        }
+    }
+    let warnings = over
+        .into_iter()
+        .map(|(gpu, (n, need, cap))| {
+            format!(
+                "{n} rank(s) need up to {need:.1} GB but {gpu} has {cap:.0} GB of HBM: \
+                 this configuration would not fit (shard further, quantise, or shrink the batch)"
+            )
+        })
+        .collect();
+    (worst, warnings)
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -289,6 +347,7 @@ pub fn build_report(
     let mfu =
         (wl.model_flops > 0.0).then(|| wl.model_flops / (peak_flops * makespan as f64 * 1e-12));
     let _ = ALL_STALLS;
+    let (memory, warnings) = memory_check(sys, wl);
     let report = Report {
         system: sys.name.clone(),
         workload: wl.name.clone(),
@@ -304,6 +363,8 @@ pub fn build_report(
             tensor_idle_fraction: 1.0 - tensor_busy as f64 / tensor_slots.max(1) as f64,
             top_bubble_kernels: top,
         },
+        memory,
+        warnings,
         sim: SimMeta {
             wallclock_s: wall_s,
             pdes_windows: st.windows,
@@ -345,6 +406,24 @@ impl Report {
             100.0 * self.bubbles.gpu_idle_fraction,
             100.0 * self.bubbles.tensor_idle_fraction
         );
+        if let Some(m) = &self.memory {
+            let parts: Vec<String> = m
+                .by_category_gb
+                .iter()
+                .map(|(k, v)| format!("{k} {v:.1}"))
+                .collect();
+            let _ = writeln!(
+                s,
+                "memory (rank {}): {:.1} of {:.0} GB  [{}]",
+                m.rank,
+                m.total_gb,
+                m.capacity_gb,
+                parts.join(", ")
+            );
+        }
+        for w in &self.warnings {
+            let _ = writeln!(s, "WARNING: {w}");
+        }
         let _ = writeln!(s, "\nscheduler-cycle anatomy (all SMSPs, all kernels):");
         let mut v: Vec<_> = self.bubbles.sched.iter().collect();
         v.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());

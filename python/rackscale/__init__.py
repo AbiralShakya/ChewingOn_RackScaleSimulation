@@ -63,6 +63,16 @@ class Report:
     def bubbles(self) -> dict:
         return self.raw["bubbles"]
 
+    @property
+    def warnings(self) -> list:
+        """Reasons the result may not be meaningful (e.g. the model does not fit in HBM)."""
+        return self.raw.get("warnings", [])
+
+    @property
+    def memory(self) -> Optional[dict]:
+        """Device memory of the fullest GPU: total_gb, capacity_gb, by_category_gb."""
+        return self.raw.get("memory")
+
     def kernels(self, top: int = 20) -> list:
         return self.raw["kernels"][:top]
 
@@ -70,6 +80,12 @@ class Report:
         r = self.raw
         lines = [f"== {r['workload']} on {r['system']} ({r['world']} GPUs) ==",
                  f"makespan {r['makespan_us']:.1f} us" + (f"   MFU {100 * r['mfu']:.1f}%" if r.get("mfu") else "")]
+        mem = r.get("memory")
+        if mem:
+            parts = ", ".join(f"{k} {v:.1f}" for k, v in mem["by_category_gb"].items())
+            lines.append(f"memory (rank {mem['rank']}): {mem['total_gb']:.1f} of {mem['capacity_gb']:.0f} GB  [{parts}]")
+        for w in r.get("warnings", []):
+            lines.append(f"WARNING: {w}")
         b = r["bubbles"]
         lines.append(f"GPU idle {100 * b['gpu_idle_fraction']:.1f}%   tensor-core idle in kernels {100 * b['tensor_idle_fraction']:.1f}%")
         lines.append("scheduler-cycle anatomy:")

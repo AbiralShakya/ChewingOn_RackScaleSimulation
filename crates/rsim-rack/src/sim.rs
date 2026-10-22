@@ -158,6 +158,10 @@ impl KernelMemo {
     }
 }
 
+/// Shared across ranks: the power-capped clock's wall-time factor per
+/// distinct `(kernel, reserved SMs)` (see [`rsim_gpu::dvfs_stretch`]).
+type DvfsCache = Mutex<HashMap<(usize, u32), Arc<std::sync::OnceLock<f64>>>>;
+
 struct StreamState {
     ops: Vec<FlatOp>,
     pc: usize,
@@ -184,6 +188,7 @@ pub struct RankLp {
     pub kernels: Vec<KernelDone>,
     pub finish: Time,
     memo: Option<Arc<KernelMemo>>,
+    dvfs: Arc<DvfsCache>,
     /// Fast mode busy accounting: running memoized kernels and since when.
     memo_active: u32,
     memo_since: u64,
@@ -193,6 +198,44 @@ pub struct RankLp {
 }
 
 impl RankLp {
+    /// Wall-time factor of the power-capped clock for kernel `k` (1.0 when
+    /// the GPU has no power model or the kernel cannot hit the cap).
+    /// `nominal` is the kernel's cold run with `reserved` SMs held back when
+    /// the caller has it (fast mode); exact mode simulates one here.
+    fn dvfs_factor(
+        &self,
+        k: &Arc<KernelLaunch>,
+        reserved: u32,
+        nominal: Option<&KernelDone>,
+    ) -> f64 {
+        let spec = &self.gpu.spec;
+        if !rsim_gpu::dvfs_possible(spec, k) {
+            return 1.0;
+        }
+        let cell = self
+            .dvfs
+            .lock()
+            .unwrap()
+            .entry((Arc::as_ptr(k) as usize, reserved))
+            .or_default()
+            .clone();
+        *cell.get_or_init(|| {
+            let cfg = GpuConfig {
+                detail: Default::default(),
+                ..self.gpu.cfg.clone()
+            };
+            let alone;
+            let nominal = match nominal {
+                Some(d) => d,
+                None => {
+                    alone = rsim_gpu::run_alone(spec, &cfg, k, reserved);
+                    &alone
+                }
+            };
+            rsim_gpu::dvfs_stretch(spec, &cfg, k, nominal, reserved)
+        })
+    }
+
     fn ps(&self, cycle: u64) -> Time {
         self.clock.cycle_to_time(cycle)
     }
@@ -318,7 +361,7 @@ impl RankLp {
             let mut d = memo.get(&self.gpu.spec, &self.gpu.cfg, &k, n - held);
             self.memo_held += held;
             let dur = ((d.end_cycle - d.start_cycle) as f64
-                * rsim_gpu::dvfs_stretch(&self.gpu.spec, &k, &d)) as u64;
+                * self.dvfs_factor(&k, n - held, Some(&d))) as u64;
             d.tag = tag;
             d.start_cycle = c;
             d.end_cycle = c + dur;
@@ -372,7 +415,7 @@ impl LogicalProcess for RankLp {
                     let s = (d.tag >> 32) as usize;
                     let mut end = self.ps(d.end_cycle);
                     if let FlatOp::Kernel { k, .. } = &self.streams[s].ops[self.streams[s].pc] {
-                        let x = rsim_gpu::dvfs_stretch(&self.gpu.spec, k, &d);
+                        let x = self.dvfs_factor(&k.clone(), 0, None);
                         if x > 1.0 {
                             // Power-capped clock: stretch this kernel's span.
                             let start = self.streams[s].op_start;
@@ -885,6 +928,7 @@ impl Simulation {
                 detail: self.cfg.gpu.detail.clone(),
             })
         });
+        let dvfs: Arc<DvfsCache> = Default::default();
         let net = NetEngine::new(&self.system, self.cfg.net.clone(), self.cfg.trace);
         let lookahead = net.lookahead();
         let mut lps: Vec<Lp> = Vec::with_capacity(world + 1);
@@ -936,6 +980,7 @@ impl Simulation {
                 kernels: vec![],
                 finish: 0,
                 memo: memo.clone(),
+                dvfs: dvfs.clone(),
                 memo_active: 0,
                 memo_since: 0,
                 memo_held: 0,

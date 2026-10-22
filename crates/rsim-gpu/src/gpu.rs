@@ -687,34 +687,89 @@ impl Gpu {
     }
 }
 
-/// Power-capped clock (DVFS) for a finished kernel: the factor by which its
-/// wall time stretches when the board power cap pulls the SM clock below
-/// `sm_clock_mhz`. Only the tensor-bound part of the kernel scales (memory
-/// time is set by HBM/L2, not the SM clock). 1.0 when the GPU has no power
-/// model or no measured run for the kernel's dtype.
-pub fn dvfs_stretch(spec: &GpuSpec, launch: &KernelLaunch, d: &KernelDone) -> f64 {
-    let Some(p) = &spec.power else {
-        return 1.0;
-    };
+/// Power-capped clock (DVFS): the SM clock a kernel sustains under the
+/// board power cap, or `None` when it runs at `sm_clock_mhz` (no power
+/// model, no measured run for its dtype, or not enough tensor work to
+/// draw that much power). `d` is the kernel simulated at the nominal clock.
+///
+/// The power model gives the clock of a fully tensor-bound kernel of the
+/// same size; a kernel that keeps the tensor cores busy a fraction `u` of
+/// the time draws proportionally less, so its clock sits that fraction of
+/// the way down (kernels at >= 70% tensor utilisation, where the measured
+/// GEMMs sit, take the full drop).
+pub fn dvfs_clock_mhz(spec: &GpuSpec, launch: &KernelLaunch, d: &KernelDone) -> Option<f64> {
+    let p = spec.power.as_ref()?;
     let name = launch.name.to_ascii_lowercase();
-    let Some(dtype) = ["fp4", "fp8", "bf16", "fp16", "tf32"]
+    let dtype = ["fp4", "fp8", "bf16", "fp16", "tf32"]
         .into_iter()
-        .find(|t| name.contains(t))
-    else {
-        return 1.0;
-    };
+        .find(|t| name.contains(t))?;
     let flops = if launch.flops > 0.0 {
         launch.flops
     } else {
         d.stats.tensor_flops
     };
-    let Some(mhz) = p.sustained_mhz(dtype, flops) else {
-        return 1.0;
-    };
+    let mhz = p.sustained_mhz(dtype, flops)?;
     let cycles = (d.end_cycle - d.start_cycle).max(1) as f64;
     let slots = cycles * spec.sm_count as f64 * spec.sub_partitions as f64;
-    // Kernels at >= 70% tensor utilisation count as fully tensor-bound
-    // (the measured CUTLASS runs this is fitted to sit around there).
     let w = (d.stats.tensor_busy_cycles as f64 / slots / 0.7).min(1.0);
-    1.0 + w * (spec.sm_clock_mhz / mhz - 1.0).max(0.0)
+    let f = spec.sm_clock_mhz - w * (spec.sm_clock_mhz - mhz).max(0.0);
+    (f < 0.995 * spec.sm_clock_mhz).then_some(f)
+}
+
+/// Cheap test before any extra simulation: could the power cap lower this
+/// kernel's clock at all (a measured run of its dtype sustains less than
+/// `sm_clock_mhz` at its size)?
+pub fn dvfs_possible(spec: &GpuSpec, launch: &KernelLaunch) -> bool {
+    let Some(p) = &spec.power else {
+        return false;
+    };
+    let name = launch.name.to_ascii_lowercase();
+    ["fp4", "fp8", "bf16", "fp16", "tf32"]
+        .into_iter()
+        .find(|t| name.contains(t))
+        .and_then(|dt| p.sustained_mhz(dt, launch.flops))
+        .is_some_and(|f| f < 0.995 * spec.sm_clock_mhz)
+}
+
+/// Run one kernel alone on a cold GPU with `reserved` SMs held back.
+pub fn run_alone(
+    spec: &GpuSpec,
+    cfg: &GpuConfig,
+    k: &Arc<KernelLaunch>,
+    reserved: u32,
+) -> KernelDone {
+    let mut g = Gpu::new(0, spec.clone(), cfg.clone(), false);
+    g.reserve_sms(reserved);
+    g.submit(k.clone(), 0, 0);
+    let mut out = Vec::new();
+    g.advance(u64::MAX / 2, &mut out);
+    out.pop().expect("kernel did not complete")
+}
+
+/// Wall-time factor of the power-capped clock for a kernel. `nominal` is
+/// the kernel run alone at `sm_clock_mhz` with `reserved` SMs held back.
+///
+/// The kernel is simulated again at its sustained clock rather than its
+/// time scaled by the clock ratio: HBM and L2 work in nanoseconds, so a
+/// slower SM clock stretches only the part of the kernel the SMs bound.
+/// Scaling all of it over-corrected large B300 BF16 GEMMs by 20-45%.
+pub fn dvfs_stretch(
+    spec: &GpuSpec,
+    cfg: &GpuConfig,
+    launch: &Arc<KernelLaunch>,
+    nominal: &KernelDone,
+    reserved: u32,
+) -> f64 {
+    let Some(f) = dvfs_clock_mhz(spec, launch, nominal) else {
+        return 1.0;
+    };
+    let mut slow = spec.clone();
+    slow.sm_clock_mhz = f;
+    let cfg = GpuConfig {
+        detail: DetailConfig::default(),
+        ..cfg.clone()
+    };
+    let d = run_alone(&slow, &cfg, launch, reserved);
+    let ns = |d: &KernelDone, mhz: f64| (d.end_cycle - d.start_cycle).max(1) as f64 / mhz;
+    (ns(&d, f) / ns(nominal, spec.sm_clock_mhz)).max(1.0)
 }

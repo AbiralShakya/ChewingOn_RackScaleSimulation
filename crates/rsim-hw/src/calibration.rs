@@ -344,7 +344,9 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
                     });
                 Some(PowerRun {
                     dtype,
-                    flops: 2.0 * f(r, &["m"])? * f(r, &["n"])? * f(r, &["k"])?,
+                    // Derived runs carry the FLOPs directly; measured ones the GEMM shape.
+                    flops: f(r, &["flops"])
+                        .or_else(|| Some(2.0 * f(r, &["m"])? * f(r, &["n"])? * f(r, &["k"])?))?,
                     sm_mhz: f(r, &["sm_mhz_median"])?,
                     board_w: f(r, &["board_w_median"])?,
                 })
@@ -490,9 +492,13 @@ mod tests {
             .power
             .as_ref()
             .expect("B300 calibration has a power model");
-        // The measured runs are CUTLASS NVFP4 GEMMs: only FP4 is throttled.
-        assert!(p.runs.iter().all(|r| r.dtype == "fp4"));
-        assert!(p.sustained_mhz("bf16", 1e15).is_none());
+        // Measured CUTLASS NVFP4 runs, and BF16 clocks derived from ncu
+        // cycles over CUDA-graph time (fit_sustained_clock.py).
+        assert!(p.runs.iter().all(|r| r.dtype == "fp4" || r.dtype == "bf16"));
+        assert!(p.sustained_mhz("fp8", 1e15).is_none());
+        let big = p.sustained_mhz("bf16", 2e12).unwrap();
+        assert!((1150.0..1400.0).contains(&big), "{big}");
+        assert_eq!(p.sustained_mhz("bf16", 1e9).unwrap(), p.max_mhz);
         for r in &p.runs {
             let f = p.sustained_mhz(&r.dtype, r.flops).unwrap();
             // Runs drawing less than the cap keep f_max; capped runs land

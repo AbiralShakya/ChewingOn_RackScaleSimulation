@@ -199,9 +199,9 @@ pub fn main(cmd: VizCmd) -> Result<()> {
             let sys = SystemSpec::from_yaml(&std::fs::read_to_string(&system)?)?.build()?;
             let wsrc = std::fs::read_to_string(&workload)?;
             let wl = if workload.extension().map(|e| e == "json").unwrap_or(false) {
-                Workload::from_json(&wsrc)?
+                Workload::from_json(&wsrc).map_err(anyhow::Error::msg)?
             } else {
-                Workload::from_yaml(&wsrc)?
+                Workload::from_yaml(&wsrc).map_err(anyhow::Error::msg)?
             };
             let mut cfg = RunConfig {
                 trace: false,

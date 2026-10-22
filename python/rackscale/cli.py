@@ -2,6 +2,7 @@
 
     rackscale decode deepseek-v3 --system gb200_nvl72 --ep 72 --batch 64 --context 4096 --layers 2 --trace out/ds.json
     rackscale train llama3-70b --system hgx_h100_8 --tp 8 --micro-batch 1 --seqlen 4096 --layers 2
+    rackscale train llama3-70b --system hgx_b200_8 --pp 8 --micro-batches 16 --schedule zb --fast
     rackscale capture vllm_trace.json.gz --system gb200_nvl72 --world 8
 """
 
@@ -30,12 +31,13 @@ def _model_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--tp", type=int, default=1)
     p.add_argument("--ep", type=int, default=1)
     p.add_argument("--dp", type=int, default=1)
+    p.add_argument("--pp", type=int, default=1, help="pipeline stages (train)")
     p.add_argument("--comm-sms", type=int, default=20)
-    p.add_argument("--layers", type=int, help="simulate only the first N layers")
+    p.add_argument("--layers", type=int, help="simulate only the first N layers (memory is still checked for the full model)")
 
 
 def _par(a) -> Parallel:
-    return Parallel(tp=a.tp, ep=a.ep, dp=a.dp, comm_sms=a.comm_sms)
+    return Parallel(tp=a.tp, ep=a.ep, dp=a.dp, comm_sms=a.comm_sms, pp=a.pp)
 
 
 def main(argv=None) -> int:
@@ -59,6 +61,10 @@ def main(argv=None) -> int:
     _model_args(t)
     t.add_argument("--micro-batch", type=int, default=1)
     t.add_argument("--seqlen", type=int, default=4096)
+    t.add_argument("--micro-batches", type=int, default=1, help="micro-batches per step (pipeline)")
+    t.add_argument("--schedule", choices=["gpipe", "1f1b", "zb"], default="1f1b",
+                   help="pipeline schedule: GPipe, 1F1B, or ZB-H1 zero-bubble")
+    t.add_argument("--optimizer", action="store_true", help="end the step with an Adam update and DP all-gather")
     _common(t)
 
     c = sub.add_parser("capture", help="simulate a torch-profiler trace (vLLM, SGLang, training)")
@@ -74,12 +80,22 @@ def main(argv=None) -> int:
     _common(w)
 
     a = ap.parse_args(argv)
+    try:
+        return _run(a)
+    except (ValueError, OSError) as e:
+        # Bad layouts, configs and workloads: one line, no traceback.
+        print(f"rackscale {a.cmd}: error: {e}", file=sys.stderr)
+        return 2
+
+
+def _run(a) -> int:
     if a.cmd == "decode":
         wl = lower.decode_step(models.ALL[a.model], _par(a), a.batch, a.context, overlap=a.overlap, layers=a.layers)
     elif a.cmd == "prefill":
         wl = lower.prefill(models.ALL[a.model], _par(a), a.batch, a.seqlen, layers=a.layers)
     elif a.cmd == "train":
-        wl = lower.train_step(models.ALL[a.model], _par(a), a.micro_batch, a.seqlen, layers=a.layers)
+        wl = lower.train_step(models.ALL[a.model], _par(a), a.micro_batch, a.seqlen, layers=a.layers,
+                              micro_batches=a.micro_batches, schedule=a.schedule, optimizer=a.optimizer)
     elif a.cmd == "capture":
         wl = capture.from_file(a.path, mode=a.mode, world=a.world, collective_group=a.group, max_kernels=a.max_kernels)
     else:
