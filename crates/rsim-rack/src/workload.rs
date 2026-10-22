@@ -14,7 +14,7 @@
 use rsim_net::{Algo, CollKind};
 use rsim_sass::BranchProfile;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Workload {
@@ -31,6 +31,15 @@ pub struct Workload {
     /// Model FLOPs the workload represents (for MFU in reports).
     #[serde(default)]
     pub model_flops: f64,
+    /// Device memory each rank needs, by category in bytes (`weights`,
+    /// `kv_cache`, `activations`, `grads`, `optimizer`, ...), as the
+    /// lowering computed it. The report checks the total against each GPU's
+    /// HBM capacity. With explicit `ranks` it can differ per rank: use
+    /// `memory_per_rank` instead.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub memory: BTreeMap<String, f64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub memory_per_rank: Vec<BTreeMap<String, f64>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -262,11 +271,28 @@ fn all_sms() -> u32 {
 }
 
 impl Workload {
-    pub fn from_json(s: &str) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(s)
+    /// Parse a JSON workload. Keys no field takes are an error (serde
+    /// would drop them, so `"dtpye": "fp8"` would silently run BF16).
+    pub fn from_json(s: &str) -> Result<Self, String> {
+        let v: serde_yaml::Value = serde_json::from_str(s).map_err(|e| format!("workload: {e}"))?;
+        Self::from_value(v)
     }
-    pub fn from_yaml(s: &str) -> Result<Self, serde_yaml::Error> {
-        serde_yaml::from_str(s)
+    pub fn from_yaml(s: &str) -> Result<Self, String> {
+        let v: serde_yaml::Value = serde_yaml::from_str(s).map_err(|e| format!("workload: {e}"))?;
+        Self::from_value(v)
+    }
+    fn from_value(v: serde_yaml::Value) -> Result<Self, String> {
+        let wl: Self = serde_yaml::from_value(v.clone()).map_err(|e| format!("workload: {e}"))?;
+        let back = serde_yaml::to_value(&wl).map_err(|e| e.to_string())?;
+        let errs = rsim_hw::merge::unknown_keys(&v, &back, &["memory", "memory_per_rank"]);
+        if !errs.is_empty() {
+            return Err(format!("workload: {}", errs.join("; ")));
+        }
+        Ok(wl)
+    }
+    /// Memory needed by `rank`, by category (empty when not given).
+    pub fn memory_of(&self, rank: usize) -> &BTreeMap<String, f64> {
+        self.memory_per_rank.get(rank).unwrap_or(&self.memory)
     }
     pub fn world(&self) -> usize {
         match &self.spmd {

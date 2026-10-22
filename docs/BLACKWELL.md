@@ -246,6 +246,19 @@ NVFP4 K=64), then commits and waits (`bench_tc05x pipe`):
 * The issue loop of a single thread costs ~48 cycles per UMMA (descriptor
   setup, R2UR, the UTC*MMA itself). That makes N=64 issue-bound: 52 cycles per
   MMA instead of the 48 the tensor core needs.
+* **Shape model.** Every one of the 19 measured shapes (`calibration.json`
+  `tensor.tcgen05*`: SS and TS operands, 1- and 2-SM, BF16 to NVFP4, K=96)
+  is the larger of two limits. The first is math at the per-SM rate, with
+  each SM's slice of M padded to 128 rows, so M64N256K16 takes 128 cycles,
+  not 64. The second is operand reads: A (unless it is in TMEM) plus this
+  SM's half of B (the pair multicasts B) at 128 B/clk of smem. That makes
+  M128N64K16 48 cycles, not 32, and 1-SM K=96 NVFP4 144, not 128, while
+  2-SM K=96 reaches the full 1.5x. **Simulator:** `TensorSpec::umma_cycles`.
+  It uses `tensor.umma_smem_bytes_per_clk = 128` and
+  `umma_lds_interference = 0.107`; the second constant is fitted to the LDS
+  contention point in section 10.1. The shape comes from the opcode for synthetic
+  kernels and from each MMA's instruction descriptor for recordings
+  (`mma` in the `.rpath` header). Older recordings infer it from the FLOPs.
 * **The issuing thread blocks once 7 MMAs are in flight**, whatever their size
   (N=256: 7; N=128: 6). The simulator used to allow a 4096-cycle backlog, which
   is ~32 N=256 MMAs. **Simulator:** `issue.tcgen05_queue_depth = 7`.
@@ -375,7 +388,12 @@ What this says:
   60 B/clk, it slows from 65.2 to 68.4 cycles (+5%); STS traffic and N=256 are
   not affected (`bench_tc05x smem`). FA4's QK GEMM is N=128 with both operands
   in smem, so concurrent smem reads (the TMA store of O, correction-warp
-  loads) can take a few percent. This is measured but not yet modelled.
+  loads) can take a few percent. **Now modelled, and it does not explain the
+  3%.** FA4 issues `cta_group::2` MMAs: each SM reads its own 128 rows of Q
+  and half of K (the pair multicasts B), 6 KB per 64-cycle MMA, so the port
+  sits at 75% and the measured LDS interference never makes the MMA
+  smem-bound. All seven B300 FA4 kernels simulate to the same cycle with and
+  without the operand model. The gap is elsewhere.
 
 An earlier version of this table showed per-role errors falling from 4.1% to
 2.8%. That came from a "minimum 2 cycles between a warp's instructions" rule,

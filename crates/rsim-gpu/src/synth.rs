@@ -446,12 +446,23 @@ fn gemm_blackwell(m: u64, n: u64, k: u64, dt: Dtype, sms: u64, ultra_fp4: bool) 
     let a_bytes = (tm * kb) as f64 * dt.bytes;
     let b_bytes = (tn * kb) as f64 * dt.bytes;
     let cluster = if tiles_m >= 2 && split == 1 { 2 } else { 1 };
+    // cuBLAS/CUTLASS sm100 GEMMs are persistent: with cluster launch control
+    // a CTA that finishes a tile's mainloop starts the next tile while its
+    // epilogue drains the other half of a double-buffered TMEM accumulator.
+    // Here that overlap comes from two co-resident CTAs per SM, each with
+    // half of the four-stage smem ring, whenever there is more than one
+    // wave of tiles. One wave keeps a single CTA with the full ring.
+    // Against Nsight Compute cycles on B300 (research/ssm_vs_attention),
+    // one CTA per SM was 8-30% slow on multi-wave GEMMs; two are within
+    // about 10%.
+    let multi_wave = tiles_m * tiles_n * split > sms;
+    let stages = if multi_wave { 2 } else { 4 };
     let ml = Mainloop {
         tile_m: tm,
         tile_n: tn,
         k_blk: kb,
         k_iters,
-        stages: 4,
+        stages,
         a_bytes: a_bytes as u64,
         b_bytes: b_bytes as u64,
         cluster,
@@ -495,11 +506,16 @@ fn gemm_blackwell(m: u64, n: u64, k: u64, dt: Dtype, sms: u64, ultra_fp4: bool) 
     for _ in 0..(cols / 32) {
         epi.op("LDTM.32x32b.x32 R24, tmem[UR12]");
     }
+    // Multi-wave tiles are written as whole lines (CUTLASS stages the tile
+    // through smem and stores it with TMA). Single-wave and split-K shapes
+    // keep one row per lane: that pattern's extra traffic stands in for the
+    // split-K reduction and partial-tile costs the model does not have, and
+    // it matches CUDA-graph timing of decode GEMMs within about 5%.
     let out = AddrGen {
         base: region(2),
         cta_stride: (tm * tn * 2) as i64,
         warp_stride: (32 * tn * 2) as i64,
-        lane_stride: (tn * 2) as i64,
+        lane_stride: if multi_wave { 16 } else { (tn * 2) as i64 },
         ..Default::default()
     };
     epilogue_store(&mut epi, cols, if split > 1 { 4.0 } else { 2.0 }, out);
@@ -935,7 +951,10 @@ pub fn attention(
                 let w = mma.op("SYNCS.PHASECHK.TRANS64.TRYWAIT P2, [UR28], R3");
                 mma.bar(w, BarOp::Wait(P_READY + 10 * st));
                 for _ in 0..(kv_blk / 16) {
-                    let pc = mma.op(&mma_opcode(Arch::Blackwell, tile_q, d, 16, dt));
+                    // P comes from tensor memory (TS form): only V is read from smem.
+                    let ts = mma_opcode(Arch::Blackwell, tile_q, d, 16, dt)
+                        .replace("gdesc[UR8], gdesc", "tmem[UR8], gdesc");
+                    let pc = mma.op(&ts);
                     mma.single_thread(pc);
                 }
             }

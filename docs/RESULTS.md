@@ -15,8 +15,8 @@ python examples/deepseek_v3_nvl72.py --layers 4      # fast mode, ~12 s
 
 | | makespan | MFU | GPU idle |
 |---|---|---|---|
-| single stream | 1435 us | 13.6% | 6.9% |
-| two-micro-batch overlap | 2372 us | 8.2% | 0.9% |
+| single stream | 1416 us | 13.7% | 6.9% |
+| two-micro-batch overlap | 2354 us | 8.3% | 0.9% |
 
 What the model says:
 
@@ -97,18 +97,18 @@ EP72, 4k context, first 4 layers, fast mode (`python examples/gb300_deepseek_fp4
 
 | system | batch | dtype | step | GEMM time / GPU | tok/s/GPU |
 |---|---|---|---|---|---|
-| GB200 NVL72 | 64 | bf16 | 1435 us | 1016 us | 44.6k |
-| GB200 NVL72 | 64 | fp4 | 783 us | 364 us | 81.7k |
-| GB300 NVL72 | 64 | bf16 | 1432 us | 1024 us | 44.7k |
-| GB300 NVL72 | 64 | fp4 | 779 us | 371 us | 82.1k |
-| GB200 NVL72 | 256 | bf16 | 2607 us | 1412 us | 98.2k |
-| GB200 NVL72 | 256 | fp4 | 1692 us | 498 us | 151.3k |
-| GB300 NVL72 | 256 | bf16 | 2461 us | 1329 us | 104.0k |
-| GB300 NVL72 | 256 | fp4 | 1663 us | 526 us | 154.0k |
+| GB200 NVL72 | 64 | bf16 | 1416 us | 997 us | 45.2k |
+| GB200 NVL72 | 64 | fp4 | 776 us | 357 us | 82.4k |
+| GB300 NVL72 | 64 | bf16 | 1401 us | 1002 us | 45.7k |
+| GB300 NVL72 | 64 | fp4 | 746 us | 347 us | 85.8k |
+| GB200 NVL72 | 256 | bf16 | 2542 us | 1347 us | 100.7k |
+| GB200 NVL72 | 256 | fp4 | 1675 us | 480 us | 152.9k |
+| GB300 NVL72 | 256 | bf16 | 2437 us | 1215 us | 105.0k |
+| GB300 NVL72 | 256 | fp4 | 1551 us | 429 us | 165.0k |
 
-- **FP4 nearly doubles decode throughput on both racks** (1.8× at batch 64, 1.5× at batch 256). Decode GEMMs stream weights, so the gain comes from moving a quarter of the bytes, not from the tensor core.
-- **GB300 is no faster than GB200 for decode.** The two have the same HBM bandwidth, and decode does not use GB300's extra FP4 FLOPs. The power cap does not bite here either. Decode GEMMs keep the tensor cores mostly idle, so they stay well under the 1100 W board limit that throttles FP4 prefill.
-- **At batch 256, FP4 GEMMs are no longer the step.** GEMMs are under a third of the 1.66 ms step. MLA attention, the all-to-alls and the norms set the pace, so the next decode lever is attention (an FP8 KV cache, or FlashMLA-style kernels), not lower-precision weights.
+- **FP4 nearly doubles decode throughput on both racks** (1.8–1.9× at batch 64, 1.5–1.6× at batch 256). Decode GEMMs stream weights, so the gain comes from moving a quarter of the bytes, not from the tensor core.
+- **GB300 is only 1–7% faster than GB200 for decode.** The two have the same HBM bandwidth, and decode does not use GB300's extra FP4 FLOPs. The power cap does not bite here either. Decode GEMMs keep the tensor cores mostly idle, so they stay well under the 1100 W board limit that throttles FP4 prefill.
+- **At batch 256, FP4 GEMMs are no longer the step.** GEMMs are under a third of the 1.55–1.68 ms step. MLA attention, the all-to-alls and the norms set the pace, so the next decode lever is attention (an FP8 KV cache, or FlashMLA-style kernels), not lower-precision weights.
 
 The step also got faster since the first results. GEMMs with fewer output tiles than SMs now use split-K (from the Mamba study), so the M=64 decode GEMMs spread over all SMs instead of a few.
 

@@ -60,7 +60,7 @@ What the misses mean:
 |---|---|---|---|---|
 | FlashAttention-2 and -4, recorded paths, 4k shape | A100 PCIe, B300 | 4 | **−6.0% to +0.2%** cycles, instruction counts exact | [`research/flash_attention`](../../research/flash_attention/README.md) |
 | FA4 / FA2 ring-attention step kernels, out of sample | B300, A100 SXM4 | 12 | FA4 −3.7% to +5.4%, FA2 −4.6% to −5.9% | same |
-| cuBLAS BF16 GEMMs, decode and prefill shapes | B300 | 54 | median \|error\| 10%; decode shapes within ~10%, large GEMMs 15–35% fast | [`research/ssm_vs_attention`](../../research/ssm_vs_attention/README.md) |
+| cuBLAS BF16 GEMMs, decode and prefill shapes | B300 | 54 | decode shapes median \|error\| 3.9%; large GEMMs median 12%, mean +6% (was 15–35% fast before the sustained-clock model) | [`calibration/scripts/check_gemms.py`](../../calibration/scripts/check_gemms.py) |
 | cuBLAS BF16 GEMMs | A100 PCIe | 48 | median \|error\| 33%; large GEMMs 30–90% slow | same |
 | FA decode/prefill attention | B300 / A100 | 30 / 22 | median 10% / 20% | same |
 | Mamba-2 state update (real Triton SASS) | B300 / A100 | 6 / 6 | median 10% / 20% | same |
@@ -71,13 +71,17 @@ Read this as:
 
 - **Recorded kernels on either GPU are the most trustworthy numbers** in the guide: all 16
   within ±6%, with the A100 recordings consistently about 5% fast.
-- **Synthetic Blackwell kernels** are good to about 10% at decode shapes and optimistic by up
-  to a third for large GEMMs. The likely cause: under a sustained back-to-back replay the B300
-  clock falls below what Nsight's per-kernel replay shows (1.79 GHz for tensor-bound kernels),
-  and only FP4 has measured power runs, so BF16 GEMMs run at the full clock in the simulator.
+- **Synthetic Blackwell kernels** are good to about 4% (median) at decode shapes and 12% on
+  large GEMMs, once the kernel runs at its sustained, power-capped clock. Large GEMMs used to
+  be 15 to 35% optimistic: BF16 ran at the full 2032 MHz, while the B300 holds about 1.3 GHz
+  on a large GEMM run back to back. That was partly hidden by a second error, a kernel that
+  was 10 to 30% slow in cycles because it never overlapped one tile's epilogue with the next
+  tile's mainloop. Both are fixed. The remaining spread is mostly shape-to-shape variation in
+  the sustained clock (1250 to 1520 MHz at the same FLOP count), which the size-only power
+  model cannot see.
 - **Synthetic Ampere kernels are the weak spot.** The multistage `mma.sync` GEMM reaches about
   55% of peak where cuBLAS reaches 87%, and the SSD scan runs 60 to 70% slow. No rack result in
-  this guide uses the A100 model; the A100 crossovers in chapter 6 come from hardware.
+this guide uses the A100 model; the A100 crossovers in chapter 6 come from hardware.
 
 ## 9.4 Fast mode against exact co-simulation
 
@@ -102,7 +106,7 @@ behaviour:
 | H100 / H200 (all numbers) | chapters 2, 4, 8 | the calibration suite on an H100 (`calibration/run.sh`) |
 | B200 / GB200 GPU (clock, HBM, power) | chapters 1, 5, 6 | the suite on a B200, including the power runs |
 | NVLink and InfiniBand collectives (checked against published numbers only, [NETWORK.md](../NETWORK.md)) | chapters 4, 5, 6, 8 | our own `nccl-tests` sweeps on an HGX board, an NVL72 and two IB nodes |
-| BF16 and FP8 power draw on B300 | chapters 1, 6 | the `cutlass_power` runs with BF16 and FP8 GEMMs |
+| BF16 power draw on B300 (derived from ncu cycles over CUDA-graph time, not a power trace), FP8 power draw | chapters 1, 6 | the `cutlass_power` runs with BF16 and FP8 GEMMs |
 | a GB300 board (vs the HGX B300 we measured) | chapters 5, 6 | the suite on a GB300 tray |
 
 The network is the largest gap. The model follows NCCL's algorithms, protocols and channel

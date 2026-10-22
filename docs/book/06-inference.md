@@ -63,8 +63,8 @@ python examples/deepseek_v3_nvl72.py --layers 4      # fast mode, both schedules
 
 | schedule | step | MFU | GPU idle |
 |---|---|---|---|
-| single stream | **1435 µs** | 13.6% | 6.9% |
-| two-micro-batch overlap | 2372 µs | 8.2% | 0.9% |
+| single stream | **1416 µs** | 13.7% | 6.9% |
+| two-micro-batch overlap | 2354 µs | 8.3% | 0.9% |
 
 Per GPU, the biggest kernels of the single-stream step (simulator totals divided by 72 ranks):
 
@@ -103,7 +103,7 @@ DeepSeek runs two micro-batches per step on separate streams, so one micro-batch
 all-to-all overlaps the other's compute. The simulator models exactly that
 (`lower.decode_step(..., overlap=True)`).
 
-On NVL72 at batch 64 it loses: the step goes from 1435 to 2372 µs. Each half-batch reads all
+On NVL72 at batch 64 it loses: the step goes from 1416 to 2354 µs. Each half-batch reads all
 the weights again. The dense decode GEMMs stream weights at about 7.0 TB/s, so a GEMM with
 *M* = 32 takes as long as one with *M* = 64 (section 6.2). The dense GEMM time per GPU
 roughly doubles, from about 928 to 1883 µs. The two streams cannot hide each other either,
@@ -129,16 +129,16 @@ GB300 uses the measured B300 calibration; GB200 is a preset:
 
 | system | batch | weights | step | GEMM time per GPU | tokens/s per GPU |
 |---|---|---|---|---|---|
-| GB200 NVL72 | 64 | BF16 | 1435 µs | 1016 µs | 44.6k |
-| GB200 NVL72 | 64 | FP4 | 783 µs | 364 µs | 81.7k |
-| GB300 NVL72 | 64 | BF16 | 1432 µs | 1024 µs | 44.7k |
-| GB300 NVL72 | 64 | FP4 | 779 µs | 371 µs | 82.1k |
-| GB300 NVL72 | 256 | BF16 | 2461 µs | 1329 µs | 104.0k |
-| GB300 NVL72 | 256 | FP4 | 1663 µs | 526 µs | 154.0k |
+| GB200 NVL72 | 64 | BF16 | 1416 µs | 997 µs | 45.2k |
+| GB200 NVL72 | 64 | FP4 | 776 µs | 357 µs | 82.4k |
+| GB300 NVL72 | 64 | BF16 | 1401 µs | 1002 µs | 45.7k |
+| GB300 NVL72 | 64 | FP4 | 746 µs | 347 µs | 85.8k |
+| GB300 NVL72 | 256 | BF16 | 2437 µs | 1215 µs | 105.0k |
+| GB300 NVL72 | 256 | FP4 | 1551 µs | 429 µs | 165.0k |
 
-- **FP4 nearly doubles decode throughput** (1.8× at batch 64, 1.5× at 256). The GEMM time drops
+- **FP4 nearly doubles decode throughput** (1.8–1.9× at batch 64, 1.5–1.6× at 256). The GEMM time drops
   about 2.8×, close to the 4× fewer weight bytes minus fixed costs.
-- **GB300 is no faster than GB200 at decode.** Both have 8 TB/s-class HBM, decode never uses
+- **GB300 is only 1–7% faster than GB200 at decode.** Both have 8 TB/s-class HBM, decode never uses
   the extra FP4 FLOPs, and memory-bound GEMMs stay well under the 1100 W cap.
 - **At batch 256 the GEMMs are under a third of the step.** MLA attention, the all-to-alls and
   the norms set the pace, so the next lever is attention (an FP8 KV cache, FlashMLA-style
