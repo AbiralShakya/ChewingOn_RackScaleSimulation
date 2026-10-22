@@ -476,7 +476,7 @@ impl Gpu {
                 let s = self.stepping[i] as usize;
                 let before = cta_done.len();
                 std::mem::swap(&mut self.sms[s].tmemo, &mut self.tmemo);
-                self.sms[s].step(t, &mut self.mem, &mut cta_done);
+                self.sms[s].step(t, &self.spec, &mut self.mem, &mut cta_done);
                 std::mem::swap(&mut self.sms[s].tmemo, &mut self.tmemo);
                 self.update_sm(s);
                 if !self.sms[s].outbox.is_empty() {

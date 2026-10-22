@@ -443,10 +443,18 @@ impl Sm {
 
     /// Advance every SMSP whose next evaluation is at `c`. Completed CTAs
     /// are appended to `done` as `(kernel id, cta id)`.
-    pub fn step(&mut self, c: u64, mem: &mut MemSystem, done: &mut Vec<(u32, u64)>) {
+    /// `spec` is this SM's own spec, borrowed from the GPU so the hot path
+    /// takes no reference count.
+    pub fn step(
+        &mut self,
+        c: u64,
+        spec: &GpuSpec,
+        mem: &mut MemSystem,
+        done: &mut Vec<(u32, u64)>,
+    ) {
         for sp in 0..self.smsps.len() {
             if self.smsps[sp].next_eval <= c {
-                self.step_smsp(sp, c, mem, done);
+                self.step_smsp(sp, c, spec, mem, done);
             }
         }
     }
@@ -500,7 +508,14 @@ impl Sm {
         }
     }
 
-    fn step_smsp(&mut self, sp: usize, c: u64, mem: &mut MemSystem, done: &mut Vec<(u32, u64)>) {
+    fn step_smsp(
+        &mut self,
+        sp: usize,
+        c: u64,
+        spec: &GpuSpec,
+        mem: &mut MemSystem,
+        done: &mut Vec<(u32, u64)>,
+    ) {
         self.account(sp, c);
         if self.smsps[sp].warps.is_empty() {
             self.smsps[sp].next_eval = NEVER;
@@ -597,7 +612,7 @@ impl Sm {
         // 3. Issue.
         if let Some(ws) = pick {
             self.smsps[sp].greedy = Some(ws);
-            self.issue(ws, sp, c, mem, done);
+            self.issue(ws, sp, c, spec, mem, done);
             self.smsps[sp].next_eval = c + 1;
         } else {
             self.smsps[sp].greedy = None;
@@ -1008,10 +1023,10 @@ impl Sm {
         ws: usize,
         sp: usize,
         c: u64,
+        spec: &GpuSpec,
         mem: &mut MemSystem,
         done: &mut Vec<(u32, u64)>,
     ) {
-        let spec = self.spec.clone();
         let w = self.warps[ws].as_mut().unwrap();
         let Some(op) = w.next.take() else {
             self.exit_warp(ws, sp, c, done);
@@ -1024,7 +1039,7 @@ impl Sm {
         let role = w.role;
         let widx = w.widx as usize;
         w.wait_bar = u32::MAX;
-        let t = cached_t.unwrap_or_else(|| self.tmemo.get(&spec, &op.inst));
+        let t = cached_t.unwrap_or_else(|| self.tmemo.get(spec, &op.inst));
         self.issued_total += 1;
         if let Some(tr) = &mut self.wtrace {
             tr.issue(ws, c, inst.pc);
@@ -1051,7 +1066,7 @@ impl Sm {
         let mut next_ready = c + 1;
         let mut next_reason = Stall::Wait;
         // Multi-cycle dispatch holds the warp before its stall count starts.
-        let dispatch = dispatch_cycles(&spec, inst);
+        let dispatch = dispatch_cycles(spec, inst);
         if self.use_ctrl {
             if let Some(ctrl) = inst.ctrl {
                 let mut stall = ctrl.stall.max(1) as u64;
@@ -1072,7 +1087,7 @@ impl Sm {
         // Operand reads through the banked register file (and reuse cache).
         if spec.issue.rf_banks > 0 {
             let w = self.warps[ws].as_mut().unwrap();
-            let per = rf_bank_reads(&spec, inst, &w.reuse);
+            let per = rf_bank_reads(spec, inst, &w.reuse);
             if spec.issue.reuse_cache {
                 let bits = inst.ctrl.map(|x| x.reuse).unwrap_or(0);
                 if !spec.issue.reuse_sticky {
@@ -1121,7 +1136,7 @@ impl Sm {
                 let r = if op.active == 0 {
                     c + 1
                 } else {
-                    self.mem_op(&op, c, mem, kid, sp)
+                    self.mem_op(&op, c, spec, mem, kid, sp)
                 };
                 result = Some((r, t.sb));
                 if inst.class == OpClass::AsyncCopy {
@@ -1455,7 +1470,15 @@ impl Sm {
     }
 
     /// LSU path for loads/stores/atomics/ldmatrix/cp.async/TMEM.
-    fn mem_op(&mut self, op: &DynOp, c: u64, mem: &mut MemSystem, kid: u32, sp: usize) -> u64 {
+    fn mem_op(
+        &mut self,
+        op: &DynOp,
+        c: u64,
+        spec: &GpuSpec,
+        mem: &mut MemSystem,
+        kid: u32,
+        sp: usize,
+    ) -> u64 {
         let inst = &op.inst;
         let m = inst.mem.unwrap_or(rsim_sass::MemInfo {
             space: MemSpace::Global,
@@ -1464,7 +1487,6 @@ impl Sm {
             width: 4,
         });
         let active = op.active.count_ones().clamp(1, 32);
-        let spec = self.spec.clone();
         match m.space {
             MemSpace::Shared => {
                 let ways = if inst.class == OpClass::Ldsm {

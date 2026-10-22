@@ -98,9 +98,7 @@ pub(crate) fn run(
     let mut leader: Vec<Option<usize>> = (0..n)
         .map(|i| (classes[i] != i).then_some(classes[i]))
         .collect();
-    let is_leader: Vec<bool> = (0..n)
-        .map(|i| leader.contains(&Some(i)))
-        .collect();
+    let is_leader: Vec<bool> = (0..n).map(|i| leader.contains(&Some(i))).collect();
     let idx: Vec<HashMap<u64, usize>> = lps
         .iter()
         .map(|lp| match lp {
