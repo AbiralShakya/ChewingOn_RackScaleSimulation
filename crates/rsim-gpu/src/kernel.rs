@@ -116,9 +116,16 @@ impl KernelLaunch {
 
     pub fn from_path(p: PathKernel) -> Self {
         let h = &p.header;
+        let mut grid = h.grid;
+        // CTAs keep their linear ids (the path's coordinates use the header's grid).
+        if let Some(n) = h.launch_ctas {
+            if n > 0 && (n as u64) < grid.iter().map(|&d| d as u64).product::<u64>() {
+                grid = [n, 1, 1];
+            }
+        }
         Self {
             name: h.kernel.clone(),
-            grid: h.grid,
+            grid,
             block: h.block,
             regs_per_thread: h.regs.max(16),
             smem_per_cta: h.smem,

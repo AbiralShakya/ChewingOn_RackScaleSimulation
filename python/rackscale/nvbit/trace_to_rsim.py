@@ -31,6 +31,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import struct
 import sys
 from collections import Counter, defaultdict
@@ -64,7 +65,7 @@ def umma_flops(op, idesc):
 
 
 class Conv:
-    def __init__(self, trace_dir, primary=None):
+    def __init__(self, trace_dir, primary=None, parity_waits=False, detect_completed_init=None):
         self.dir = trace_dir
         base = glob.glob(os.path.join(trace_dir, "*.json"))[0][:-5]
         self.meta = json.load(open(base + ".json"))
@@ -82,6 +83,12 @@ class Conv:
         self.ctas = sorted(set(k[0] for k in self.warps))
         self.primary = primary if primary is not None else self.ctas[0]
         self.stats = Counter()
+        # Wait semantics: absolute phase counts (validated on FA4), or the hardware's
+        # try_wait.parity rule, which needs no assumption about skipped phases.
+        self.parity_waits = parity_waits
+        # Barriers initialised in the completed state (cuBLAS) are detected from the clock;
+        # off by default with phase counts, which the FlashAttention study validated without it.
+        self.detect_completed_init = parity_waits if detect_completed_init is None else detect_completed_init
         self.mma_shapes = Counter()
 
     def rank(self, cta):
@@ -117,6 +124,61 @@ class Conv:
                 return None
         return None
 
+    def arrival_events(self, cta):
+        """Barrier id -> sorted SM clocks of the arrivals that CTA `cta`'s barrier received from
+        any recorded CTA of its cluster (arrives and tcgen05 commits, one entry per arrival).
+
+        B300 SM clocks agree to within a few thousand cycles across SMs, so these can be
+        compared with a wait's clock to tell how many phases completed between two waits.
+        """
+        if not hasattr(self, "_arrivals"):
+            self._arrivals = {}
+        if cta in self._arrivals:
+            return self._arrivals[cta]
+        out = defaultdict(list)
+        base, rank = cta - self.rank(cta), self.rank(cta)
+        for (c, _w), recs in self.warps.items():
+            if c - self.rank(c) != base:
+                continue  # another cluster
+            for r in recs:
+                if r["kind"] not in (WP_MBAR, WP_MBARV) or not r["predon"]:
+                    continue
+                op = self.L[r["idx"]]["op"]
+                if op.startswith("SYNCS.ARRIVE") and ".A0T" not in op:
+                    if r["kind"] == WP_MBARV:
+                        lanes = [(r["addrs"][l] >> 24) & 0xF for l in range(32) if (r["predon"] >> l) & 1]
+                    else:
+                        lanes = [(r["a"] >> 24) & 0xF] * popcount(r["predon"])
+                    hits = sum(1 for lr in lanes if (lr if self.cluster > 1 else rank) == rank)
+                    if hits:
+                        out[r["a"] & 0xFFFFFF].extend([r["clk"]] * hits)
+                elif op.startswith("UTCBAR"):
+                    if "MULTICAST" in op and r["c"] != 0xFFFFFFFF:
+                        mine = (r["c"] >> rank) & 1
+                    else:
+                        mine = c == cta
+                    if mine:
+                        out[r["a"] & 0xFFFFFF].append(r["clk"])
+        for v in out.values():
+            v.sort()
+        self._arrivals[cta] = out
+        return out
+
+    def phases_between(self, cta, bid, t0, t1):
+        """Phases of barrier `bid` of CTA `cta` completed between clocks t0 and t1, from its
+        recorded arrivals; None when the barrier has no recorded arrivals (TMA-only)."""
+        ev = self.arrival_events(cta).get(bid)
+        if not ev:
+            return None
+        import bisect
+        n = bisect.bisect_right(ev, t1) - bisect.bisect_right(ev, t0)
+        return n / max(1, self.barrier_counts_cached().get(bid, 1))
+
+    def barrier_counts_cached(self):
+        if not hasattr(self, "_counts"):
+            self._counts = self.barrier_counts()
+        return self._counts
+
     def first_signal(self, cta):
         """Barrier id -> SM clock of the first op in CTA `cta` that can complete one of its phases."""
         if not hasattr(self, "_first_signal"):
@@ -142,12 +204,43 @@ class Conv:
             self._first_signal[cta] = out
         return self._first_signal[cta]
 
+    def completed_init(self, cta):
+        """Barriers of CTA `cta` that the kernel initialised in the completed state.
+
+        The earliest wait on such a barrier (across the CTA's warps) passed on its
+        first try, before anything in the CTA could have completed a phase of it.
+        cuBLAS's Blackwell GEMMs initialise their pipeline barriers this way.
+        """
+        if not self.detect_completed_init:
+            return set()
+        if not hasattr(self, "_completed_init"):
+            self._completed_init = {}
+        if cta not in self._completed_init:
+            first_wait = {}  # bid -> (clk, passed at first try)
+            for (c, _w), recs in self.warps.items():
+                if c != cta:
+                    continue
+                tried = set()
+                for r in recs:
+                    if r["kind"] != WP_WAIT or not r["predon"]:
+                        continue
+                    bid = r["a"] & 0xFFFFFF
+                    ok = (r["b"] >> r["aux"]) & 1
+                    if bid not in tried:
+                        tried.add(bid)
+                        if bid not in first_wait or r["clk"] < first_wait[bid][0]:
+                            first_wait[bid] = (r["clk"], bool(ok))
+            sig = self.first_signal(cta)
+            self._completed_init[cta] = {b for b, (clk, ok) in first_wait.items()
+                                          if ok and (b not in sig or clk < sig[b])}
+            self.stats["completed_init_barriers"] += len(self._completed_init[cta])
+        return self._completed_init[cta]
+
     def convert_warp(self, cta, recs):
         """Records of one warp -> list of op tuples. Spin loops on mbarriers (a failed wait, the
         branch and sleep around it, the failed retries) are removed; the simulator times the wait."""
         ops = []
-        need_last = {}  # barrier id -> last needed phase count
-        failed_before = set()  # barriers this warp has polled unsuccessfully
+        need_last = {}  # barrier id -> (last needed phase count, its parity, its clock)
         own = self.rank(cta)
         drop = set()
         i = 0
@@ -166,8 +259,6 @@ class Conv:
                 self.stats["polls_kept"] += 1
             i += 1
         for n, r in enumerate(recs):
-            if r["kind"] == WP_WAIT and r["predon"] and not (r["b"] >> r["aux"]) & 1:
-                failed_before.add(r["a"] & 0xFFFFFF)
             if n in drop:
                 self.stats["spin_ops_dropped"] += 1
                 continue
@@ -180,25 +271,42 @@ class Conv:
             active = r["active"]
             if kind == WP_WAIT and r["predon"] and (r["b"] >> r["aux"]) & 1:
                 bid = r["a"] & 0xFFFFFF
-                parity = (r["c"] >> 31) & 1 if r["c"] != 0xFFFFFFFF else 0
+                # 0xFFFFFFFF is also the tool's "no register operand" value, but a phase register
+                # can hold it (~0 after a flip): it is real whenever the instruction names one.
+                has_reg = re.search(r"\]\s*,\s*R\d+", self.L[r["idx"]]["text"]) is not None
+                parity = (r["c"] >> 31) & 1 if (r["c"] != 0xFFFFFFFF or has_reg) else 0
                 # The phase this wait needs, as an absolute count. Successive waits by one
                 # warp alternate parity; an unchanged parity means the warp skipped a phase
                 # (FA4's lazy rescaling skips some), so the count advances by two. Checked
                 # against the hardware clock: every repeat had exactly two commits between.
-                if bid not in need_last:
-                    need = 0 if parity == 1 else 1
-                    # A first wait that passed at once, before anything in this CTA could have
-                    # completed a phase of the barrier, found it already complete: the kernel
-                    # initialised it in the completed state (cuBLAS does), whatever the parity.
-                    first = self.first_signal(cta).get(bid)
-                    if need == 1 and bid not in failed_before and (first is None or r["clk"] < first):
-                        need = 0
-                        self.stats["waits_on_completed_init"] += 1
+                if self.parity_waits:
+                    # try_wait.parity(p) passes once the barrier's current phase has parity != p.
+                    # A barrier the kernel initialised in the completed state starts one phase
+                    # ahead of the simulator's count, which flips the parity of every wait on it.
+                    if bid in self.completed_init(cta):
+                        parity ^= 1
+                    mk, mid, marg = K_WAIT_PARITY, bid, parity
                 else:
-                    last, last_p = need_last[bid]
-                    need = last + (1 if parity != last_p else 2)
-                need_last[bid] = (need, parity)
-                mk, mid, marg = K_WAIT, bid, need
+                    if bid not in need_last:
+                        need = 0 if parity == 1 else 1
+                        # A barrier initialised in the completed state is one phase ahead of the
+                        # simulator's count: the phase a wait passes on is one fewer.
+                        # (hardware count: the first C >= 1 whose parity differs from the wait's).
+                        if bid in self.completed_init(cta):
+                            need = 0 if parity == 0 else 1
+                    else:
+                        last, last_p, last_clk = need_last[bid]
+                        if parity != last_p:
+                            need = last + 1
+                        else:
+                            # The same parity again: either no phase completed since the last wait
+                            # (it passes at once) or two did (FA4's lazy rescaling skips one). The
+                            # recorded arrivals between the two waits decide; without any, two.
+                            between = self.phases_between(cta, bid, last_clk, r["clk"])
+                            need = last + (0 if between is not None and between < 1 else 2)
+                            self.stats["same_parity_waits_" + ("0" if need == last else "2")] += 1
+                    need_last[bid] = (need, parity, r["clk"])
+                    mk, mid, marg = K_WAIT, bid, need
                 self.stats["waits"] += 1
             elif kind in (WP_MBAR, WP_MBARV) and r["predon"]:
                 bid, arank = r["a"] & 0xFFFFFF, (r["a"] >> 24) & 0xF
@@ -221,14 +329,19 @@ class Conv:
                             ranks |= self.ranks_of(rk)
                         n = max(1, n // len(lane_ranks))
                         self.stats["multi_rank_arrives"] += len(lane_ranks) > 1
-                    if ".A0TX" in op:
-                        n = 0  # expect-tx only: no arrival
-                    if ".A0T1" in op:
+                    if ".A0TX" in op and tx == 0:
+                        # Expect-tx only, of a few bytes the simulator does not track: nothing to
+                        # do (an Arrive op always counts at least one arrival).
+                        self.stats["expect_tx_only_dropped"] += 1
+                    elif ".A0T1" in op:
                         # complete-tx (mbarrier.complete_tx): the bytes land without an arrival
                         nbytes = 0 if r["b"] == 0xFFFFFFFF else r["b"]
                         mk, mid, marg, mranks = K_TXDONE, bid, nbytes, ranks
                         self.stats["complete_tx"] += 1
                     else:
+                        if ".A0TX" in op:
+                            n = 0  # expect-tx only: decoded as one arrival, an approximation
+                            self.stats["expect_tx_only_as_arrive"] += 1
                         mk, mid, marg, mn, mranks = K_ARRIVE, bid, tx, n, ranks
                     self.stats["arrives"] += 1
                 elif op.startswith("UTCBAR"):
@@ -244,7 +357,9 @@ class Conv:
                 arank = (baddr >> 24) & 0xF if ".2CTA" in op else own
                 mask = None
                 if "MULTICAST" in op and n > 0 and recs[n - 1]["kind"] == WP_UREG and recs[n - 1]["idx"] == r["idx"]:
-                    mask = recs[n - 1]["a"] & 0xFFFF  # destination CTAs (cluster ranks)
+                    # Destination CTAs (cluster ranks): the high half of the register on sm_100/103.
+                    v = recs[n - 1]["a"]
+                    mask = (v >> 16) & 0xFFFF or v & 0xFFFF
                 bytes_ = r["a"]
                 runs = r["runs"]
                 payload = bytes_
@@ -328,6 +443,16 @@ class Conv:
         for (cta, w), recs in sorted(self.warps.items()):
             paths[(cta, w)] = self.convert_warp(cta, recs)
         smem = self.meta["smem_static"] + self.meta["smem_dynamic"]
+        # Cluster launch control: the primary CTA's tiles = its UGETNEXTWORKID queries (the last
+        # one finds no work, the CTA's own tile makes up for it). Only ~grid/tiles CTAs run.
+        clc = sum(1 for (c, _w), recs in self.warps.items() if c == self.primary
+                  for r in recs if r["predon"] and self.L[r["idx"]]["op"].startswith("UGETNEXTWORKID"))
+        launch_ctas = None
+        g = self.meta["grid"]
+        if clc > 1:
+            launch_ctas = -(-(g[0] * g[1] * g[2]) // clc)
+            launch_ctas = -(-launch_ctas // self.cluster) * self.cluster
+            self.stats["clc_tiles_per_cta"] = clc
         header = {
             "kernel": self.meta["kernel"],
             "grid": self.meta["grid"],
@@ -342,6 +467,8 @@ class Conv:
             "flops": flops,
             "bytes": nbytes,
         }
+        if launch_ctas is not None:
+            header["launch_ctas"] = launch_ctas
         hb = json.dumps(header).encode()
         with open(out, "wb") as f:
             f.write(b"RSIMPTH1")
@@ -368,9 +495,10 @@ class Conv:
         return paths, header
 
 
-def convert(trace_dir, out, primary=None, regs=None, flops=0.0, nbytes=0.0):
+def convert(trace_dir, out, primary=None, regs=None, flops=0.0, nbytes=0.0, parity_waits=False,
+            detect_completed_init=None):
     """Write `out` (.rpath) from the recording in `trace_dir`; return a summary dict."""
-    c = Conv(trace_dir, primary)
+    c = Conv(trace_dir, primary, parity_waits, detect_completed_init)
     paths, header = c.write(out, regs, flops, nbytes)
     lens = {f"{k[0]}:{k[1]}": len(v) for k, v in paths.items() if k[0] == c.primary}
     return {"out": out, "primary": c.primary, "ctas": c.ctas, "cluster": c.cluster,
@@ -387,8 +515,9 @@ def main():
     ap.add_argument("--regs", type=int, help="registers/thread (NVBit reports 0 for JIT CuTe kernels)")
     ap.add_argument("--flops", type=float, default=0.0)
     ap.add_argument("--bytes", type=float, default=0.0)
+    ap.add_argument("--parity-waits", action="store_true", help="hardware try_wait.parity semantics for waits")
     a = ap.parse_args()
-    print(json.dumps(convert(a.trace_dir, a.out, a.primary, a.regs, a.flops, a.bytes), indent=1))
+    print(json.dumps(convert(a.trace_dir, a.out, a.primary, a.regs, a.flops, a.bytes, a.parity_waits), indent=1))
 
 
 if __name__ == "__main__":

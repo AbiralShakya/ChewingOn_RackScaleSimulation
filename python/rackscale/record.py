@@ -449,10 +449,10 @@ def build(out: str, *, key: str = "config", convert: bool = True) -> str:
         if r["truncated"] or not convert:
             continue
         dst = os.path.join(kdir, kid + ".rpath")
+        rel = {v: os.path.relpath(_variant(dst, v) + ".gz", out) for v, _p, _i in VARIANTS}
         old = prev.get(k["key"])
-        if old and old[0] == rdir and old[1] == r["bytes"] and os.path.exists(os.path.join(out, old[2])):
-            if old[2] != os.path.relpath(dst + ".gz", out):
-                shutil.copyfile(os.path.join(out, old[2]), dst + ".gz")
+        if old and old[0] == rdir and old[1] == r["bytes"] and all(os.path.exists(os.path.join(out, x))
+                                                                    for x in rel.values()):
             k["recording"]["summary"] = old[3]
         else:
             try:
@@ -461,7 +461,8 @@ def build(out: str, *, key: str = "config", convert: bool = True) -> str:
                 k["recording"]["error"] = f"{type(e).__name__}: {e}"
                 continue
             k["recording"]["summary"] = {x: summary.get(x) for x in ("ctas", "stats", "mma_shapes")}
-        k["path"] = os.path.relpath(dst + ".gz", out)
+        k["path"] = rel["phases"]
+        k["path_variants"] = rel
     dev = procs[0]["device"]
     doc = {
         "format": "rackscale-capture/v1",
@@ -484,13 +485,31 @@ def build(out: str, *, key: str = "config", convert: bool = True) -> str:
     return path
 
 
+# Wait semantics of the converted path, tried in this order by rackscale.replay.check_kernels:
+# phase counts (validated on FlashAttention), phase counts with barriers that start completed
+# (cuBLAS), and the hardware's parity rule.
+VARIANTS = (("phases", False, False), ("init", False, True), ("parity", True, True))
+
+
+def _variant(dst: str, v: str) -> str:
+    return dst if v == "phases" else dst[: -len(".rpath")] + f".{v}.rpath"
+
+
 def _convert(trace_dir: str, dst: str, regs: int) -> dict:
+    """Convert a recording once per wait semantics in `VARIANTS` (``kNNNN[.v].rpath.gz``).
+
+    `rackscale.replay.check_kernels` keeps the first variant that replays.
+    """
     from .nvbit.trace_to_rsim import convert
 
-    summary = convert(trace_dir, dst, regs=regs or None)
-    with open(dst, "rb") as f, gzip.open(dst + ".gz", "wb", compresslevel=6) as g:
-        shutil.copyfileobj(f, g)
-    os.remove(dst)
+    summary = {}
+    for v, parity, init in VARIANTS:
+        d = _variant(dst, v)
+        sm = convert(trace_dir, d, regs=regs or None, parity_waits=parity, detect_completed_init=init)
+        summary = summary or sm
+        with open(d, "rb") as f, gzip.open(d + ".gz", "wb", compresslevel=6) as g:
+            shutil.copyfileobj(f, g)
+        os.remove(d)
     return summary
 
 
@@ -500,4 +519,13 @@ def load(path: str) -> dict:
     with open(p) as f:
         doc = json.load(f)
     doc["_dir"] = os.path.dirname(os.path.abspath(p))
+    chk = os.path.join(doc["_dir"], "kernel_check.json")
+    if os.path.exists(chk):  # written by rackscale.replay.check_kernels
+        with open(chk) as f:
+            for r in json.load(f)["kernels"]:
+                k = doc["kernels"].get(r["kernel"])
+                if k is not None:
+                    k["replay_ok"] = "error" not in r
+                    if r.get("variant") in (k.get("path_variants") or {}):
+                        k["path"] = k["path_variants"][r["variant"]]
     return doc

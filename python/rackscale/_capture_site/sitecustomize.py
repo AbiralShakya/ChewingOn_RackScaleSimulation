@@ -53,7 +53,12 @@ class _State:
     tls = threading.local()
 
 
+_DEBUG = os.environ.get("RSIM_CAP_DEBUG") == "1"
+
+
 def _mark(kind, payload=""):
+    if _DEBUG and kind not in ("push", "pop"):
+        print("rsim capture [%d]: %s %s" % (os.getpid(), kind, payload), file=sys.stderr, flush=True)
     if _State.lib is not None:
         _State.lib(kind.encode(), payload.encode())
     elif _State.profiler and kind in ("region_begin", "region_end"):

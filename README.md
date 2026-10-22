@@ -5,8 +5,8 @@
 rackscale simulates every SM of every GPU in a rack (up to a 72-GPU GB200 NVL72) at the level
 of warp schedulers, scoreboards, tensor-core queues, TMA and mbarriers, and couples that to a
 packet-level model of the NVLink/NVSwitch/InfiniBand fabric. You give it a hardware topology
-(YAML) and a workload: a model config, a captured vLLM/SGLang/PyTorch profiler trace, or raw
-SASS. It returns the step time, MFU, a cycle-accurate bubble breakdown with Nsight-style stall
+(YAML) and a workload: a model config, any program captured on one GPU (vLLM, SGLang,
+a training loop, a kernel library), or raw SASS. It returns the step time, MFU, a cycle-accurate bubble breakdown with Nsight-style stall
 reasons, and a Perfetto timeline with one track per SM.
 
 It is written for three groups of people:
@@ -328,27 +328,38 @@ rsim run --system configs/gb200_nvl72.yaml --workload tp8_mlp.json --fast
 The full op and kernel reference (including `sass` and Accel-Sim `trace` kernels) is in
 [docs/WORKLOAD_FORMAT.md](docs/WORKLOAD_FORMAT.md).
 
-### 6. A real engine trace (vLLM, SGLang, training)
+### 6. Bring your own workload: any engine or kernel library, captured on one GPU
 
-Profile a few steps with the PyTorch profiler (`record_shapes=True`), then re-simulate the
-trace on different hardware:
-
-```python
-from rackscale import capture
-import rackscale as rs
-
-wl = capture.from_file("rank0.pt.trace.json.gz", world=8, collective_group="block:8")
-print(rs.simulate("gb200_nvl72", wl, fast=True).summary())
-```
+Run any program once under `rackscale capture`, then replay what its GPU really did on any
+system. Nothing is described by hand, and the program is not modified:
 
 ```bash
-rackscale capture rank0.pt.trace.json.gz --world 8 --group block:8 --system gb200_nvl72 --fast
+# record: launch graph, warp paths of every distinct kernel, native timing (NVBit + nsys)
+rackscale capture -o cap/vllm --gpu-lock /tmp/gpu.lock -- \
+    python examples/capture/vllm_decode.py --model meta-llama/Llama-3.2-1B-Instruct --batch 32 --eager
+
+# replay on the GPU it ran on, kernel by kernel and step by step
+rackscale replay cap/vllm --system hgx_b300_8 --steps 1: --kernels --fast
+
+# one TP rank of Llama-3.1-70B, captured on one GPU with dummy weights, scaled to a rack
+rackscale capture -o cap/70b-tp8 -- python examples/capture/vllm_decode.py \
+    --model meta-llama/Llama-3.2-1B-Instruct --shape llama3-70b --shard-tp 8 --eager
+rackscale replay cap/70b-tp8 --system gb300_nvl72 --tp 8 --dp 9 --steps 1: --fast
 ```
 
-GEMMs with recoverable shapes are re-simulated on the target GPU, NCCL kernels become
-collectives, and everything else keeps its measured duration. `--mode replay` keeps every
-kernel as measured and re-simulates only launch gaps, overlap and communication. How to
-profile each engine is in [docs/CAPTURE.md](docs/CAPTURE.md).
+The same path works for vLLM, SGLang, PyTorch training loops, Triton, CuTe DSL, cuBLAS,
+ThunderKittens binaries and megakernels: anything that launches kernels through the CUDA
+driver. The tool records every launch with its stream and event dependencies, and the exact
+per-warp SASS path (lane addresses, mbarriers, TMA, tcgen05) of one launch of every distinct
+kernel. A parallelism plan (`--tp/--ep/--pp/--dp` or a YAML) adds collectives at the
+engine's own layer boundaries (`RowParallelLinear`, `FusedMoE`, ...), sized from the
+captured module outputs. What it does not model (scheduling policy, host overheads beyond
+the captured timeline, other GPU generations) is spelled out in
+[docs/CAPTURE.md](docs/CAPTURE.md), and the walkthrough is chapter 10 of the guide.
+
+Torch-profiler traces still work as a lighter route without GPU access:
+`rackscale capture rank0.pt.trace.json.gz --world 8 --group block:8 --system gb200_nvl72 --fast`
+re-simulates GEMMs with recoverable shapes and keeps the measured duration of everything else.
 
 ### 7. Look at the timeline
 
@@ -396,7 +407,6 @@ with its expected output.
 
 | guide | status |
 |---|---|
-| vLLM serving trace → NVL72 vs HGX B200 what-if | planned |
 | SGLang DeepSeek-V3 EP serving: dispatch/combine over IB vs NVLink | planned |
 | FlashAttention / DeepGEMM kernel from `cuobjdump` to per-warp stall breakdown | planned |
 | Validating a kernel against Nsight Compute (`ncu_reference.json`) | planned |

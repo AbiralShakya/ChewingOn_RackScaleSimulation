@@ -37,21 +37,25 @@ def main():
             nsteps = len(range(n)[steps[0]:steps[1]])
     out = {"capture": a.capture, "device": cap["device"], "steps": nsteps, "kernels": [], "replay": {}}
 
-    rows = replay.kernel_table(cap, a.system)
+    rows = replay.check_kernels(cap, a.system)  # kernels that do not replay keep their measured time
     out["kernels"] = rows
-    print(f"{'kernel':<7} {'name':<60} {'n':>5} {'meas_us':>9} {'sim_us':>9} {'err%':>7}")
+    print(f"{'kernel':<7} {'name':<60} {'n':>5} {'meas_us':>9} {'sim_us':>9} {'stream':>9} {'err%':>7}")
     for r in sorted(rows, key=lambda r: -(r.get("measured_us") or 0) * r.get("count", 0)):
         if "error" in r:
             print(f"{r['kernel']:<7} {r['name'][:60]:<60} error {r['error'][:80]}")
             continue
         print(f"{r['kernel']:<7} {r['name'][:60]:<60} {r['count']:>5} {r['measured_us'] or 0:>9.2f} "
-              f"{r['sim_us']:>9.2f} {r['error_pct'] or 0:>+7.1f}")
+              f"{r['sim_us']:>9.2f} {r['sim_stream_us']:>9.2f} {r['stream_error_pct'] or 0:>+7.1f}")
     ok = [r for r in rows if r.get("error_pct") is not None]
     if ok:
         wsum = sum(r["measured_us"] * r["count"] for r in ok)
-        werr = sum(abs(r["error_pct"]) * r["measured_us"] * r["count"] for r in ok) / wsum
+        werr = sum(abs(r["stream_error_pct"]) * r["measured_us"] * r["count"] for r in ok) / wsum
+        bad = [r for r in rows if "error" in r]
+        tot = sum((r.get("measured_us") or 0) * r["count"] for r in rows)
         out["kernel_time_weighted_abs_err_pct"] = werr
-        print(f"time-weighted mean |error| over {len(ok)} recorded kernels: {werr:.1f}%")
+        out["replayed_share_of_kernel_time"] = wsum / tot if tot else None
+        print(f"time-weighted mean |error| (stream timing) over {len(ok)} replayed kernels: {werr:.1f}%; "
+              f"{len(bad)} kernels did not replay ({100 * (1 - wsum / tot):.0f}% of kernel time, measured instead)")
 
     m = replay.measured(cap, steps=steps)
     out["measured"] = {k: v for k, v in m.items() if k != "per_kernel_ns"}

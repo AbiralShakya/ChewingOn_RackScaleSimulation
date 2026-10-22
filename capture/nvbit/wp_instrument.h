@@ -119,9 +119,13 @@ static void wp_instrument(CUcontext ctx, CUfunction f, uint64_t s01, uint64_t s2
             if (strstr(op, "MULTICAST")) {
                 // The CTA mask of a multicast copy is its last uniform-register operand:
                 // record it (as a WP_UREG record of the same instruction) ahead of the copy.
-                int mask_ur = -1;
-                for (int i = 0; i < ins->getNumOperands(); i++)
-                    if (ins->getOperand(i)->type == InstrType::OperandType::UREG) mask_ur = ins->getOperand(i)->u.reg.num;
+                // NVBit does not type it as a UREG operand: take the last URn outside brackets.
+                int mask_ur = -1, depth = 0;
+                for (const char *q = ins->getSass(); *q; q++) {
+                    if (*q == '[') depth++;
+                    else if (*q == ']') depth--;
+                    else if (depth == 0 && q[0] == 'U' && q[1] == 'R' && isdigit(q[2])) mask_ur = atoi(q + 2);
+                }
                 if (mask_ur >= 0) {
                     nvbit_insert_call(ins, "wp_ureg", IPOINT_BEFORE);
                     nvbit_add_call_arg_guard_pred_val(ins);
@@ -166,7 +170,11 @@ static void wp_instrument(CUcontext ctx, CUfunction f, uint64_t s01, uint64_t s2
             nvbit_add_call_arg_const_val32(ins, WP_MBAR);
             nvbit_add_call_arg_const_val32(ins, 0);
             nvbit_add_call_arg_mref_addr64(ins, 0);
-            if (first_reg >= 0) nvbit_add_call_arg_reg_val(ins, first_reg);
+            // mbarrier.init (SYNCS.EXCH.64 URZ, [addr], URn): b = the high word, URn+1
+            if (starts_with(op, "SYNCS.EXCH") && first_reg < 0 && first_ureg >= 0)
+                nvbit_add_call_arg_ureg_val(ins, first_ureg + 1);
+            else if (first_reg >= 0)
+                nvbit_add_call_arg_reg_val(ins, first_reg);
             else nvbit_add_call_arg_const_val32(ins, 0xffffffffu);
             if (first_ureg >= 0) nvbit_add_call_arg_ureg_val(ins, first_ureg);
             else nvbit_add_call_arg_const_val32(ins, 0xffffffffu);

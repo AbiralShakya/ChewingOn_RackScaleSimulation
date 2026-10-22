@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import copy as _copy
 import fnmatch
+import json
 import os
 import re
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -156,7 +157,7 @@ def _match(rule: dict, name: str, cls: str) -> bool:
 # ------------------------------------------------------------------ lowering
 
 def _kernel_spec(k: dict, o: dict, mode: str, base: str, sms: int) -> dict:
-    if mode == "paths" and k.get("path"):
+    if mode == "paths" and k.get("path") and k.get("replay_ok", True):
         spec = {"type": "path", "path": os.path.join(base, k["path"])}
         if k.get("regs"):
             spec["regs"] = k["regs"]
@@ -414,8 +415,11 @@ def kernel_table(cap: Union[str, dict], gpu_system: str = "hgx_b300_8", *, only:
                  launch_gap_ns: float = 0.0) -> List[dict]:
     """Every recorded kernel simulated alone vs its measured median duration.
 
-    The simulation charges the measured kernel window (launch, rasterisation,
-    drain), as a profiler's kernel duration includes it.
+    ``sim_us`` charges the measured kernel window (launch, rasterisation,
+    drain), as Nsight Compute's kernel duration does; ``sim_stream_us`` does
+    not, as back to back in a stream the windows overlap and Nsight Systems
+    reports less. A replay that does not finish (``error``) usually means the
+    recording uses an mbarrier pattern the converter does not model yet.
     """
     from . import simulate
 
@@ -424,17 +428,49 @@ def kernel_table(cap: Union[str, dict], gpu_system: str = "hgx_b300_8", *, only:
     for kid, k in cap["kernels"].items():
         if not k.get("path") or (only and kid not in only):
             continue
-        spec = _kernel_spec(k, {}, "paths", cap["_dir"], cap["device"].get("sms") or 148)
-        wl = {"name": kid, "spmd": {"world": 1, "program": {"streams": [[{"op": "kernel", "name": kid,
-                                                                          "kernel": spec}]]}}}
-        try:
-            rep = simulate(gpu_system, wl, launch_gap_ns=launch_gap_ns, config={"gpu": {"kernel_window": True}})
-            sim_us = rep.raw["makespan_us"]
-        except Exception as e:  # report and continue with the other kernels
-            rows.append({"kernel": kid, "name": short_name(k["name"]), "error": str(e)[:200]})
-            continue
+        row = {"kernel": kid, "name": short_name(k["name"]), "count": k["count"]}
         meas = (k.get("measured_ns") or {}).get("median")
-        rows.append({"kernel": kid, "name": short_name(k["name"]), "count": k["count"],
-                     "measured_us": meas / 1e3 if meas else None, "sim_us": sim_us,
-                     "error_pct": (100 * (sim_us * 1e3 - meas) / meas) if meas else None})
+        row["measured_us"] = meas / 1e3 if meas else None
+        variants = list((k.get("path_variants") or {"phases": k["path"]}).items())
+        err = None
+        for variant, path in variants:
+            spec = _kernel_spec(dict(k, path=path, replay_ok=True), {}, "paths", cap["_dir"],
+                                cap["device"].get("sms") or 148)
+            wl = {"name": kid, "spmd": {"world": 1, "program": {"streams": [[{"op": "kernel", "name": kid,
+                                                                              "kernel": spec}]]}}}
+            try:
+                t = {}
+                for window in (True, False):
+                    rep = simulate(gpu_system, wl, launch_gap_ns=launch_gap_ns,
+                                   config={"gpu": {"kernel_window": window}})
+                    t[window] = rep.raw["makespan_us"]
+                    if not rep.raw["kernels"]:
+                        raise RuntimeError("kernel did not finish (replay deadlock)")
+            except Exception as e:  # try the other wait semantics, then report
+                err = str(e)[:200]
+                continue
+            row.update(variant=variant, sim_us=t[True], sim_stream_us=t[False],
+                       error_pct=(100 * (t[True] * 1e3 - meas) / meas) if meas else None,
+                       stream_error_pct=(100 * (t[False] * 1e3 - meas) / meas) if meas else None)
+            err = None
+            break
+        rows.append(dict(row, error=err) if err else row)
+    return rows
+
+
+def check_kernels(cap: Union[str, dict], gpu_system: str = "hgx_b300_8") -> List[dict]:
+    """Simulate every recorded kernel alone and write ``kernel_check.json`` next to the capture.
+
+    Replays then use the warp paths only of kernels that replayed, and keep
+    the measured duration of the others.
+    """
+    cap = load(cap) if isinstance(cap, str) else cap
+    rows = kernel_table(cap, gpu_system)
+    with open(os.path.join(cap["_dir"], "kernel_check.json"), "w") as f:
+        json.dump({"system": gpu_system, "kernels": rows}, f, indent=1)
+    for r in rows:
+        k = cap["kernels"][r["kernel"]]
+        k["replay_ok"] = "error" not in r
+        if r.get("variant") in (k.get("path_variants") or {}):
+            k["path"] = k["path_variants"][r["variant"]]
     return rows

@@ -147,6 +147,13 @@ pub struct PathHeader {
     pub flops: f64,
     #[serde(default)]
     pub bytes: f64,
+    /// CTAs that really run, for kernels that schedule their own work with
+    /// cluster launch control (`clusterlaunchcontrol.try_cancel`, SASS
+    /// `UGETNEXTWORKID`): a running CTA cancels the launch of a later one and
+    /// takes its tile, so a recorded CTA's path covers several tiles and only
+    /// about `grid / tiles per CTA` CTAs run.
+    #[serde(default)]
+    pub launch_ctas: Option<u32>,
 }
 
 fn one3() -> [u32; 3] {
