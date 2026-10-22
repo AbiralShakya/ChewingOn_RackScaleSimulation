@@ -1,3 +1,4 @@
+use crate::phy::{Framing, LinkTech};
 use rsim_core::Time;
 use rsim_hw::{NodeKind, System};
 use std::collections::{HashMap, VecDeque};
@@ -9,7 +10,11 @@ pub type ChannelId = usize;
 pub struct Channel {
     pub from: usize,
     pub to: usize,
-    /// Bytes per picosecond.
+    /// Physical links in the trunk.
+    pub count: u32,
+    pub tech: LinkTech,
+    pub framing: Framing,
+    /// Raw signalling rate of the trunk, bytes per picosecond.
     pub rate: f64,
     pub latency: Time,
     free_at: f64,
@@ -21,13 +26,14 @@ pub struct Channel {
 }
 
 impl Channel {
-    /// FCFS: returns the time the last byte leaves the sender.
+    /// FCFS: serialise `wire` bytes (carrying `payload` bytes of data);
+    /// returns the time the last byte leaves the sender.
     #[inline]
-    pub fn serve(&mut self, t: Time, bytes: u64) -> Time {
+    pub fn serve(&mut self, t: Time, wire: f64, payload: u64) -> Time {
         let start = self.free_at.max(t as f64);
-        let dur = bytes as f64 / self.rate;
+        let dur = wire / self.rate;
         self.free_at = start + dur;
-        self.bytes += bytes;
+        self.bytes += payload;
         self.busy_ps += dur;
         if self.bin_ps > 0.0 {
             let (mut a, b) = (start, start + dur);
@@ -43,13 +49,40 @@ impl Channel {
         }
         self.free_at.ceil() as Time
     }
+
+    /// Record busy time for a packet served outside `serve` (packet engine).
+    pub fn account(&mut self, start: f64, dur: f64, payload: u64) {
+        self.bytes += payload;
+        self.busy_ps += dur;
+        if self.bin_ps > 0.0 {
+            let (mut a, b) = (start, start + dur);
+            while a < b {
+                let i = (a / self.bin_ps) as usize;
+                let edge = ((i + 1) as f64 * self.bin_ps).min(b);
+                if self.busy_bins.len() <= i {
+                    self.busy_bins.resize(i + 1, 0.0);
+                }
+                self.busy_bins[i] += (edge - a) as f32;
+                a = edge;
+            }
+        }
+    }
 }
 
 pub struct Fabric {
     pub channels: Vec<Channel>,
     /// node -> outgoing channel ids
-    adj: Vec<Vec<ChannelId>>,
-    is_gpu: Vec<bool>,
+    pub adj: Vec<Vec<ChannelId>>,
+    pub is_gpu: Vec<bool>,
+    /// Scale-out (InfiniBand/Ethernet) switch.
+    pub is_scale_out: Vec<bool>,
+    /// Switch port-to-port latency, ps (0 for GPUs).
+    pub switch_latency: Vec<Time>,
+    /// Switch nodes with in-network reduction.
+    pub sharp: Vec<bool>,
+    /// Aggregate port bandwidth of each switch, bytes/ps (SHARP ALU sizing).
+    pub switch_rate: Vec<f64>,
+    dist: HashMap<usize, Vec<u32>>,
     routes: HashMap<(usize, usize), Vec<Vec<ChannelId>>>,
     max_paths: usize,
     pub num_gpus: usize,
@@ -58,18 +91,43 @@ pub struct Fabric {
 }
 
 impl Fabric {
+    /// `efficiency` scales every link's raw rate (1.0 = datasheet; the
+    /// link-layer overhead is modelled separately by `framing`).
     pub fn new(sys: &System, efficiency: f64) -> Self {
         let n = sys.topology.nodes.len();
         let mut channels = Vec::new();
         let mut adj = vec![Vec::new(); n];
+        let scale_out = |k: &NodeKind| matches!(k, NodeKind::Switch { label, .. } if label.starts_with("leaf") || label.starts_with("spine"));
+        let is_scale_out: Vec<bool> = sys.topology.nodes.iter().map(scale_out).collect();
         for l in &sys.topology.links {
+            let tech = match (&sys.topology.nodes[l.a], &sys.topology.nodes[l.b]) {
+                _ if is_scale_out[l.a] || is_scale_out[l.b] => LinkTech::IbNdr,
+                (NodeKind::Gpu { rank }, _) | (_, NodeKind::Gpu { rank }) => {
+                    LinkTech::nvlink(sys.gpus[*rank].nvlink.generation)
+                }
+                _ => LinkTech::Ideal,
+            };
+            let tech = l
+                .tech
+                .as_deref()
+                .and_then(LinkTech::from_name)
+                .unwrap_or(tech);
             for (a, b) in [(l.a, l.b), (l.b, l.a)] {
                 adj[a].push(channels.len());
+                // A packet's hop latency: wire + the receiving switch's
+                // port-to-port latency.
+                let sw_lat = match &sys.topology.nodes[b] {
+                    NodeKind::Switch { spec, .. } => spec.latency_ns,
+                    _ => 0.0,
+                };
                 channels.push(Channel {
                     from: a,
                     to: b,
+                    count: l.count,
+                    tech,
+                    framing: tech.framing(),
                     rate: l.gbps_per_dir * efficiency / 1000.0,
-                    latency: (l.latency_ns * 1000.0).round() as Time,
+                    latency: ((l.latency_ns + sw_lat) * 1000.0).round() as Time,
                     free_at: 0.0,
                     bytes: 0,
                     busy_ps: 0.0,
@@ -84,20 +142,34 @@ impl Fabric {
             .iter()
             .map(|k| matches!(k, NodeKind::Gpu { .. }))
             .collect();
-        let sharp_switches = sys
+        let sharp: Vec<bool> = sys
             .topology
             .nodes
             .iter()
-            .enumerate()
-            .filter_map(|(i, k)| match k {
-                NodeKind::Switch { spec, .. } if spec.in_network_reduction => Some(i),
-                _ => None,
+            .map(|k| matches!(k, NodeKind::Switch { spec, .. } if spec.in_network_reduction))
+            .collect();
+        let sharp_switches = (0..n).filter(|&i| sharp[i]).collect();
+        let switch_latency = sys
+            .topology
+            .nodes
+            .iter()
+            .map(|k| match k {
+                NodeKind::Switch { spec, .. } => (spec.latency_ns * 1000.0) as Time,
+                _ => 0,
             })
+            .collect();
+        let switch_rate = (0..n)
+            .map(|i| adj[i].iter().map(|&c| channels[c].rate).sum())
             .collect();
         Self {
             channels,
             adj,
             is_gpu,
+            is_scale_out,
+            switch_latency,
+            sharp,
+            switch_rate,
+            dist: HashMap::new(),
             routes: HashMap::new(),
             max_paths: 64,
             num_gpus: sys.num_gpus(),
@@ -188,6 +260,51 @@ impl Fabric {
         }
         out.sort();
         out
+    }
+
+    /// Hop distance of every node to `dst`, never transiting a GPU
+    /// (`u32::MAX` = unreachable). Cached.
+    pub fn dist_to(&mut self, dst: usize) -> &Vec<u32> {
+        if !self.dist.contains_key(&dst) {
+            let n = self.adj.len();
+            let mut d = vec![u32::MAX; n];
+            d[dst] = 0;
+            let mut q = VecDeque::from([dst]);
+            // Reverse BFS: a node u reaches v via channel u->v.
+            let mut radj = vec![Vec::new(); n];
+            for c in &self.channels {
+                radj[c.to].push(c.from);
+            }
+            while let Some(v) = q.pop_front() {
+                if v != dst && self.is_gpu[v] {
+                    continue; // GPUs do not forward
+                }
+                for &u in &radj[v] {
+                    if d[u] == u32::MAX {
+                        d[u] = d[v] + 1;
+                        q.push_back(u);
+                    }
+                }
+            }
+            self.dist.insert(dst, d);
+        }
+        &self.dist[&dst]
+    }
+
+    /// Next-hop channels from `u` toward `dst` on shortest paths.
+    pub fn next_hops(&mut self, u: usize, dst: usize) -> Vec<ChannelId> {
+        let d = self.dist_to(dst).clone();
+        if d[u] == u32::MAX || u == dst {
+            return vec![];
+        }
+        self.adj[u]
+            .iter()
+            .copied()
+            .filter(|&c| {
+                let v = self.channels[c].to;
+                d[v] != u32::MAX && d[v] + 1 == d[u] && (v == dst || !self.is_gpu[v])
+            })
+            .collect()
     }
 
     pub fn reset_stats(&mut self) {

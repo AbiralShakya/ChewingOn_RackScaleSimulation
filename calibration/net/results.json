@@ -1,0 +1,1722 @@
+[
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8.allreduce.nvls_peak",
+    "metric": "busbw_gbps",
+    "reference": 480.0,
+    "role": "fit",
+    "sim": [
+      512.7585466777352,
+      515.1703927830149
+    ],
+    "source": "https://github.com/NVIDIA/nccl-tests/issues/212"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "bound",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.allreduce.nvls_floor",
+    "metric": "busbw_gbps",
+    "reference": 450.0,
+    "role": "holdout",
+    "sim": [
+      983.3621557116936,
+      988.9164544371216
+    ],
+    "source": "https://github.com/NVIDIA/aicr/issues/2784"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep8.bs8",
+    "metric": "time_us",
+    "reference": 17.6,
+    "role": "fit",
+    "sim": [
+      17.627668,
+      17.542595
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep8.bs128",
+    "metric": "time_us",
+    "reference": 31.7,
+    "role": "holdout",
+    "sim": [
+      40.173482,
+      36.751119
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep8.bs512",
+    "metric": "time_us",
+    "reference": 89.5,
+    "role": "holdout",
+    "sim": [
+      112.643659,
+      98.974447
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep8.bs2048",
+    "metric": "time_us",
+    "reference": 311.8,
+    "role": "fit",
+    "sim": [
+      351.684768,
+      347.867759
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep16.bs8",
+    "metric": "time_us",
+    "reference": 18.9,
+    "role": "holdout",
+    "sim": [
+      18.100272,
+      17.746941
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep16.bs128",
+    "metric": "time_us",
+    "reference": 34.6,
+    "role": "holdout",
+    "sim": [
+      46.53213,
+      38.896752
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep16.bs512",
+    "metric": "time_us",
+    "reference": 97.1,
+    "role": "holdout",
+    "sim": [
+      138.073504,
+      107.556976
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep16.bs2048",
+    "metric": "time_us",
+    "reference": 343.3,
+    "role": "holdout",
+    "sim": [
+      412.716253,
+      382.197872
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep32.bs8",
+    "metric": "time_us",
+    "reference": 19.4,
+    "role": "holdout",
+    "sim": [
+      17.746941,
+      18.100272
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep32.bs128",
+    "metric": "time_us",
+    "reference": 37.8,
+    "role": "holdout",
+    "sim": [
+      38.908093,
+      39.030698
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep32.bs512",
+    "metric": "time_us",
+    "reference": 109.6,
+    "role": "holdout",
+    "sim": [
+      107.564059,
+      108.092666
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep32.bs2048",
+    "metric": "time_us",
+    "reference": 373.7,
+    "role": "holdout",
+    "sim": [
+      382.200687,
+      384.340538
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/LL",
+      "Direct/LL"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep64.bs8",
+    "metric": "time_us",
+    "reference": 20.4,
+    "role": "holdout",
+    "sim": [
+      11.568044,
+      13.248545
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep64.bs128",
+    "metric": "time_us",
+    "reference": 41.6,
+    "role": "holdout",
+    "sim": [
+      37.318915,
+      38.360375
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep64.bs512",
+    "metric": "time_us",
+    "reference": 115.7,
+    "role": "holdout",
+    "sim": [
+      101.218626,
+      105.411375
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "nvl72.a2a.trtllm.ep64.bs2048",
+    "metric": "time_us",
+    "reference": 399.2,
+    "role": "holdout",
+    "sim": [
+      356.771021,
+      373.615375
+    ],
+    "source": "https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h800_8.a2a.deepep.ep8",
+    "metric": "gbps",
+    "reference": 153.0,
+    "role": "holdout",
+    "sim": [
+      158.0021625184607,
+      156.4958164667863
+    ],
+    "source": "https://github.com/deepseek-ai/DeepEP/blob/567632d/README.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h800_2n.a2a.deepep.ep16",
+    "metric": "gbps",
+    "reference": 43.0,
+    "role": "holdout",
+    "sim": [
+      34.937326597255165,
+      34.94253716592189
+    ],
+    "source": "https://github.com/deepseek-ai/DeepEP/blob/567632d/README.md"
+  },
+  {
+    "algo": [
+      "Direct/Simple",
+      "Direct/Simple"
+    ],
+    "class": "measured",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "b200_8.a2a.deepep_v2.ep8",
+    "metric": "gbps",
+    "reference": 726.0,
+    "role": "holdout",
+    "sim": [
+      792.2824431420049,
+      768.806601327103
+    ],
+    "source": "https://github.com/deepseek-ai/DeepEP/blob/3e490fb/README.md"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.all_reduce.8K.nccl",
+    "metric": "time_us",
+    "reference": 15.1,
+    "role": "fit",
+    "sim": [
+      14.958144,
+      14.978028
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.all_reduce.128K.nccl",
+    "metric": "time_us",
+    "reference": 16.6,
+    "role": "holdout",
+    "sim": [
+      16.2108,
+      16.151152
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.all_reduce.2M.nccl",
+    "metric": "time_us",
+    "reference": 32.2,
+    "role": "fit",
+    "sim": [
+      35.545329,
+      32.135348
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.all_reduce.32M.nccl",
+    "metric": "time_us",
+    "reference": 140.1,
+    "role": "holdout",
+    "sim": [
+      151.539523,
+      141.410079
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.all_reduce.512M.nccl",
+    "metric": "time_us",
+    "reference": 1867.2,
+    "role": "fit",
+    "sim": [
+      1844.72711,
+      1837.31659
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.all_gather.128K.nccl",
+    "metric": "time_us",
+    "reference": 11.6,
+    "role": "fit",
+    "sim": [
+      12.004526,
+      11.865344
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.all_gather.2M.nccl",
+    "metric": "time_us",
+    "reference": 23.8,
+    "role": "holdout",
+    "sim": [
+      22.958217,
+      22.055496
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/Simple",
+      "Ring/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.all_gather.32M.nccl",
+    "metric": "time_us",
+    "reference": 111.4,
+    "role": "fit",
+    "sim": [
+      109.152309,
+      120.641428
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/Simple",
+      "Ring/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.all_gather.512M.nccl",
+    "metric": "time_us",
+    "reference": 1299.1,
+    "role": "holdout",
+    "sim": [
+      1457.515926,
+      1464.1042
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.reduce_scatter.128K.nccl",
+    "metric": "time_us",
+    "reference": 11.6,
+    "role": "fit",
+    "sim": [
+      12.004526,
+      11.865344
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.reduce_scatter.2M.nccl",
+    "metric": "time_us",
+    "reference": 23.8,
+    "role": "holdout",
+    "sim": [
+      22.958217,
+      22.055496
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/Simple",
+      "Ring/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.reduce_scatter.32M.nccl",
+    "metric": "time_us",
+    "reference": 111.4,
+    "role": "fit",
+    "sim": [
+      109.152309,
+      120.641428
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/Simple",
+      "Ring/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_h100_8.reduce_scatter.512M.nccl",
+    "metric": "time_us",
+    "reference": 1299.1,
+    "role": "holdout",
+    "sim": [
+      1457.515926,
+      1464.1042
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.all_reduce.8K.nccl",
+    "metric": "time_us",
+    "reference": 15.1,
+    "role": "fit",
+    "sim": [
+      14.719478,
+      14.719478
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.all_reduce.128K.nccl",
+    "metric": "time_us",
+    "reference": 15.8,
+    "role": "holdout",
+    "sim": [
+      15.025999,
+      15.026002
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.all_reduce.2M.nccl",
+    "metric": "time_us",
+    "reference": 28.0,
+    "role": "fit",
+    "sim": [
+      22.454811,
+      24.999918
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.all_reduce.32M.nccl",
+    "metric": "time_us",
+    "reference": 82.5,
+    "role": "holdout",
+    "sim": [
+      91.034109,
+      81.42228
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.all_reduce.512M.nccl",
+    "metric": "time_us",
+    "reference": 945.0,
+    "role": "fit",
+    "sim": [
+      963.321432,
+      945.92847
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.all_gather.128K.nccl",
+    "metric": "time_us",
+    "reference": 11.2,
+    "role": "fit",
+    "sim": [
+      11.297057,
+      11.29706
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.all_gather.2M.nccl",
+    "metric": "time_us",
+    "reference": 17.3,
+    "role": "holdout",
+    "sim": [
+      15.317982,
+      16.352136
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.all_gather.32M.nccl",
+    "metric": "time_us",
+    "reference": 73.2,
+    "role": "fit",
+    "sim": [
+      65.858903,
+      75.5411
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/Simple",
+      "Ring/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.all_gather.512M.nccl",
+    "metric": "time_us",
+    "reference": 692.7,
+    "role": "holdout",
+    "sim": [
+      673.002485,
+      692.819553
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.reduce_scatter.128K.nccl",
+    "metric": "time_us",
+    "reference": 11.2,
+    "role": "fit",
+    "sim": [
+      11.297057,
+      11.29706
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.reduce_scatter.2M.nccl",
+    "metric": "time_us",
+    "reference": 17.3,
+    "role": "holdout",
+    "sim": [
+      15.317982,
+      16.352136
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.reduce_scatter.32M.nccl",
+    "metric": "time_us",
+    "reference": 73.2,
+    "role": "fit",
+    "sim": [
+      65.858903,
+      75.5411
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/Simple",
+      "Ring/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_8.reduce_scatter.512M.nccl",
+    "metric": "time_us",
+    "reference": 692.7,
+    "role": "holdout",
+    "sim": [
+      673.002485,
+      692.819553
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.all_reduce.8K.nccl",
+    "metric": "time_us",
+    "reference": 25.0,
+    "role": "fit",
+    "sim": [
+      19.829422,
+      19.929438
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.all_reduce.128K.nccl",
+    "metric": "time_us",
+    "reference": 25.3,
+    "role": "holdout",
+    "sim": [
+      20.052374,
+      20.15239
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.all_reduce.2M.nccl",
+    "metric": "time_us",
+    "reference": 29.1,
+    "role": "fit",
+    "sim": [
+      26.945994,
+      25.104052
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.all_reduce.32M.nccl",
+    "metric": "time_us",
+    "reference": 89.8,
+    "role": "holdout",
+    "sim": [
+      96.169598,
+      80.253137
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.all_reduce.512M.nccl",
+    "metric": "time_us",
+    "reference": 1061.8,
+    "role": "fit",
+    "sim": [
+      1205.957584,
+      950.0281
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.all_gather.128K.nccl",
+    "metric": "time_us",
+    "reference": 25.3,
+    "role": "fit",
+    "sim": [
+      19.716241,
+      19.716258
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.all_gather.2M.nccl",
+    "metric": "time_us",
+    "reference": 29.2,
+    "role": "holdout",
+    "sim": [
+      26.138817,
+      26.138887
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.all_gather.32M.nccl",
+    "metric": "time_us",
+    "reference": 91.6,
+    "role": "fit",
+    "sim": [
+      75.85756,
+      75.717177
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.all_gather.512M.nccl",
+    "metric": "time_us",
+    "reference": 976.1,
+    "role": "holdout",
+    "sim": [
+      1055.617813,
+      1051.784849
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.reduce_scatter.128K.nccl",
+    "metric": "time_us",
+    "reference": 25.3,
+    "role": "fit",
+    "sim": [
+      19.810755,
+      19.910778
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.reduce_scatter.2M.nccl",
+    "metric": "time_us",
+    "reference": 29.2,
+    "role": "holdout",
+    "sim": [
+      24.66353,
+      24.763593
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Nvls/Simple",
+      "Nvls/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.reduce_scatter.32M.nccl",
+    "metric": "time_us",
+    "reference": 91.6,
+    "role": "fit",
+    "sim": [
+      75.84846,
+      75.454109
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "gb200_nvl72.reduce_scatter.512M.nccl",
+    "metric": "time_us",
+    "reference": 976.1,
+    "role": "holdout",
+    "sim": [
+      1055.617813,
+      1051.784849
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Tree/LL",
+      "Tree/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.all_reduce.8K.nccl",
+    "metric": "time_us",
+    "reference": 46.3,
+    "role": "fit",
+    "sim": [
+      49.527864,
+      49.50798
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Tree/LL",
+      "Tree/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.all_reduce.128K.nccl",
+    "metric": "time_us",
+    "reference": 70.9,
+    "role": "holdout",
+    "sim": [
+      58.82764,
+      60.371784
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Tree/LL128",
+      "Tree/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.all_reduce.2M.nccl",
+    "metric": "time_us",
+    "reference": 103.0,
+    "role": "fit",
+    "sim": [
+      103.726015,
+      104.798734
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Tree/LL128",
+      "Tree/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.all_reduce.32M.nccl",
+    "metric": "time_us",
+    "reference": 300.8,
+    "role": "holdout",
+    "sim": [
+      347.261921,
+      351.493278
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "NvlsTree/Simple",
+      "NvlsTree/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.all_reduce.512M.nccl",
+    "metric": "time_us",
+    "reference": 2819.9,
+    "role": "fit",
+    "sim": [
+      3025.135067,
+      4040.443423
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.all_gather.128K.nccl",
+    "metric": "time_us",
+    "reference": 87.8,
+    "role": "fit",
+    "sim": [
+      85.450839,
+      84.257293
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.all_gather.2M.nccl",
+    "metric": "time_us",
+    "reference": 154.5,
+    "role": "holdout",
+    "sim": [
+      195.037,
+      194.613652
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.all_gather.32M.nccl",
+    "metric": "time_us",
+    "reference": 245.2,
+    "role": "fit",
+    "sim": [
+      251.216181,
+      254.472339
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.all_gather.512M.nccl",
+    "metric": "time_us",
+    "reference": 1697.6,
+    "role": "holdout",
+    "sim": [
+      1519.538781,
+      1604.000089
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.reduce_scatter.128K.nccl",
+    "metric": "time_us",
+    "reference": 87.8,
+    "role": "fit",
+    "sim": [
+      85.450839,
+      84.257293
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.reduce_scatter.2M.nccl",
+    "metric": "time_us",
+    "reference": 154.5,
+    "role": "holdout",
+    "sim": [
+      195.037,
+      194.613652
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.reduce_scatter.32M.nccl",
+    "metric": "time_us",
+    "reference": 245.2,
+    "role": "fit",
+    "sim": [
+      251.216181,
+      254.472339
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "h100_8node_ib.reduce_scatter.512M.nccl",
+    "metric": "time_us",
+    "reference": 1697.6,
+    "role": "holdout",
+    "sim": [
+      1519.538781,
+      1604.000089
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Tree/LL",
+      "Tree/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.all_reduce.8K.nccl",
+    "metric": "time_us",
+    "reference": 25.8,
+    "role": "fit",
+    "sim": [
+      25.971629,
+      25.948924
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Tree/LL",
+      "Tree/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.all_reduce.128K.nccl",
+    "metric": "time_us",
+    "reference": 38.6,
+    "role": "holdout",
+    "sim": [
+      29.551621,
+      29.684718
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Tree/LL128",
+      "Tree/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.all_reduce.2M.nccl",
+    "metric": "time_us",
+    "reference": 69.0,
+    "role": "fit",
+    "sim": [
+      66.671646,
+      68.920788
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "NvlsTree/Simple",
+      "NvlsTree/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.all_reduce.32M.nccl",
+    "metric": "time_us",
+    "reference": 146.2,
+    "role": "holdout",
+    "sim": [
+      120.941546,
+      122.796518
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "NvlsTree/Simple",
+      "NvlsTree/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.all_reduce.512M.nccl",
+    "metric": "time_us",
+    "reference": 1338.0,
+    "role": "fit",
+    "sim": [
+      1444.035989,
+      1472.740771
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.all_gather.128K.nccl",
+    "metric": "time_us",
+    "reference": 26.5,
+    "role": "fit",
+    "sim": [
+      26.218978,
+      26.324444
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.all_gather.2M.nccl",
+    "metric": "time_us",
+    "reference": 50.0,
+    "role": "holdout",
+    "sim": [
+      59.758298,
+      59.90633
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.all_gather.32M.nccl",
+    "metric": "time_us",
+    "reference": 131.0,
+    "role": "fit",
+    "sim": [
+      107.67141,
+      112.022468
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/Simple",
+      "Ring/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.all_gather.512M.nccl",
+    "metric": "time_us",
+    "reference": 1341.2,
+    "role": "holdout",
+    "sim": [
+      1297.93024,
+      1293.29568
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL",
+      "Ring/LL"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.reduce_scatter.128K.nccl",
+    "metric": "time_us",
+    "reference": 26.5,
+    "role": "fit",
+    "sim": [
+      26.218978,
+      26.324444
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.reduce_scatter.2M.nccl",
+    "metric": "time_us",
+    "reference": 50.0,
+    "role": "holdout",
+    "sim": [
+      59.758298,
+      59.90633
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/LL128",
+      "Ring/LL128"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.reduce_scatter.32M.nccl",
+    "metric": "time_us",
+    "reference": 131.0,
+    "role": "fit",
+    "sim": [
+      107.67141,
+      112.022468
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  },
+  {
+    "algo": [
+      "Ring/Simple",
+      "Ring/Simple"
+    ],
+    "class": "nccl_model",
+    "fidelity": [
+      "Transfer",
+      "Packet"
+    ],
+    "id": "hgx_b200_2node_ib.reduce_scatter.512M.nccl",
+    "metric": "time_us",
+    "reference": 1341.2,
+    "role": "holdout",
+    "sim": [
+      1297.93024,
+      1293.29568
+    ],
+    "source": "NCCL 2.32.3 tuning model (src/graph/tuning.cc), `rsim net model`"
+  }
+]

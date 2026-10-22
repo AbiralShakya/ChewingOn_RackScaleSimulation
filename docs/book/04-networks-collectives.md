@@ -6,9 +6,11 @@ reduce-scatter, all-to-all), applies it to the fabrics that matter (NVLink with 
 72-GPU NVL72 domain, InfiniBand between nodes), and compares it with what the simulator
 produces.
 
-**Everything in this chapter is simulated on presets.** We have measured single GPUs only;
-no NVLink or InfiniBand number below comes from hardware. The fabric model is described in
-section 4.5, and chapter 9 lists what it would take to calibrate it.
+**Everything in this chapter is simulated on presets.** We have measured single GPUs only, so
+the fabric model is checked against *published* multi-GPU numbers instead: nccl-tests
+expectations from the NCCL maintainers, TensorRT-LLM's GB200 NVL72 all-to-all tables, DeepEP's
+H800 and B200 bandwidths, and NCCL's own tuning model. Section 4.5 describes the model and
+[`docs/NETWORK.md`](../NETWORK.md) gives the error against every point.
 
 ## 4.1 The fabrics
 
@@ -58,48 +60,49 @@ above the link rate.
 ## 4.3 What the simulator gives
 
 ```bash
-python docs/book/scripts/collectives_sweep.py              # about a minute
-python docs/book/scripts/collectives_sweep.py --algo ring --kinds all_reduce
+rsim net sweep --system hgx_b200_8 -b 4K -e 256M -f 16                 # nccl-tests style
+rsim net sweep --system gb200_nvl72 --algo ring -b 4K -e 256M -f 16    # force an algorithm
+rsim net model --system gb200_nvl72                                    # what NCCL's tuner predicts
 ```
 
-Selected rows (bytes are per GPU; each run is the collective alone on an idle system):
+Selected rows (bytes are per GPU; each run is the collective alone on an idle system, NCCL's
+algorithm and protocol choice unless forced, transfer fidelity):
 
 | system | GPUs | collective | 4 KB | 1 MB | 16 MB | 256 MB | busbw at 256 MB |
 |---|---|---|---|---|---|---|---|
-| HGX H100 | 8 | all-reduce (NVLS) | 1.1 µs | 6.5 µs | 59.5 µs | 725 µs | 648 GB/s |
-| HGX B200 | 8 | all-reduce (NVLS) | 1.1 | 3.8 | 25.7 | 363 | **1295** |
-| HGX B200 | 8 | all-reduce (ring) | 7.9 | 10.3 | 46.3 | 622 | 755 |
-| HGX B200 | 8 | all-gather (ring) | 4.0 | 5.2 | 23.2 | 311 | 755 |
-| HGX B200 | 8 | all-to-all | 0.6 | 1.8 | 19.8 | 308 | 764 |
-| NVL72 | 72 | all-reduce (NVLS) | 1.1 | 3.8 | 44.9 | 377 | **1405** |
-| NVL72 | 72 | all-reduce (ring) | **79.8** | 91.8 | 123 | 772 | 686 |
-| NVL72 | 72 | all-gather (ring) | 39.9 | 45.9 | 61.5 | 386 | 686 |
-| NVL72 | 72 | all-to-all | 0.7 | 6.7 | 22.3 | 347 | 764 |
-| 2 × HGX H100, IB | 16 | all-reduce (ring) | 21.4 | 23.9 | 96.0 | 1488 | 338 |
-| 2 × HGX H100, IB | 16 | all-to-all | 1.9 | 28.7 | 390 | **5923** | **42** |
+| HGX H100 | 8 | all-reduce (auto: ring LL, then NVLS) | 14.8 µs | 30.7 µs | 97.6 µs | 959 µs | 490 GB/s |
+| HGX B200 | 8 | all-reduce (auto) | 14.7 | 18.6 | 62.6 | 505 | **931** |
+| HGX B200 | 8 | all-reduce (ring) | 14.7 | 18.6 | 75.0 | 673 | 698 |
+| HGX B200 | 8 | all-gather (ring) | 11.1 | 13.2 | 46.4 | 348 | 676 |
+| HGX B200 | 8 | all-to-all | 8.0 | 17.3 | 36.4 | 342 | 688 |
+| NVL72 | 72 | all-reduce (NVLS) | 19.8 | 23.3 | 78.1 | 613 | **864** |
+| NVL72 | 72 | all-reduce (ring) | **80.3** | 101 | 220 | 1238 | 428 |
+| NVL72 | 72 | all-gather (NVLS) | 19.3 | 22.7 | 58.5 | 412 | 643 |
+| NVL72 | 72 | all-to-all | 8.1 | 14.8 | 40.7 | 411 | 644 |
+| 2 × HGX H100, IB | 16 | all-reduce (auto: tree, then NVLSTree) | 26.9 | 67.1 | 111 | 1191 | 423 |
+| 2 × HGX H100, IB | 16 | all-to-all (PXN) | 13.4 | 37.5 | 212 | **3086** | **82** |
 
 What to take from it:
 
-- **Large messages run at 80 to 85% of the link.** Ring all-reduce and all-gather on NVLink5
-  reach 755 GB/s busbw against 900; all-to-all 764. The rest is chunking and pipeline fill in
-  the model.
-- **NVLS beats the ring by 1.7× for big all-reduces** (363 vs 622 µs on HGX B200) and by
-  70× for tiny ones on 72 GPUs (1.1 vs 79.8 µs), because it has no 2(*N*−1)-step chain.
-- **Ring latency grows with *N*.** A 4 KB ring all-reduce on 72 GPUs costs 80 µs, about
-  0.56 µs per step for 142 steps. At decode sizes (a few hundred KB per layer) the latency term
-  is the whole cost. This is why tensor parallelism across 72 GPUs only makes sense with NVLS
-  or tree algorithms.
-- **H100 to B200 is 2× on the link**, and the all-reduce times follow it (725 vs 363 µs).
-- **InfiniBand is the cliff.** All-to-all across two 8-GPU nodes reaches 42 GB/s busbw, 18×
-  slower than NVLink5. Mixture-of-experts dispatch over IB is what DeepSeek-style
-  two-micro-batch overlap exists to hide (chapter 6).
-
-Two modelling notes for the InfiniBand rows. The all-reduce uses NCCL's rail-style multi-ring:
-one ring per local GPU, each entering the other node on its own NIC, so the 8 NICs together
-carry the inter-node traffic and busbw reaches 338 GB/s (close to the NVLink4 side). The
-all-to-all routes every inter-node message over the network, including those between
-different rails, which then cross the spine; NCCL's PXN would first move such data over NVLink
-to the GPU on the matching rail. The 42 GB/s is therefore a pessimistic number.
+- **Small messages cost 10 to 20 µs whatever the fabric.** That floor is kernel launch plus
+  protocol handshakes, not wire time: NCCL's own model puts it at 15 µs for an 8-GPU
+  all-reduce, and TensorRT-LLM's NVL72 all-to-all bottoms out at 18 µs. The simulator's
+  latency terms are fitted to those numbers ([`NETWORK.md`](../NETWORK.md)).
+- **NVLS beats the ring by 1.3× for big all-reduces on HGX B200** (505 vs 673 µs), and on 72
+  GPUs by 4× at 4 KB (19.8 vs 80.3 µs), because it has no 2(*N*−1)-step chain.
+- **Large messages do not reach the link rate.** A ring on NVLink5 gets 698 GB/s busbw out of
+  900: NVLink framing alone caps goodput at 80% (NCCL assumes 40.1 GB/s of every 50), and the
+  protocol, chunking and pipeline fill take the rest. NVLS lands at 931, near NCCL's own
+  prediction, because the switch does half of the work.
+- **Ring latency grows with *N*.** A 4 KB ring all-reduce on 72 GPUs costs 80 µs. At decode
+  sizes (a few hundred KB per layer) the latency term is the whole cost. This is why tensor
+  parallelism across 72 GPUs only makes sense with NVLS or tree algorithms.
+- **H100 to B200 is 2× on the link**, and the large all-reduce follows it (959 vs 505 µs).
+- **InfiniBand is the cliff.** All-to-all across two 8-GPU nodes reaches 82 GB/s busbw, 8×
+  slower than NVLink5. Cross-node traffic goes through PXN (NVLink to the GPU on the
+  destination's rail, then its own NIC), so every NIC works, but 50 GB/s per GPU is the ceiling
+  for the half of the data that leaves the node. Mixture-of-experts dispatch over IB is what
+  DeepSeek-style two-micro-batch overlap exists to hide (chapter 6).
 
 To see collectives inside a real workload, open the DeepSeek-V3 NVL72 page of the viewer
 ([`docs/viz/deepseek_v3_nvl72.html`](../viz/deepseek_v3_nvl72.html), figure in chapter 6.3):
@@ -111,36 +114,39 @@ In tensor parallelism (chapter 5) each transformer layer ends its attention bloc
 block with an all-reduce of the activations, *T* × *D* × 2 bytes in BF16. For Llama-3-70B
 (*D* = 8192):
 
-| phase | tokens *T* | bytes per all-reduce | NVLS time on HGX B200 (table) | 
+| phase | tokens *T* | bytes per all-reduce | time on HGX B200 (`rsim net sweep`) |
 |---|---|---|---|
-| decode, batch 32 | 32 | 512 KB | about 2.5 µs |
-| decode, batch 256 | 256 | 4 MB | about 8 µs |
-| prefill, 8k tokens | 8192 | 128 MB | about 180 µs |
+| decode, batch 32 | 32 | 512 KB | 15 µs (ring, LL) |
+| decode, batch 256 | 256 | 4 MB | 32 µs (NVLS) |
+| prefill, 8k tokens | 8192 | 128 MB | 271 µs (NVLS) |
 
-Two all-reduces per layer, 80 layers: decode at batch 32 spends about 0.4 ms per step in
-all-reduce latency alone, comparable to a whole decode step on B200 (chapter 6). Prefill moves
+Two all-reduces per layer, 80 layers: decode at batch 32 spends about 2.4 ms per step in
+all-reduce latency alone, a large share of a decode step on B200 (chapter 6). This is
+why inference engines replace NCCL with one-shot all-reduce kernels on symmetric memory for
+small messages, and why NCCL 2.27 advertised up to 9× lower small-message latency. comparable to a whole decode step on B200 (chapter 6). Prefill moves
 much more data but also does far more compute per byte; chapter 5 does the comparison.
 
 ## 4.5 How the fabric is simulated
 
 The topology is a graph of GPUs and switches built from the system YAML
-([`configs/gb200_nvl72.yaml`](../../configs/gb200_nvl72.yaml)). Paths are ECMP shortest paths
-that never pass through a GPU. A transfer is split into chunks, and each chunk reserves every
-link on its path cut-through with a FCFS server per link, so contention between collectives,
-and between a collective and point-to-point traffic, is resolved at chunk level.
+([`configs/gb200_nvl72.yaml`](../../configs/gb200_nvl72.yaml)). Collectives are planned the way
+NCCL 2.32 plans them: the simulator ports NCCL's tuning model, picks the same algorithm
+(ring, double binary tree, NVLS, NVLSTree, CollNet) and protocol (LL, LL128, Simple) NCCL
+would for that size and topology, uses NCCL's channel counts and chunk sizes, and then
+executes the plan as a dependency graph of transfers. All-to-all uses NCCL's staggered peer
+order and PXN across nodes.
 
-Collectives are planned into dependency graphs of transfers that mirror NCCL:
+Links carry wire bytes, not payload: NVLink pays a header flit per 128 B write (fitted so a
+link delivers NCCL's 20.6 GB/s of 25 on Hopper and 40.1 of 50 on Blackwell), InfiniBand pays
+headers per 4 KB MTU, and the LL protocols pay their flag words. Every NCCL channel is a copy
+engine with a protocol-dependent rate, and inside a workload a collective reserves its SMs on
+the GPU, so it competes with compute kernels as on hardware.
 
-- **ring** (all-reduce, all-gather, reduce-scatter), with one ring per local GPU when the
-  group spans several NVLink islands;
-- **NVLS** all-reduce, pipelined push-reduce-pull through every switch attached to all ranks;
-- **direct** all-to-all, with staggered peers (`(rank + i) mod N`) so that every sender does
-  not hit the same receiver at once;
-- broadcast and point-to-point send/recv.
-
-A collective holds a number of SMs on each GPU while it runs (`sms`, default 16 for
-collectives and 20 in the model lowering, like NCCL channels or DeepEP's reserved SMs), so it
-competes with compute kernels for SMs as it does on hardware.
+Two levels of detail share that planner. The default **transfer** mode moves 512 KB chunks
+over FCFS link servers, cut-through, which is fast enough for whole-rack runs. **Packet** mode
+(`net: {fidelity: packet}`) moves 4 KB packets through switch ports with virtual output queues,
+credit-based flow control and adaptive or ECMP routing, so incast, hash collisions and
+oversubscribed spines show up as back-pressure the way they do on real switches.
 
 The network is one logical process in the parallel simulation, and GPUs exchange messages with
 it in conservative time windows whose lookahead is the minimum GPU-to-network latency (80 ns on
@@ -148,12 +154,13 @@ NVLink presets). Runs are bit-for-bit deterministic.
 
 ## Exercises
 
-1. What busbw would an ideal NVLS all-reduce reach on 72 GPUs with 900 GB/s links? The
-   simulator gives 1405 GB/s at 256 MB. What fraction is that?
+1. What busbw would an ideal NVLS all-reduce reach on 72 GPUs with 900 GB/s links? NVLink
+   framing leaves 40.1 GB/s of every 50 for data. The simulator gives 864 GB/s at 256 MB.
+   What fraction of the framed ideal is that?
 2. An expert-parallel MoE layer sends each token's 7168-wide BF16 activation to 8 experts.
    With 64 tokens per GPU on NVL72, how many bytes does each GPU send per dispatch, and how long
-   should it take at 764 GB/s busbw? Over 50 GB/s InfiniBand?
-3. Why does the ring all-gather on 72 GPUs cost 40 µs at 4 KB but only 386 µs at 256 MB, a
+   should it take at the 644 GB/s all-to-all busbw above? Over 50 GB/s InfiniBand?
+3. Why does the ring all-reduce on 72 GPUs cost 80 µs at 4 KB but only 1238 µs at 256 MB, a
    65,000× larger message?
 4. A data-parallel job reduces 140 GB of BF16 gradients (a 70B model) across 8 nodes over
    InfiniBand. Using a ring at 50 GB/s per GPU, how long is the bandwidth term? What changes
@@ -161,12 +168,14 @@ NVLink presets). Runs are bit-for-bit deterministic.
 
 <details><summary>Answers</summary>
 
-1. 2(*N*−1)/*N* × 900 = 1775 GB/s. 1405/1775 = **79%**.
+1. 2(*N*−1)/*N* × 18 × 40.1 = 1424 GB/s. 864/1424 = **61%**. The rest is the NVLS protocol
+   (the 16 B read request per 128 B, the copy into and out of the multicast buffer without
+   buffer registration) and NCCL's Blackwell NVLS efficiency of 0.74.
 2. 64 × 8 × 7168 × 2 B = 7.3 MB per GPU per dispatch (DeepSeek dispatches in FP8, half that).
-   At 764 GB/s: about **10 µs**, which matches the per-layer all-to-all of the DeepSeek-V3 run
-   in chapter 6. At 50 GB/s and the 42 GB/s the IB model reaches: about **175 µs**.
-3. Each of the 71 steps costs about 0.56 µs of latency regardless of size, so 4 KB is all
-   latency (40 µs). At 256 MB the bandwidth term dominates: 71/72 × 256 MB / 686 GB/s ≈ 370 µs.
+   At 644 GB/s: about **11 µs** of wire time, but the 15 to 20 µs floor dominates at this size
+   (TensorRT-LLM measures 22 µs at batch 64, EP8). At 50 GB/s: about **150 µs**.
+3. Each of the 142 steps costs about 0.5 µs of latency regardless of size, so 4 KB is all
+   latency. At 256 MB the bandwidth term dominates: 2 × 71/72 × 256 MB / 428 GB/s ≈ 1238 µs.
 4. Per GPU (if the model is replicated per GPU and sharded across 8 nodes × 8 GPUs = 64 ranks):
    2 × 63/64 × 140 GB / 50 GB/s ≈ **5.5 s**. A reduce-scatter (ZeRO / FSDP) halves the
    bandwidth term, and the matching all-gather of parameters moves to the next forward pass.
@@ -177,8 +186,9 @@ NVLink presets). Runs are bit-for-bit deterministic.
 
 | number | command |
 |---|---|
-| all rows of the table | `python docs/book/scripts/collectives_sweep.py` |
-| forced ring | `python docs/book/scripts/collectives_sweep.py --algo ring --kinds all_reduce` |
+| all rows of the table | `rsim net sweep --system <system> --coll <collective> [--algo ring] -b 4K -e 256M -f 16` |
+| the same inside a workload (Python) | `python docs/book/scripts/collectives_sweep.py` |
+| error against published numbers | `rsim net validate calibration/net/published.json` |
 | inspect a topology | `rsim system configs/gb200_nvl72.yaml` |
 | a collective overlapped with compute | recipe 5 in the [README](../../README.md#5-a-hand-written-workload) |
 
