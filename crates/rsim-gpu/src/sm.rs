@@ -54,6 +54,33 @@ pub struct RemoteMbar {
     pub why: Stall,
 }
 
+/// Direct-mapped memo of [`timing`] per static instruction. An entry keeps
+/// its `Arc<Inst>`, so a key can never alias a freed instruction. One per
+/// GPU (shared by its SMs, which run the same kernels), lent to the SM
+/// being stepped.
+#[derive(Default)]
+pub(crate) struct TimingMemo(Vec<Option<(Arc<Inst>, crate::pipes::Timing)>>);
+
+impl TimingMemo {
+    const N: usize = 4096;
+    #[inline]
+    fn get(&mut self, spec: &GpuSpec, inst: &Arc<Inst>) -> crate::pipes::Timing {
+        if self.0.is_empty() {
+            self.0.resize(Self::N, None);
+        }
+        let k = Arc::as_ptr(inst) as usize;
+        let i = ((k >> 4) ^ (k >> 13)) & (Self::N - 1);
+        if let Some((a, t)) = &self.0[i] {
+            if Arc::ptr_eq(a, inst) {
+                return *t;
+            }
+        }
+        let t = timing(spec, inst);
+        self.0[i] = Some((inst.clone(), t));
+        t
+    }
+}
+
 struct CtaBar {
     expected: u32,
     arrived: u32,
@@ -82,6 +109,8 @@ struct Warp {
     role: Option<usize>,
     stream: Box<dyn InstStream>,
     next: Option<DynOp>,
+    /// `timing()` of `next`, filled on its first evaluation.
+    next_t: Option<crate::pipes::Timing>,
     ready_at: u64,
     ready_reason: Stall,
     pending_regs: Vec<(Reg, u64, Sb)>,
@@ -157,6 +186,7 @@ pub struct Sm {
     pub idle_sched_cycles: u64,
     scratch_ws: Vec<usize>,
     scratch_el: Vec<usize>,
+    pub(crate) tmemo: TimingMemo,
     /// mbarrier events for CTAs on other SMs, drained by the GPU each step.
     pub outbox: Vec<RemoteMbar>,
     /// Visualiser capture: per-PC statistics, warp timeline (see `detail`).
@@ -200,6 +230,7 @@ impl Sm {
             idle_sched_cycles: 0,
             scratch_ws: Vec::with_capacity(16),
             scratch_el: Vec::with_capacity(16),
+            tmemo: TimingMemo::default(),
             outbox: Vec::new(),
             pc_stats: false,
             wtrace: None,
@@ -295,6 +326,7 @@ impl Sm {
                 role,
                 stream,
                 next: None,
+                next_t: None,
                 ready_at: at,
                 ready_reason: Stall::Wait,
                 pending_regs: Vec::new(),
@@ -447,9 +479,7 @@ impl Sm {
                         Stall::AsyncWait | Stall::TmaWait | Stall::TensorWait
                     )
                 {
-                    *st.mbar_wait
-                        .entry(format!("w{}:{:#x}", w.widx, w.wait_bar))
-                        .or_default() += dt;
+                    *st.mbar_wait_raw.entry((w.widx, w.wait_bar)).or_default() += dt;
                 }
                 let i = w.widx as usize;
                 if st.warp_by_index.len() <= i {
@@ -595,10 +625,6 @@ impl Sm {
     /// Decide whether warp `ws` can issue at `c`: `(Selected, c)` if so,
     /// else `(reason, cycle when it might change)`.
     fn evaluate(&mut self, ws: usize, sp: usize, c: u64) -> (Stall, u64) {
-        let spec = self.spec.clone();
-        let use_ctrl = self.use_ctrl;
-        let mio_free = self.mio.free_at();
-        let tensor_tail = self.tensor_tail;
         let w = self.warps[ws].as_mut().unwrap();
         if w.exited {
             return (Stall::Drain, NEVER);
@@ -609,12 +635,41 @@ impl Sm {
         if w.ready_at > c {
             return (w.ready_reason, w.ready_at);
         }
-        let cta_idx = w.cta;
-        let Some(op) = Self::peek(w) else {
+        if Self::peek(w).is_none() {
             // Implicit exit.
             return (Stall::Selected, c);
+        }
+        // Lend the op out of the warp so the checks below can borrow the
+        // SM freely (no reference-count traffic on the hot path).
+        let op = w.next.take().unwrap();
+        let t = match w.next_t {
+            Some(t) => t,
+            None => {
+                let t = self.tmemo.get(&self.spec, &op.inst);
+                w.next_t = Some(t);
+                t
+            }
         };
-        let inst = op.inst.clone();
+        let r = self.evaluate_op(ws, sp, c, &op, t);
+        self.warps[ws].as_mut().unwrap().next = Some(op);
+        r
+    }
+
+    fn evaluate_op(
+        &mut self,
+        ws: usize,
+        sp: usize,
+        c: u64,
+        op: &DynOp,
+        t: crate::pipes::Timing,
+    ) -> (Stall, u64) {
+        let spec = &*self.spec;
+        let use_ctrl = self.use_ctrl;
+        let mio_free = self.mio.free_at();
+        let tensor_tail = self.tensor_tail;
+        let w = self.warps[ws].as_mut().unwrap();
+        let cta_idx = w.cta;
+        let inst = &*op.inst;
         let op_mbar = op.mbar;
         // Dependency checks.
         if use_ctrl && inst.ctrl.is_some() {
@@ -767,7 +822,6 @@ impl Sm {
             _ => {}
         }
         // Structural hazards.
-        let t = timing(&spec, &inst);
         let sps = &self.smsps[sp];
         match t.pipe {
             Pipe::Mio => {
@@ -963,13 +1017,14 @@ impl Sm {
             self.exit_warp(ws, sp, c, done);
             return;
         };
-        let inst = op.inst.clone();
+        let cached_t = w.next_t.take();
+        let inst = &*op.inst;
         let cta = w.cta;
         let kid = w.kid;
         let role = w.role;
         let widx = w.widx as usize;
         w.wait_bar = u32::MAX;
-        let t = timing(&spec, &inst);
+        let t = cached_t.unwrap_or_else(|| self.tmemo.get(&spec, &op.inst));
         self.issued_total += 1;
         if let Some(tr) = &mut self.wtrace {
             tr.issue(ws, c, inst.pc);

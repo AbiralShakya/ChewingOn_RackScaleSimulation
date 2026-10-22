@@ -160,6 +160,45 @@ impl KernelMemo {
     }
 }
 
+/// The memoized runs fast mode will most likely ask for: every kernel with
+/// the SM count it gets alone and next to each communication reservation
+/// of its rank (see `RankLp::start_memo_pending`). Deduplicated, in rank
+/// and stream order.
+fn memo_prefetch_jobs(lps: &[Lp]) -> Vec<(Arc<GpuSpec>, GpuConfig, Arc<KernelLaunch>, u32)> {
+    let mut seen = std::collections::HashSet::new();
+    let mut jobs = Vec::new();
+    for lp in lps {
+        let Lp::Rank(r) = lp else { continue };
+        let n = r.gpu.spec.sm_count;
+        let mut comms = vec![0u32];
+        for st in &r.streams {
+            for op in &st.ops {
+                if let FlatOp::Fixed { sms, .. } | FlatOp::Coll { sms, .. } = op {
+                    let c = (*sms).min(n - 1);
+                    if !comms.contains(&c) {
+                        comms.push(c);
+                    }
+                }
+            }
+        }
+        for st in &r.streams {
+            for op in &st.ops {
+                let FlatOp::Kernel { k, .. } = op else {
+                    continue;
+                };
+                for &comm in &comms {
+                    let want = (k.num_ctas() as u32).clamp(1, (n - comm).max(1));
+                    let reserved = n - want;
+                    if seen.insert((Arc::as_ptr(k) as usize, reserved)) {
+                        jobs.push((r.gpu.spec.clone(), r.gpu.cfg.clone(), k.clone(), reserved));
+                    }
+                }
+            }
+        }
+    }
+    jobs
+}
+
 /// Shared across ranks: the power-capped clock's wall-time factor per
 /// distinct `(kernel, reserved SMs)` (see [`rsim_gpu::dvfs_stretch`]).
 type DvfsCache = Mutex<HashMap<(usize, u32), Arc<std::sync::OnceLock<f64>>>>;
@@ -1005,6 +1044,19 @@ impl Simulation {
                 lp.q.push(0, Local::StreamNext(s));
             }
             lps.push(Lp::Rank(Box::new(lp)));
+        }
+        if let Some(memo) = &memo {
+            // Fast mode: the memoized runs are independent cold-GPU
+            // simulations. On demand they run one at a time inside the PDES
+            // windows (every rank waits on the same one), so run the ones the
+            // workload will ask for up front, in parallel. A key's result is a
+            // pure function of its kernel and SM count: nothing else changes.
+            use rayon::prelude::*;
+            memo_prefetch_jobs(&lps)
+                .par_iter()
+                .for_each(|(spec, cfg, k, r)| {
+                    memo.get(spec, cfg, k, *r);
+                });
         }
         lps.push(Lp::Net(Box::new(NetLp {
             engine: net,

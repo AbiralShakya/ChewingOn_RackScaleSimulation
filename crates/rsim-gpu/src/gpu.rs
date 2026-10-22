@@ -127,6 +127,10 @@ pub struct Gpu {
     /// Min-heap of (next event, sm) with lazy invalidation.
     heap: BinaryHeap<Reverse<(u64, u32)>>,
     stepping: Vec<u32>,
+    /// Stepping round each SM was last queued in (dedups heap entries).
+    step_mark: Vec<u64>,
+    round: u64,
+    tmemo: crate::sm::TimingMemo,
     /// Per-SM timeline: CTA start cycle keyed by (sm, kernel id, cta id).
     cta_start: HashMap<(u32, u32, u64), u64>,
     /// Where each resident CTA of a clustered kernel lives: (kid, cta) -> SM.
@@ -206,6 +210,9 @@ impl Gpu {
             window_own: HashMap::new(),
             cta_log: Vec::new(),
             stepping: Vec::new(),
+            step_mark: vec![0; spec.sm_count as usize],
+            round: 0,
+            tmemo: Default::default(),
             spec,
         }
     }
@@ -451,12 +458,16 @@ impl Gpu {
             // Pop every SM due at `t` (skipping stale heap entries), step
             // them in id order for determinism.
             self.stepping.clear();
+            self.round += 1;
             while let Some(&Reverse((tt, s))) = self.heap.peek() {
                 if tt > t {
                     break;
                 }
                 self.heap.pop();
-                if self.sm_next[s as usize] == tt && !self.stepping.contains(&s) {
+                // A stale or duplicate entry for an SM already taken this
+                // round is dropped (`step_mark` dedups in O(1)).
+                if self.sm_next[s as usize] == tt && self.step_mark[s as usize] != self.round {
+                    self.step_mark[s as usize] = self.round;
                     self.stepping.push(s);
                 }
             }
@@ -464,7 +475,9 @@ impl Gpu {
             for i in 0..self.stepping.len() {
                 let s = self.stepping[i] as usize;
                 let before = cta_done.len();
+                std::mem::swap(&mut self.sms[s].tmemo, &mut self.tmemo);
                 self.sms[s].step(t, &mut self.mem, &mut cta_done);
+                std::mem::swap(&mut self.sms[s].tmemo, &mut self.tmemo);
                 self.update_sm(s);
                 if !self.sms[s].outbox.is_empty() {
                     let evs = std::mem::take(&mut self.sms[s].outbox);
@@ -559,8 +572,8 @@ impl Gpu {
                 for (i, n) in a.issued_by_index.iter().enumerate() {
                     st.issued_by_index[i] += n;
                 }
-                for (k, n) in a.mbar_wait {
-                    *st.mbar_wait.entry(k).or_default() += n;
+                for ((w, b), n) in a.mbar_wait_raw {
+                    *st.mbar_wait.entry(format!("w{w}:{b:#x}")).or_default() += n;
                 }
                 for (pc, p) in a.pc {
                     let e = st.pc.entry(pc).or_insert_with(|| crate::detail::PcStat {

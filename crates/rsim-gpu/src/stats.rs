@@ -133,6 +133,10 @@ pub struct KernelStats {
     /// (recorded paths): which handoff in a warp-specialised pipeline is the bubble.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub mbar_wait: BTreeMap<String, u64>,
+    /// Hot-path form of `mbar_wait`, keyed (warp index, barrier id); named
+    /// when the kernel finishes.
+    #[serde(skip)]
+    pub mbar_wait_raw: BTreeMap<(u32, u32), u64>,
     pub tensor_busy_cycles: u64,
     pub tensor_flops: f64,
     pub dram_read_bytes: u64,

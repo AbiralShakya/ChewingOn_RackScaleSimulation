@@ -10,6 +10,7 @@ name = "rsim"
 path = "src/main.rs"
 
 [dependencies]
+rayon.workspace = true
 rsim-core.workspace = true
 rsim-hw.workspace = true
 rsim-sass.workspace = true

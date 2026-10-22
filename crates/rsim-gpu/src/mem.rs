@@ -42,18 +42,22 @@ impl Server {
     }
 }
 
-#[derive(Clone, Debug)]
-struct Way {
-    tag: u64,
-    valid: u8,
-    dirty: bool,
-    lru: u64,
-}
-
 /// Sectored, set-associative, LRU cache (tags only).
+///
+/// Each set is one contiguous block of `3 * assoc` words: the tags, then the
+/// LRU stamps, then `valid | dirty << 8` per way, so an access touches a few
+/// adjacent cache lines of the host. The array is zero-initialised, so a
+/// fresh cache costs no more than the pages its accesses touch (a 126 MB L2
+/// has a million lines, and short kernels touch few of them). Within a set
+/// the tags are distinct and every way's LRU stamp is distinct (one access
+/// stamps one way), so lookup and victim choice do not depend on the order
+/// of the ways.
 #[derive(Clone, Debug)]
 pub struct Cache {
-    sets: Vec<Vec<Way>>,
+    sets: Vec<u64>,
+    /// Ways in use per set.
+    len: Vec<u32>,
+    nsets: u64,
     assoc: usize,
     line_shift: u32,
     sector_shift: u32,
@@ -70,15 +74,18 @@ pub struct Access {
     pub writeback_bytes: u64,
 }
 
+const DIRTY: u64 = 1 << 8;
+
 impl Cache {
     pub fn new(spec: &CacheSpec, size_bytes: u64) -> Self {
         let lines = (size_bytes / spec.line_bytes as u64).max(spec.assoc as u64);
         let nsets = (lines / spec.assoc as u64).max(1) as usize;
+        let assoc = spec.assoc as usize;
         Self {
-            sets: (0..nsets)
-                .map(|_| Vec::with_capacity(spec.assoc as usize))
-                .collect(),
-            assoc: spec.assoc as usize,
+            sets: vec![0; nsets * assoc * 3],
+            len: vec![0; nsets],
+            nsets: nsets as u64,
+            assoc,
             line_shift: spec.line_bytes.trailing_zeros(),
             sector_shift: spec.sector_bytes.trailing_zeros(),
             sectors_per_line: spec.line_bytes / spec.sector_bytes,
@@ -109,17 +116,20 @@ impl Cache {
     pub fn access(&mut self, addr: u64, mask: u8, write: bool) -> Access {
         self.clock += 1;
         let line = addr >> self.line_shift;
-        let nsets = self.sets.len() as u64;
         // XOR-fold hash to avoid pathological power-of-two strides.
-        let idx = ((line ^ (line >> 7) ^ (line >> 13)) % nsets) as usize;
+        let idx = ((line ^ (line >> 7) ^ (line >> 13)) % self.nsets) as usize;
         let tag = line;
-        let set = &mut self.sets[idx];
+        let a = self.assoc;
+        let used = self.len[idx] as usize;
         let clock = self.clock;
-        if let Some(w) = set.iter_mut().find(|w| w.tag == tag) {
-            let miss = mask & !w.valid;
-            w.valid |= mask;
-            w.lru = clock;
-            w.dirty |= write;
+        let set = &mut self.sets[idx * a * 3..(idx + 1) * a * 3];
+        let (tags, rest) = set.split_at_mut(a);
+        let (lru, meta) = rest.split_at_mut(a);
+        if let Some(w) = tags[..used].iter().position(|&t| t == tag) {
+            let valid = meta[w] as u8;
+            let miss = mask & !valid;
+            meta[w] |= mask as u64 | if write { DIRTY } else { 0 };
+            lru[w] = clock;
             let n_miss = miss.count_ones() as u64;
             self.misses += n_miss;
             self.hits += mask.count_ones() as u64 - n_miss;
@@ -130,19 +140,24 @@ impl Cache {
         }
         self.misses += mask.count_ones() as u64;
         let mut wb = 0;
-        if set.len() >= self.assoc {
-            let (vi, _) = set.iter().enumerate().min_by_key(|(_, w)| w.lru).unwrap();
-            let v = set.swap_remove(vi);
-            if v.dirty {
-                wb = (v.valid.count_ones() as u64) << self.sector_shift;
+        let w = if used >= a {
+            let mut v = 0;
+            for i in 1..used {
+                if lru[i] < lru[v] {
+                    v = i;
+                }
             }
-        }
-        set.push(Way {
-            tag,
-            valid: mask,
-            dirty: write,
-            lru: clock,
-        });
+            if meta[v] & DIRTY != 0 {
+                wb = ((meta[v] as u8).count_ones() as u64) << self.sector_shift;
+            }
+            v
+        } else {
+            self.len[idx] += 1;
+            used
+        };
+        tags[w] = tag;
+        meta[w] = mask as u64 | if write { DIRTY } else { 0 };
+        lru[w] = clock;
         Access {
             miss_mask: mask,
             writeback_bytes: wb,
@@ -150,9 +165,7 @@ impl Cache {
     }
 
     pub fn invalidate_all(&mut self) {
-        for s in &mut self.sets {
-            s.clear();
-        }
+        self.len.fill(0);
     }
 }
 
