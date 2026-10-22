@@ -87,6 +87,26 @@ extern "C" __device__ __noinline__ void wp_mem(int pred, uint32_t idx, uint64_t 
     ((ChannelDev *)pch)->push(&m, sizeof(m));
 }
 
+// mbarrier op whose address is per lane (e.g. SYNCS.ARRIVE.RED [R6+UR9]: lane i arrives on
+// CTA i of the cluster): the first guard-true lane's b/c values and every lane's address.
+extern "C" __device__ __noinline__ void wp_mbarv(int pred, uint32_t idx, uint64_t addr, uint32_t b, uint32_t c,
+                                                 uint64_t s01, uint64_t s23, uint64_t pch) {
+    uint32_t cta;
+    if (!wp_sampled(&cta, s01, s23)) return;
+    uint32_t active = __activemask();
+    uint32_t predon = __ballot_sync(active, pred);
+    int src = predon ? __ffs(predon) - 1 : __ffs(active) - 1;
+    uint32_t b0 = __shfl_sync(active, b, src), c0 = __shfl_sync(active, c, src);
+    wp_mem_t m;
+    for (int i = 0; i < 32; i++) m.addrs[i] = __shfl_sync(active, pred ? addr : 0, i);
+    if (get_laneid() != __ffs(active) - 1) return;
+    wp_fill(m.r, cta, idx, WP_MBARV, active, predon);
+    m.r.a = m.addrs[src];
+    m.r.b = b0;
+    m.r.c = c0;
+    ((ChannelDev *)pch)->push(&m, sizeof(m));
+}
+
 // all != 0: record TMA copies of every CTA (address-only), not just the sampled ones.
 extern "C" __device__ __noinline__ void wp_tma(int pred, uint32_t idx, uint64_t handle, uint32_t size,
                                                uint32_t all, uint64_t s01, uint64_t s23, uint64_t pch) {

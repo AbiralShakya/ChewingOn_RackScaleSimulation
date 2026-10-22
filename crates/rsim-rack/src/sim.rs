@@ -87,6 +87,8 @@ pub enum FlatOp {
     Record(u32),
     Wait(u32),
     Delay(f64),
+    /// Earliest start of the next op (host issue time).
+    Until(Time),
 }
 
 #[derive(Clone, Debug)]
@@ -281,6 +283,13 @@ impl RankLp {
                             self.streams[s].blocked_on = Some(e);
                             return;
                         }
+                    }
+                }
+                FlatOp::Until(at) => {
+                    self.streams[s].pc += 1;
+                    if at > t {
+                        self.q.push(at, Local::StreamNext(s));
+                        return;
                     }
                 }
                 FlatOp::Delay(ns) => {
@@ -812,6 +821,7 @@ impl Flattener<'_> {
                     out.push(FlatOp::Wait(*self.events.entry(event.clone()).or_insert(n)));
                 }
                 Op::Delay { ns } => out.push(FlatOp::Delay(*ns)),
+                Op::Host { at_ns } => out.push(FlatOp::Until((at_ns * 1000.0) as Time)),
             }
         }
         Ok(())

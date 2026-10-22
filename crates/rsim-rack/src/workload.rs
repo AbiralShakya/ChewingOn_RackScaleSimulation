@@ -97,6 +97,12 @@ pub enum Op {
     Delay {
         ns: f64,
     },
+    /// The host issues the stream's next op at `at_ns` after the start of the
+    /// run: it cannot start earlier. Captured programs use it to replay the
+    /// measured CPU launch timeline of a host-bound engine.
+    Host {
+        at_ns: f64,
+    },
     Loop {
         times: u32,
         body: Vec<Op>,

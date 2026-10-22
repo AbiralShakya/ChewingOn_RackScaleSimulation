@@ -10,6 +10,8 @@ enum WpKind : uint8_t {
     WP_TMA = 4,    // TMA: the raw param handle follows
     WP_UREG = 5,   // tcgen05 / misc: a, b, c = uniform register values
     WP_BAR = 6,    // named barrier whose id is in a register: b = barrier id
+    WP_MBARV = 7,  // mbarrier op with a per-lane address (remote arrive on several CTAs of
+                   // the cluster): b, c as WP_MBAR, then 32 lane addresses as WP_MEM
 };
 
 typedef struct {

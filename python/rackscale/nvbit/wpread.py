@@ -4,8 +4,8 @@ import re
 import struct
 from collections import defaultdict
 
-REC = struct.Struct("<IHBBIIIIQQQQ")  # 56 bytes, see nvbit_warp_path/common.h
-WP_BASIC, WP_MBAR, WP_WAIT, WP_MEM, WP_TMA, WP_UREG, WP_BAR = range(7)
+REC = struct.Struct("<IHBBIIIIQQQQ")  # 56 bytes, see capture/nvbit/common.h
+WP_BASIC, WP_MBAR, WP_WAIT, WP_MEM, WP_TMA, WP_UREG, WP_BAR, WP_MBARV = range(8)
 
 
 def read_listing(path):
@@ -37,7 +37,7 @@ def read_wp(path):
         p += REC.size
         r = {"cta": cta, "warp": warp, "kind": kind, "aux": aux, "idx": idx, "active": active,
              "predon": predon, "a": a, "b": b, "c": c, "clk": clk}
-        if kind == WP_MEM:
+        if kind in (WP_MEM, WP_MBARV):
             r["addrs"] = struct.unpack_from("<32Q", data, p)
             p += 256
         elif kind == WP_TMA:
