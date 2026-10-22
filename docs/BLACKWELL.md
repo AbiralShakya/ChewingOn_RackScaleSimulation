@@ -29,8 +29,9 @@ The short version:
   calibration.json, which `calibration/dissect/fit_issue.py` writes from the
   measurements.
 * **Effect on the existing checks:**
-  * B300 reference set: `smem_conflict_free` goes from +10.0% to +6.8%, so
-    **12 of 12 kernels are now within 7%**.
+  * B300 reference set: `smem_conflict_free` goes from +10.0% to +6.8%.
+    (Later: −0.8%, once the SMSPs take turns at the MIO; signed errors for
+    every kernel are in docs/CALIBRATION.md.)
   * FlashAttention on B300: mean |error| over 8 kernels goes from 3.9% to 3.3%.
   * Per-warp microkernel timelines: segment error goes from 30% to 24%.
 * **Measured and found not to need a model:**
@@ -424,7 +425,7 @@ B300 reference set (`rsim validate`, ncu `sm__cycles_elapsed`), main vs final:
 | tma_bulk_stream | −6.2% | −6.2% |
 | window_* (8 shapes) | ≤ 0.2% | ≤ 0.2% |
 
-B300 goes from 11 of 12 kernels within 7% to **12 of 12**. smem_conflict_free
+(Superseded: docs/CALIBRATION.md has the current signed error of every kernel.) smem_conflict_free
 improves because round-robin scheduling spreads the 32 warps' LDS stream the
 way the hardware does.
 

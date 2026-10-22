@@ -37,6 +37,16 @@ impl Server {
         self.busy += t;
         self.free_at.ceil() as u64
     }
+    /// `serve` for bytes that each cost `weight` bytes of server time.
+    #[inline]
+    pub fn serve_weighted(&mut self, arrive: u64, bytes: u64, weight: f64) -> u64 {
+        let start = self.free_at.max(arrive as f64);
+        let t = bytes as f64 * weight / self.rate;
+        self.free_at = start + t;
+        self.bytes += bytes;
+        self.busy += t;
+        self.free_at.ceil() as u64
+    }
     pub fn free_at(&self) -> u64 {
         self.free_at.ceil() as u64
     }
@@ -194,6 +204,9 @@ pub struct MemSystem {
     /// full window), for the load-dependent part of the miss latency.
     hbm_load: Vec<(u64, f64, f64)>,
     hbm_window_bytes: f64,
+    /// Per die: (window, read bytes, written bytes, write fraction of the
+    /// last full window) for the read/write turnaround cost.
+    hbm_mix: Vec<(u64, f64, f64, f64)>,
     /// `[utilization, cycles]`, from `HbmSpec::loaded_latency`.
     loaded: rsim_hw::HbmSpec,
     clock_ghz: f64,
@@ -201,6 +214,7 @@ pub struct MemSystem {
     far_fraction: Option<f64>,
     sector: u32,
     sm_count: u32,
+    tma_fill_rate: f64,
     pub dram_read_bytes: u64,
     pub dram_write_bytes: u64,
 }
@@ -228,12 +242,14 @@ impl MemSystem {
             hbm_lat: (g.hbm.latency_ns * clock_ghz).round() as u64,
             hbm_load: vec![(0, 0.0, 0.0); dies as usize],
             hbm_window_bytes: hbm_rate * HBM_LOAD_WINDOW as f64,
+            hbm_mix: vec![(0, 0.0, 0.0, 0.0); dies as usize],
             loaded: g.hbm.clone(),
             clock_ghz,
             d2d_lat: g.d2d.as_ref().map(|d| d.extra_latency as u64).unwrap_or(0),
             far_fraction: g.d2d.as_ref().and_then(|d| d.far_fraction),
             sector: g.l2.sector_bytes,
             sm_count: g.sm_count,
+            tma_fill_rate: g.tma.hbm_fill_bytes_per_cycle,
             dram_read_bytes: 0,
             dram_write_bytes: 0,
         }
@@ -270,6 +286,35 @@ impl MemSystem {
         (self.loaded.loaded_extra_ns(util) * self.clock_ghz).round() as u64
     }
 
+    /// HBM time per byte (in read bytes) of a transfer at `now`: writes cost
+    /// `write_cost`, and both directions pay the bus turnaround in proportion
+    /// to how mixed the traffic was over the last full window.
+    fn hbm_weight(&mut self, die: usize, now: u64, bytes: u64, write: bool) -> f64 {
+        let h = &self.loaded;
+        if h.write_cost == 1.0 && h.turnaround_cost == 0.0 {
+            return 1.0;
+        }
+        let w = now / HBM_LOAD_WINDOW;
+        let m = &mut self.hbm_mix[die];
+        if w > m.0 {
+            let tot = m.1 + m.2;
+            m.3 = if w == m.0 + 1 && tot > 0.0 {
+                m.2 / tot
+            } else {
+                0.0
+            };
+            *m = (w, 0.0, 0.0, m.3);
+        }
+        if write {
+            m.2 += bytes as f64;
+        } else {
+            m.1 += bytes as f64;
+        }
+        let fw = m.3;
+        let base = if write { h.write_cost } else { 1.0 };
+        base + h.turnaround_cost * 4.0 * fw * (1.0 - fw)
+    }
+
     /// Access one line's sectors. Returns completion cycle.
     pub fn access_line(
         &mut self,
@@ -278,6 +323,20 @@ impl MemSystem {
         addr: u64,
         mask: u8,
         write: bool,
+    ) -> MemResult {
+        self.access_line_at(sm, now, addr, mask, write, true)
+    }
+
+    /// `access_line`; `far_latency` = false leaves out the far-partition
+    /// latency (bulk copies, whose measured latency curve already has it).
+    fn access_line_at(
+        &mut self,
+        sm: u32,
+        now: u64,
+        addr: u64,
+        mask: u8,
+        write: bool,
+        far_latency: bool,
     ) -> MemResult {
         let die = self.home_die(addr);
         let bytes = mask.count_ones() as u64 * self.sector as u64;
@@ -293,11 +352,14 @@ impl MemSystem {
         };
         if far {
             t = self.d2d[die].serve(t, bytes);
-            extra = self.d2d_lat;
+            if far_latency {
+                extra = self.d2d_lat;
+            }
         }
         let a = self.l2[die].access(addr, mask, write);
         if a.writeback_bytes > 0 {
-            self.hbm[die].serve(now, a.writeback_bytes);
+            let wt = self.hbm_weight(die, now, a.writeback_bytes, true);
+            self.hbm[die].serve_weighted(now, a.writeback_bytes, wt);
             self.dram_write_bytes += a.writeback_bytes;
         }
         let served = self.l2_bw[die].serve(t, bytes);
@@ -306,7 +368,8 @@ impl MemSystem {
         let mut dram = 0;
         if miss_sectors > 0 && !write {
             dram = miss_sectors as u64 * self.sector as u64;
-            let h = self.hbm[die].serve(served, dram);
+            let wt = self.hbm_weight(die, served, dram, false);
+            let h = self.hbm[die].serve_weighted(served, dram, wt);
             let q = self.loaded_cycles(die, served, dram);
             done = done.max(h + self.hbm_lat + q + self.l2_lat + extra);
             self.dram_read_bytes += dram;
@@ -339,8 +402,17 @@ impl MemSystem {
             ..Default::default()
         };
         for i in 0..n_fetch {
-            let x = self.access_line(sm, now, start + i * line, 0xF, write);
-            r.done = r.done.max(x.done);
+            // The TMA calibration (`tma.issue_latency`, `bytes_per_cycle`)
+            // is fitted to whole-copy latencies, far lines included: on B300
+            // a 4 KB copy takes 386 cycles, not the 600+ that one far line in
+            // 32 would cost.
+            let x = self.access_line_at(sm, now, start + i * line, 0xF, write, false);
+            let fill = if x.dram_bytes > 0 && self.tma_fill_rate > 0.0 {
+                (i * line) as f64 / self.tma_fill_rate
+            } else {
+                0.0
+            };
+            r.done = r.done.max(x.done + fill as u64);
             r.l2_hit_sectors += x.l2_hit_sectors;
             r.l2_miss_sectors += x.l2_miss_sectors;
             r.dram_bytes += x.dram_bytes;
@@ -400,5 +472,81 @@ mod tests {
             (gbps - want).abs() / want < 0.05,
             "achieved {gbps} GB/s, want {want}"
         );
+    }
+}
+/// The memory model against the microbenchmarks its calibration came from:
+/// with the B300 calibration applied, the simulated chases and TMA copies
+/// must land on the measured latencies (the parameters are derived, not
+/// fitted to these numbers, so a mismatch is a decomposition bug).
+#[cfg(test)]
+mod calibration_consistency {
+    use super::*;
+
+    fn b300() -> Option<GpuSpec> {
+        let p = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../calibration/results/b300-sxm6-ac-sm103/calibration.json"
+        );
+        let doc: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(p).ok()?).ok()?;
+        let mut g = rsim_hw::presets::b300();
+        rsim_hw::calibration::apply(&mut g, &doc).ok()?;
+        Some(g)
+    }
+
+    /// Mean latency of a dependent chase through the L1 path (`sm.rs` charges
+    /// half the L1 trip before the L2 access and half after).
+    fn chase(g: &GpuSpec, warm: bool) -> f64 {
+        let l1 = g.l1.hit_latency as u64;
+        let mut m = MemSystem::new(g);
+        let n = 4096u64;
+        let addr = |i: u64| (1u64 << 40) + i * 4096 * 7 + 128 * (i % 32);
+        if warm {
+            for i in 0..n {
+                m.access_line(0, 0, addr(i), 0x1, false);
+            }
+        }
+        let (mut now, mut tot) = (1_000_000u64, 0u64);
+        for i in 0..n {
+            let d = m.access_line(0, now + l1 / 2, addr(i), 0x1, false).done + l1 / 2;
+            tot += d - now;
+            now = d + 10;
+        }
+        tot as f64 / n as f64
+    }
+
+    #[test]
+    fn chases_match_measured_latency() {
+        let Some(g) = b300() else { return };
+        // memory.latency_cycles.{l2_hit_repeat, dram}
+        let (l2, dram) = (chase(&g, true), chase(&g, false));
+        assert!((l2 - 298.7).abs() < 3.0, "L2 chase {l2}");
+        assert!((dram - 849.7).abs() < 6.0, "DRAM chase {dram}");
+    }
+
+    #[test]
+    fn tma_l2_copies_follow_the_measured_curve() {
+        let Some(g) = b300() else { return };
+        // tma.bulk_g2s_latency l2_cycles: the fit line through these is the
+        // model, so each point is within the scatter around it.
+        for (bytes, want) in [
+            (128u64, 311.0),
+            (1024, 315.0),
+            (4096, 386.0),
+            (16384, 482.0),
+            (65536, 875.0),
+        ] {
+            let mut m = MemSystem::new(&g);
+            let a = 2u64 << 40;
+            m.bulk(0, 0, a, bytes, 1.0, false);
+            let now = 1_000_000;
+            let mut tma = Server::new(g.tma.bytes_per_cycle);
+            let start = tma.serve(now, bytes) + g.tma.issue_latency as u64;
+            let got = (m.bulk(0, start, a, bytes, 1.0, false).done - now) as f64;
+            assert!(
+                (got / want - 1.0).abs() < 0.08,
+                "{bytes} B: {got} vs {want}"
+            );
+        }
     }
 }

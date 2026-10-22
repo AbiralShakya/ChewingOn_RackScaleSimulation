@@ -180,6 +180,10 @@ pub struct Sm {
     /// Completion times of tcgen05 MMAs in flight on this SM, oldest first
     /// (for `issue.tcgen05_queue_depth`).
     tc_inflight: std::collections::VecDeque<u64>,
+    /// Next free cycle and fractional interval debt of the SM-wide unit that
+    /// `sm_shared` opcodes use (B300 FP64).
+    shared_unit_free: u64,
+    shared_unit_debt: f32,
     l1: Cache,
     use_ctrl: bool,
     age: u64,
@@ -227,6 +231,8 @@ impl Sm {
             tma: Server::new(spec.tma.bytes_per_cycle),
             tensor_tail: 0,
             tc_inflight: Default::default(),
+            shared_unit_free: 0,
+            shared_unit_debt: 0.0,
             l1,
             use_ctrl,
             age: 0,
@@ -459,7 +465,14 @@ impl Sm {
         mem: &mut MemSystem,
         done: &mut Vec<(u32, u64)>,
     ) {
-        for sp in 0..self.smsps.len() {
+        // The SMSPs contend for SM-wide resources (MIO, the shared FP64
+        // unit) in this order, so rotate it each cycle: the arbiter is fair,
+        // and a fixed order starves the last SMSP and leaves the CTA waiting
+        // on it at every barrier.
+        let n = self.smsps.len();
+        let first = (c % n.max(1) as u64) as usize;
+        for i in 0..n {
+            let sp = (first + i) % n;
             if self.smsps[sp].next_eval <= c {
                 self.step_smsp(sp, c, spec, mem, done);
             }
@@ -889,6 +902,11 @@ impl Sm {
                 }
                 _ => {}
             },
+            _ if t.sm_shared => {
+                if self.shared_unit_free > c {
+                    return (Stall::MathPipeThrottle, self.shared_unit_free);
+                }
+            }
             p => {
                 let f = sps.pipe_free[p as usize];
                 if f > c {
@@ -1120,7 +1138,16 @@ impl Sm {
         let mut result: Option<(u64, Sb)> = None;
         let mut read_done = c + spec.latency.store_read as u64;
 
-        if t.pipe != Pipe::Mio && t.pipe != Pipe::Tensor {
+        if t.sm_shared {
+            self.shared_unit_debt += t.ii_frac;
+            let extra = if self.shared_unit_debt >= 1.0 {
+                self.shared_unit_debt -= 1.0;
+                1
+            } else {
+                0
+            };
+            self.shared_unit_free = c + t.ii as u64 + extra;
+        } else if t.pipe != Pipe::Mio && t.pipe != Pipe::Tensor {
             let sps = &mut self.smsps[sp];
             let debt = &mut sps.pipe_debt[t.pipe as usize];
             *debt += t.ii_frac;

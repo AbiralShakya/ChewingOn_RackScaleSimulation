@@ -75,37 +75,83 @@ Each kernel is simulated at the SM clock its ncu run actually ran at (`sm__cycle
 
 Validation charges the measured **kernel window**, the fixed cost of an almost empty kernel inside ncu's window, by launch shape (`calibration/src/bench_window.cu`, `model.launch.kernel_window`). It charges the measured cost minus the model's own time for that empty kernel. The `window_*` rows check this. They aren't independent: the six plain shapes test that the subtraction is consistent, and the two FA4-prologue shapes are the points `tensor.tmem_alloc_latency` is fitted to (1430 cycles for `cta_group::1`, 1990 for `cta_group::2`). The FlashAttention study's 16 recorded kernels are the out-of-sample check, and all are within ±6% (research/flash_attention).
 
-Results (simulated vs measured cycles; saved as `validation.json` next to each reference):
+Results (simulated vs measured cycles, signed; `before` is main at 736466d):
 
-| kernel | B300 (path) | A100 SXM4 (trace) | A100 PCIe (trace) |
+| kernel | B300 (path) | before | A100 SXM4 (trace) | before | A100 PCIe (trace) | before |
+|---|---|---|---|---|---|---|
+| hbm_stream_read | +0.3% | +0.3% | −10.2% | −4.3% | −13.6% | −7.8% |
+| hbm_copy | +0.4% | −5.1% | −28.3% | −23.5% | −26.8% | −21.8% |
+| cp_async_cg16_dram_stream | n/a | | −7.6% | −3.1% | −8.3% | −3.7% |
+| tma_bulk_stream | **−17.7%** | −6.2% | n/a | | n/a | |
+| ffma_throughput | −6.5% | −6.5% | +0.7% | +0.8% | +0.9% | +0.9% |
+| ex2_throughput | +0.1% | +0.1% | +0.1% | +0.1% | +0.2% | +0.2% |
+| dfma_latency_chain | +0.2% | +3.2% | −3.6% | −2.3% | +0.2% | +1.3% |
+| smem_conflict_free | −0.8% | +6.8% | −1.1% | +6.4% | −3.4% | +3.9% |
+| smem_32way_conflict | −0.3% | −0.3% | −0.0% | −0.0% | −0.1% | −0.1% |
+| l2_pointer_chase | +1.8% | −3.7% | +9.2% | +16.3% | +4.5% | +11.8% |
+| hmma_bf16_throughput | −0.1% | −0.1% | +0.5% | +0.5% | +0.3% | +0.2% |
+| hmma_f16_f32_m16n8k16_w32_ilp4 | n/a | | +0.5% | +0.6% | +1.0% | +1.1% |
+| umma_bf16_m128n256k16 | −0.1% | −0.1% | n/a | | n/a | |
+| umma_nvfp4_m128n256k64 | −0.0% | −0.0% | n/a | | n/a | |
+| window_* (plain shapes) | +0.2% | +0.2% | ±0.5% | ±0.5% | ±0.5% | ±0.6% |
+| window_* (FA4 prologue, fit points) | +0.3%, +0.5% | 0.0%, −0.1% | n/a | | n/a | |
+
+FlashAttention on B300 (research/flash_attention recordings; ncu `sm__cycles_elapsed.max`, with `.avg` in brackets):
+
+| kernel | now | before |
+|---|---|---|
+| FA2 s4096 | +3.6% (+3.7%) | +1.6% |
+| FA4 s4096 | +0.2% (+1.5%) | +0.4% |
+| FA4 ring step c1024 kv8 / kv64 | −6.0% / −8.5% | −5.4% / −7.3% |
+| FA4 ring step c2048 kv8 / kv64 | +5.1% / +1.3% | +6.1% / +2.1% |
+| FA4 ring step c4096 kv8 / kv64 | +2.9% / +0.3% | +3.1% / +0.3% |
+
+`hbm_stream_read`, `hbm_copy`, `ex2`, `dfma` and the `umma`/`hmma` throughput kernels are the same programs the calibration measured, so on B300 they are consistency checks, not held-out tests. The held-out checks are the A100 boards, the FlashAttention kernels and `tma_bulk_stream`.
+
+### Splitting each error into steady state and launch/tail
+
+ncu's `smsp__cycles_active.avg` counts the cycles an SMSP has a warp resident. Comparing it with the simulator's per-SMSP active cycles (`RSIM_VALIDATE_STATS=1`, scheduler cycles minus idle) separates the per-SMSP steady state from launch, drain and SM-to-SM skew:
+
+| B300 kernel | steady state | total | reading |
 |---|---|---|---|
-| hbm_stream_read | +0.3% | −4.3% | −7.8% |
-| hbm_copy | −5.1% | −23.5% | −21.8% |
-| cp_async_cg16_dram_stream | n/a | −3.1% | −3.7% |
-| tma_bulk_stream | −6.2% | n/a | n/a |
-| ffma_throughput | −6.5% | +0.8% | +0.9% |
-| ex2_throughput | +0.1% | +0.1% | +0.2% |
-| dfma_latency_chain | +3.2% | −2.3% | +1.3% |
-| smem_conflict_free | +6.8% | +6.4% | +3.9% |
-| smem_32way_conflict | −0.3% | −0.0% | −0.1% |
-| l2_pointer_chase | −3.7% | +16.3% | +11.8% |
-| hmma_bf16_throughput | −0.1% | +0.5% | +0.2% |
-| hmma_f16_f32_m16n8k16_w32_ilp4 | n/a | +0.6% | +1.1% |
-| umma_bf16_m128n256k16 | −0.1% | n/a | n/a |
-| umma_nvfp4_m128n256k64 | −0.0% | n/a | n/a |
-| window_* (plain shapes) | +0.2% | ±0.5% | ±0.6% |
-| window_* (FA4 prologue, fit points) | 0.0%, −0.1% | n/a | n/a |
+| ffma_throughput | +0.2% | −6.5% | the FFMA stream is exact; hardware has 12.4K inactive cycles per SMSP where `ex2_throughput` (same launch shape) has 6.1K |
+| hbm_copy (main) | −0.4% | −5.1% | per-SMSP rate right; total was short by the copy's lower HBM bandwidth |
+| hbm_stream_read | +2.5% | +0.3% | per-SMSP rate 2.5% slow, hardware has 2.5% SM-to-SM tail; the measured bandwidth folds both together |
+| tma_bulk_stream | −16.1% | −17.7% | per-copy round trip from HBM too short |
+| smem_conflict_free (main) | +7.2% | +6.8% | steady state, fixed by fair MIO arbitration |
 
-B300: 12 of 12 kernels within 7% (smem_conflict_free went from +10.0% to +6.8% with the issue-stage model and round-robin scheduling of docs/BLACKWELL.md). A100: 9 of 11 within 8% on both boards.
+### What each fix was
+
+- **FP64 is one unit per SM (dfma +3.2% → +0.2%).** B300's measured DFMA chain is 64 cycles per op with one warp, but full occupancy gives 66.4 cycles per warp instruction per SMSP. A per-SMSP pipe with a 66-cycle interval would make the one-warp chain 66 cycles, so the limit must be a unit the four SMSPs share: one warp instruction every 16.6 cycles per SM. `calibration::apply` marks an opcode `sm_shared` whenever its measured per-SMSP interval exceeds its latency (only DFMA and DADD on B300; nothing on A100).
+- **The SMSPs take turns at shared resources (smem_conflict_free +6.8% → −0.8%).** The SM stepped its SMSPs in a fixed order each cycle, so SMSP 0 always got the MIO slot first. In the 32-warp shared-memory stream the last SMSP's warps sat in `mio_throttle` while the first SMSP's reached the barrier early: barrier stalls 6.7 per issue against ncu's 0.37. The order now rotates every cycle; the stall profile matches ncu (mio_throttle 12.0 vs 11.6, barrier 0.1 vs 0.37).
+- **Writes cost more HBM time than reads (hbm_copy −5.1% → +0.4%).** The calibration measured read 6818, write 6296 and copy 6446 GB/s but only the read number was used. A written byte now costs `rd/wr` = 1.083 read bytes, and mixed traffic pays a read/write turnaround of 1.6% at a 1:1 mix (from the copy number), scaled by the last window's mix.
+- **The L1 trip was counted twice in every L2 hit (B300 l2_pointer_chase −3.7% → +1.8%; A100 +16%/+12% → +9%/+4.5%).** The pointer chases that give `l2_hit_repeat` time a load from issue to use, through L1. The simulator adds `l1.hit_latency` to every global load on top of `l2.hit_latency`, so a simulated L2 hit took 338 cycles on B300 against 299 measured. `l2.hit_latency` is now the measured value minus the L1 trip. HBM latency is the cold chase minus the warm L2 chase, so a simulated cold miss is exactly the measured 850 cycles (it was 805: subtracting the first-touch L2 latency dropped the ~85 cycles every first touch pays).
+- **TMA copies follow their own measured curve.** Each line of a bulk copy drew its own near/far L2 partition, and a copy finished with its slowest line, so almost every copy over 512 B paid the 278-cycle far penalty: a 1 KB L2-resident copy took 609 cycles against 315 measured. The far penalty is part of the TMA calibration (intercept and slope fitted to whole copies), so bulk copies no longer add it. The cold (HBM) curve is steeper than the L2 one; the difference is now an in-order fill rate for lines of one copy that miss L2 (`tma.hbm_fill_bytes_per_cycle`, 189 B/clk). `mem.rs` has a test that replays the chases and TMA copies against the measured numbers.
+
+### Open misses and why
+
+- **tma_bulk_stream −17.7% (was −6.2%).** The −6.2% was two errors cancelling: the far-partition penalty on every copy made each 4 KB copy ~100 cycles too slow in isolation, while the stream itself was too fast. With the penalty gone the isolated cold 4 KB copy is 933 cycles against 1029 measured, and the stream's round trip is 1057 against 1260 measured (hardware: 1162 with one SM streaming, so ~100 cycles come from load and ~130 from four copies in flight). The microbenchmarks cannot separate per-copy latency, overlap and TLB cost: the cold-latency bench strides 1 MB per copy. Microbenchmarks 3 and 4 below.
+- **ffma_throughput −6.5%.** The steady state is +0.2%. The rest is launch/tail: hardware's SMSPs are inactive for 12.4K of the 82.1K cycles, against 6.1K for `ex2_throughput` with the same launch shape and binary. Not settleable from ncu averages (microbenchmark 1).
+- **FA2 +3.6% (was +1.6%).** The fixed SMSP order was hiding an error: in the replay FA2's warps spend 3.0 cycles per issue in `wait` (fixed-latency dependencies) against 2.16 on hardware. Microbenchmark 7.
+- **FA4 ring steps (c1024 −6.0/−8.5%, c2048 kv8 +5.1%).** Confounded by the recording, not just the model: the persistent kernel gives CTAs different tile counts (c1024: 256 tiles over 148 CTAs, so 108 CTAs do 2 and 40 do 1), but only CTAs 0–3 were recorded and every other CTA replays them. The replay therefore issues 15–16% more instructions than ncu counted (c4096 and s4096: 2.4%), loading L2 and HBM 15% harder than hardware. Microbenchmark 6.
+- **FA4 s4096 (+0.2% against the slowest SM, +1.5% against the average).** ncu reports `sm__cycles_elapsed` from 494.8K to 510.2K across SMs (±1.5%) for this kernel, against ±0.5% for the FFMA stream. If that spread is per-GPC clocks under the power cap, the simulator's cycles should be compared with the minimum, which would make FA4 +3.3%; if it is skew, the maximum is right. Until that is measured, FA4's kernel total is known to ±1.5%. Microbenchmark 2. The per-role timelines (docs/BLACKWELL.md §10.1) still run ~3% ahead of the probed run.
+- **A100 streams (−8% to −28%) got 5% faster.** These traces run at reduced size and are latency-bound per warp. Removing the double-counted L1 trip took 39 cycles off every L2 access; the streams were already too fast because the model has no per-SM limit on the SM-to-L2 path under load (round trip ~680 cycles in the model against ~940 on hardware).
+
+### Microbenchmarks that would settle the rest
+
+None of these were run: they need the GPUs.
+
+1. **FFMA launch/tail.** `thr_kernel<FFMA>` and `<EX2>` with every CTA stamping `%globaltimer`, `clock64` and `%smid` at entry and exit, 10 runs each, plus ncu with `--clock-control base` five times (`sm__cycles_elapsed.{min,max}`, `smsp__cycles_active.{min,max}`). Separates start skew, tail and replay-pass variance.
+2. **Per-SM clocks under FA4.** The same stamps on all 148 SMs during FA4 s4096: per-SM MHz says whether `sm__cycles_elapsed` spread is clock (compare with min) or skew (compare with max).
+3. **TMA from HBM.** Cold latency for 128 B–64 KB with a sequential source as well as the 1 MB stride (TLB cost); one SM streaming 4 KB and 16 KB chunks with 1, 2, 4 and 8 stages; all 148 SMs with the same stages.
+4. **DRAM latency distribution.** Histogram of a cold chase over ≥1 GB, idle and under the loaded-probe loads (the probe records only the mean). A copy finishes with its slowest line, so the tail matters, not the mean.
+5. **Near/far partitions for TMA vs LDG.** TMA L2-resident copies of 1–64 KB from SMs on both dies with the buffer homed on each die: does a bulk copy ever pay the far partition?
+6. **Re-record the FA4 ring steps** with one CTA of each tile count (e.g. CTAs 0, 1, 146, 147 for c1024), so the replay does each CTA's real work.
+7. **FA2 per-PC stalls.** ncu source-level stall sampling (`smsp__pcsamp_*`) on FA2 s4096, to compare per-instruction `wait` with the simulator's per-PC stats.
+8. **MIO arbitration.** `smem_conflict_free` with warps on 1, 2 and 4 SMSPs and a per-warp end stamp, to measure the arbiter's fairness directly.
+9. **Shared FP64.** DFMA throughput with warps on 1, 2 and 4 SMSPs: a shared unit gives the same ~1.93 lanes/clk per SM in every case.
 
 `--only a,b` restricts the run to some labels, and `--max-error N` fails when any |error| exceeds N%. CI runs the fast kernels this way. `RSIM_VALIDATE_STATS=1` dumps each kernel's simulated stats (stalls, cache hits, instruction mix) to stderr.
-
-What the remaining misses need:
-
-- **hbm_copy on A100** (about −23%): at the traced size (2 CTAs, 1 MB) each warp keeps one 512 B load in flight. The model's round trip is about 680 cycles; the hardware's is about 940. The model has no per-SM limit on the SM-to-L2 path, and stores share it with loads. The read-only stream is within 8%.
-- **l2_pointer_chase on A100** (+12–16%): the chase runs slow even with the near/far L2 split scaled to the measured mean.
-- **ffma_throughput on B300** (−6.5%): open. Its FFMAs reuse-cache two operands, so the register banks do not explain it.
-- **tma_bulk_stream on B300** (−6%): 4 KB chunks, 4 stages. HBM latency under load now comes from the measured loaded-latency probe (`raw/loaded`: 417 ns idle, 471 ns at 5.4 TB/s), which took this from −10.6% to −6.2%. The rest is probably in the TMA engine.
 
 Model fixes behind this table:
 
