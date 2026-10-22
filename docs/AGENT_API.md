@@ -42,12 +42,12 @@ from rackscale import api
 
 r = api.run("hgx_b200_8", {"model": "deepseek-v3", "phase": "decode", "batch": 32, "context": 4096,
                            "parallel": {"ep": 8}, "layers": 4})
-r["step_time_us"]          # {'value': 1629.6, 'lo': 1201.5, 'hi': 2057.7, 'band_pct': 26.3}
+r["step_time_us"]          # {'value': 1585.0, 'lo': 1168.6, 'hi': 2001.4, 'band_pct': 26.3}
 b = api.bottlenecks(r["run_id"])
-b["summary"]               # 'Step 1630 us ... 62% of GPU time is in hbm-bound kernels ...'
+b["summary"]               # 'Step 1585 us ... 62% of GPU time is in hbm-bound kernels ...'
 b["suggested_what_ifs"][0] # {'what_if': {'workload': {'batch': 64}}, 'why': 'weights are streamed once per step; ...'}
 api.what_if(r["run_id"], {"workload": {"dtype": "fp8"}})["comparison"]["verdict"]
-                           # 'b is 35.8% faster per step; throughput up 55.6%'
+                           # 'b is 36.5% faster per step; throughput up 57.4%'
 api.kernel(r["run_id"], "lm_head")["role_anatomy"]   # producer / MMA / epilogue: who waits on what
 ```
 
@@ -193,29 +193,29 @@ It maximises tokens/s with the step time held to at most 1.5× the baseline, and
 when the change beats the error band. The output below is abridged:
 
 ```
-## Baseline: deepseek-v3 decode b32 ctx4096 Parallel(tp=1, ep=8, dp=1, comm_sms=20) on HGX B200 8-GPU
-step 1630 (±26%) us, 157093 (±26%) tokens/s, MFU 6.6%
+## Baseline: deepseek-v3 decode b32 ctx4096 Parallel(tp=1, ep=8, dp=1, comm_sms=20, pp=1) on HGX B200 8-GPU
+step 1585 (±26%) us, 161466 (±26%) tokens/s, MFU 6.8%
 
 ### Round 1: ... 62% of GPU time is in hbm-bound kernels ... Biggest single cost:
-sm100_gemm_bf16_32x129280x7168_tile128x256 (17%), HBM-bound: 98.0% of achievable HBM; past the
-mbarrier parking, schedulers wait on tma_wait (19%); only 25% of each 128-row tile is real rows.
-- {"workload": {"batch": 64}}: b is 9.2% slower per step (within the error band); throughput up 83.2% -> keep
-- {"workload": {"dtype": "fp8"}}: b is 35.8% faster per step; throughput up 55.6% -> keep
-- {"launch_gap_ns": 300}: b is 4.0% faster per step (within the error band) -> within error band
-**Kept** {"workload": {"batch": 64}}: tokens/s +83.2%
+sm100_gemm_bf16_32x129280x7168_tile128x256, HBM-bound: ~98% of achievable HBM; past the
+mbarrier parking, schedulers wait on tma_wait; only 25% of each 128-row tile is real rows.
+- {"workload": {"batch": 64}}: b is 9.4% slower per step (within the error band); throughput up 82.8% -> keep
+- {"workload": {"dtype": "fp8"}}: b is 36.5% faster per step; throughput up 57.4% -> keep
+- {"launch_gap_ns": 300}: b is 4.1% faster per step (within the error band) -> within error band
+**Kept** {"workload": {"batch": 64}}: tokens/s +82.8%
 
-### Round 2: ... Biggest single cost: sm100_fmha_decode_b64_hq128_hkv1_sq1_skv4096_d576 (17%) ...
-**Kept** {"workload": {"batch": 128}}: tokens/s +72.5%
+### Round 2: ... Biggest single cost: sm100_fmha_decode_b64_hq128_hkv1_sq1_skv4096_d576 ...
+**Kept** {"workload": {"batch": 128}}: tokens/s +71.9%
 
 ### Round 3: ...
-- {"workload": {"batch": 256}}: b is 45.6% slower per step; throughput up 37.3%; step 3004 us -> over latency limit
-- {"workload": {"dtype": "fp8"}}: b is 28.2% faster per step; throughput up 39.3% -> keep
+- {"workload": {"batch": 256}}: b is 44.5% slower per step; throughput up 38.4%; step 2918 us -> over latency limit
+- {"workload": {"dtype": "fp8"}}: b is 28.6% faster per step; throughput up 40.1% -> keep
 
 ### Final: batch 128, fp8, EP8
-step 1481 (±26%) us, 691623 (±26%) tokens/s
-top kernel sm100_fmha_decode_b128_...: tensor pipeline-bound: 47.8% of tensor peak and 64.5% of HBM,
-past the mbarrier parking, schedulers wait on tensor_wait (27%)
-  hardware sensitivity {"hbm_bw_gbps": "x1.5"}: b is 1.4% faster per step (within the error band)
+step 1441 (±26%) us, 710679 (±26%) tokens/s
+top kernel sm100_fmha_decode_b128_...: tensor pipeline-bound; schedulers wait on tensor_wait
+  hardware sensitivity {"hbm_bw_gbps": "x1.5"}: b is 1.5% faster per step (within the error band)
+  hardware sensitivity {"hbm_bw_gbps": "x1.5", "l2_bytes_per_cycle": "x1.5"}: b is 11.3% faster per step
 ```
 
 What the agent found, in order:
@@ -226,8 +226,9 @@ What the agent found, in order:
 2. **At batch 128 the bottleneck moves.** MLA decode attention, which is compute-heavy with 128 query
    heads sharing one latent, becomes the largest kernel. Its MMA pipeline, not HBM, sets its time.
 3. **FP8 GEMMs still pay** (+39%), because the dense and expert GEMMs remain HBM-bound.
-4. **HBM bandwidth no longer helps** (+1.4%, inside the band). A hardware engineer reads that as: for
-   this configuration, a faster tensor pipeline for attention is worth more than more HBM.
+4. **HBM bandwidth alone barely helps** (+1.5%, inside the band), while HBM and L2 bandwidth together give
+   +11%. The remaining weight streaming hits the L2 ceiling as soon as HBM gets faster, so a hardware
+   engineer would scale both at once, or give attention a faster tensor pipeline.
 
 Over the three rounds, tokens/s rose 4.4× and the step got 9% faster. The numbers carry the B200
 band: B200 is an uncalibrated preset, so read the absolute values as estimates and the

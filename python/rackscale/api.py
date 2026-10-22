@@ -694,7 +694,7 @@ def compare(run_a: str, run_b: str, *, change: Optional[str] = None) -> dict:
         # Token counts are exact, so the throughput ratio carries only the step-time
         # uncertainty: the relative band of the step-time difference.
         rel = d["band_us"] / sa["step_time_us"]["value"]
-        sig = abs(math.log(tb / ta)) > rel
+        sig = d["significant"] if sa["tokens_per_step"] == sb["tokens_per_step"] else abs(math.log(tb / ta)) > rel
         out["tokens_per_s"] = {"a": round(ta), "b": round(tb), "delta_pct": round(100 * (tb - ta) / ta, 2),
                                "significant": sig}
         out["verdict"] += (f"; throughput {'up' if tb > ta else 'down'} {abs(100 * (tb - ta) / ta):.1f}%"

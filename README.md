@@ -430,7 +430,7 @@ an error band taken from our measured validation, and every run carries its prov
 
 ```bash
 pip install mcp && claude mcp add rackscale -- rackscale-mcp
-python examples/agent/perf_agent.py      # an agent loop: DeepSeek-V3 decode, 157k -> 692k tokens/s in 3 rounds
+python examples/agent/perf_agent.py      # an agent loop: DeepSeek-V3 decode, 161k -> 711k tokens/s in 3 rounds
 ```
 
 See [docs/AGENT_API.md](docs/AGENT_API.md).
