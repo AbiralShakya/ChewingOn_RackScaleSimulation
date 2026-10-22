@@ -1304,6 +1304,9 @@ impl Sm {
                 cta_ref.async_tail = cta_ref.async_tail.max(fin);
             }
             OpClass::Tma => {
+                if op.active != 0 {
+                    self.probe(cta, widx, &op, c);
+                }
                 let bytes = if op.payload > 0 {
                     op.payload
                 } else {

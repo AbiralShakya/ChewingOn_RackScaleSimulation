@@ -165,7 +165,7 @@ function kcat(name, kind) {
   if (/moe|expert|grouped/.test(n)) return "moe";
   if (/ssd|ssm|scan|mamba|conv1d|chunk|state/.test(n)) return "ssm";
   if (/norm|rms|layernorm|softmax|elementwise|silu|gelu|rope|act|add|embed|sample|topk|router|gate/.test(n)) return n.includes("gate_up") ? "gemm" : "norm";
-  if (/gemm|linear|matmul|proj|mlp|lm_head|qkv|_o\b|wq|wkv|ffn|up|down|dense|mm/.test(n)) return "gemm";
+  if (/gemm|gemv|nvjet|cublas|cutlass|matvec|linear|matmul|proj|mlp|lm_head|qkv|_o\b|wq|wkv|ffn|up|down|dense|mm/.test(n)) return "gemm";
   return "other";
 }
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1048,7 +1048,14 @@ function smActivity(run, rank) {
     prepMega(x); const T = x.tasks, k0 = x.kernel >= 0 ? run.kernels[x.kernel]._t0 : 0;
     for (let b = 0; b < T.length; b += MK_STRIDE) { per[T[b]]?.push([k0 + T[b + 3], k0 + T[b + 4], "grid"]); per[T[b]]?.push([k0 + T[b + 4], k0 + T[b + 5], "k_" + x._cat[T[b + 1]]]); }
   }
-  let launches = 0;
+  // kernels kept at a measured duration have no CTA log: draw them across the SMs they occupy
+  // (run.span_sms: label -> SMs), lighter, so measured and simulated spans stay distinguishable
+  const r0 = run.ranks.find(r => r.rank === rank);
+  for (const sp of r0?._spans ?? []) {
+    const n = sp.k < 0 && sp.kind === 2 ? run.span_sms?.[sp.label] : 0;
+    for (let s = 0; s < Math.min(n || 0, g.sm_count); s++) per[s].push([sp.t0, sp.t1, "k_" + sp.cat, true]);
+  }
+  let launches = (r0?._spans ?? []).filter(sp => sp.k < 0 && sp.kind === 2).length;
   for (const k of run.kernels) {
     if (k.rank !== rank) continue; launches++;
     if (k.d < 0 || mkKernels.has(k._i)) continue;
@@ -1060,10 +1067,14 @@ function smActivity(run, rank) {
   return { per, sms: g.sm_count, launches, span, busy: busy / Math.max(1, g.sm_count * span), gpu: g.name };
 }
 function engineCompareCard(m) {
-  const acts = B.runs.map((run, i) => [run, i]).filter(([run]) => run.kernels.some(k => k.rank === 0 && k.d >= 0) || (run.megakernels ?? []).length).map(([run, i]) => [run, i, smActivity(run, 0)]);
+  let cand = B.runs.map((run, i) => [run, i]).filter(([run]) => run.kernels.some(k => k.rank === 0 && k.d >= 0) || (run.megakernels ?? []).length);
+  // replicas at node and rack scale repeat GPU 0: compare the single-GPU runs when there are several
+  const single = cand.filter(([run]) => run.ranks.length === 1);
+  if (single.length >= 2) cand = single;
+  const acts = cand.map(([run, i]) => [run, i, smActivity(run, 0)]);
   if (acts.length < 2) return;
   const card = h("div", { class: "card" }, h("h2", {}, "Engines on one GPU, one time axis"),
-    h("p", { class: "sub" }, "Every SM of GPU 0 for each run in this file, from the start of the step. Bars are CTAs of separate kernels, or tasks of a megakernel; brown is an SM spinning on another SM; empty space is an idle SM (launch gaps, wave tails, load imbalance). Scroll to zoom: the time axis is shared."));
+    h("p", { class: "sub" }, "Every SM of GPU 0 for each run in this file, from the start of the step. Bars are CTAs of separate kernels, or tasks of a megakernel; brown is an SM spinning on another SM; faded bars are kernels kept at their measured duration; empty space is an idle SM (launch gaps, wave tails, load imbalance). Scroll to zoom: the time axis is shared."));
   const tb = h("table", {}, h("tr", {}, h("th", {}, "run"), h("th", { class: "num" }, "step"), h("th", { class: "num" }, "kernel launches"), h("th", { class: "num" }, "SM-time busy")));
   acts.forEach(([run, i, a]) => tb.append(h("tr", { class: "click", onclick: () => { $("#runSel").value = i; go({ run: i, view: run.kind === "rack" ? "rack" : "kernel", k: 0, rank: 0 }); } }, h("td", {}, run.name), h("td", { class: "num" }, fmtT(a.span)), h("td", { class: "num" }, String(a.launches)), h("td", { class: "num" }, pct(a.busy)))));
   const rows = [], src = [];
@@ -1071,8 +1082,8 @@ function engineCompareCard(m) {
   const t1 = Math.max(...acts.map(x => x[2].span)) * 1.01;
   const lanes = new Lanes({
     rows, rowH: 2, gap: 0, labelW: 150, t0: 0, t1, maxH: Math.min(900, acts.length * 300 + 30),
-    draw(ctx, X, y, hh, i, t0, tt1) { const [a, s] = src[i]; for (const c of a.per[s]) { if (c[1] < t0 || c[0] > tt1) continue; box(ctx, X(c[0]), X(c[1]), y, hh, COL[c[2]]); } },
-    hit(t, i, px) { const [a, s] = src[i]; const c = a.per[s].find(c => t >= c[0] - px && t <= c[1] + px); return { html: `<div class="t">SM ${s}</div><div class="r">${c ? (c[2] === "grid" ? "waiting on another SM" : KCATS.find(k => "k_" + k[0] === c[2])?.[1] ?? "") + " · " + fmtT(c[1] - c[0]) : "idle"}</div>` }; },
+    draw(ctx, X, y, hh, i, t0, tt1) { const [a, s] = src[i]; for (const c of a.per[s]) { if (c[1] < t0 || c[0] > tt1) continue; if (c[3]) ctx.globalAlpha = 0.45; box(ctx, X(c[0]), X(c[1]), y, hh, COL[c[2]]); ctx.globalAlpha = 1; } },
+    hit(t, i, px) { const [a, s] = src[i]; const c = a.per[s].find(c => t >= c[0] - px && t <= c[1] + px); return { html: `<div class="t">SM ${s}</div><div class="r">${c ? (c[2] === "grid" ? "waiting on another SM" : KCATS.find(k => "k_" + k[0] === c[2])?.[1] ?? "") + " · " + fmtT(c[1] - c[0]) + (c[3] ? " · measured duration (not re-simulated)" : "") : "idle"}</div>` }; },
   });
   card.append(tb, h("div", { style: "height:10px" }), lanes.wrap, h("div", { class: "legend" }, h("span", {}, h("i", { style: "background:var(--c-grid)" }), "waiting on another SM"), KCATS.filter(c => c[0] !== "coll").map(c => h("span", {}, h("i", { style: `background:var(${c[2]})` }), c[1]))));
   m.append(card);
