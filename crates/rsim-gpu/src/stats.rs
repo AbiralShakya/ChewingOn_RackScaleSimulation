@@ -44,6 +44,11 @@ pub enum Stall {
     /// Operand collection: the sub-partition's register-file read stage
     /// is busy with bank-conflicted reads (Nsight's `dispatch_stall`).
     Dispatch,
+    /// Spinning on a flag or counter in global memory that another SM
+    /// signals: a persistent megakernel's inter-SM dependency, a split-K
+    /// semaphore. Nsight reports these cycles as long-scoreboard and branch
+    /// stalls of the spin loop; the replay collapses the loop into one wait.
+    GridSync,
 }
 
 pub const ALL_STALLS: &[Stall] = &[
@@ -65,10 +70,11 @@ pub const ALL_STALLS: &[Stall] = &[
     Stall::Drain,
     Stall::Idle,
     Stall::Dispatch,
+    Stall::GridSync,
 ];
 
 #[derive(Clone, Debug, Default, Serialize)]
-pub struct StallCounts(pub [u64; 18]);
+pub struct StallCounts(pub [u64; 19]);
 
 impl StallCounts {
     #[inline]
@@ -147,6 +153,10 @@ pub struct KernelStats {
     pub l1_misses: u64,
     pub smem_wavefronts: u64,
     pub unknown_opcodes: BTreeMap<String, u64>,
+    /// Probe hits of recorded paths (`PathHeader::probes`): flat
+    /// `[sm, cta, warp index, address, cycle, ...]`, cycles absolute.
+    #[serde(skip)]
+    pub probes: Vec<u64>,
     /// Per-PC issue counts and stall samples (only with `DetailConfig::pc_stats`),
     /// keyed `role << 32 | pc` (static kernels give each warp role its own program).
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]

@@ -492,6 +492,12 @@ impl Gpu {
                         }
                     }
                 }
+                if !self.mem.flags.wake.is_empty() {
+                    for (d, at) in std::mem::take(&mut self.mem.flags.wake) {
+                        self.sms[d as usize].wake(at.max(t));
+                        self.update_sm(d as usize);
+                    }
+                }
                 if self.cta_timeline() {
                     for i in before..cta_done.len() {
                         let (kid, cta) = cta_done[i];
@@ -511,6 +517,7 @@ impl Gpu {
                 while i < self.kernels.len() {
                     if self.kernels[i].done == self.kernels[i].total {
                         let k = self.kernels.remove(i);
+                        self.mem.flags.retire(k.kid);
                         out.push(self.finish_kernel(k, t));
                     } else {
                         i += 1;
@@ -544,6 +551,7 @@ impl Gpu {
         for sm in &mut self.sms {
             if let Some(a) = sm.acc.remove(&k.kid) {
                 st.ctas += a.ctas;
+                st.probes.extend_from_slice(&a.probes);
                 st.warps += a.warps;
                 st.insts_issued += a.insts_issued;
                 for (i, n) in a.class_counts.iter().enumerate() {
@@ -617,6 +625,10 @@ impl Gpu {
                 ]);
                 false
             });
+            for p in st.probes.chunks_exact(5) {
+                d.probes
+                    .extend_from_slice(&[p[0], p[1], p[2], p[3], p[4].saturating_sub(start)]);
+            }
             for sm in &mut self.sms {
                 let id = sm.id;
                 if let Some(t) = sm.wtrace.as_mut().and_then(|t| t.take(kid, start, id)) {

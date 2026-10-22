@@ -6,6 +6,7 @@
 //! order, a server's queueing delay is exact for its service discipline.
 
 use rsim_hw::{CacheSpec, GpuSpec};
+use std::collections::HashMap;
 
 /// FCFS bandwidth server.
 #[derive(Clone, Debug)]
@@ -182,7 +183,56 @@ pub struct MemResult {
 const HBM_LOAD_WINDOW: u64 = 4096;
 
 /// Per-die L2 + HBM + die-to-die link.
+/// Counters in global memory that CTAs on different SMs signal and spin on
+/// (`MbarRef::GlobalAdd` / `GlobalWait`): the inter-SM synchronisation of a
+/// persistent megakernel. Keyed by (kernel id, counter id).
+#[derive(Default)]
+pub struct GridFlags {
+    /// Visible time and amount of every increment, in time order.
+    incs: HashMap<(u32, u32), Vec<(u64, u32)>>,
+    /// SMs with a warp blocked on a counter that has not reached its value.
+    waiters: HashMap<(u32, u32), Vec<u32>>,
+    /// (SM, cycle) to re-evaluate after an increment; drained by the GPU.
+    pub wake: Vec<(u32, u64)>,
+}
+
+impl GridFlags {
+    /// Increment `id` by `n`, visible to other SMs from cycle `at`.
+    pub fn add(&mut self, kid: u32, id: u32, n: u32, at: u64) {
+        let v = self.incs.entry((kid, id)).or_default();
+        let i = v.partition_point(|x| x.0 <= at);
+        v.insert(i, (at, n));
+        for sm in self.waiters.remove(&(kid, id)).unwrap_or_default() {
+            self.wake.push((sm, at));
+        }
+    }
+
+    /// Cycle at which counter `id` first holds `need` increments, or None
+    /// (and `sm` is woken by the next increment).
+    pub fn reached(&mut self, kid: u32, id: u32, need: u32, sm: u32) -> Option<u64> {
+        let mut sum = 0u64;
+        for &(t, n) in self.incs.get(&(kid, id)).map(|v| &v[..]).unwrap_or(&[]) {
+            sum += n as u64;
+            if sum >= need as u64 {
+                return Some(t);
+            }
+        }
+        let w = self.waiters.entry((kid, id)).or_default();
+        if !w.contains(&sm) {
+            w.push(sm);
+        }
+        None
+    }
+
+    /// Forget a finished kernel's counters.
+    pub fn retire(&mut self, kid: u32) {
+        self.incs.retain(|k, _| k.0 != kid);
+        self.waiters.retain(|k, _| k.0 != kid);
+    }
+}
+
 pub struct MemSystem {
+    pub flags: GridFlags,
     dies: u32,
     l2: Vec<Cache>,
     l2_bw: Vec<Server>,
@@ -217,6 +267,7 @@ impl MemSystem {
             .map(|d| d.gbps_per_dir / clock_ghz)
             .unwrap_or(1e12);
         Self {
+            flags: GridFlags::default(),
             dies,
             l2: (0..dies)
                 .map(|_| Cache::new(&g.l2, g.l2.size_bytes / dies as u64))
@@ -237,6 +288,11 @@ impl MemSystem {
             dram_read_bytes: 0,
             dram_write_bytes: 0,
         }
+    }
+
+    /// L2 hit latency: one round trip of an atomic or of a polling load.
+    pub fn l2_latency(&self) -> u64 {
+        self.l2_lat
     }
 
     #[inline]

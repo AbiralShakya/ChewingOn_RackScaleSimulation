@@ -542,7 +542,7 @@ impl Sm {
                 .map(|w| w.until <= c)
                 .unwrap_or(false);
             if needs {
-                let (st, until) = self.evaluate(ws, sp, c);
+                let (st, until) = self.evaluate(ws, sp, c, mem);
                 let w = self.warps[ws].as_mut().unwrap();
                 w.state = st;
                 w.until = until;
@@ -646,7 +646,7 @@ impl Sm {
 
     /// Decide whether warp `ws` can issue at `c`: `(Selected, c)` if so,
     /// else `(reason, cycle when it might change)`.
-    fn evaluate(&mut self, ws: usize, sp: usize, c: u64) -> (Stall, u64) {
+    fn evaluate(&mut self, ws: usize, sp: usize, c: u64, mem: &mut MemSystem) -> (Stall, u64) {
         let w = self.warps[ws].as_mut().unwrap();
         if w.exited {
             return (Stall::Drain, NEVER);
@@ -672,7 +672,7 @@ impl Sm {
                 t
             }
         };
-        let r = self.evaluate_op(ws, sp, c, &op, t);
+        let r = self.evaluate_op(ws, sp, c, &op, t, mem);
         self.warps[ws].as_mut().unwrap().next = Some(op);
         r
     }
@@ -684,6 +684,7 @@ impl Sm {
         c: u64,
         op: &DynOp,
         t: crate::pipes::Timing,
+        mem: &mut MemSystem,
     ) -> (Stall, u64) {
         let spec = &*self.spec;
         let use_ctrl = self.use_ctrl;
@@ -752,6 +753,20 @@ impl Sm {
                     Some(&(t, why)) if t > c => {
                         self.warps[ws].as_mut().unwrap().wait_bar = id;
                         return (why, t);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        // A spin on a global counter another SM increments: ready one polling
+        // round trip after the increment that reaches the value lands.
+        if let Some(MbarRef::GlobalWait { id, need }) = op_mbar {
+            if need > 0 {
+                let kid = self.ctas[cta_idx].as_ref().unwrap().kid;
+                match mem.flags.reached(kid, id, need, self.id) {
+                    None => return (Stall::GridSync, NEVER),
+                    Some(t) if t + mem.l2_latency() > c => {
+                        return (Stall::GridSync, t + mem.l2_latency())
                     }
                     _ => {}
                 }
@@ -1013,6 +1028,32 @@ impl Sm {
         }
     }
 
+    /// Log a memory op that touches a probed address range.
+    fn probe(&mut self, cta: usize, widx: usize, op: &DynOp, c: u64) {
+        let c_ref = self.ctas[cta].as_ref().unwrap();
+        let KernelSource::Path(p) = &c_ref.kernel.source else {
+            return;
+        };
+        let Some(&a) = op.addrs.first() else {
+            return;
+        };
+        if p.header.probes.iter().any(|r| a >= r[0] && a < r[1]) {
+            let (kid, cta_id) = (c_ref.kid, c_ref.cta_id);
+            let id = self.id as u64;
+            self.acc
+                .get(kid)
+                .probes
+                .extend_from_slice(&[id, cta_id, widx as u64, a, c]);
+        }
+    }
+
+    /// Re-evaluate every resident warp at `at` (a global counter changed).
+    pub fn wake(&mut self, at: u64) {
+        for i in 0..self.ctas.len() {
+            self.poke_cta(i, at);
+        }
+    }
+
     /// Apply an event from another SM; false if the CTA is not resident here.
     pub fn deliver(&mut self, ev: &RemoteMbar) -> bool {
         let Some(slot) = self.ctas.iter().position(|c| {
@@ -1133,6 +1174,11 @@ impl Sm {
             sps.pipe_free[t.pipe as usize] = c + t.ii as u64 + extra;
         }
 
+        if let Some(MbarRef::GlobalAdd { id, n }) = op.mbar {
+            if op.active != 0 {
+                mem.flags.add(kid, id, n, c + mem.l2_latency());
+            }
+        }
         match inst.class {
             // Warps retire when their stream ends (next fetch returns
             // `None`), not at an EXIT: a recorded EXIT may have only some
@@ -1145,6 +1191,9 @@ impl Sm {
                 } else {
                     self.mem_op(&op, c, spec, mem, kid, sp)
                 };
+                if op.active != 0 {
+                    self.probe(cta, widx, &op, c);
+                }
                 result = Some((r, t.sb));
                 if inst.class == OpClass::AsyncCopy {
                     let w = self.warps[ws].as_mut().unwrap();
@@ -1317,7 +1366,9 @@ impl Sm {
                 MbarRef::TxDone { .. }
                 | MbarRef::Wait { .. }
                 | MbarRef::WaitParity { .. }
-                | MbarRef::Named { .. } => {}
+                | MbarRef::Named { .. }
+                | MbarRef::GlobalWait { .. }
+                | MbarRef::GlobalAdd { .. } => {}
             },
             OpClass::AsyncBarrier => {
                 let bar = self.bar_op(cta, role, inst.pc);

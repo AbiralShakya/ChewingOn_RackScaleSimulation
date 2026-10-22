@@ -75,6 +75,15 @@ pub enum MbarRef {
     /// Not an mbarrier: the id of a named CTA barrier (`bar.sync R, n`)
     /// whose id was in a register.
     Named { id: u32 },
+    /// Spin on counter `id` in global memory until `need` increments from
+    /// any CTA of the launch are visible. This is how persistent megakernels
+    /// order work across SMs, and how split-K GEMMs serialise their reduction.
+    /// The converter collapses the recorded spin loop (volatile load, compare,
+    /// branch back, often `NANOSLEEP`) into its last iteration carrying this.
+    GlobalWait { id: u32, need: u32 },
+    /// Atomic add of `n` to global counter `id` (`RED`/`ATOM`), visible to
+    /// waiters on other SMs one L2 round trip after it issues.
+    GlobalAdd { id: u32, n: u32 },
 }
 
 impl MbarRef {
@@ -85,7 +94,9 @@ impl MbarRef {
             | MbarRef::TxDone { id, .. }
             | MbarRef::CommitArrive { id, .. }
             | MbarRef::Named { id }
-            | MbarRef::WaitParity { id, .. } => id,
+            | MbarRef::WaitParity { id, .. }
+            | MbarRef::GlobalWait { id, .. }
+            | MbarRef::GlobalAdd { id, .. } => id,
         }
     }
     fn decode(kind: u8, id: u32, arg: u32, n: u32, ranks: u16) -> Option<Self> {
@@ -108,6 +119,8 @@ impl MbarRef {
                 id,
                 parity: arg & 1,
             }),
+            7 => Some(MbarRef::GlobalWait { id, need: arg }),
+            8 => Some(MbarRef::GlobalAdd { id, n: n.max(1) }),
             _ => None,
         }
     }
@@ -159,6 +172,13 @@ pub struct PathHeader {
     /// it and the timing model infers the shape from the FLOPs.
     #[serde(default)]
     pub mma: HashMap<u32, [u32; 3]>,
+    /// Address ranges `[lo, hi)` to timestamp: every memory op whose first
+    /// address falls in one is logged with its issue cycle (see
+    /// `KernelStats::probes`). Pointing these at a kernel's own timing buffer
+    /// (a megakernel's per-instruction `globaltimer` stores) gives the
+    /// simulated timeline of exactly the events the hardware recorded.
+    #[serde(default)]
+    pub probes: Vec<[u64; 2]>,
 }
 
 fn one3() -> [u32; 3] {
