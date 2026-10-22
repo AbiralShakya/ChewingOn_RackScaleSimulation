@@ -31,8 +31,9 @@ def main() -> None:
         t0 = time.time()
         pts = sw.study_points(st, quick=a.quick)
         print(f"== {st}: {len(pts)} points", flush=True)
-        res = sw.run(pts, jobs=a.jobs, progress=True)
         path = os.path.join(a.out, f"{st}{'_quick' if a.quick else ''}.json")
+        # Finished points go to a checkpoint as they complete; a rerun resumes.
+        res = sw.run(pts, jobs=a.jobs, progress=True, checkpoint=path + "l")
         sw.save(res, path, study=st, quick=a.quick, wall_s=time.time() - t0)
         print(f"wrote {path} ({time.time() - t0:.0f} s)", flush=True)
 

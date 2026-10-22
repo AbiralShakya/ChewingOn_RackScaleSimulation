@@ -155,23 +155,31 @@ def _ffn_ops(m: Model, p: Parallel, layer: int, t: int, tag: str) -> List[dict]:
         local = max(1, moe.experts // ep)
         # Tokens arriving at this rank's experts (balanced routing).
         recv = t * moe.topk
-        per_expert = max(0, recv // local)
+        # Spread the tokens as evenly as routing allows. With fewer tokens than
+        # local experts (small decode batches over many experts) only that many
+        # experts run, and the others' weights are never read.
+        ms = [n for n in (recv // local + (1 if i < recv % local else 0) for i in range(local)) if n > 0]
         ops += [
             _gemm(f"{tag}router", t, moe.experts, h),
             _k(f"{tag}topk", type="elementwise", n=t * moe.experts, inputs=1, flops_per_elem=4),
         ]
         if ep > 1:
             ops.append(_coll("all_to_all", t * moe.topk * h * moe.dispatch_bytes, f"block:{ep}", p.comm_sms, f"{tag}moe_dispatch"))
+        # Without EP, tensor parallelism splits every expert's FFN over the TP
+        # ranks (vLLM / SGLang FusedMoE) and all-reduces the output.
+        efn = max(1, moe.expert_ffn // p.tp)
         ops += [
-            _k(f"{tag}experts_gate_up", type="grouped_gemm", ms=[per_expert] * local, n=2 * moe.expert_ffn, k=h),
-            _k(f"{tag}experts_act", type="elementwise", n=max(1, recv * moe.expert_ffn), inputs=2, flops_per_elem=4),
-            _k(f"{tag}experts_down", type="grouped_gemm", ms=[per_expert] * local, n=h, k=moe.expert_ffn),
+            _k(f"{tag}experts_gate_up", type="grouped_gemm", ms=ms, n=2 * efn, k=h),
+            _k(f"{tag}experts_act", type="elementwise", n=max(1, recv * efn), inputs=2, flops_per_elem=4),
+            _k(f"{tag}experts_down", type="grouped_gemm", ms=ms, n=h, k=efn),
         ]
         if moe.shared_experts:
-            sf = moe.shared_experts * moe.expert_ffn
+            sf = max(1, moe.shared_experts * moe.expert_ffn // p.tp)
             ops += [_gemm(f"{tag}shared_gate_up", t, 2 * sf, h), _gemm(f"{tag}shared_down", t, h, sf)]
         if ep > 1:
             ops.append(_coll("all_to_all", t * moe.topk * h * 2, f"block:{ep}", p.comm_sms, f"{tag}moe_combine"))
+        elif p.tp > 1:
+            ops.append(_coll("all_reduce", t * h * 2, f"block:{p.tp}", p.comm_sms, f"{tag}moe_allreduce"))
     else:
         ffn = (moe.dense_ffn if moe and moe.dense_ffn else m.ffn) // p.tp
         ops += [
@@ -288,7 +296,7 @@ def _weights_per_gpu(m: Model, p: Parallel) -> float:
             attn = m.attn_params() / tp
             if m.moe and l >= m.moe.first_dense_layers:
                 mo = m.moe
-                routed = 3 * m.hidden * mo.expert_ffn * mo.experts / ep
+                routed = 3 * m.hidden * mo.expert_ffn * mo.experts / (ep * tp)
                 shared = 3 * m.hidden * mo.expert_ffn * mo.shared_experts / tp
                 layer_params.append(attn + routed + shared + m.hidden * mo.experts)
             else:

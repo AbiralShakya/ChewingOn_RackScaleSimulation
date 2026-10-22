@@ -325,6 +325,11 @@ def run_point(pt: Point, *, cache: bool = True) -> dict:
     m = models.ALL[pt.model]
     out = asdict(pt)
     out.update(system_label=s.label, gpu=_peaks(s.gpu)["name"], arch=arch_of(m))
+    if m.mla and s.gpu.startswith("a100"):
+        # MLA decode kernels (FlashMLA, FlashInfer MLA) target Hopper and later;
+        # the simulator's Ampere FA2 cannot hold a 576-wide head in shared memory.
+        out["error"] = "MLA has no Ampere kernel in the simulator"
+        return out
     try:
         wl = workload(pt)
     except (ParallelError, ValueError) as e:
@@ -380,33 +385,53 @@ def _run_one(pt_dict: dict) -> dict:
     return run_point(Point(**pt_dict))
 
 
-def run(points: Iterable[Point], *, jobs: int = 1, progress: bool = False) -> List[dict]:
-    """Simulate points, in parallel processes when ``jobs > 1``. Points are
-    ordered by cost so results stream in; the output keeps the input order."""
+def run(points: Iterable[Point], *, jobs: int = 1, progress: bool = False,
+        checkpoint: Optional[str] = None) -> List[dict]:
+    """Simulate points, in parallel processes when ``jobs > 1``, cheapest
+    first. With ``checkpoint`` (a JSON-lines file), every finished point is
+    appended as it completes and points already in the file are not run
+    again, so an interrupted sweep resumes. The output keeps the input order."""
     pts = list(points)
-    order = sorted(range(len(pts)), key=lambda i: _cost(pts[i]))
-    results: List[Optional[dict]] = [None] * len(pts)
+    done: Dict[str, dict] = {}
+    if checkpoint and os.path.exists(checkpoint):
+        with open(checkpoint) as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
+                    continue  # a line cut short by an interruption
+                done[r.pop("_key")] = r
+    results: List[Optional[dict]] = [done.get(p.key()) for p in pts]
+    todo = sorted((i for i in range(len(pts)) if results[i] is None), key=lambda i: _cost(pts[i]))
     t0 = time.time()
+    ck = open(checkpoint, "a") if checkpoint else None
 
-    def log(r):
+    def finish(i, r):
+        results[i] = r
+        if ck:
+            ck.write(json.dumps(dict(r, _key=pts[i].key())) + "\n")
+            ck.flush()
         if progress:
             what = r.get("error") or ("does not fit" if not r.get("fits", True) else
                                       f"{r['step_us']:10.1f} us  {r.get('tok_s_gpu', 0):9.0f} tok/s/GPU  {r['dominant']}")
-            print(f"[{time.time() - t0:6.0f}s] {r['study']:10s} {r['model']:16s} {r['system']:6s} {r['phase']:7s} "
-                  f"{_plan_str(r['plan']):10s} b{r['batch']:<4d} ctx{r['context'] or r['seqlen']:<6d} {r['launch']:10s} {what}",
-                  flush=True)
+            n = sum(x is not None for x in results)
+            print(f"[{time.time() - t0:6.0f}s {n}/{len(pts)}] {r['study']:9s} {r['model']:17s} {r['system']:5s} "
+                  f"{r['phase']:7s} {_plan_str(r['plan']):9s} b{r['batch']:<4d} ctx{r['context'] or r['seqlen']:<6d} "
+                  f"{r['launch']:10s} {what}", flush=True)
 
-    if jobs <= 1:
-        for i in order:
-            results[i] = run_point(pts[i])
-            log(results[i])
-    else:
-        from concurrent.futures import ProcessPoolExecutor
-        with ProcessPoolExecutor(jobs) as ex:
-            futs = {i: ex.submit(_run_one, asdict(pts[i])) for i in order}
-            for i in order:
-                results[i] = futs[i].result()
-                log(results[i])
+    try:
+        if jobs <= 1:
+            for i in todo:
+                finish(i, run_point(pts[i]))
+        else:
+            from concurrent.futures import ProcessPoolExecutor, as_completed
+            with ProcessPoolExecutor(jobs) as ex:
+                futs = {ex.submit(_run_one, asdict(pts[i])): i for i in todo}
+                for fu in as_completed(futs):
+                    finish(futs[fu], fu.result())
+    finally:
+        if ck:
+            ck.close()
     return results  # type: ignore[return-value]
 
 
@@ -511,11 +536,16 @@ def study_points(name: str, quick: bool = False) -> List[Point]:
             mods, syss, batches = ["llama3.2-1b", "llama3-70b"], ["b300"], [1, 64]
         for mo in mods:
             for sy in syss:
+                # The older generations get decode at every layout but prefill and
+                # training only at their usual layouts: the Ampere model is slow to
+                # simulate and H100 is an uncalibrated preset.
+                full = sy in ("b300", "gb300")
                 for pl in inference_plans(mo, sy):
                     P += [Point(mo, sy, "decode", pl, batch=b, context=8192, study=name) for b in batches]
-                    P.append(Point(mo, sy, "prefill", pl, batch=1, seqlen=8192, study=name))
+                    if full or pl["tp"] in (1, 8):
+                        P.append(Point(mo, sy, "prefill", pl, batch=1, seqlen=8192, study=name))
                 if not quick or mo == "llama3.2-1b":
-                    for pl in _fitting_train_plans(mo, sy, 4096, 1 if quick else 4):
+                    for pl in _fitting_train_plans(mo, sy, 4096, 1 if quick else (4 if full else 2)):
                         P.append(Point(mo, sy, "train", pl, batch=1, seqlen=4096, micro_batches=max(4, 2 * pl["pp"]),
                                        study=name))
     elif name == "attention":
@@ -527,7 +557,10 @@ def study_points(name: str, quick: bool = False) -> List[Point]:
             ctxs, batches, lens, syss = [2048, 32768], [16], [2048], ["b300"]
         for mo in mods:
             for sy in syss:
-                P += [Point(mo, sy, "decode", plan(), batch=b, context=c, study=name) for c in ctxs for b in batches]
+                # The A100 model is several times slower to simulate and less
+                # accurate: keep it to the contexts an 80 GB GPU serves.
+                P += [Point(mo, sy, "decode", plan(), batch=b, context=c, study=name) for c in ctxs for b in batches
+                      if sy != "a100" or (c <= 32768 and b <= 64)]
             P += [Point(mo, "b300", "prefill", plan(), batch=1, seqlen=L, study=name) for L in lens]
     elif name == "moe":
         mods = ["mixtral-8x7b", "qwen3-30b-a3b", "mixtral-8x22b", "qwen3-235b-a22b", "deepseek-v3"]

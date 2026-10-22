@@ -62,3 +62,22 @@ def test_plan_cli_json(capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["best"]["phase"] == "decode" and out["best"]["batch"] == 4
     assert {p["plan"]["tp"] for p in out["points"]} == {1, 2, 4, 8}
+
+
+def test_moe_small_batch_runs_only_visited_experts():
+    # 8 tokens x top-8 over 128 experts: 64 experts get one token each, none get zero.
+    wl = lower.decode_step(models.QWEN3_30B_A3B, rs.Parallel(), batch=8, context=256, layers=1)
+    gg = [o["kernel"] for o in wl["spmd"]["program"]["streams"][0] if o["op"] == "kernel" and o["kernel"]["type"] == "grouped_gemm"]
+    assert gg and all(k["ms"] == [1] * 64 for k in gg)
+
+
+def test_moe_tp_shards_experts():
+    m = models.MIXTRAL_8X22B
+    one = lower.memory(m, rs.Parallel(), phase="decode", batch=1, context=1)["weights"]
+    tp8 = lower.memory(m, rs.Parallel(tp=8), phase="decode", batch=1, context=1)["weights"]
+    assert tp8 < one / 7
+    wl = lower.decode_step(m, rs.Parallel(tp=8), batch=8, context=256, layers=1)
+    ops = wl["spmd"]["program"]["streams"][0]
+    gg = [o["kernel"] for o in ops if o["op"] == "kernel" and o["kernel"]["type"] == "grouped_gemm"]
+    assert gg[1]["k"] == m.moe.expert_ffn // 8
+    assert sum(1 for o in ops if o.get("kind") == "all_reduce") == 2

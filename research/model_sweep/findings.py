@@ -115,28 +115,32 @@ def findings(data: Dict[str, List[dict]], systems: dict, archs: dict) -> dict:
 
     att = data.get("attention", [])
     if att:
-        def tps(m, c, b=64, sys="b300"):
-            p = _find(att, model=m, system=sys, phase="decode", context=c, batch=b)
-            return p if p and p.get("step_us") else None
-        g, mla, mha, mb, hy = (tps(m, 131072) for m in ("llama3-8b", "llama3-8b-mla", "llama3-8b-mha", "mamba2-8b", "mamba2-hybrid-8b"))
-        g8 = tps("llama3-8b", 8192)
-        kv = {m: archs[m]["kv_bytes_per_token"] for m in ("llama3-8b-mha", "llama3-8b", "llama3-8b-mqa", "llama3-8b-mla") if m in archs}
+        def best_at(m, c, sys="b300"):
+            return _best([p for p in att if p["model"] == m and p["system"] == sys and p.get("context") == c], "decode")
+        variants = ("llama3-8b-mha", "llama3-8b", "llama3-8b-mqa", "llama3-8b-mla", "mamba2-8b", "mamba2-hybrid-8b")
+        at128 = {m: best_at(m, 131072) for m in variants}
+        at8 = {m: best_at(m, 8192) for m in variants}
+        kv = {m: archs[m]["kv_bytes_per_token"] for m in variants[:4] if m in archs}
         nums["kv_bytes_per_token"] = kv
+        nums["best_decode_128k"] = {m: p and dict(batch=p["batch"], tok_s_gpu=p["tok_s_gpu"]) for m, p in at128.items()}
+        nums["best_decode_8k"] = {m: p and dict(batch=p["batch"], tok_s_gpu=p["tok_s_gpu"]) for m, p in at8.items()}
+        g, mla, mqa, mha = (at128.get(m) for m in ("llama3-8b", "llama3-8b-mla", "llama3-8b-mqa", "llama3-8b-mha"))
         if g and mla:
-            nums["mla_vs_gqa_128k_b64"] = mla["tok_s_gpu"] / g["tok_s_gpu"]
-            txt = (f"tokens/s per GPU for MLA over GQA-4 at 128k context, batch 64, one B300. The KV cache per token is "
-                   f"{kv['llama3-8b-mha'] / 1024:.0f} KB (MHA), {kv['llama3-8b'] / 1024:.0f} KB (GQA-4), "
-                   f"{kv['llama3-8b-mla'] / 1024:.1f} KB (MLA), and decode attention at long context is a KV stream. ")
-            if not mha:
-                txt += "MHA does not fit at all at this size."
-            card("At long context, the KV layout is the model", f"{mla['tok_s_gpu'] / g['tok_s_gpu']:.1f}x", txt)
-        if g and g8 and mb:
-            nums["gqa_8k_to_128k_drop"] = g8["tok_s_gpu"] / g["tok_s_gpu"]
-            card("Mamba-2 does not care how long the context is",
-                 f"{g8['tok_s_gpu'] / g['tok_s_gpu']:.1f}x slower",
-                 f"is what going from 8k to 128k context does to GQA decode at batch 64; Mamba-2's step is the same at "
-                 f"every context ({_k(mb['tok_s_gpu'])} tok/s/GPU at 128k vs {_k(g['tok_s_gpu'])} for GQA)"
-                 + (f", and the 4-attention-layer hybrid sits at {_k(hy['tok_s_gpu'])}." if hy else "."))
+            def desc(name, p):
+                return f"{name} {_k(p['tok_s_gpu'])} (batch {p['batch']})" if p else f"{name} does not fit"
+            card("At long context, the KV layout decides the batch", f"{mla['tok_s_gpu'] / g['tok_s_gpu']:.0f}x",
+                 "tokens/s per GPU for MLA over GQA-4 at 128k context on one B300, each at the largest batch that fits: "
+                 + ", ".join([desc("MHA", mha), desc("GQA-4", g), desc("MQA", mqa), desc("MLA", mla)]) +
+                 f". Per token the cache is {kv['llama3-8b-mha'] / 1024:.0f} KB, {kv['llama3-8b'] / 1024:.0f} KB, "
+                 f"{kv['llama3-8b-mqa'] / 1024:.0f} KB and {kv['llama3-8b-mla'] / 1024:.0f} KB. MQA wins on bytes; "
+                 "MLA keeps per-head quality but its 576-wide decode attention spends more time in the tensor pipe.")
+        mb, hy, g8 = at128.get("mamba2-8b"), at128.get("mamba2-hybrid-8b"), at8.get("llama3-8b")
+        if mb and g8 and g:
+            card("Mamba-2 does not care how long the context is", f"{mb['tok_s_gpu'] / g['tok_s_gpu']:.0f}x",
+                 f"tokens/s per GPU for Mamba-2 over GQA at 128k context ({_k(mb['tok_s_gpu'])} vs {_k(g['tok_s_gpu'])}). "
+                 f"GQA loses {g8['tok_s_gpu'] / g['tok_s_gpu']:.0f}x from 8k to 128k because its batch must shrink to fit the cache; "
+                 f"Mamba-2's state is the same size at every context"
+                 + (f", and the hybrid with 4 attention layers keeps {_k(hy['tok_s_gpu'])}." if hy else "."))
 
     moe = data.get("moe", [])
     if moe:
@@ -167,16 +171,18 @@ def findings(data: Dict[str, List[dict]], systems: dict, archs: dict) -> dict:
 
     ctx = data.get("context", [])
     if ctx:
-        a = _find(ctx, model="llama3-70b", context=4096, batch=64)
-        b = _find(ctx, model="llama3-70b", context=131072, batch=64)
-        h = _find(ctx, model="mamba2-hybrid-70b", context=131072, batch=64)
+        a = _find(ctx, model="llama3-70b", context=4096, batch=16)
+        b = _find(ctx, model="llama3-70b", context=131072, batch=16)
+        h = _find(ctx, model="mamba2-hybrid-70b", context=131072, batch=16)
+        big = _find(ctx, model="llama3-70b", context=131072, batch=64)
         if a and b and a.get("step_us") and b.get("step_us"):
             nums["70b_4k_to_128k"] = a["tok_s_gpu"] / b["tok_s_gpu"]
             card("At 128k, a 70B model spends its step reading KV", f"{100 * (b['cls'].get('attention', 0)) / sum(b['bd']):.0f}% attention",
-                 f"of Llama-3-70B's TP8 decode step at 128k context and batch 64 on GB300 NVL72, against "
+                 f"of Llama-3-70B's TP8 decode step at 128k context and batch 16 on GB300 NVL72, against "
                  f"{100 * a['cls'].get('attention', 0) / sum(a['bd']):.0f}% at 4k. Throughput falls "
                  f"{a['tok_s_gpu'] / b['tok_s_gpu']:.1f}x" + (f"; the Mamba-2 hybrid of the same size keeps "
-                                                               f"{h['tok_s_gpu'] / b['tok_s_gpu']:.1f}x more tokens/s per GPU." if h and h.get("step_us") else "."))
+                                                               f"{h['tok_s_gpu'] / b['tok_s_gpu']:.1f}x more tokens/s per GPU." if h and h.get("step_us") else ".")
+                 + (f" Batch 64 at 128k does not fit at all: {big['memory_total_gb']:.0f} GB per GPU." if big and not big.get("fits") else ""))
 
     inf = data.get("infra", [])
     if inf:
