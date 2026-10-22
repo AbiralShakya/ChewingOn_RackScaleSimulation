@@ -64,8 +64,8 @@ python examples/deepseek_v3_nvl72.py --layers 4      # fast mode, both schedules
 
 | schedule | step time | MFU | GPU idle |
 |---|---|---|---|
-| single stream | 1435 µs | 13.6% | 6.9% |
-| two-micro-batch overlap (DeepSeek style) | 2372 µs | 8.2% | 0.9% |
+| single stream | 1416 µs | 13.7% | 6.9% |
+| two-micro-batch overlap (DeepSeek style) | 2354 µs | 8.3% | 0.9% |
 
 What the model shows:
 
@@ -213,9 +213,26 @@ for system in ["hgx_h100_8", "hgx_b200_8"]:
 print(rep.summary())          # bubble anatomy, top kernels, collectives
 ```
 
-On the presets this prints 592.9 µs for HGX H100 and 378.7 µs for HGX B200. The `Report`
-object exposes `makespan_us`, `bubbles`, `kernels()`, per-rank stats in `rep["ranks"]`, and
-the full JSON in `rep.raw`.
+On the presets this prints 596.9 µs for HGX H100 and 272.0 µs for HGX B200. The `Report`
+object exposes `makespan_us`, `bubbles`, `kernels()`, `memory` (the fullest GPU's weights, KV
+cache, activations and optimizer state against its HBM), `warnings`, per-rank stats in
+`rep["ranks"]`, and the full JSON in `rep.raw`.
+
+Every report checks that the model fits. The memory model counts the full model even when
+only a few `--layers` are simulated, and a layout that does not divide the model is rejected
+before anything runs:
+
+```
+$ rackscale decode deepseek-v3 --system hgx_h100_8 --ep 8 --layers 1 --fast
+memory (rank 0): 216.1 of 80 GB  [kv_cache 18.4, weights 197.7]
+WARNING: 8 rank(s) need up to 216.1 GB but H100 SXM5 80GB has 80 GB of HBM: this configuration would not fit ...
+
+$ rackscale decode llama3-70b --system hgx_h100_8 --tp 3
+rackscale decode: error: tp=3 does not divide llama3-70b's 64 attention heads
+```
+
+Configs are checked the same way: a misspelled key in a system YAML, a GPU override or a
+workload is an error that names the closest valid key, not a silent no-op.
 
 ---
 
@@ -233,13 +250,13 @@ rsim kernel --gpu h100_sxm attention 8 64 8 1 8192 128   # B HQ HKV SQ SKV D (de
 
 ```
 sm100_gemm_bf16_8192x8192x8192_tile128x256
-  time        825.39 us   (1531926 cycles, 2048 CTAs, 1 CTA/SM)
-  compute     1332.1 TFLOPS  (59.2% of dense BF16 peak)
-  dram        464.1 MB read, 268.4 MB written; L2 hit 94.7%
+  time        791.43 us   (1468893 cycles, 2048 CTAs, 2 CTA/SM)
+  compute     1389.3 TFLOPS  (61.7% of dense BF16 peak)
+  dram        372.8 MB read, 134.2 MB written; L2 hit 95.3%
   scheduler-cycle anatomy:
-    async_wait            80.10%  ########################################
-    tma_wait              11.70%  ######
-    tensor_wait            3.31%  ##
+    async_wait            82.02%  #########################################
+    tma_wait              13.68%  #######
+    tensor_wait            1.82%  #
     ...
 ```
 
@@ -264,10 +281,14 @@ rackscale decode  deepseek-v3   --system gb200_nvl72 --ep 72 --batch 64 --contex
 rackscale decode  llama3-70b    --system hgx_h100_8  --tp 8  --batch 32 --layers 2 --fast --trace out/l70.json
 rackscale prefill qwen3-235b-a22b --system gb200_nvl72 --ep 72 --seqlen 2048 --layers 2 --fast
 rackscale train   llama3-8b     --system hgx_b200_8  --dp 8  --layers 2 --fast
+rackscale train   llama3-70b    --system hgx_b200_8  --pp 8  --micro-batches 16 --schedule zb --fast
 ```
 
 Built-in models: `llama3-8b`, `llama3-70b`, `llama3-405b`, `mixtral-8x22b`, `qwen3-235b-a22b`,
-`deepseek-v3`. Parallelism flags: `--tp`, `--ep`, `--dp`, `--comm-sms`. Useful switches:
+`deepseek-v3`, and Mamba-2 and hybrid 8B/70B stacks. Parallelism flags: `--tp`, `--ep`, `--dp`,
+`--pp`, `--comm-sms`. Training takes `--micro-batches`, `--schedule gpipe|1f1b|zb` (ZB-H1-style
+zero bubble: weight gradients deferred into the drain) and `--optimizer` (an Adam step on each
+rank's ZeRO-2 shard and the DP all-gather of new weights). Useful switches:
 `--overlap` (two-micro-batch decode), `--launch-gap-ns 0` (CUDA graphs), `--report out.json`,
 `--dump-workload wl.json` (see what was lowered), and `--per-sm` (one Perfetto track per SM).
 
@@ -519,8 +540,8 @@ records Nsight Compute reference kernels (SASS plus measured cycles and stall br
 end-to-end regression set. The field mapping is in [docs/CALIBRATION.md](docs/CALIBRATION.md).
 
 Measured so far: B300 SXM6 (sm_103), A100 80GB PCIe (sm_80), and an A100 MIG 3g.40gb slice.
-The B300 data lands on `main` with the calibration merge, and the A100 data is on the
-`calibration-ampere` branch until its PR is merged.
+All three are on `main` under `calibration/results/`; `rsim validate` replays their Nsight
+Compute reference kernels (table in [docs/CALIBRATION.md](docs/CALIBRATION.md)).
 
 ---
 
@@ -585,15 +606,18 @@ together.
 - Lowering for dense, GQA, MLA and MoE models (decode, prefill, training, async RL)
 - PyTorch-profiler trace capture, SASS and Accel-Sim trace kernels
 - Fast mode (within 1% of exact on the DeepSeek decode demos), per-SM Perfetto timelines
-- Calibration loader with measured B300 data
+- Calibration loader with measured B300 data, including a power-capped clock for FP4 (measured)
+  and BF16 (derived from ncu cycles over CUDA-graph time); kernels that hit the cap are
+  re-simulated at their sustained clock
+- Pipeline parallelism (GPipe, 1F1B, ZB-H1-style) with TP and DP inside stages
+- A per-GPU memory model with an over-capacity warning; strict config and workload keys
 
 **Next**
 
-- Wire the remaining B300 measurements: `tcgen05` round-trip and commit latency, near/far L2
-  partition latency, the TMA latency/size curve, HBM bandwidth vs active SMs
-- An Ampere (A100) preset driven by the measured A100 and MIG calibration
-- End-to-end regression of `rsim sass` against the Nsight Compute reference kernels
-- CUTLASS NVFP4 GEMM cross-check of the B300 FP4 ceiling
+- B200 / GB200 presets built from the measured B300 microarchitecture, with a power model, and
+  checked against published numbers (today they are estimates and run unthrottled)
+- BF16 and FP8 power traces on B300 to replace the derived BF16 clocks
+- A faster synthetic Ampere GEMM (the `mma.sync` model reaches 55% of peak, cuBLAS 87%)
 - Hopper (H100/H200) calibration runs
 - NVLink / NVSwitch fabric calibration (the current suite is single-GPU)
 - TMEM stores and `tcgen05.cp`, multi-dimensional TMA tensor maps, sparse UMMA

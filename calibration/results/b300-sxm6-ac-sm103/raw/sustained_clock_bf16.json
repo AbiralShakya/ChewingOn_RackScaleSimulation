@@ -1,0 +1,92 @@
+{
+ "source": "Nsight Compute cycles / CUDA-graph wall time of cuBLAS BF16 GEMMs (research/ssm_vs_attention, B300 GPU 3); board assumed at the power cap",
+ "runs": [
+  {
+   "gemm": "cublas_bf16_sustained",
+   "dtype": "bf16",
+   "derived": true,
+   "flops": 17180000000.0,
+   "sm_mhz_median": 2032.0,
+   "board_w_median": 1100.0,
+   "cases": [
+    "gemm_attn_qkv_m256",
+    "gemm_mamba_in_proj_m128",
+    "gemm_mamba_out_proj_m256",
+    "gemm_mlp_down_m128",
+    "gemm_mlp_down_m256",
+    "gemm_mlp_gate_up_m128",
+    "gemm_mlp_gate_up_m64"
+   ]
+  },
+  {
+   "gemm": "cublas_bf16_sustained",
+   "dtype": "bf16",
+   "derived": true,
+   "flops": 55830000000.0,
+   "sm_mhz_median": 1932.1,
+   "board_w_median": 1100.0,
+   "cases": [
+    "gemm_attn_qkv_m1024",
+    "gemm_mamba_in_proj_m256",
+    "gemm_mamba_out_proj_m1024",
+    "gemm_mlp_gate_up_m256"
+   ]
+  },
+  {
+   "gemm": "cublas_bf16_sustained",
+   "dtype": "bf16",
+   "derived": true,
+   "flops": 180900000000.0,
+   "sm_mhz_median": 1591.2,
+   "board_w_median": 1100.0,
+   "cases": [
+    "gemm_attn_qkv_m2048",
+    "gemm_attn_qkv_m4096",
+    "gemm_mamba_in_proj_m1024",
+    "gemm_mamba_in_proj_m2048",
+    "gemm_mamba_out_proj_m2048",
+    "gemm_mamba_out_proj_m4096"
+   ]
+  },
+  {
+   "gemm": "cublas_bf16_sustained",
+   "dtype": "bf16",
+   "derived": true,
+   "flops": 586300000000.0,
+   "sm_mhz_median": 1300.9,
+   "board_w_median": 1100.0,
+   "cases": [
+    "gemm_attn_qkv_m16384",
+    "gemm_attn_qkv_m8192",
+    "gemm_mamba_in_proj_m4096",
+    "gemm_mamba_out_proj_m8192"
+   ]
+  },
+  {
+   "gemm": "cublas_bf16_sustained",
+   "dtype": "bf16",
+   "derived": true,
+   "flops": 1649000000000.0,
+   "sm_mhz_median": 1304.1,
+   "board_w_median": 1100.0,
+   "cases": [
+    "gemm_attn_qkv_m32768",
+    "gemm_mamba_in_proj_m16384",
+    "gemm_mamba_in_proj_m8192",
+    "gemm_mamba_out_proj_m16384",
+    "gemm_mamba_out_proj_m32768"
+   ]
+  },
+  {
+   "gemm": "cublas_bf16_sustained",
+   "dtype": "bf16",
+   "derived": true,
+   "flops": 4982000000000.0,
+   "sm_mhz_median": 1235.4,
+   "board_w_median": 1100.0,
+   "cases": [
+    "gemm_mamba_in_proj_m32768"
+   ]
+  }
+ ]
+}

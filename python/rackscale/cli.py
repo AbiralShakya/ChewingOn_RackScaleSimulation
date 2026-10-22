@@ -2,6 +2,7 @@
 
     rackscale decode deepseek-v3 --system gb200_nvl72 --ep 72 --batch 64 --context 4096 --layers 2 --trace out/ds.json
     rackscale train llama3-70b --system hgx_h100_8 --tp 8 --micro-batch 1 --seqlen 4096 --layers 2
+    rackscale train llama3-70b --system hgx_b200_8 --pp 8 --micro-batches 16 --schedule zb --fast
     rackscale capture vllm_trace.json.gz --system gb200_nvl72 --world 8
     rackscale capture -o cap/ --region forward:4:2 -- python my_engine.py ...   # any CUDA program, under NVBit
     rackscale replay cap/ --system gb300_nvl72 --tp 8 --dp 9
@@ -32,12 +33,13 @@ def _model_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--tp", type=int, default=1)
     p.add_argument("--ep", type=int, default=1)
     p.add_argument("--dp", type=int, default=1)
+    p.add_argument("--pp", type=int, default=1, help="pipeline stages (train)")
     p.add_argument("--comm-sms", type=int, default=20)
-    p.add_argument("--layers", type=int, help="simulate only the first N layers")
+    p.add_argument("--layers", type=int, help="simulate only the first N layers (memory is still checked for the full model)")
 
 
 def _par(a) -> Parallel:
-    return Parallel(tp=a.tp, ep=a.ep, dp=a.dp, comm_sms=a.comm_sms)
+    return Parallel(tp=a.tp, ep=a.ep, dp=a.dp, comm_sms=a.comm_sms, pp=a.pp)
 
 
 def main(argv=None) -> int:
@@ -61,6 +63,10 @@ def main(argv=None) -> int:
     _model_args(t)
     t.add_argument("--micro-batch", type=int, default=1)
     t.add_argument("--seqlen", type=int, default=4096)
+    t.add_argument("--micro-batches", type=int, default=1, help="micro-batches per step (pipeline)")
+    t.add_argument("--schedule", choices=["gpipe", "1f1b", "zb"], default="1f1b",
+                   help="pipeline schedule: GPipe, 1F1B, or ZB-H1 zero-bubble")
+    t.add_argument("--optimizer", action="store_true", help="end the step with an Adam update and DP all-gather")
     _common(t)
 
     c = sub.add_parser("capture", help="capture any CUDA program under the NVBit tool (`-- cmd ...`), "
@@ -108,6 +114,15 @@ def main(argv=None) -> int:
         i = argv.index("--")
         argv, cmd = argv[:i], argv[i + 1:]
     a = ap.parse_args(argv)
+    try:
+        return _run(a, cmd)
+    except (ValueError, OSError) as e:
+        # Bad layouts, configs and workloads: one line, no traceback.
+        print(f"rackscale {a.cmd}: error: {e}", file=sys.stderr)
+        return 2
+
+
+def _run(a, cmd) -> int:
     if a.cmd == "capture" and (cmd or a.build_only):
         if a.build_only:
             record.build(a.out, key=a.key)
@@ -123,7 +138,8 @@ def main(argv=None) -> int:
     elif a.cmd == "prefill":
         wl = lower.prefill(models.ALL[a.model], _par(a), a.batch, a.seqlen, layers=a.layers)
     elif a.cmd == "train":
-        wl = lower.train_step(models.ALL[a.model], _par(a), a.micro_batch, a.seqlen, layers=a.layers)
+        wl = lower.train_step(models.ALL[a.model], _par(a), a.micro_batch, a.seqlen, layers=a.layers,
+                              micro_batches=a.micro_batches, schedule=a.schedule, optimizer=a.optimizer)
     elif a.cmd == "capture":
         if not a.path:
             ap.error("capture: give a torch-profiler trace, or `-- cmd ...` to capture a program")

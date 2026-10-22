@@ -44,7 +44,28 @@ Opcode lookup tries the full opcode first (`MUFU.EX2`) and then the base (`FFMA`
 
 ## Power-capped clocks
 
-Real GEMMs on B300 hit the 1100 W board cap and the SM clock drops (measured with CUTLASS FP4: 2032 MHz at 4096³, 1717 at 8192³, 1455 at 16384³). The model takes `P = idle + D·(f/f_max)³`. Each measured run fixes the `D` its kernel needs at `f_max`. A kernel's sustained clock is the largest `f` with `P ≤ cap`, with `D` interpolated in log(FLOPs) between the runs of the same dtype. The tensor-bound share of the kernel's time (tensor utilisation / 0.7, capped at 1) is stretched by `f_max / f`. Memory time is left alone. Only dtypes with measured runs are throttled (FP4 today).
+Real GEMMs on B300 hit the 1100 W board cap and the SM clock drops (measured with CUTLASS FP4: 2032 MHz at 4096³, 1717 at 8192³, 1455 at 16384³). The model takes `P = idle + D·(f/f_max)³`. Each measured run fixes the `D` its kernel needs at `f_max`. A kernel's sustained clock is the largest `f` with `P ≤ cap`, with `D` interpolated in log(FLOPs) between the runs of the same dtype. A kernel that keeps the tensor cores busy less than 70% of the time draws proportionally less, so its clock drops that fraction of the way (`rsim_gpu::dvfs_clock_mhz`). The kernel is then simulated again at that clock (`rsim_gpu::dvfs_stretch`): HBM and L2 keep their speed in nanoseconds, so only the SM-bound part slows down. In a rack run the factor is computed once per distinct kernel and shared across ranks.
+
+BF16 has no power trace. Its runs are derived: `scripts/fit_sustained_clock.py` divides each cuBLAS BF16 GEMM's Nsight Compute cycles by its back-to-back CUDA-graph time (both from `research/ssm_vs_attention`), bins the resulting clocks by size and writes them to `results/b300-sxm6-ac-sm103/raw/sustained_clock_bf16.json` as runs at the cap (`"derived": true`), which `merge.py` adds to `model.power`:
+
+| GEMM FLOPs | GEMMs | sustained clock |
+|---|---|---|
+| 1.7·10¹⁰ | 7 | 2032 MHz |
+| 5.6·10¹⁰ | 4 | 1932 MHz |
+| 1.8·10¹¹ | 6 | 1591 MHz |
+| 5.9·10¹¹ | 4 | 1301 MHz |
+| 1.6·10¹² | 5 | 1304 MHz |
+| 5.0·10¹² | 1 | 1235 MHz |
+
+Shapes of the same size differ by up to 270 MHz (1248 to 1516 MHz at 2–6·10¹¹ FLOPs), which a size-only model cannot capture; that is most of the remaining large-GEMM error below. FP8 and the B200/GB200/H100 presets have no power model, so they run at the full clock.
+
+Synthetic BF16 GEMMs against the 54 measured cuBLAS GEMMs (`python scripts/check_gemms.py --gpu b300`, CUDA-graph timing):
+
+| class | n | median \|error\| | mean error | before the sustained-clock model and epilogue overlap |
+|---|---|---|---|---|
+| decode (< 10¹⁰ FLOP) | 27 | 3.9% | −0.8% | 4.7%, −2.8% |
+| mid | 11 | 19.1% | −4.7% | 17.7%, −4.2% |
+| large (≥ 10¹¹ FLOP) | 16 | 11.6% | +5.6% | 19.1%, −19.5% |
 
 ## Validation against ncu
 

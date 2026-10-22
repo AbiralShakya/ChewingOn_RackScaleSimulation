@@ -115,28 +115,34 @@ python docs/book/scripts/roofline_sweep.py            # B300, BF16, about 20 s
 
 ```
 b300 bf16: peak 2464 TFLOP/s, HBM 6.82 TB/s, ridge 361 FLOP/byte
-     M      AI roofline_us    sim_us  TFLOP/s  %peak    GB/s
-     1     1.0        19.7      27.1        5    0.2    4958
-    64    63.0        20.0      27.1      317   12.9    5034
-   128   124.1        20.3      27.1      634   25.7    5111
-   256   240.9        20.9      33.3     1033   41.9    4286
-   512   455.1        27.9      40.9     1682   68.3    3696
-  1024   819.2        55.8      78.8     1744   70.8    2129
-  4096  2048.0       223.1     277.6     1980   80.4     967
-  8192  2730.7       446.2     556.0     1977   80.2     724
+     M      AI roofline_us    sim_us  TFLOP/s  %peak    GB/s  clock
+     1     1.0        19.7      27.1        5    0.2    4948
+    16    15.9        19.8      27.1       79    3.2    4967
+    64    63.0        20.0      27.1      317   12.8    5025
+   128   124.1        20.3      27.1      633   25.7    5102
+   256   240.9        20.9      33.9     1014   41.1    4207 1996.0
+   512   455.1        27.9      44.6     1541   62.5    3386 1854.0
+  1024   819.2        55.8      87.4     1572   63.8    1919 1650.0
+  2048  1365.3       111.6     198.3     1386   56.3    1015 1460.0
+  4096  2048.0       223.1     440.4     1248   50.7     609 1312.0
+  8192  2730.7       446.2     779.7     1410   57.2     516 1303.0
 ```
 
 Read it like a roofline plot. Up to *M* = 128 the time does not move at all (27.1 µs): the
 kernel streams the 134 MB weight at 5.0 TB/s and the tensor core is mostly idle. Past the
-ridge (*M* ≈ 361) time grows linearly with *M* and throughput flattens at 70 to 80% of peak.
-The knee in the simulator sits where the algebra puts it.
+ridge (*M* ≈ 361) time grows linearly with *M*, but throughput does not flatten at a fixed
+fraction of peak: the clock column falls from 2032 to about 1300 MHz as the GEMM grows. That
+is the power cap of section 1.6, and it is the largest effect on this curve.
 
-The simulator is not perfect here. Against the measured B300 GEMMs it is within about 10% at
-decode shapes (*M* ≤ 64) and 15 to 35% *fast* on large square-ish GEMMs, because the real
-cuBLAS kernel loses time the model does not have yet. On A100 its multistage `mma.sync` GEMM is
-30 to 90% *slow* at large *M* (the synthetic Ampere GEMM reaches about 55% of peak, cuBLAS
-reaches 87%). Chapter 9 has the full comparison. For this chapter the point is the shape of
-the curve, and the shape is right on both GPUs.
+At its sustained clock the simulated kernel keeps the tensor cores busy 80 to 90% of the time,
+which is about what cuBLAS achieves. Against the 54 measured B300 GEMMs, timed back to back
+with CUDA graphs, the simulator is within 4% (median) at decode shapes (*M* ≤ 128) and within
+12% (median, +6% mean) on large ones (`python calibration/scripts/check_gemms.py`). The large
+shapes used to be 15 to 35% *fast*. That came from two errors that partly cancelled: one CTA
+per SM did not overlap a tile's epilogue with the next tile's mainloop, which made the kernel
+10 to 30% slow in cycles, and BF16 ran at the full 2032 MHz. On A100 the multistage
+`mma.sync` GEMM is 30 to 90% *slow* at large *M* (the synthetic Ampere GEMM reaches about 55%
+of peak, cuBLAS reaches 87%). Chapter 9 has the full comparison.
 
 ## 1.6 Why the roof moves: the power cap
 
@@ -164,9 +170,11 @@ P(f) = P_idle + D · (f / f_max)³
 Each measured run gives the *D* its kernel needs: `D = (P_board − P_idle) / (f/f_max)³`. With
 the measured idle of 261 W that is 751 W for 4096³, 1331 W for 8192³ and 2224 W for 16384³.
 For any other FP4 kernel the simulator interpolates *D* in log(FLOPs) between the runs, solves
-`P_idle + D·(f/f_max)³ = 1100 W` for the sustained clock, and stretches only the tensor-bound
-part of the kernel by `f_max/f` (memory time is unchanged). For 8192³ that gives 2032 ×
-(839/1331)<sup>1/3</sup> = **1742 MHz**, against 1717 MHz measured.
+`P_idle + D·(f/f_max)³ = 1100 W` for the sustained clock, and simulates the kernel again at that
+clock. HBM and L2 keep their speed in nanoseconds, so only the SM-bound part of the kernel
+slows down. (Scaling the whole kernel time by `f_max/f` over-corrects large GEMMs by 20 to
+45%.) For 8192³ that gives 2032 × (839/1331)<sup>1/3</sup> = **1742 MHz**, against 1717 MHz
+measured.
 
 ```bash
 python docs/book/scripts/roofline_sweep.py --dtype fp4 --n 16384 --k 16384 --ms 1,256,1024,4096,16384
@@ -175,21 +183,27 @@ python docs/book/scripts/roofline_sweep.py --dtype fp4 --n 16384 --k 16384 --ms 
 ```
 b300 fp4: peak 13142 TFLOP/s, HBM 6.82 TB/s, ridge 1928 FLOP/byte
      M      AI roofline_us    sim_us  TFLOP/s  %peak    GB/s  clock
-     1     4.0        19.7      26.8       20    0.2    5015 2032.0
-   256   949.8        21.2      27.2     5047   38.4    5314 2032.0
-  1024  3120.8        41.8     107.9     5094   38.8    1632 1924.0
-  4096  7281.8       167.3     401.8     5473   41.6     752 1764.0
- 16384 10922.7       669.3    1715.5     5128   39.0     469 1643.0
+     1     4.0        19.7      27.5       20    0.1    4880
+   256   949.8        21.2      27.4     5025   38.2    5291
+  1024  3120.8        41.8      91.0     6043   46.0    1936 1909.0
+  4096  7281.8       167.3     350.2     6279   47.8     862 1745.0
+ 16384 10922.7       669.3    1497.5     5874   44.7     538 1631.0
 ```
 
 So the honest roofline for B300 FP4 has a ceiling that slopes down with kernel size, from 13.1
-PFLOP/s for small kernels to about 10.6 at the clock the simulator predicts for 16384³ (9.4 at
+PFLOP/s for small kernels to about 10.5 at the clock the simulator predicts for 16384³ (9.4 at
 the measured clock). The decode GEMMs of chapter 6 never reach it: they are memory bound and
 leave the tensor cores idle, so they stay under the cap.
 
-Only FP4 has measured power runs today, so the simulator throttles only FP4. BF16 kernels run
-at the full clock in every simulation in this guide. That flatters BF16 a little; measuring a
-BF16 and an FP8 GEMM under the power monitor would fix it.
+FP4 has measured power runs. BF16 has no board-power trace, but the Mamba-vs-attention study
+timed 54 cuBLAS BF16 GEMMs both under Nsight Compute (which counts SM cycles) and back to back
+in CUDA graphs (wall time). Cycles over wall time is the clock the GPU held: about 2030 MHz up to
+2·10¹⁰ FLOPs, 1930 MHz at 6·10¹⁰, 1590 at 2·10¹¹ and 1240 to 1300 MHz beyond 5·10¹¹.
+[`calibration/scripts/fit_sustained_clock.py`](../../calibration/scripts/fit_sustained_clock.py)
+turns those into power runs that sit at the cap, so BF16 now throttles too. FP8 still runs at
+the full clock. Measuring a BF16 and an FP8 GEMM under the power monitor would replace the
+derived runs. The B200 and GB200 presets have no power model yet, so their large GEMMs are
+optimistic.
 
 ## 1.7 What the roofline leaves out
 
