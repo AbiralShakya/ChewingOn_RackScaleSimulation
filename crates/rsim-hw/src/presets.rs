@@ -182,6 +182,7 @@ pub fn h100_sxm() -> GpuSpec {
         opcode_timing: BTreeMap::new(),
         tma: TmaSpec::default(),
         power: None,
+        issue: Default::default(),
     }
 }
 
@@ -341,6 +342,7 @@ pub fn b200() -> GpuSpec {
         opcode_timing: BTreeMap::new(),
         tma: TmaSpec::default(),
         power: None,
+        issue: Default::default(),
     }
 }
 

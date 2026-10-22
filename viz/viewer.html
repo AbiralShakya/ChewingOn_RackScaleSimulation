@@ -139,7 +139,7 @@ const FAMILIES = [
   ["issued", "Issued", "--c-issued", ["selected"]],
   ["mem", "Memory (long scoreboard, LG throttle)", "--c-mem", ["long_scoreboard", "lg_throttle"]],
   ["dep", "Dependency (fixed latency, short scoreboard)", "--c-dep", ["wait", "short_scoreboard"]],
-  ["pipe", "Pipe / MIO throttle", "--c-pipe", ["math_pipe_throttle", "mio_throttle"]],
+  ["pipe", "Pipe / MIO throttle, dispatch", "--c-pipe", ["math_pipe_throttle", "mio_throttle", "dispatch"]],
   ["async", "mbarrier / TMA wait", "--c-async", ["async_wait", "tma_wait"]],
   ["tensor", "Tensor core (wait, throttle)", "--c-tensor", ["tensor_wait", "tensor_throttle"]],
   ["sync", "Barrier, fence, branch", "--c-sync", ["barrier", "membar", "branch_resolving"]],

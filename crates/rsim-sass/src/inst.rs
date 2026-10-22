@@ -121,6 +121,16 @@ pub mod flags {
     pub const LDSM_X2: u32 = 128;
 }
 
+/// One vector-register source operand read through the register file:
+/// operand slot (0 = a, 1 = b, 2 = c, 3 = d, the order of the reuse flags),
+/// first register and number of consecutive 32-bit registers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RfOperand {
+    pub slot: u8,
+    pub reg: Reg,
+    pub width: u8,
+}
+
 /// Decoded once at parse time.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct InstMeta {
@@ -135,6 +145,11 @@ pub struct InstMeta {
     /// MMA shape (m, n, k) from the modifiers, and operand dtype.
     pub mma: Option<(u32, u32, u32)>,
     pub dtype: &'static str,
+    /// Register-file source operands (`rf[..rf_n]`), for the register bank
+    /// and operand reuse model. Uniform registers, predicates, RZ,
+    /// immediates and constants are not register-file reads.
+    pub rf: [RfOperand; 4],
+    pub rf_n: u8,
 }
 
 impl InstMeta {
@@ -232,6 +247,7 @@ impl InstMeta {
                     }),
             };
         }
+        let (rf, rf_n) = crate::parse::rf_operands(opcode, class, operands);
         Self {
             flags: f,
             imm_last,
@@ -240,6 +256,8 @@ impl InstMeta {
             bar_threads,
             mma,
             dtype,
+            rf,
+            rf_n,
         }
     }
 }
