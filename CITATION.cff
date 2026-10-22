@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use rackscale in your work, please cite it as below."
+title: "rackscale: Cycle-Level Rack-Scale GPU Simulation from SASS to NVLink"
+authors:
+  - family-names: Shakya
+    given-names: Abiral
+type: software
+license: Apache-2.0
+repository-code: "https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation"
+url: "https://abiralshakya.github.io/ChewingOn_RackScaleSimulation/"
+version: 0.1.0
+date-released: 2026-10-22
+keywords:
+  - GPU simulation
+  - cycle-level simulation
+  - NVLink
+  - Blackwell
+  - LLM inference

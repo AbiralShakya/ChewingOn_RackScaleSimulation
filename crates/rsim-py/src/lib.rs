@@ -358,9 +358,33 @@ fn presets() -> String {
     serde_json::json!({ "gpus": gpus, "systems": rsim_hw::presets::SYSTEM_PRESETS }).to_string()
 }
 
+/// rsim_main(argv, prog="rsim") -> exit code. Runs the `rsim` command line
+/// (argv without the program name), so `pip install rackscale` also gives
+/// `rsim` and the `rackscale presets|kernel|validate|viz|...` commands.
+#[pyfunction]
+#[pyo3(signature = (argv, prog = "rsim"))]
+fn rsim_main(py: Python<'_>, argv: Vec<String>, prog: &str) -> i32 {
+    let args = std::iter::once(prog.to_string()).chain(argv);
+    let code = py.allow_threads(move || rsim_cli::run_args(args));
+    if code == std::process::ExitCode::SUCCESS {
+        0
+    } else {
+        // ExitCode is opaque; clap's usage errors (2) and runtime errors (1) both map to 1 here.
+        1
+    }
+}
+
+/// Version of the simulator core (the workspace version).
+#[pyfunction]
+fn version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(simulate, m)?)?;
+    m.add_function(wrap_pyfunction!(rsim_main, m)?)?;
+    m.add_function(wrap_pyfunction!(version, m)?)?;
     m.add_function(wrap_pyfunction!(kernel, m)?)?;
     m.add_function(wrap_pyfunction!(viz, m)?)?;
     m.add_function(wrap_pyfunction!(presets, m)?)?;

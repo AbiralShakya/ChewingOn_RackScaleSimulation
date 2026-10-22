@@ -1,0 +1,113 @@
+name: Release
+# Push a tag vX.Y.Z (matching [workspace.package] version in Cargo.toml) to build wheels for
+# Linux and macOS, standalone `rsim` binaries, a GitHub release, and publish to PyPI.
+# PyPI publishing uses trusted publishing: register this repository and the `pypi` environment
+# once at https://pypi.org/manage/account/publishing/ (project name `rackscale`).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheels:
+    name: wheel ${{ matrix.target }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, target: x86_64}
+          - {os: ubuntu-24.04-arm, target: aarch64}
+          - {os: macos-14, target: aarch64}
+          - {os: macos-13, target: x86_64}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: auto
+      - name: Smoke test the wheel
+        if: matrix.os != 'macos-13' || matrix.target == 'x86_64'
+        run: |
+          python -m venv /tmp/w && . /tmp/w/bin/activate
+          pip install dist/*.whl
+          rackscale --version && rsim presets && rackscale models
+          rackscale decode llama3-8b --system hgx_h100_8 --tp 8 --layers 1 --fast
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}-${{ matrix.target }}
+          path: dist
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist
+
+  binaries:
+    name: rsim ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, name: linux-x86_64}
+          - {os: ubuntu-24.04-arm, name: linux-aarch64}
+          - {os: macos-14, name: macos-aarch64}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p rsim-cli
+      - run: |
+          mkdir -p out
+          tar -C target/release -czf out/rsim-${{ matrix.name }}.tar.gz rsim
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rsim-${{ matrix.name }}
+          path: out
+
+  release:
+    needs: [wheels, sdist, binaries]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+  pypi:
+    needs: [wheels, sdist]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "{wheel-*,sdist}"
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1

@@ -1,0 +1,107 @@
+site_name: rackscale
+site_description: Cycle-level simulation of a whole GPU rack, from SASS instructions up to NVLink collectives.
+site_url: https://abiralshakya.github.io/ChewingOn_RackScaleSimulation/
+repo_url: https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation
+repo_name: AbiralShakya/ChewingOn_RackScaleSimulation
+edit_uri: edit/main/docs/
+copyright: Apache-2.0 · rackscale contributors
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: green
+      toggle: {icon: material/weather-night, name: Dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: green
+      toggle: {icon: material/weather-sunny, name: Light mode}
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+
+hooks:
+  - docs/hooks.py
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - def_list
+  - toc: {permalink: true}
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight: {anchor_linenums: true}
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed: {alternate_style: true}
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.arithmatex: {generic: true}
+  - pymdownx.snippets: {base_path: ["."], check_paths: true}
+
+exclude_docs: |
+  hooks.py
+  __pycache__/
+  reference/gen_cli.py
+  img/plot_per_sm.py
+  book/scripts/
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Install and quickstart: getting-started.md
+      - Examples gallery: examples.md
+  - Tutorials:
+      - 1. One kernel at cycle level: tutorials/single-kernel.md
+      - 2. A model on an NVL72 rack: tutorials/rack-run.md
+      - 3. Capture an engine, replay on a rack: tutorials/capture-replay.md
+      - 4. Drive it from an agent (MCP): tutorials/agent.md
+  - Guide:
+      - book/README.md
+      - 1. Rooflines: book/01-rooflines.md
+      - 2. Inside one GPU: book/02-inside-the-gpu.md
+      - 3. Kernels, SASS, cycles: book/03-kernels-sass-cycles.md
+      - 4. Networks and collectives: book/04-networks-collectives.md
+      - 5. Parallelism: book/05-parallelism.md
+      - 6. Inference: book/06-inference.md
+      - 7. Training: book/07-training.md
+      - 8. Async RL: book/08-async-rl.md
+      - 9. Validation: book/09-validation.md
+      - 10. Bring your own workload: book/10-bring-your-own-workload.md
+  - Reference:
+      - Command line: reference/cli.md
+      - Python API: reference/python.md
+      - Workload format: WORKLOAD_FORMAT.md
+      - Capture and replay: CAPTURE.md
+      - Viewer: VIZ.md
+      - Agent API and MCP: AGENT_API.md
+  - Internals:
+      - Architecture: ARCHITECTURE.md
+      - Network model: NETWORK.md
+      - Calibration: CALIBRATION.md
+      - Blackwell microarchitecture: BLACKWELL.md
+      - Results: RESULTS.md
+  - Contributing: contributing.md

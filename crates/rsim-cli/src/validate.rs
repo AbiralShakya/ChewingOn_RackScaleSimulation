@@ -109,7 +109,7 @@ fn run_clock_mhz(k: &Value) -> Option<f64> {
 
 pub fn run(reference: &Path, base: &rsim_hw::GpuSpec, only: &[String]) -> Result<Vec<Row>> {
     use rayon::prelude::*;
-    let doc: Value = serde_json::from_str(&std::fs::read_to_string(reference)?)?;
+    let doc: Value = serde_json::from_str(&super::read(reference)?)?;
     let dir = reference.parent().unwrap_or(Path::new("."));
     let kernels: Vec<&Value> = doc["kernels"]
         .as_array()
@@ -160,7 +160,7 @@ fn row(k: &Value, dir: &Path, base: &rsim_hw::GpuSpec) -> Result<Option<Row>> {
     // An Accel-Sim/NVBit trace (exact control flow and addresses) wins
     // over replaying bare SASS with solved trip counts.
     if let (Some(tf), Some(meas)) = (k["trace_file"].as_str(), num(k, "sm__cycles_elapsed.avg")) {
-        let src = std::fs::read_to_string(dir.join(tf))?;
+        let src = super::read(&dir.join(tf))?;
         let t = rsim_sass::accelsim::parse_trace(&src).map_err(anyhow::Error::msg)?;
         let launch = KernelLaunch::from_trace(t);
         if let Some(sim) = simulate(gpu, launch) {
@@ -185,7 +185,7 @@ fn row(k: &Value, dir: &Path, base: &rsim_hw::GpuSpec) -> Result<Option<Row>> {
     ) else {
         return Ok(None);
     };
-    let src = std::fs::read_to_string(dir.join(sass))?;
+    let src = super::read(&dir.join(sass))?;
     let progs = rsim_sass::parse_listing(&src)?;
     let Some(prog) = progs
         .into_iter()
