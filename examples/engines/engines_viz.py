@@ -6,18 +6,19 @@ B300 node and a GB300 NVL72 rack, in one viewer page.
 DIR is the data/engine-captures branch's rackscale_caps/ with its tarballs unpacked:
   vllm_l1b_b1/{vllm_l1b_b1/, graphrun_vllm_l1b_b1.json}         vLLM batch 1 (`rackscale capture`)
   vllm_l1b_b32_nographs/{vllm_l1b_c/, graphrun_vllm_l1b.json}   vLLM batch 32
-  megakernel_timing*.json                                        the megakernel's own per-task timing
-  mk_allcta/pass_*.rpath.gz (optional)                           every CTA of one megakernel launch
+  mk_l1b_hazy/mk_l1b/                                            the megakernel's capture (launch times)
+  megakernel_timing*.json (optional)                             the megakernel's own per-task timing
 
 What is simulated and what is measured:
 
 * vLLM: the captured streams of one decode step are replayed. Every kernel whose warp path
   replays is re-simulated at cycle level; the rest (and every kernel's launch window) keep their
   duration from the native CUDA-graph run (Nsight Systems), so the step matches what vLLM serves.
-* Megakernel: the per-SM task schedule comes from the kernel's own clock64 stamps on hardware
-  (Hazy's timing build). With an all-CTA recording, the launch is also replayed at cycle level:
-  the inter-SM counters become `GlobalWait`/`GlobalAdd`, and the instruction-fetch, counter and
-  timing-flush accesses are probed to give the simulated schedule of the same tasks.
+* Megakernel: without a timing file, the launch is rebuilt from Hazy's own scheduler
+  (`rackscale.megakernel`) and replayed at cycle level, every CTA, with the inter-SM counters as
+  `GlobalWait`/`GlobalAdd` and the per-SM task schedule from probes; the capture gives the
+  measured launch time it is compared with. With a timing file (Hazy's timing build), the
+  measured per-SM schedule is shown instead.
 * Node and rack: data-parallel replicas (each GPU serves its own batch). Llama-1B is too small to
   shard, and the megakernel has no tensor-parallel version.
 """
@@ -32,7 +33,7 @@ import sys
 from collections import Counter
 
 import rackscale as rs
-from rackscale import record, replay
+from rackscale import megakernel, record, replay
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -40,6 +41,7 @@ sys.path.insert(0, os.path.join(REPO, "examples", "capture"))
 from compare_graph_run import load_graph_run  # noqa: E402
 
 B300 = "configs/hgx_b300_8_calibrated.yaml"
+B300_CLOCK_MHZ = 2032  # the calibrated B300's SM clock (calibration/results/b300-sxm6-ac-sm103)
 SYSTEMS = [("1 GPU", B300, 1), ("HGX B300 node", B300, 8), ("GB300 NVL72", "gb300_nvl72", 72)]
 HAZY_OPS = ["NoOp", "RMS + QKV matvec + RoPE + KV append", "partial attention", "attention reduction",
             "O proj + residual", "RMS + up/gate matvec + SiLU", "down proj + residual", "RMS + LM head"]
@@ -113,6 +115,7 @@ def hazy_measured(path):
             if op == 0 or not ts[0] or not ts[4]:
                 continue
             start, end = ts[0], ts[4]
+            start = ts[44] or start  # consumers reach the inter-SM wait
             ready = ts[45] if ts[45] else (ts[5] or start)
             layer = ins["args"].get("layer_idx", 0) if isinstance(ins.get("args"), dict) else 0
             ns = lambda c: round((base + c) * 1e3 / mhz, 2)  # noqa: E731
@@ -145,6 +148,66 @@ def megakernel_runs(timing_json, tmp, label="Hazy megakernel, batch 1", wall_jso
     return runs
 
 
+def megakernel_sim_runs(tmp, warp_sms, capture=None, label="Hazy megakernel, batch 1", context=40):
+    """The megakernel rebuilt from Hazy's own scheduler (`rackscale.megakernel`) and replayed at
+    cycle level: one launch of 148 persistent CTAs per token, then the argmax over the logits.
+    `capture` (the mk_l1b `rackscale capture`) supplies the measured per-launch GPU times."""
+    sched = megakernel.hazy_llama_schedule(megakernel.LLAMA_3_2_1B, 148, context=context)
+    rp = os.path.join(tmp, "hazy_llama1b.rpath.gz")
+    megakernel.write_rpath(sched, rp)
+    meas = measured_launches(capture) if capture else {}
+    mk_us, argmax_us = meas.get("megakernel"), meas.get("argmax", 33.2)
+    runs = []
+    for sname, system, dp in SYSTEMS:
+        wl = {"name": f"{label} · {sname}", "spmd": {"world": dp, "program": {"streams": [[
+            {"op": "kernel", "name": "hazy_llama1b_megakernel (persistent, 148 CTAs)",
+             "kernel": {"type": "path", "path": rp}},
+            {"op": "kernel", "name": "argmax over the logits (torch reduce)",
+             "kernel": {"type": "fixed", "ns": argmax_us * 1e3, "sms": 1}}]]}}}
+        out = os.path.join(tmp, f"mksim_{dp}.json")
+        rs.viz(system, wl, out, name=f"{label} · {sname}", detail_ranks=[0], warp_sms=warp_sms)
+        run = bundle_runs(out)[0]
+        run["span_sms"] = {"argmax over the logits (torch reduce)": 1}
+        ki = next(i for i, k in enumerate(run["kernels"]) if k["rank"] == 0 and k.get("d", -1) >= 0)
+        k = run["kernels"][ki]
+        clock = B300_CLOCK_MHZ
+        tasks = megakernel.tasks_from_probes(sched, run["details"][k["d"]].get("probes", []), clock)
+        sim_us = k["cycles"] / clock
+        vs = f" Measured on B300: {mk_us:.0f} µs per launch (median of {meas['n']} tokens), so this replay is " \
+             f"{100 * (sim_us / mk_us - 1):+.0f}%." if mk_us else ""
+        note = (f"One decode token of the Hazy Research low-latency Llama-3.2-1B megakernel ({context}-token context): "
+                f"a single launch of {sched.sm_count} persistent CTAs working through {len(sched.tasks)} tasks, "
+                f"then an argmax kernel. The task list, its split into blocks, the SM each task runs on and every "
+                f"inter-SM dependency come from Hazy's own scheduler; the warp roles follow its matvec pipeline "
+                f"(weights stream ahead of the inter-SM wait). Simulated launch: {sim_us:.0f} µs.{vs}")
+        run["megakernels"] = [megakernel.megakernel_entry(sched, tasks, "simulated", kernel=ki, rank=0,
+                                                          label="Llama-3.2-1B decode token", note=note)]
+        run["note"] = note
+        runs.append(run)
+    return runs
+
+
+def measured_launches(cap_dir):
+    """Median per-launch GPU time of the megakernel and of the argmax after it, from a capture."""
+    cap = json.load(open(os.path.join(cap_dir, "capture.json")))
+    names = {k: v["name"] for k, v in cap["kernels"].items()}
+    mk, am = [], []
+    for p in cap["processes"]:
+        for reg in p["regions"]:
+            for i, o in enumerate(reg):
+                if o["op"] == "kernel" and "megakernel::mk<" in names[o["kernel"]]:
+                    mk.append((o["gpu_ns"][1] - o["gpu_ns"][0]) / 1e3)
+                    nxt = reg[i + 1] if i + 1 < len(reg) else None
+                    if nxt and nxt["op"] == "kernel" and "reduce_kernel" in names[nxt["kernel"]]:
+                        am.append((nxt["gpu_ns"][1] - nxt["gpu_ns"][0]) / 1e3)
+    out = {"n": len(mk)}
+    if mk:
+        out["megakernel"] = statistics.median(mk)
+    if am:
+        out["argmax"] = statistics.median(am)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--caps", required=True)
@@ -163,7 +226,8 @@ def main():
             runs += megakernel_runs(t, a.tmp, wall_json=os.path.join(a.caps, os.path.basename(t).replace(
                 "timing", "wall_stock")))
         else:
-            print(f"no megakernel timing in {a.caps}; the page has vLLM only", file=sys.stderr)
+            cap = os.path.join(a.caps, "mk_l1b_hazy", "mk_l1b")
+            runs += megakernel_sim_runs(a.tmp, warp_sms, capture=cap if os.path.isdir(cap) else None)
     if a.only != "mk":
         runs += vllm_runs(os.path.join(a.caps, "vllm_l1b_b1", "vllm_l1b_b1"),
                           os.path.join(a.caps, "vllm_l1b_b1", "graphrun_vllm_l1b_b1.json"),

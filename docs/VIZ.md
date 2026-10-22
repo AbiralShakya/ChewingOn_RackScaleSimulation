@@ -91,6 +91,7 @@ Stall reasons are Nsight's warp states, grouped into families so the colours sta
 | mbarrier / TMA wait | `async_wait`, `tma_wait` |
 | Tensor core | `tensor_wait`, `tensor_throttle` |
 | Barrier, fence, branch | `barrier`, `membar`, `branch_resolving` |
+| Inter-SM wait | `grid_sync` (spinning on a flag or counter in global memory that another SM sets) |
 | Eligible, not selected | `not_selected` |
 | Drain / idle | `drain`, `idle` |
 
@@ -121,11 +122,65 @@ run = {
                                              seg: flat [state, start, end], iss: flat [cycle, pc]}]}],
              pc: [[role << 32 | pc, text (string id), class (string id), issued, [stall counts]]],
              warp: [stall counts], warp_by_index: [[stall counts]], issued_by_index, mbar_wait: {"w<i>:<bar>": cycles},
-             class_mix, l1_hits, l1_misses, l2_hits, l2_misses, smem_wavefronts}],
+             class_mix, l1_hits, l1_misses, l2_hits, l2_misses, smem_wavefronts,
+             probes?: flat [sm, cta, warp index, address, cycle]}],     // see "Probes" below
   link_use: [[from node, to node, bytes, busy fraction]], link_bin_ns, node_bins: [[busy fraction per bin]],
-  collectives: [CollRecord], note?
+  collectives: [CollRecord], note?,
+  span_sms?: {span label: SMs},                   // SMs a fixed-duration span occupies (activity charts)
+  megakernels?: [{kernel (index into kernels, or -1 for a fixed span), rank, source: "simulated" | "measured",
+                  label, sm_count, ops: [task kind names], cats?: [category per kind],
+                  tasks: flat [sm, op, layer, t_fetch, t_ready, t_done] (ns from the launch),
+                  span_ns?, note?}]
 }
 ```
 
 Cycles in `details` are SM cycles relative to the kernel's `start`; times in `spans` are ns.
 Detail is deduplicated: kernels with the same capture share one `details` entry.
+
+## Megakernels and inter-SM sync
+
+A persistent megakernel (one CTA per SM working through a queue of tasks) orders its SMs through
+counters in global memory: a producer adds one after its store, a consumer spins until the
+count is reached. The simulator models that directly. In a recorded path, the spin collapses to
+one `GlobalWait {id, need}` on the flag load and the atomic becomes `GlobalAdd {id, n}`; the
+waiting warp sleeps in the `grid_sync` state until the count is reached, plus one L2 round trip,
+and the adder's increment lands one L2 latency after it issues. `trace_to_rsim.py` finds these
+flags in NVBit recordings (a strong load repeated within a few records on an address that some
+atomic increments) and `--merge` joins recordings of the same launch that sampled different
+CTAs, so a megakernel can be recorded in a few passes.
+
+The page shows a run's `megakernels` as a per-SM task Gantt (brown lead-in: waiting on other SMs),
+the SM-time anatomy (working, waiting, between tasks, idle tail) and the task kinds. A schedule is
+`measured` when it comes from the kernel's own clock stamps on hardware, and `simulated` when it
+comes from probes in the replay.
+
+### Probes
+
+A path header may list `probes: [[lo, hi], ...]`: address ranges whose memory and TMA operations
+are logged with their issue cycle (`details[].probes`). A kernel that stores a marker at each
+task's start, inputs-ready and end gets its simulated task schedule this way, event for event
+against the same stamps on hardware.
+
+### The Hazy Llama-1B megakernel without a GPU
+
+[`python/rackscale/megakernel.py`](../python/rackscale/megakernel.py) rebuilds the Hazy Research
+low-latency Llama megakernel's schedule from its own scheduler (`make_dag`, then round-robin over
+the SMs in DAG order) and writes it as an all-CTA path: a loader warp streams each task's weights
+in 64 KB iterations through a 3-stage ring of 16 KB pages, ahead of the inter-SM wait; 16
+consumer warps wait on the task's counters, load and normalise the activation and work through the
+stages; a storer writes the outputs, waits for them to land and adds to the counters it owns. The
+task list, the block split, the SM of every task and every dependency are exact; the instruction
+stream inside a task is synthetic (compute thinned to 16 FFMA per warp per iteration).
+
+```bash
+python -c "from rackscale import megakernel as m; \
+  m.write_rpath(m.hazy_llama_schedule(m.LLAMA_3_2_1B, 148, context=40), 'mk.rpath.gz')"
+rsim viz path mk.rpath.gz --gpu b300 --calibration calibration/results/b300-sxm6-ac-sm103/calibration.json -o mk.json
+python examples/engines/engines_viz.py --caps CAPS -o engines.html   # next to vLLM, 1 GPU / node / NVL72
+```
+
+On the calibrated B300 the launch replays in 429 µs against 574 µs measured per launch (median
+of 14 tokens, `rackscale capture`): 25% fast. Without the inter-SM waits the same launch takes
+369 µs, so the replay charges 60 µs to inter-SM sync while the hardware loses about 205 µs
+beyond pure weight streaming. The kernel's per-task timing build (slots 44/45, inter-SM wait
+start and end) will show which of the two is wrong: per-hop sync cost or achieved bandwidth.

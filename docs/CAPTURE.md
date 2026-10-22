@@ -90,6 +90,11 @@ with region("decode"):
 - **Recording cost.** An instrumented launch runs 10 to 100 times slower. `--max-mb` drops
   recordings that are too large (the kernel keeps its measured duration), and `--filter` limits
   recording to matching kernel names.
+- **Inter-SM flags.** Spin loops on global-memory flags (persistent megakernels, split-K
+  semaphores) are detected when the paths are converted and replay as `grid_sync` waits (see
+  [VIZ.md](VIZ.md#megakernels-and-inter-sm-sync)). A kernel whose CTAs wait on each other needs
+  every CTA recorded: record it in several passes with `RSIM_CAP_CTAS` and join them with
+  `trace_to_rsim.py --merge DIR ...`.
 - The tool needs NVBit 1.8+ and `cuobjdump` on `PATH`. Build it with `capture/nvbit/build.sh`.
 
 ## Replay
