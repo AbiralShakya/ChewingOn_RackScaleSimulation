@@ -449,7 +449,7 @@ def build(out: str, *, key: str = "config", convert: bool = True) -> str:
         if r["truncated"] or not convert:
             continue
         dst = os.path.join(kdir, kid + ".rpath")
-        rel = {v: os.path.relpath(_variant(dst, v) + ".gz", out) for v, _p, _i in VARIANTS}
+        rel = {v[0]: os.path.relpath(_variant(dst, v[0]) + ".gz", out) for v in VARIANTS}
         old = prev.get(k["key"])
         if old and old[0] == rdir and old[1] == r["bytes"] and all(os.path.exists(os.path.join(out, x))
                                                                     for x in rel.values()):
@@ -461,7 +461,7 @@ def build(out: str, *, key: str = "config", convert: bool = True) -> str:
                 k["recording"]["error"] = f"{type(e).__name__}: {e}"
                 continue
             k["recording"]["summary"] = {x: summary.get(x) for x in ("ctas", "stats", "mma_shapes")}
-        k["path"] = rel["phases"]
+        k["path"] = rel["clock"]
         k["path_variants"] = rel
     dev = procs[0]["device"]
     doc = {
@@ -486,13 +486,16 @@ def build(out: str, *, key: str = "config", convert: bool = True) -> str:
 
 
 # Wait semantics of the converted path, tried in this order by rackscale.replay.check_kernels:
-# phase counts (validated on FlashAttention), phase counts with barriers that start completed
-# (cuBLAS), and the hardware's parity rule.
-VARIANTS = (("phases", False, False), ("init", False, True), ("parity", True, True))
+# phase counts with same-parity repeats resolved by the recorded clocks; the same with barriers
+# that start completed (cuBLAS); plain phase counts (a repeat = two phases, as validated on
+# FlashAttention, where the clocks agree); and the hardware's parity rule.
+# (name, parity waits, completed-init detection, clock-resolved repeats)
+VARIANTS = (("clock", False, False, True), ("init", False, True, True), ("phases", False, False, False),
+            ("parity", True, True, True))
 
 
 def _variant(dst: str, v: str) -> str:
-    return dst if v == "phases" else dst[: -len(".rpath")] + f".{v}.rpath"
+    return dst if v == VARIANTS[0][0] else dst[: -len(".rpath")] + f".{v}.rpath"
 
 
 def _convert(trace_dir: str, dst: str, regs: int) -> dict:
@@ -503,9 +506,10 @@ def _convert(trace_dir: str, dst: str, regs: int) -> dict:
     from .nvbit.trace_to_rsim import convert
 
     summary = {}
-    for v, parity, init in VARIANTS:
+    for v, parity, init, clock in VARIANTS:
         d = _variant(dst, v)
-        sm = convert(trace_dir, d, regs=regs or None, parity_waits=parity, detect_completed_init=init)
+        sm = convert(trace_dir, d, regs=regs or None, parity_waits=parity, detect_completed_init=init,
+                     clock_waits=clock)
         summary = summary or sm
         with open(d, "rb") as f, gzip.open(d + ".gz", "wb", compresslevel=6) as g:
             shutil.copyfileobj(f, g)

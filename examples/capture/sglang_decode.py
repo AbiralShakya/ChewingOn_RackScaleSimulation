@@ -68,6 +68,7 @@ def main():
     gen(4)
     gen(steps)
     if a.measure:
+        arm()  # opens the profiler window of a timed run (RSIM_CAP_PROFILE_WINDOW)
         t1 = min(gen(1) for _ in range(3))
         n1, n2 = 16, 64
         ta = min(gen(n1) for _ in range(3))
@@ -78,6 +79,9 @@ def main():
     else:
         arm()
         gen(steps)
+        # One more forward ends the region inside the scheduler process: the engine kills that
+        # process at shutdown, before an exit hook could close it.
+        gen(1)
     eng.shutdown()
 
 

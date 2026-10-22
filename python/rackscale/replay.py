@@ -157,12 +157,18 @@ def _match(rule: dict, name: str, cls: str) -> bool:
 # ------------------------------------------------------------------ lowering
 
 def _kernel_spec(k: dict, o: dict, mode: str, base: str, sms: int) -> dict:
+    """A `path` kernel from the recording, or a `fixed` one at the measured duration.
+
+    A kernel dict may carry ``skip`` (left out of the replay), ``replay_ok``
+    (False: the recording does not replay, so the measured duration is used) and
+    ``measured_override`` (use ``measured_ns`` rather than each launch's own time).
+    """
     if mode == "paths" and k.get("path") and k.get("replay_ok", True):
         spec = {"type": "path", "path": os.path.join(base, k["path"])}
         if k.get("regs"):
             spec["regs"] = k["regs"]
         return spec
-    t = _gpu(o)
+    t = None if k.get("measured_override") else _gpu(o)
     if mode == "measured" and t:
         ns = t[1] - t[0]
     else:
@@ -268,6 +274,8 @@ def program(cap: Union[str, dict], plan: Union[None, str, dict, Plan] = None, *,
                 continue
             if t == "kernel":
                 k = kernels[o["kernel"]]
+                if k.get("skip"):
+                    continue
                 s = st(pid, o["stream"])
                 if host:
                     s.append({"op": "host", "at_ns": _host(o) - h_base})
@@ -431,7 +439,7 @@ def kernel_table(cap: Union[str, dict], gpu_system: str = "hgx_b300_8", *, only:
         row = {"kernel": kid, "name": short_name(k["name"]), "count": k["count"]}
         meas = (k.get("measured_ns") or {}).get("median")
         row["measured_us"] = meas / 1e3 if meas else None
-        variants = list((k.get("path_variants") or {"phases": k["path"]}).items())
+        variants = list((k.get("path_variants") or {"clock": k["path"]}).items())
         err = None
         for variant, path in variants:
             spec = _kernel_spec(dict(k, path=path, replay_ok=True), {}, "paths", cap["_dir"],

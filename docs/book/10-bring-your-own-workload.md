@@ -2,9 +2,10 @@
 
 Every chapter so far built its workload from a model description: a GEMM shape, a decode
 step lowered from a config, a hand-written SASS kernel. Real engines do not look like their
-descriptions. A vLLM decode step on Llama-3.2-1B launches 1,800 kernels from five libraries
-(cuBLAS, TensorRT-LLM attention, vLLM's own CUDA ops, Triton and PyTorch), and a third of
-them exist to prepare inputs and sample tokens. This chapter turns any program that runs on
+descriptions. A vLLM decode step on Llama-3.2-1B at batch 32 launches 209 kernels from five
+libraries: 81 cuBLAS GEMMs (and their split-K reductions), 72 Triton kernels (most fused by
+`torch.compile`, some of them vLLM's input preparation and sampling), 25 PyTorch kernels,
+16 vLLM CUDA ops and 16 TensorRT-LLM attention kernels. This chapter turns any program that runs on
 one GPU into a simulator workload without describing it. You run the program once, under a
 tool that records what the GPU actually did, then replay that recording on any system.
 
@@ -55,11 +56,24 @@ the kernels respond.
 
 Without `--host`, the GPU runs the captured streams as fast as their dependencies allow,
 which is what a CUDA graph does. With `--host`, the replay follows the host timeline of the
-eager run. A small model in eager mode is host-bound: vLLM's eager decode step of
-Llama-3.2-1B at batch 32 takes 10.2 ms on the B300, against 2.1 ms with CUDA graphs, while the
-kernels themselves are busy for about 1.3 ms of each step.
+eager run. A small model is host-bound: vLLM's decode step of Llama-3.2-1B at batch 32 takes
+10.2 ms on the B300 in eager mode and 2.14 ms with CUDA graphs, while the GPU is busy for 0.92 ms
+of it.
 
-## 10.3 From one GPU to a rack
+## 10.3 How close it gets
+
+On that vLLM step (captured with `torch.compile`, without graphs), replaying the captured
+streams with the graph run's own kernel durations gives 945 µs against the 942 µs GPU span the
+graph run measured: the stream and dependency structure is captured exactly. Re-simulating
+every kernel from its warp path gives 1112 µs, 18% over. The cuBLAS GEMMs come within 8–19%
+(simulated low), the Inductor norm and elementwise kernels within 5–22%. The miss is
+concentrated in one kernel, TensorRT-LLM's decode attention, which the SM model runs 2.2x slow,
+and one cuBLAS split-K GEMM whose barrier protocol does not convert yet (it keeps its measured
+time). Both are visible because the capture puts every kernel of the engine in front of the
+model, which hand-written workloads never did. The tables are in
+[docs/CAPTURE.md](../CAPTURE.md).
+
+## 10.4 From one GPU to a rack
 
 A capture is what one GPU ran. A parallelism plan adds communication and replicates or
 splits the program. It never changes a kernel:
@@ -81,9 +95,12 @@ runs GEMMs with an eighth of the columns. So the capture is taken of one rank's 
 example scripts run the engine on one GPU with the per-rank shapes and dummy weights
 (`--shape llama3-70b --shard-tp 8`: heads, KV heads, MLP width and vocabulary divided by 8),
 which gives exactly the kernels a rank of the real deployment launches, then the plan adds
-the all-reduces between them.
+the all-reduces between them. For Llama-3.1-70B at TP8 and batch 32, the 162 collectives of a
+decode step (two 512 KB all-reduces per layer, plus the embedding and the logits) add 0.39 ms
+to a 6.0 ms step on an HGX B300 board, and the same on a GB300 NVL72 run as nine TP8
+replicas: TP8 never leaves one NVLink domain.
 
-## 10.4 What this cannot tell you
+## 10.5 What this cannot tell you
 
 - **Scheduling and batching policy.** A capture is one fixed batch. Continuous batching,
   admission and preemption are engine behaviour; capture each batch shape you care about.
@@ -101,8 +118,9 @@ the all-reduces between them.
 1. Capture the same model under vLLM and SGLang at batch 32. Which kernels does each engine
    launch that the other does not, and how much of the decode step do they account for?
    *(Answer: compare `capture.json`'s kernel tables. SGLang's step is about half of vLLM's
-   with CUDA graphs on the B300 (1.14 ms against 2.14 ms); most of the difference is outside
-   the GEMMs.)*
+   with CUDA graphs on the B300, 1.14 ms against 2.14 ms end to end. vLLM's GPU is idle for
+   1.2 ms of its step between graph launches, more than the whole difference, so start with
+   the host side.)*
 2. Replay a capture with `--mode measured` and with `--mode measured --host`. What does the
    gap between them say about the engine?
    *(Answer: it is the time the GPU waits for the host. A large gap means CUDA graphs, or a

@@ -65,7 +65,7 @@ def umma_flops(op, idesc):
 
 
 class Conv:
-    def __init__(self, trace_dir, primary=None, parity_waits=False, detect_completed_init=None):
+    def __init__(self, trace_dir, primary=None, parity_waits=False, detect_completed_init=None, clock_waits=None):
         self.dir = trace_dir
         base = glob.glob(os.path.join(trace_dir, "*.json"))[0][:-5]
         self.meta = json.load(open(base + ".json"))
@@ -89,6 +89,8 @@ class Conv:
         # Barriers initialised in the completed state (cuBLAS) are detected from the clock;
         # off by default with phase counts, which the FlashAttention study validated without it.
         self.detect_completed_init = parity_waits if detect_completed_init is None else detect_completed_init
+        # Same-parity repeat waits resolved from the recorded arrivals' clocks (else: two phases).
+        self.clock_waits = self.detect_completed_init if clock_waits is None else clock_waits
         self.mma_shapes = Counter()
 
     def rank(self, cta):
@@ -302,7 +304,10 @@ class Conv:
                             # The same parity again: either no phase completed since the last wait
                             # (it passes at once) or two did (FA4's lazy rescaling skips one). The
                             # recorded arrivals between the two waits decide; without any, two.
-                            between = self.phases_between(cta, bid, last_clk, r["clk"])
+                            # (Off for plain phase counts, which stay as the FlashAttention study
+                            # validated them.)
+                            between = self.phases_between(cta, bid, last_clk, r["clk"]) \
+                                if self.clock_waits else None
                             need = last + (0 if between is not None and between < 1 else 2)
                             self.stats["same_parity_waits_" + ("0" if need == last else "2")] += 1
                     need_last[bid] = (need, parity, r["clk"])
@@ -496,9 +501,9 @@ class Conv:
 
 
 def convert(trace_dir, out, primary=None, regs=None, flops=0.0, nbytes=0.0, parity_waits=False,
-            detect_completed_init=None):
+            detect_completed_init=None, clock_waits=None):
     """Write `out` (.rpath) from the recording in `trace_dir`; return a summary dict."""
-    c = Conv(trace_dir, primary, parity_waits, detect_completed_init)
+    c = Conv(trace_dir, primary, parity_waits, detect_completed_init, clock_waits)
     paths, header = c.write(out, regs, flops, nbytes)
     lens = {f"{k[0]}:{k[1]}": len(v) for k, v in paths.items() if k[0] == c.primary}
     return {"out": out, "primary": c.primary, "ctas": c.ctas, "cluster": c.cluster,

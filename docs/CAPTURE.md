@@ -143,6 +143,84 @@ routed experts by `ep`), and the example scripts take `--shard-tp`, `--shard-ep`
 A Llama-3.1-70B TP=8 rank fits on one GPU this way (`--shape llama3-70b --shard-tp 8`), and the
 replay inserts its all-reduces.
 
+## What it reproduces today (B300, October 2026)
+
+All runs below are on one B300 SXM6 AC (sm_103, driver 610, CUDA 13), captured with
+`rackscale capture` and replayed with `rackscale replay`. "Native" means Nsight Systems on the
+unmodified program. Scripts: `examples/capture/`.
+
+**vLLM 0.32, Llama-3.2-1B, batch 32, decode at ~520 tokens of context.** Captured with
+`torch.compile` and without CUDA graphs (`vllm_decode.py --no-graphs`), so the capture has the
+kernels vLLM serves; the reference is a native CUDA-graph run of the same script
+(`--cuda-graph-trace=node`, `compare_graph_run.py`).
+
+| | per decode step |
+|---|---|
+| native, CUDA graphs: kernels / GPU span / busy | 193 / 942 µs / 917 µs |
+| replay, graph-run kernel durations (checks the captured streams and dependencies) | 945 µs (+0.3%) |
+| replay, every kernel re-simulated from its warp path | 1112 µs (+18%) |
+| native end-to-end step (`--measure`, includes the host between graph launches) | 2143 µs |
+
+Kernel by kernel against the graph run (stream timing plus the measured 0.31 µs stream
+window, see `compare_graph_run.py`):
+
+| kernel | per step | native µs | simulated µs | error |
+|---|---|---|---|---|
+| cuBLAS `nvjet` 128x32 4-CTA cluster (QKV, gate/up) | 16 | 12.86 | 11.88 | −7.7% |
+| TRT-LLM `fmhaSm100f` decode attention | 16 | 10.82 | 24.28 | +124% |
+| cuBLAS `nvjet` split-K (down projection) | 16 | 10.43 | does not replay yet | |
+| cuBLAS `nvjet` 64x8 4-CTA cluster (o_proj) | 16 | 5.22 | 4.21 | −19% |
+| cuBLAS `nvjet` 64x16 2-CTA pairs | 16 | 5.09 | 4.30 | −16% |
+| Inductor `triton_red_fused_add_rms_norm` | 16 + 16 | 2.94, 2.37 | 2.30, 2.23 | −22%, −6% |
+| cuBLAS split-K reduce | 16 | 2.66 | 1.65 | −38% |
+| vLLM `reshape_and_cache_flash` | 16 | 2.37 | 2.24 | −5.6% |
+| Inductor `triton_poi_fused` (two kinds) | 31 | 1.54, 1.28 | 1.68, 1.40 | +9% |
+
+Time-weighted mean |error| over the 82% of kernel time that replays: 39%. The two outliers
+are gaps that the capture exposed: the TRT-LLM decode attention runs 2.2x slow in the SM
+model (256 CTAs at one per SM, so about twice the measured time per CTA), and the split-K
+GEMM's barrier protocol is not converted correctly yet. Kernels that do not replay
+keep their measured duration.
+
+**ThunderKittens bf16 GEMM** (`kernels/gemm/bf16_b200` built for sm_103; persistent, 2-CTA
+clusters), the benchmark binary captured whole (`--region all`):
+
+| M=N=K | native µs | simulated µs | error |
+|---|---|---|---|
+| 1024 | 6.30 | 5.94 | −5.7% |
+| 2048 | 14.62 | 14.17 | −3.1% |
+| 4096 | 85.8 | 159.1 | +85% (the L2 model misses 38% of a 64 MB working set) |
+| 8192 | 603 | 747 | +24% |
+| 16384 | 6741 | recording over the 2 GB cap | |
+
+**Llama-3.1-70B, one TP=8 rank** (vLLM, eager, dummy weights, `--shape llama3-70b --shard-tp 8`):
+10,193 launches of 50 distinct kernels per prefill and 8 decode steps; native decode step with
+CUDA graphs 6.74 ms. Scaled with `rack_scale.py`, one decode step at batch 32 (two steps
+replayed, kernels re-simulated, graph-mode launch gaps):
+
+| system | GPUs | step | kernels | all-reduce |
+|---|---|---|---|---|
+| one rank, no communication | 1 | 6.00 ms | 4.62 ms | 0 |
+| HGX B300, TP8 | 8 | 6.39 ms | 4.62 ms | 0.39 ms |
+| GB300 NVL72, TP8 x DP9 | 72 | 6.39 ms | 4.62 ms | 0.39 ms |
+
+The 162 collectives per step (two 512 KB all-reduces per layer, plus the embedding all-reduce
+and the logits all-gather) cost 0.39 ms, 6% of the step, on either system: TP8 stays inside one NVLink domain, so NVL72 only adds replicas. The eager
+capture has more elementwise kernels than vLLM serves with `torch.compile`; use
+`--no-graphs` captures for absolute numbers and `--eager` ones when the plan needs module marks.
+
+**Hazy Research low-latency Llama-1B megakernel** (built for sm_103a): 1,645 tokens/s native
+(608 µs per token). The capture is one 148-CTA x 640-thread launch per token at its native
+duration. Cycle-level replay of a megakernel needs every SM's instruction stream recorded,
+which the 4-CTA sampling does not do.
+
+**SGLang 0.5.22** (same model and batch): native decode step 1.14 ms with CUDA graphs, 15.7 ms
+eager. The capture has 2,018 launches of 50 distinct kernels (FlashInfer CuTe DSL norms,
+cuBLAS, TRT-LLM attention); its native comparison is pending.
+
+**DeepInfer** (DeepSeek-V4.1-Flash): its vendored kernels need CUDA 13.1+ and GCC 13+ to build
+for sm_103a; the build is in progress.
+
 ## What is and is not modelled
 
 Modelled: every kernel the engine launched, at cycle level from its real SASS path (or at its

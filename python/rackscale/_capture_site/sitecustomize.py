@@ -231,7 +231,34 @@ class _TorchFinder(importlib.abc.MetaPathFinder):
         return spec
 
 
+def _profile_window():
+    """RSIM_CAP_PROFILE_WINDOW=DELAY:SECONDS (under nsys --capture-range=cudaProfilerApi): once the
+    program calls arm(), every process profiles SECONDS of wall time after DELAY. For engines whose
+    subprocesses are killed at shutdown, before CUPTI could flush a range that is still open."""
+    import threading
+    import time
+
+    delay, _, dur = os.environ["RSIM_CAP_PROFILE_WINDOW"].partition(":")
+
+    def run():
+        while not (_State.arm_file and os.path.exists(_State.arm_file)):
+            time.sleep(0.05)
+        time.sleep(float(delay))
+        torch = sys.modules.get("torch")
+        if torch is None or not torch.cuda.is_initialized():
+            return
+        rt = torch.cuda.cudart()
+        rt.cudaProfilerStart()
+        time.sleep(float(dur or 1))
+        rt.cudaProfilerStop()
+
+    threading.Thread(target=run, daemon=True).start()
+
+
 def _setup():
+    if os.environ.get("RSIM_CAP_PROFILE_WINDOW"):
+        _profile_window()
+        return
     _load_tool()
     if _State.lib is None and not _State.profiler:
         return
