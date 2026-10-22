@@ -26,7 +26,7 @@ except ImportError as e:  # pragma: no cover - only when the extension is not bu
     _native = None
     _IMPORT_ERROR = e
 
-__all__ = ["simulate", "viz", "kernel", "presets", "Report", "Parallel", "lower", "models", "capture"]
+__all__ = ["simulate", "viz", "kernel", "presets", "Report", "Parallel", "lower", "models", "capture", "api", "tools"]
 
 
 def _need_native():
@@ -143,3 +143,6 @@ def kernel(gpu: str, kind: str, *dims: int, dtype: str = "bf16") -> dict:
 
 def presets() -> dict:
     return json.loads(_need_native().presets())
+
+
+from . import api, tools  # noqa: E402,F401  (agent API; imported last, it uses the functions above)

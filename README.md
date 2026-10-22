@@ -400,6 +400,20 @@ rep = rs.simulate("configs/mixed_rl_h100_b200.yaml", wl, fast=True)
 
 See [`examples/async_rl_mixed.py`](examples/async_rl_mixed.py).
 
+### Drive it from an agent (MCP) or a script (JSON API)
+
+The simulator is also a tool. `rackscale.api` takes and returns JSON, and `rackscale-mcp` serves
+the same functions over the Model Context Protocol. An agent can simulate a system, ask what bounds
+each kernel, drill into one kernel's warp roles and SASS, and test what-ifs. Every number comes with
+an error band taken from our measured validation, and every run carries its provenance.
+
+```bash
+pip install mcp && claude mcp add rackscale -- rackscale-mcp
+python examples/agent/perf_agent.py      # an agent loop: DeepSeek-V3 decode, 157k -> 692k tokens/s in 3 rounds
+```
+
+See [docs/AGENT_API.md](docs/AGENT_API.md).
+
 ### More guides (planned)
 
 These are planned, not yet in the repo. Each will land as a runnable script in `examples/`

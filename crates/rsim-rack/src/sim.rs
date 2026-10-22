@@ -526,6 +526,26 @@ impl LogicalProcess for Lp {
     }
 }
 
+/// Build one workload kernel for GPU `g`, outside a run (`Ref` and `Fixed`
+/// have no launch of their own and are rejected). Relative paths resolve
+/// against `base_dir`. Used by the agent API to drill into a single kernel.
+pub fn build_kernel(
+    g: &GpuSpec,
+    spec: &KernelSpec,
+    base_dir: &Path,
+) -> Result<KernelLaunch, SimError> {
+    if matches!(spec, KernelSpec::Fixed { .. } | KernelSpec::Ref { .. }) {
+        return Err(SimError::Workload(
+            "fixed and ref kernels have no SASS to simulate".into(),
+        ));
+    }
+    let cache = KernelCache {
+        map: Mutex::new(HashMap::new()),
+        base: base_dir.to_path_buf(),
+    };
+    cache.build(g, spec)
+}
+
 /// Builds kernels once per (GPU type, spec) and shares them across ranks.
 struct KernelCache {
     map: Mutex<HashMap<(String, String), Arc<KernelLaunch>>>,
