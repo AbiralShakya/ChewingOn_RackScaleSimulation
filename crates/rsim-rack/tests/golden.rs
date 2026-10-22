@@ -1,7 +1,8 @@
 //! Bit-exactness guard for rack runs: exact and fast mode are pinned to a
 //! digest of the whole report (wall-clock fields aside), and neither may
 //! depend on how many host threads run the PDES windows or the memoized
-//! kernels. The digests were taken before the simulator-speed work
+//! kernels. The digests are main's before the simulator-speed work, re-taken
+//! on main after the NCCL network model (#13) changed collective timing
 //! (`RSIM_GOLDEN_PRINT=1` prints new values instead of checking them).
 
 use rsim_rack::{simulate, RunConfig};
@@ -88,7 +89,7 @@ fn exact_mode_is_pinned_and_thread_count_independent() {
     assert_eq!(one, many, "exact report depends on the thread count");
     eprintln!("exact digest {:#018x}", digest(&one));
     if std::env::var_os("RSIM_GOLDEN_PRINT").is_none() {
-        assert_eq!(digest(&one), 0xf5fa_dd8a_e058_4c7e);
+        assert_eq!(digest(&one), 0xe3f4_fd94_f417_47e5);
     }
 }
 
@@ -99,7 +100,7 @@ fn fast_mode_is_pinned_and_thread_count_independent() {
     assert_eq!(one, many, "fast report depends on the thread count");
     eprintln!("fast digest {:#018x}", digest(&one));
     if std::env::var_os("RSIM_GOLDEN_PRINT").is_none() {
-        assert_eq!(digest(&one), 0x636b_ce19_91dc_7077);
+        assert_eq!(digest(&one), 0xbf02_b82a_460b_9319);
     }
 }
 
