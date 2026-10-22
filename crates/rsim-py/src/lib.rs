@@ -204,27 +204,24 @@ fn kernel_detail(
     let spec = g.clone();
     let launch = Arc::new(k);
     let l2 = launch.clone();
+    let cfg = rsim_gpu::GpuConfig {
+        kernel_window: true,
+        detail: rsim_gpu::DetailConfig {
+            pc_stats: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let cfg2 = cfg.clone();
     let done = py.allow_threads(move || {
-        let mut gpu = rsim_gpu::Gpu::new(
-            0,
-            g,
-            rsim_gpu::GpuConfig {
-                kernel_window: true,
-                detail: rsim_gpu::DetailConfig {
-                    pc_stats: true,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            false,
-        );
+        let mut gpu = rsim_gpu::Gpu::new(0, g, cfg2, false);
         gpu.submit(l2, 0, 0);
         let mut out = vec![];
         gpu.advance(u64::MAX / 2, &mut out);
         out.pop()
     });
     let d = done.ok_or_else(|| PyValueError::new_err("kernel did not complete"))?;
-    let stretch = rsim_gpu::dvfs_stretch(&spec, &launch, &d).max(1.0);
+    let stretch = rsim_gpu::dvfs_stretch(&spec, &cfg, &launch, &d, 0).max(1.0);
     let cycles = (d.end_cycle - d.start_cycle) as f64;
     let us = cycles * stretch / (spec.sm_clock_mhz / 1000.0) / 1e3;
     let slots = cycles * (spec.sm_count * spec.sub_partitions) as f64;

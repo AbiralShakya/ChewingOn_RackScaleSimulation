@@ -156,7 +156,7 @@ comparable work, measured against Nsight Compute cycles at the same clock
 |---|---|---|---|---|
 | recorded warp path (`.rpath`) | yes | 15% | +124% | B300 microbenchmarks 12/12 within 7%; FlashAttention 16 kernels within 6%; vLLM engine kernels 39% time-weighted |
 | SASS listing | yes | 8% | −23% | A100 reference kernels 9/11 within 8% |
-| synthetic template (model lowering) | yes | 20% | +85% | B300 GEMMs 15–35% fast before the sustained-clock fit; ThunderKittens GEMMs −6% to +85% |
+| synthetic template (model lowering) | yes | 12% | +85% | 54 cuBLAS GEMMs on B300: median 3.9% (decode), 19.1% (mid), 11.6% (large); ThunderKittens GEMMs −6% to +85% |
 | measured duration | — | 1% | 5% | vLLM replay with measured durations +0.3% |
 | any kernel on an uncalibrated preset (H100, H200, B200, GB200) | no | 25% | 60% | heuristic: datasheet numbers only |
 | collectives | — | 25% | 50% | heuristic: no multi-GPU system measured yet |

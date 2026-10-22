@@ -54,9 +54,9 @@ CLASSES: Dict[tuple, dict] = {
         "evidence": "A100 reference kernels 9/11 within 8%, hbm_copy -23%, l2_pointer_chase +16% (docs/CALIBRATION.md)",
     },
     ("synthetic", True): {
-        "typical_pct": 20.0, "worst_pct": 85.0, "bias": "optimistic",
-        "evidence": "synthetic GEMM/attention templates vs cuBLAS/CUTLASS on B300: large GEMMs 15-35% fast before the "
-                    "sustained-clock fit; ThunderKittens GEMMs -6% to +85% (docs/CAPTURE.md)",
+        "typical_pct": 12.0, "worst_pct": 85.0, "bias": "none",
+        "evidence": "synthetic BF16 GEMMs vs 54 measured cuBLAS GEMMs on B300: median |error| 3.9% (decode), 19.1% "
+                    "(mid), 11.6% (large) (docs/CALIBRATION.md); ThunderKittens GEMMs -6% to +85% (docs/CAPTURE.md)",
     },
     ("measured", True): {
         "typical_pct": 1.0, "worst_pct": 5.0, "bias": "none",
