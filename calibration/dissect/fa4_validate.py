@@ -4,7 +4,8 @@
     python3 fa4_validate.py <calibration.json> <tag> [--cp]
 
 Uses research/flash_attention/run_study.py's recordings and ncu ground
-truth; simulations are cached under results/sim/<tag>/.
+truth; simulations are cached under $FA_VALIDATE_CACHE/<tag>/ (default
+/tmp/rsim-fa-validate), outside the repository.
 """
 import json
 import os
@@ -18,7 +19,7 @@ import run_study as rs  # noqa: E402
 
 def main():
     cal, tag = sys.argv[1], sys.argv[2]
-    rs.SIM = os.path.join(rs.RES, "sim", tag)
+    rs.SIM = os.path.join(os.environ.get("FA_VALIDATE_CACHE", "/tmp/rsim-fa-validate"), tag)
     orig = rs.simulate
 
     def sim(key, rpath, gpu, regs=None, cal_path=None):
