@@ -951,7 +951,10 @@ pub fn attention(
                 let w = mma.op("SYNCS.PHASECHK.TRANS64.TRYWAIT P2, [UR28], R3");
                 mma.bar(w, BarOp::Wait(P_READY + 10 * st));
                 for _ in 0..(kv_blk / 16) {
-                    let pc = mma.op(&mma_opcode(Arch::Blackwell, tile_q, d, 16, dt));
+                    // P comes from tensor memory (TS form): only V is read from smem.
+                    let ts = mma_opcode(Arch::Blackwell, tile_q, d, 16, dt)
+                        .replace("gdesc[UR8], gdesc", "tmem[UR8], gdesc");
+                    let pc = mma.op(&ts);
                     mma.single_thread(pc);
                 }
             }

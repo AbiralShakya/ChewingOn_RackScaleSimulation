@@ -53,6 +53,33 @@ pub fn mma_dtype(inst: &Inst) -> &'static str {
     }
 }
 
+/// Shape of a tcgen05 MMA. Synthetic kernels name it in the opcode
+/// (`UTCHMMA.128x256x16`); recorded ones carry only FLOPs (the instruction
+/// descriptor's M*N*K), so M is taken as 128 rows per SM and K from the
+/// dtype, which recovers every FA4 and cuBLAS shape seen so far but reads an
+/// M=64 MMA as M=128 with half the N.
+pub fn umma_shape(inst: &Inst, flops: f64) -> rsim_hw::UmmaShape {
+    let pair = if inst.opcode.contains(".2CTA") { 2 } else { 1 };
+    let a_tmem = inst.operands.trim_start().starts_with("tmem");
+    let (m, n, k) = mma_shape(inst).unwrap_or_else(|| {
+        let k = match mma_dtype(inst) {
+            "fp4" => 64,
+            "fp8" | "fp6" | "int8" => 32,
+            "tf32" => 8,
+            _ => 16,
+        };
+        let m = 128 * pair;
+        (m, ((flops / (2 * m * k) as f64).round() as u64).max(8), k)
+    });
+    rsim_hw::UmmaShape {
+        m,
+        n,
+        k,
+        pair,
+        a_tmem,
+    }
+}
+
 /// FLOPs of one dynamic MMA instruction *per issuing warp*.
 pub fn mma_flops(inst: &Inst, payload: u64) -> f64 {
     if payload > 0 {

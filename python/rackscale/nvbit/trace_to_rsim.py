@@ -92,6 +92,7 @@ class Conv:
         # Same-parity repeat waits resolved from the recorded arrivals' clocks (else: two phases).
         self.clock_waits = self.detect_completed_init if clock_waits is None else clock_waits
         self.mma_shapes = Counter()
+        self.mma_by_idx = {}  # instruction index -> (M, N, K) from its descriptor
 
     def rank(self, cta):
         return cta % self.cluster
@@ -388,6 +389,7 @@ class Conv:
                 fl, shape = umma_flops(op, r["a"])
                 payload = fl
                 self.mma_shapes[(op, shape)] += 1
+                self.mma_by_idx.setdefault(r["idx"], shape)
             elif kind == WP_BAR:
                 mk, mid = K_NAMED, r["b"] & 0xF
             elif kind == WP_MEM and "MMA" in op:
@@ -474,6 +476,8 @@ class Conv:
         }
         if launch_ctas is not None:
             header["launch_ctas"] = launch_ctas
+        if self.mma_by_idx:
+            header["mma"] = {str(k): list(v) for k, v in self.mma_by_idx.items()}
         hb = json.dumps(header).encode()
         with open(out, "wb") as f:
             f.write(b"RSIMPTH1")
