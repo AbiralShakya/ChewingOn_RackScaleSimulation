@@ -382,6 +382,7 @@ dependencies = [
  "rsim-core",
  "rsim-gpu",
  "rsim-hw",
+ "rsim-net",
  "rsim-rack",
  "rsim-sass",
  "serde",

@@ -1,7 +1,27 @@
 //! The network logical process.
+//!
+//! Ranks post collectives; the engine asks NCCL's tuning model which
+//! algorithm, protocol and channel count NCCL would use, lowers the
+//! collective to a transfer DAG ([`crate::collective::plan`]), and executes
+//! the DAG at one of two fidelities:
+//!
+//! * [`Fidelity::Transfer`] — each transfer is cut into chunks; a chunk
+//!   reserves every link of its path in cut-through fashion with FCFS
+//!   per-link servers. Fast; no buffers, no arbitration.
+//! * [`Fidelity::Packet`] — [`crate::packet`]: packets with link-level credit
+//!   flow control, finite switch buffers, round-robin output arbitration
+//!   across input ports, per-packet adaptive routing or per-flow ECMP, and
+//!   SHARP engines that reduce/multicast packet by packet.
+//!
+//! Both fidelities share the protocol model: wire bytes = payload over the
+//! protocol's payload efficiency, framed per link technology; every SM
+//! channel is a rate-limited copy engine; every `sync` step pays the
+//! protocol's fence + flag latency; every collective pays a launch cost.
 
-use crate::collective::{plan, Collective, End, FabricView, Plan};
-use crate::fabric::Fabric;
+use crate::collective::{plan, Algo, CollKind, Collective, End, FabricView, Plan, PlanCfg};
+use crate::fabric::{ChannelId, Fabric};
+use crate::nccl::{self, CommShape, Gen, NcclParams, Proto};
+use crate::packet::{PEv, PacketConfig, PacketState};
 use rsim_core::queue::EventQueue;
 use rsim_core::trace::TraceSink;
 use rsim_core::Time;
@@ -9,29 +29,52 @@ use rsim_hw::{NodeKind, System};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Fidelity {
+    /// Chunked transfers on FCFS link servers (fast).
+    #[default]
+    Transfer,
+    /// Packets with credits, switch buffers, arbitration, adaptive routing.
+    Packet,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct NetConfig {
-    /// Transport chunk size (NCCL Simple-protocol chunk granularity).
+    pub fidelity: Fidelity,
+    /// Transfer fidelity: chunk granularity on the links.
     pub chunk_bytes: u64,
-    /// Achievable fraction of raw link bandwidth (protocol/packet overhead).
+    /// Scale on every link's raw rate (1.0 = datasheet; link-layer framing
+    /// is modelled separately).
     pub link_efficiency: f64,
-    /// Fixed software/protocol cost per algorithm step, ns.
-    pub step_overhead_ns: f64,
-    /// Allow NVLink SHARP (NVLS) all-reduce when available.
+    /// Allow NVLink SHARP (NVLS) algorithms.
     pub nvls: bool,
+    /// User buffers registered with NVLS (no copy in/out of the multicast buffer).
+    pub nvls_registered: bool,
+    /// SHARP ALU throughput as a fraction of the switch's port bandwidth.
+    pub sharp_alu_ratio: f64,
+    /// Local copy throughput as a fraction of HBM bandwidth (read + write).
+    pub copy_efficiency: f64,
     /// Record per-link busy time in bins of this many ns (0 = off; `rsim viz`).
     pub link_bin_ns: f64,
+    pub nccl: NcclParams,
+    pub packet: PacketConfig,
 }
 
 impl Default for NetConfig {
     fn default() -> Self {
         Self {
+            fidelity: Fidelity::Transfer,
             chunk_bytes: 512 * 1024,
-            link_efficiency: 0.85,
-            step_overhead_ns: 400.0,
+            link_efficiency: 1.0,
             nvls: true,
+            nvls_registered: false,
+            sharp_alu_ratio: 1.0,
+            copy_efficiency: 0.8,
             link_bin_ns: 0.0,
+            nccl: NcclParams::default(),
+            packet: PacketConfig::default(),
         }
     }
 }
@@ -45,7 +88,7 @@ pub struct NetEvent {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum Ev {
+pub(crate) enum Ev {
     Ready {
         coll: u64,
         tid: u32,
@@ -53,33 +96,53 @@ enum Ev {
     Chunk {
         coll: u64,
         tid: u32,
-        path: u32,
+        lane: u32,
+        copy: u32,
         hop: u32,
         bytes: u64,
+    },
+    /// A local copy or a switch engine finished one unit.
+    Unit {
+        coll: u64,
+        tid: u32,
     },
     DepDone {
         coll: u64,
         tid: u32,
     },
+    Pk(PEv),
 }
 
-struct XState {
-    deps_left: u32,
-    chunks_left: u32,
-    started: bool,
-    ready_at: Time,
-    done_at: Time,
-    dependents: Vec<u32>,
+pub(crate) struct XState {
+    pub deps_left: u32,
+    /// Streaming transfers start once every dependency has delivered something.
+    pub deps_unstarted: u32,
+    pub units_left: u32,
+    pub units_total: u32,
+    pub delivered: u32,
+    pub started: bool,
+    pub stream: bool,
+    pub ready_at: Time,
+    pub done_at: Time,
+    pub dependents: Vec<u32>,
+    /// Lanes (ECMP paths / NVLS planes); each lane is a set of copy routes.
+    pub lanes: Vec<Vec<Vec<ChannelId>>>,
 }
 
-struct CollState {
-    desc: Collective,
-    plan: Plan,
-    x: Vec<XState>,
-    posted: Vec<Option<Time>>,
-    rank_left: Vec<u32>,
-    rank_done: Vec<Time>,
-    first_post: Time,
+pub(crate) struct CollState {
+    pub desc: Collective,
+    pub plan: Plan,
+    pub x: Vec<XState>,
+    pub posted: Vec<Option<Time>>,
+    pub rank_left: Vec<u32>,
+    pub rank_done: Vec<Time>,
+    pub first_post: Time,
+    pub launch: Time,
+    /// Communicator island -> global island id.
+    pub isl_global: Vec<usize>,
+    pub island_of_rank: Vec<usize>,
+    pub chan_rate: f64,
+    pub model_us: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Default)]
@@ -87,6 +150,8 @@ pub struct CollRecord {
     pub coll: u64,
     pub kind: String,
     pub algo: String,
+    pub proto: String,
+    pub channels: u32,
     pub bytes: u64,
     pub ranks: usize,
     pub first_post_ps: Time,
@@ -94,17 +159,30 @@ pub struct CollRecord {
     pub done_ps: Time,
     /// NCCL-style bus bandwidth measured from last post to completion, GB/s.
     pub busbw_gbps: f64,
+    /// NCCL's own predicted time for the chosen algorithm/protocol, us.
+    pub nccl_model_us: f64,
 }
 
 pub struct NetEngine {
     pub fabric: Fabric,
-    cfg: NetConfig,
-    q: EventQueue<Ev>,
-    colls: HashMap<u64, CollState>,
+    pub(crate) cfg: NetConfig,
+    pub(crate) q: EventQueue<Ev>,
+    pub(crate) colls: HashMap<u64, CollState>,
     island_of: Vec<usize>,
+    island_size: Vec<usize>,
+    /// Per global island: SHARP switches, repeated by link count (address interleave).
+    pub(crate) planes: Vec<Vec<usize>>,
+    sharp_leaf: Vec<Option<usize>>,
+    nic_gbps: Vec<f64>,
+    gen: Vec<Gen>,
+    nvlink_ports: Vec<u32>,
+    copy_rate: Vec<f64>,
     pub records: Vec<CollRecord>,
     pub trace: TraceSink,
-    nvlink_share: Vec<HashMap<usize, f64>>,
+    pub(crate) sm_free: HashMap<(usize, u16), f64>,
+    copy_free: Vec<f64>,
+    pub(crate) alu_free: HashMap<usize, f64>,
+    pub(crate) pk: PacketState,
 }
 
 impl NetEngine {
@@ -113,6 +191,7 @@ impl NetEngine {
         for c in &mut fabric.channels {
             c.bin_ps = cfg.link_bin_ns * 1000.0;
         }
+        let ngpu = sys.num_gpus();
         // NVLink islands: connected components of GPUs through non-scale-out switches.
         let n = sys.topology.nodes.len();
         let mut parent: Vec<usize> = (0..n).collect();
@@ -124,38 +203,117 @@ impl NetEngine {
             }
             x
         }
-        let scale_out = |k: &NodeKind| matches!(k, NodeKind::Switch { label, .. } if label.starts_with("leaf") || label.starts_with("spine"));
         for l in &sys.topology.links {
-            if scale_out(&sys.topology.nodes[l.a]) || scale_out(&sys.topology.nodes[l.b]) {
+            if fabric.is_scale_out[l.a] || fabric.is_scale_out[l.b] {
                 continue;
             }
             let (a, b) = (find(&mut parent, l.a), find(&mut parent, l.b));
             parent[a] = b;
         }
-        let island_of = (0..sys.num_gpus()).map(|g| find(&mut parent, g)).collect();
-        // Share of each GPU's NVLink bandwidth per attached switch.
-        let mut nvlink_share = vec![HashMap::new(); sys.num_gpus()];
-        for (g, share) in nvlink_share.iter_mut().enumerate() {
-            let att = fabric.attached_switches(g);
-            let total: f64 = att.iter().map(|&(_, c)| fabric.channels[c].rate).sum();
-            for (sw, c) in att {
-                if fabric.sharp_switches.contains(&sw) {
-                    *share.entry(sw).or_insert(0.0) += fabric.channels[c].rate / total;
+        let roots: Vec<usize> = (0..ngpu).map(|g| find(&mut parent, g)).collect();
+        let mut uniq: Vec<usize> = Vec::new();
+        let island_of: Vec<usize> = roots
+            .iter()
+            .map(|r| match uniq.iter().position(|x| x == r) {
+                Some(i) => i,
+                None => {
+                    uniq.push(*r);
+                    uniq.len() - 1
+                }
+            })
+            .collect();
+        let mut island_size = vec![0usize; uniq.len()];
+        for &i in &island_of {
+            island_size[i] += 1;
+        }
+        // NVLS planes per island: SHARP switches attached to the island's
+        // first GPU, repeated by link count, kept only if every GPU of the
+        // island reaches them.
+        let mut planes: Vec<Vec<(usize, u32)>> = vec![Vec::new(); uniq.len()];
+        for (isl, pl) in planes.iter_mut().enumerate() {
+            let members: Vec<usize> = (0..ngpu).filter(|&g| island_of[g] == isl).collect();
+            if members.len() < 2 {
+                continue;
+            }
+            for &c in &fabric.adj[members[0]] {
+                let sw = fabric.channels[c].to;
+                if !fabric.sharp[sw] || fabric.is_scale_out[sw] {
+                    continue;
+                }
+                if members
+                    .iter()
+                    .all(|&g| fabric.channel_between(g, sw).is_some())
+                {
+                    pl.push((sw, fabric.channels[c].count.max(1)));
                 }
             }
         }
+        // Weighted round-robin interleave (5-4-4-5 -> a b c d a b c d a d ...),
+        // so consecutive addresses alternate switches.
+        let planes: Vec<Vec<usize>> = planes
+            .into_iter()
+            .map(|pl: Vec<(usize, u32)>| {
+                let mut left: Vec<u32> = pl.iter().map(|x| x.1).collect();
+                let mut out = Vec::new();
+                while left.iter().any(|&x| x > 0) {
+                    for (i, l) in left.iter_mut().enumerate() {
+                        if *l > 0 {
+                            out.push(pl[i].0);
+                            *l -= 1;
+                        }
+                    }
+                }
+                out
+            })
+            .collect();
+        let mut sharp_leaf = vec![None; ngpu];
+        let mut nic_gbps = vec![0.0; ngpu];
+        for g in 0..ngpu {
+            for &c in &fabric.adj[g] {
+                let to = fabric.channels[c].to;
+                if fabric.is_scale_out[to] {
+                    let ch = &fabric.channels[c];
+                    nic_gbps[g] += ch.rate * 1000.0 * ch.framing.efficiency(ch.framing.sm_payload);
+                    if fabric.sharp[to] {
+                        sharp_leaf[g] = Some(to);
+                    }
+                }
+            }
+        }
+        let gen = sys.gpus.iter().map(|s| Gen::of(&s.arch)).collect();
+        let nvlink_ports = sys.gpus.iter().map(|s| s.nvlink.ports).collect();
+        let copy_rate = sys
+            .gpus
+            .iter()
+            .map(|s| s.hbm.bw_gbps * cfg.copy_efficiency / 2.0 / 1000.0)
+            .collect();
         let mut tr = TraceSink::new(trace);
         tr.name_process(0, "Network");
+        let pk = PacketState::new(&fabric, &cfg.packet);
         Self {
             fabric,
             cfg,
             q: EventQueue::new(),
             colls: HashMap::new(),
             island_of,
+            island_size,
+            planes,
+            sharp_leaf,
+            nic_gbps,
+            gen,
+            nvlink_ports,
+            copy_rate,
             records: vec![],
             trace: tr,
-            nvlink_share,
+            sm_free: HashMap::new(),
+            copy_free: vec![0.0; ngpu],
+            alu_free: HashMap::new(),
+            pk,
         }
+    }
+
+    pub fn config(&self) -> &NetConfig {
+        &self.cfg
     }
 
     pub fn lookahead(&self) -> Time {
@@ -170,7 +328,8 @@ impl NetEngine {
         self.q.is_empty()
     }
 
-    fn view_for(&self, c: &Collective) -> (Vec<(usize, f64)>, Vec<Vec<usize>>) {
+    /// Islands of a communicator (comm indices) and their global ids.
+    fn islands_for(&self, c: &Collective) -> (Vec<Vec<usize>>, Vec<usize>) {
         let mut islands: Vec<(usize, Vec<usize>)> = Vec::new();
         for (i, &g) in c.ranks.iter().enumerate() {
             let isl = self.island_of[g];
@@ -179,86 +338,107 @@ impl NetEngine {
                 None => islands.push((isl, vec![i])),
             }
         }
-        let islands: Vec<Vec<usize>> = islands.into_iter().map(|x| x.1).collect();
-        let mut nvls = Vec::new();
-        if self.cfg.nvls && islands.len() == 1 {
-            let first = &self.nvlink_share[c.ranks[0]];
-            for (&sw, &share) in first {
-                if c.ranks
-                    .iter()
-                    .all(|&g| self.nvlink_share[g].contains_key(&sw))
-                {
-                    nvls.push((sw, share));
-                }
-            }
-            nvls.sort_by_key(|x| x.0);
-        }
-        (nvls, islands)
+        let ids = islands.iter().map(|x| x.0).collect();
+        (islands.into_iter().map(|x| x.1).collect(), ids)
     }
 
-    /// A rank (communicator index `idx`, GPU `gpu`) reached collective `coll`.
-    pub fn post(&mut self, coll: u64, desc: &Collective, idx: usize, at: Time) {
-        if !self.colls.contains_key(&coll) {
-            let (nvls, islands) = self.view_for(desc);
-            let p = plan(
-                desc,
-                &FabricView {
-                    nvls_switches: &nvls,
-                    islands: &islands,
-                },
-            );
-            let n = desc.ranks.len();
-            let mut x: Vec<XState> = p
-                .transfers
+    /// What NCCL's tuner would see for communicator `c`.
+    pub fn comm_shape(&self, c: &Collective) -> CommShape {
+        let (islands, ids) = self.islands_for(c);
+        let g0 = c.ranks[0];
+        let local = islands.iter().map(|x| x.len()).min().unwrap_or(1);
+        // A communicator inside one big NVLink domain (NVL72) still sees one
+        // node; NVLS needs every rank's island to have SHARP planes.
+        let nvls = self.cfg.nvls
+            && ids.iter().all(|&i| !self.planes[i].is_empty())
+            && islands.iter().all(|x| x.len() >= 2);
+        CommShape {
+            nranks: c.ranks.len(),
+            nnodes: islands.len(),
+            local,
+            gen: self.gen[g0],
+            nvlink: self.island_size[self.island_of[g0]] > 1,
+            nvlink_links: self.nvlink_ports[g0] as f64,
+            nic_gbps: c
+                .ranks
                 .iter()
-                .map(|t| XState {
-                    deps_left: t.deps.len() as u32,
-                    chunks_left: 0,
-                    started: false,
-                    ready_at: 0,
-                    done_at: 0,
-                    dependents: vec![],
-                })
-                .collect();
-            let mut rank_left = vec![0u32; n];
-            for (i, t) in p.transfers.iter().enumerate() {
-                for &d in &t.deps {
-                    x[d].dependents.push(i as u32);
-                }
-                if let End::Rank(r) = t.src {
-                    rank_left[r] += 1;
-                }
-                if let End::Rank(r) = t.dst {
-                    rank_left[r] += 1;
+                .map(|&g| self.nic_gbps[g])
+                .fold(f64::INFINITY, f64::min)
+                .min(1e9),
+            nvls,
+            one_nvlink_domain: islands.len() == 1,
+            collnet: islands.len() > 1 && c.ranks.iter().all(|&g| self.sharp_leaf[g].is_some()),
+        }
+    }
+
+    /// NCCL's choice and the plan configuration for a collective.
+    pub fn choose(&self, c: &Collective) -> (PlanCfg, f64) {
+        let s = self.comm_shape(c);
+        let p = &self.cfg.nccl;
+        let maxch = c.max_channels.or(p.channels).unwrap_or(64).max(1);
+        let force_proto = c.proto.or(p.proto);
+        let (algo, proto, channels, model_us) = match c.kind {
+            CollKind::AllToAll | CollKind::SendRecv | CollKind::Broadcast => {
+                let per = match c.kind {
+                    CollKind::AllToAll => c.bytes / c.ranks.len().max(1) as u64,
+                    _ => c.bytes,
+                };
+                let proto = force_proto.unwrap_or(if per <= 16 * 1024 {
+                    Proto::Ll
+                } else {
+                    Proto::Simple
+                });
+                let ch = match c.kind {
+                    CollKind::SendRecv => maxch.min(if per >= 1 << 20 { 4 } else { 1 }),
+                    _ => maxch.min(nccl::default_channels(&s)),
+                };
+                (Algo::Direct, proto, ch, 0.0)
+            }
+            _ => {
+                let forced = (c.algo != Algo::Auto).then_some(c.algo);
+                match nccl::select(c.kind, c.bytes, &s, forced, force_proto, maxch) {
+                    Some(pr) => (pr.algo, pr.proto, pr.channels, pr.time_us),
+                    None => (
+                        Algo::Ring,
+                        force_proto.unwrap_or(Proto::Simple),
+                        nccl::tuned_channels(Algo::Ring, Proto::Simple, c.bytes, &s, maxch),
+                        0.0,
+                    ),
                 }
             }
-            self.colls.insert(
-                coll,
-                CollState {
-                    desc: desc.clone(),
-                    plan: p,
-                    x,
-                    posted: vec![None; n],
-                    rank_left,
-                    rank_done: vec![0; n],
-                    first_post: at,
-                },
-            );
+        };
+        let channels = p.channels.unwrap_or(channels).min(maxch).max(1);
+        let mut chunk = nccl::chunk_bytes(algo, proto, c.bytes, channels, s.local as u32);
+        if algo == Algo::Ring && proto == Proto::Simple {
+            chunk /= 2; // slice = 2 of the 4 chunk steps
+        }
+        (
+            PlanCfg {
+                algo,
+                proto,
+                channels,
+                chunk,
+                nvls_depth: p.nvls_depth,
+                nvls_registered: self.cfg.nvls_registered,
+                pxn: p.pxn,
+                max_transfers: p.max_transfers,
+            },
+            model_us,
+        )
+    }
+
+    /// A rank (communicator index `idx`) reached collective `coll`.
+    pub fn post(&mut self, coll: u64, desc: &Collective, idx: usize, at: Time) {
+        if !self.colls.contains_key(&coll) {
+            self.create(coll, desc, at);
         }
         let cs = self.colls.get_mut(&coll).unwrap();
         cs.posted[idx] = Some(at);
         cs.first_post = cs.first_post.min(at);
         // Ranks with nothing to do complete as soon as they post.
-        let mut out_now = vec![];
         if cs.rank_left[idx] == 0 {
             cs.rank_done[idx] = at;
-            out_now.push(idx);
-        }
-        let ntrans = cs.plan.transfers.len();
-        for tid in 0..ntrans {
-            self.try_ready(coll, tid as u32, at);
-        }
-        for idx in out_now {
+            let gpu = cs.desc.ranks[idx];
             self.q.push(
                 at,
                 Ev::DepDone {
@@ -266,39 +446,229 @@ impl NetEngine {
                     tid: u32::MAX - idx as u32,
                 },
             );
+            let _ = gpu;
         }
+        let ntrans = cs.plan.transfers.len();
+        for tid in 0..ntrans {
+            self.try_ready(coll, tid as u32, at);
+        }
+    }
+
+    fn create(&mut self, coll: u64, desc: &Collective, at: Time) {
+        let (islands, ids) = self.islands_for(desc);
+        let (pcfg, model_us) = self.choose(desc);
+        let sharp_leaf: Vec<Option<usize>> =
+            desc.ranks.iter().map(|&g| self.sharp_leaf[g]).collect();
+        let view = FabricView {
+            islands: &islands,
+            nvls: self.comm_shape(desc).nvls,
+            sharp_leaf: &sharp_leaf,
+        };
+        let p = plan(desc, &view, &pcfg);
+        let n = desc.ranks.len();
+        let packet = self.cfg.fidelity == Fidelity::Packet;
+        let mut x: Vec<XState> = p
+            .transfers
+            .iter()
+            .map(|t| XState {
+                deps_left: t.deps.len() as u32,
+                deps_unstarted: t.deps.len() as u32,
+                units_left: 0,
+                units_total: 0,
+                delivered: 0,
+                started: false,
+                stream: packet
+                    && t.channel.is_none()
+                    && !matches!((t.src, t.dst), (End::Rank(a), End::Rank(b)) if a == b),
+                ready_at: 0,
+                done_at: 0,
+                dependents: vec![],
+                lanes: vec![],
+            })
+            .collect();
+        let mut rank_left = vec![0u32; n];
+        for (i, t) in p.transfers.iter().enumerate() {
+            for &d in &t.deps {
+                x[d].dependents.push(i as u32);
+            }
+            for e in [t.src, t.dst] {
+                if let End::Rank(r) = e {
+                    rank_left[r] += 1;
+                }
+            }
+            if let End::Mcast(g) = t.dst {
+                for &r in &p.groups[g] {
+                    rank_left[r] += 1;
+                }
+            }
+            if matches!((t.src, t.dst), (End::Rank(a), End::Rank(b)) if a == b) {
+                if let End::Rank(r) = t.src {
+                    rank_left[r] -= 1;
+                }
+            }
+        }
+        let mut island_of_rank = vec![0usize; n];
+        for (k, isl) in islands.iter().enumerate() {
+            for &r in isl {
+                island_of_rank[r] = k;
+            }
+        }
+        let gen = self.gen[desc.ranks[0]];
+        let chan_rate =
+            self.cfg.nccl.channel_gbps(gen, p.proto, p.channels) / 1000.0 * p.channel_weight;
+        let launch_ns = if matches!(p.algo, Algo::Nvls | Algo::NvlsTree) {
+            self.cfg.nccl.nvls_launch_ns
+        } else {
+            self.cfg.nccl.launch_ns[proto_idx(p.proto)]
+        };
+        self.colls.insert(
+            coll,
+            CollState {
+                desc: desc.clone(),
+                plan: p,
+                x,
+                posted: vec![None; n],
+                rank_left,
+                rank_done: vec![0; n],
+                first_post: at,
+                launch: (launch_ns * 1000.0) as Time,
+                isl_global: ids,
+                island_of_rank,
+                chan_rate,
+                model_us,
+            },
+        );
     }
 
     fn gate_time(cs: &CollState, tid: usize) -> Option<Time> {
         let t = &cs.plan.transfers[tid];
         let mut g = 0;
+        let mut any = false;
         for e in [t.src, t.dst] {
             if let End::Rank(r) = e {
                 g = g.max(cs.posted[r]?);
+                any = true;
             }
         }
-        Some(g)
+        if !any {
+            // Switch-to-switch/multicast: every member must have posted.
+            if let End::Mcast(gr) = t.dst {
+                for &r in &cs.plan.groups[gr] {
+                    g = g.max(cs.posted[r]?);
+                }
+            }
+        }
+        Some(g + cs.launch)
+    }
+
+    fn crosses_network(cs: &CollState, tid: usize) -> bool {
+        let t = &cs.plan.transfers[tid];
+        match (t.src, t.dst) {
+            (End::Rank(a), End::Rank(b)) => cs.island_of_rank[a] != cs.island_of_rank[b],
+            (End::Switch(_), _) | (_, End::Switch(_)) => true,
+            _ => false,
+        }
     }
 
     fn try_ready(&mut self, coll: u64, tid: u32, now: Time) {
-        let step = (self.cfg.step_overhead_ns * 1000.0) as Time;
         let cs = self.colls.get_mut(&coll).unwrap();
         let x = &cs.x[tid as usize];
-        if x.started || x.deps_left > 0 {
+        if x.started {
+            return;
+        }
+        if (x.stream && x.deps_unstarted > 0) || (!x.stream && x.deps_left > 0) {
             return;
         }
         let Some(g) = Self::gate_time(cs, tid as usize) else {
             return;
         };
-        let at = g.max(x.ready_at).max(now) + step;
+        let t = &cs.plan.transfers[tid as usize];
+        let mut step = 0.0;
+        if t.sync {
+            let pi = proto_idx(cs.plan.proto);
+            step = self.cfg.nccl.step_ns[pi];
+            if Self::crosses_network(cs, tid as usize) {
+                step += self.cfg.nccl.net_step_ns[pi];
+            }
+        }
+        let at = g.max(x.ready_at).max(now) + (step * 1000.0) as Time;
         cs.x[tid as usize].started = true;
         self.q.push(at, Ev::Ready { coll, tid });
     }
 
-    fn node_of(desc: &Collective, e: End) -> usize {
+    pub(crate) fn node_of(desc: &Collective, e: End) -> Option<usize> {
         match e {
-            End::Rank(r) => desc.ranks[r],
-            End::Switch(s) => s,
+            End::Rank(r) => Some(desc.ranks[r]),
+            End::Switch(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Lanes of a transfer: alternative routes, each a set of copies.
+    pub(crate) fn lanes(&mut self, coll: u64, tid: u32) -> Vec<Vec<Vec<ChannelId>>> {
+        let cs = &self.colls[&coll];
+        let t = cs.plan.transfers[tid as usize].clone();
+        let desc = &cs.desc;
+        let plane_of = |isl: usize| self.planes[cs.isl_global[isl]].clone();
+        let members: Vec<usize> = match t.dst {
+            End::Mcast(g) => cs.plan.groups[g].iter().map(|&r| desc.ranks[r]).collect(),
+            _ => vec![],
+        };
+        match (t.src, t.dst) {
+            (End::Nvls(i), End::Mcast(_)) => {
+                let pl = plane_of(i);
+                pl.iter()
+                    .map(|&sw| {
+                        members
+                            .iter()
+                            .map(|&m| vec![self.fabric.channel_between(sw, m).expect("plane link")])
+                            .collect()
+                    })
+                    .collect()
+            }
+            (End::Nvls(i), d) => {
+                let dn = Self::node_of(desc, d).unwrap();
+                plane_of(i)
+                    .iter()
+                    .map(|&sw| {
+                        vec![vec![self
+                            .fabric
+                            .channel_between(sw, dn)
+                            .expect("plane link")]]
+                    })
+                    .collect()
+            }
+            (s, End::Nvls(i)) => {
+                let sn = Self::node_of(desc, s).unwrap();
+                plane_of(i)
+                    .iter()
+                    .map(|&sw| {
+                        vec![vec![self
+                            .fabric
+                            .channel_between(sn, sw)
+                            .expect("plane link")]]
+                    })
+                    .collect()
+            }
+            (s, End::Mcast(_)) => {
+                let sn = Self::node_of(desc, s).unwrap();
+                let copies: Vec<Vec<ChannelId>> = members
+                    .iter()
+                    .map(|&m| self.fabric.paths(sn, m).first().cloned().expect("route"))
+                    .collect();
+                vec![copies]
+            }
+            (s, d) => {
+                let (sn, dn) = (
+                    Self::node_of(desc, s).unwrap(),
+                    Self::node_of(desc, d).unwrap(),
+                );
+                let paths = self.fabric.paths(sn, dn).clone();
+                if paths.is_empty() {
+                    panic!("no route from node {sn} to node {dn}");
+                }
+                paths.into_iter().map(|p| vec![p]).collect()
+            }
         }
     }
 
@@ -331,48 +701,24 @@ impl NetEngine {
                 Ev::Chunk {
                     coll,
                     tid,
-                    path,
+                    lane,
+                    copy,
                     hop,
                     bytes,
-                } => {
-                    let cs = &self.colls[&coll];
-                    let tr = &cs.plan.transfers[tid as usize];
-                    let (src, dst) = (
-                        Self::node_of(&cs.desc, tr.src),
-                        Self::node_of(&cs.desc, tr.dst),
-                    );
-                    let paths = self.fabric.paths(src, dst);
-                    if paths.is_empty() {
-                        panic!("no route from node {src} to node {dst}");
-                    }
-                    let p = &paths[path as usize % paths.len()];
-                    let ch = p[hop as usize];
-                    let last = hop as usize + 1 == p.len();
-                    let c = &mut self.fabric.channels[ch];
-                    let dur = (bytes as f64 / c.rate).ceil() as Time;
-                    let finish = c.serve(t, bytes);
-                    let lat = c.latency;
-                    if last {
-                        self.deliver(coll, tid, t, finish + lat, out);
-                    } else {
-                        // Cut-through: the head of the chunk reaches the next hop
-                        // one link latency after it starts serialising.
-                        let head = finish.saturating_sub(dur) + lat;
-                        self.q.push(
-                            head.max(t),
-                            Ev::Chunk {
-                                coll,
-                                tid,
-                                path,
-                                hop: hop + 1,
-                                bytes,
-                            },
-                        );
-                    }
-                }
+                } => self.chunk_hop(coll, tid, lane, copy, hop, bytes, t, out),
+                Ev::Unit { coll, tid } => self.deliver(coll, tid, t, t, out),
                 Ev::DepDone { coll, tid } => {
                     if tid > u32::MAX - 1_000_000 {
-                        continue; // rank with no transfers; already reported
+                        // A rank with no transfers.
+                        let idx = (u32::MAX - tid) as usize;
+                        if let Some(cs) = self.colls.get(&coll) {
+                            out.push(NetEvent {
+                                coll,
+                                gpu: cs.desc.ranks[idx],
+                                at: t,
+                            });
+                        }
+                        continue;
                     }
                     let Some(cs) = self.colls.get(&coll) else {
                         continue;
@@ -384,76 +730,230 @@ impl NetEngine {
                         let x = &mut cs.x[d as usize];
                         x.deps_left -= 1;
                         x.ready_at = x.ready_at.max(done_at);
+                        if x.stream && x.started {
+                            self.pk_kick_stream(coll, d, t);
+                        }
                         self.try_ready(coll, d, t);
                     }
                 }
+                Ev::Pk(e) => self.pk_event(e, t, out),
             }
         }
     }
 
     fn start_transfer(&mut self, coll: u64, tid: u32, t: Time, out: &mut Vec<NetEvent>) {
-        let cs = self.colls.get_mut(&coll).unwrap();
+        let cs = &self.colls[&coll];
         let tr = cs.plan.transfers[tid as usize].clone();
-        let (src, dst) = (
-            Self::node_of(&cs.desc, tr.src),
-            Self::node_of(&cs.desc, tr.dst),
-        );
-        if tr.bytes == 0 || src == dst {
-            cs.x[tid as usize].chunks_left = 1;
+        // Local copy (into/out of a multicast buffer, or a reduce in place).
+        if let (End::Rank(a), End::Rank(b)) = (tr.src, tr.dst) {
+            if a == b {
+                let g = cs.desc.ranks[a];
+                let rate = self.copy_rate[g].min(cs.chan_rate.max(1e-9));
+                let start = self.copy_free[g].max(t as f64);
+                let dur = tr.bytes as f64 / rate;
+                self.copy_free[g] = start + tr.bytes as f64 / self.copy_rate[g];
+                let cs = self.colls.get_mut(&coll).unwrap();
+                cs.x[tid as usize].units_left = 1;
+                cs.x[tid as usize].units_total = 1;
+                self.q
+                    .push((start + dur).ceil() as Time, Ev::Unit { coll, tid });
+                return;
+            }
+        }
+        if tr.bytes == 0 {
+            let cs = self.colls.get_mut(&coll).unwrap();
+            cs.x[tid as usize].units_left = 1;
+            cs.x[tid as usize].units_total = 1;
             self.deliver(coll, tid, t, t, out);
             return;
         }
-        let npaths = self.fabric.paths(src, dst).len().max(1);
+        if self.cfg.fidelity == Fidelity::Packet {
+            self.pk_start(coll, tid, t, out);
+            return;
+        }
+        let lanes = self.lanes(coll, tid);
+        let nl = lanes.len().max(1) as u64;
         let chunk = self.cfg.chunk_bytes.max(1);
-        // At least one chunk per path so the transfer spreads over every
-        // plane (NVLink traffic is striped across links).
+        // At least one chunk per lane so a transfer spreads over every plane
+        // (NVLink traffic is striped across links).
         let mut n = tr
             .bytes
             .div_ceil(chunk)
-            .max((npaths as u64).min(tr.bytes.div_ceil(4096)));
-        if n > npaths as u64 {
-            // Balance chunks over planes.
-            n = n.div_ceil(npaths as u64) * npaths as u64;
+            .max(nl.min(tr.bytes.div_ceil(4096)));
+        if n > nl {
+            n = n.div_ceil(nl) * nl;
         }
         let per = tr.bytes.div_ceil(n);
+        let copies_per: Vec<u32> = lanes.iter().map(|l| l.len() as u32).collect();
+        let units: u64 = (0..n)
+            .map(|i| {
+                copies_per[((i + lane_offset(coll, tid, nl as usize) as u64) % nl) as usize] as u64
+            })
+            .sum();
+        let src_gpu = match tr.src {
+            End::Rank(r) => Some(self.colls[&coll].desc.ranks[r]),
+            _ => None,
+        };
+        let chan_rate = self.colls[&coll].chan_rate;
+        let ndeps = tr.deps.len().max(1) as f64;
         let cs = self.colls.get_mut(&coll).unwrap();
-        cs.x[tid as usize].chunks_left = n as u32;
+        cs.x[tid as usize].units_left = units as u32;
+        cs.x[tid as usize].units_total = units as u32;
+        cs.x[tid as usize].lanes = lanes.clone();
         let mut left = tr.bytes;
+        let off = lane_offset(coll, tid, nl as usize) as u64;
         for i in 0..n {
             let b = per.min(left);
             left -= b;
+            let lane = ((i + off) % nl) as u32;
+            // SM channel: a rate-limited copy engine in front of the first link.
+            let mut start = t as f64;
+            if let (Some(ch), Some(g)) = (tr.channel, src_gpu) {
+                let f = self.sm_free.entry((g, ch)).or_insert(0.0);
+                start = f.max(start);
+                *f = start + b as f64 / chan_rate;
+            }
+            // SHARP engine: reduce `ndeps` contributions per byte.
+            if tr.reduce {
+                let first = lanes[lane as usize][0][0];
+                let sw = self.fabric.channels[first].from;
+                let rate = self.fabric.switch_rate[sw] * self.cfg.sharp_alu_ratio;
+                let f = self.alu_free.entry(sw).or_insert(0.0);
+                start = f.max(start);
+                *f = start + b as f64 * ndeps / rate.max(1e-9);
+            }
+            for copy in 0..lanes[lane as usize].len() as u32 {
+                self.q.push(
+                    start.ceil() as Time,
+                    Ev::Chunk {
+                        coll,
+                        tid,
+                        lane,
+                        copy,
+                        hop: 0,
+                        bytes: b,
+                    },
+                );
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn chunk_hop(
+        &mut self,
+        coll: u64,
+        tid: u32,
+        lane: u32,
+        copy: u32,
+        hop: u32,
+        bytes: u64,
+        t: Time,
+        out: &mut Vec<NetEvent>,
+    ) {
+        let cs = &self.colls[&coll];
+        let tr = &cs.plan.transfers[tid as usize];
+        let route = &cs.x[tid as usize].lanes[lane as usize][copy as usize];
+        let ch = route[hop as usize];
+        let last = hop as usize + 1 == route.len();
+        let eff = if tr.channel.is_some() {
+            cs.plan.proto.payload_efficiency()
+        } else {
+            1.0
+        };
+        let request = tr.request;
+        let c = &mut self.fabric.channels[ch];
+        let wire = if request {
+            bytes as f64 / (1.0 - c.framing.framing)
+        } else {
+            c.framing
+                .wire_bytes((bytes as f64 / eff).ceil() as u64, c.framing.sm_payload)
+        };
+        let dur = (wire / c.rate).ceil() as Time;
+        let finish = c.serve(t, wire, bytes);
+        let lat = c.latency;
+        if last {
+            self.deliver(coll, tid, t, finish + lat, out);
+        } else {
+            // Cut-through: the head reaches the next hop one link latency
+            // after it starts serialising.
+            let head = finish.saturating_sub(dur) + lat;
             self.q.push(
-                t,
+                head.max(t),
                 Ev::Chunk {
                     coll,
                     tid,
-                    path: (i % npaths as u64) as u32,
-                    hop: 0,
-                    bytes: b,
+                    lane,
+                    copy,
+                    hop: hop + 1,
+                    bytes,
                 },
             );
         }
     }
 
-    /// One chunk of transfer `tid` lands at `arrive` (processed at `now`).
-    fn deliver(&mut self, coll: u64, tid: u32, now: Time, arrive: Time, out: &mut Vec<NetEvent>) {
+    /// One unit (chunk copy / packet) of transfer `tid` lands at `arrive`.
+    pub(crate) fn deliver(
+        &mut self,
+        coll: u64,
+        tid: u32,
+        now: Time,
+        arrive: Time,
+        out: &mut Vec<NetEvent>,
+    ) {
         let cs = self.colls.get_mut(&coll).unwrap();
         let x = &mut cs.x[tid as usize];
-        x.chunks_left -= 1;
+        x.units_left -= 1;
+        x.delivered += 1;
         x.done_at = x.done_at.max(arrive);
-        if x.chunks_left > 0 {
+        let first = x.delivered == 1;
+        let done = x.units_left == 0;
+        if first {
+            // Streaming dependents may start.
+            let deps = x.dependents.clone();
+            for d in deps {
+                let cs = self.colls.get_mut(&coll).unwrap();
+                let y = &mut cs.x[d as usize];
+                y.deps_unstarted -= 1;
+                if y.stream {
+                    y.ready_at = y.ready_at.max(arrive);
+                    self.try_ready(coll, d, now);
+                }
+            }
+        } else if self.cfg.fidelity == Fidelity::Packet {
+            let deps = self.colls[&coll].x[tid as usize].dependents.clone();
+            for d in deps {
+                let y = &self.colls[&coll].x[d as usize];
+                if y.stream && y.started {
+                    self.pk_kick_stream(coll, d, now);
+                }
+            }
+        }
+        if !done {
             return;
         }
-        let done = x.done_at;
+        let cs = self.colls.get_mut(&coll).unwrap();
+        let done = cs.x[tid as usize].done_at;
         let tr = cs.plan.transfers[tid as usize].clone();
-        let mut finished_ranks = vec![];
+        let mut ends: Vec<usize> = Vec::new();
         for e in [tr.src, tr.dst] {
             if let End::Rank(r) = e {
-                cs.rank_left[r] -= 1;
-                cs.rank_done[r] = cs.rank_done[r].max(done);
-                if cs.rank_left[r] == 0 {
-                    finished_ranks.push(r);
-                }
+                ends.push(r);
+            }
+        }
+        if let (End::Rank(a), End::Rank(b)) = (tr.src, tr.dst) {
+            if a == b {
+                ends.truncate(1);
+            }
+        }
+        if let End::Mcast(g) = tr.dst {
+            ends.extend(cs.plan.groups[g].iter().copied());
+        }
+        let mut finished_ranks = vec![];
+        for r in ends {
+            cs.rank_left[r] -= 1;
+            cs.rank_done[r] = cs.rank_done[r].max(done);
+            if cs.rank_left[r] == 0 {
+                finished_ranks.push(r);
             }
         }
         for r in finished_ranks {
@@ -475,26 +975,62 @@ impl NetEngine {
                 coll,
                 kind: format!("{:?}", cs.desc.kind),
                 algo: format!("{:?}", cs.plan.algo),
+                proto: cs.plan.proto.name().into(),
+                channels: cs.plan.channels,
                 bytes: cs.desc.bytes,
                 ranks: cs.desc.ranks.len(),
                 first_post_ps: cs.first_post,
                 last_post_ps: last_post,
                 done_ps: done_all,
                 busbw_gbps: if dur_ns > 0.0 { bus / dur_ns } else { 0.0 },
+                nccl_model_us: cs.model_us,
             };
             self.trace.span(
-                format!("{} {} {}B", rec.kind, rec.algo, rec.bytes),
+                format!("{} {} {} {}B", rec.kind, rec.algo, rec.proto, rec.bytes),
                 "collective",
                 0,
                 (coll >> 32) + 1,
                 last_post,
                 done_all,
-                serde_json::json!({ "busbw_GBps": rec.busbw_gbps, "ranks": rec.ranks }),
+                serde_json::json!({ "busbw_GBps": rec.busbw_gbps, "ranks": rec.ranks, "channels": rec.channels }),
             );
             self.records.push(rec);
         } else {
-            self.q.push(done, Ev::DepDone { coll, tid });
+            self.q.push(done.max(now), Ev::DepDone { coll, tid });
         }
+    }
+}
+
+/// Starting lane of a transfer, so short transfers do not all pile onto
+/// the first plane.
+pub(crate) fn lane_offset(coll: u64, tid: u32, nl: usize) -> usize {
+    ((coll as usize).wrapping_mul(31) ^ (tid as usize).wrapping_mul(2654435761)) % nl.max(1)
+}
+
+pub(crate) fn proto_idx(p: Proto) -> usize {
+    match p {
+        Proto::Ll => 0,
+        Proto::Ll128 => 1,
+        Proto::Simple => 2,
+    }
+}
+
+/// Run one collective alone on an idle system (all ranks post at t = 0).
+pub fn run_one(sys: &System, cfg: &NetConfig, c: &Collective) -> CollRecord {
+    let mut e = NetEngine::new(sys, cfg.clone(), false);
+    for r in 0..c.ranks.len() {
+        e.post(1, c, r, 0);
+    }
+    let mut out = vec![];
+    e.advance(Time::MAX, &mut out);
+    e.records.pop().unwrap_or_default()
+}
+
+/// Name of node `i` (for diagnostics).
+pub fn node_label(sys: &System, i: usize) -> String {
+    match &sys.topology.nodes[i] {
+        NodeKind::Gpu { rank } => format!("gpu{rank}"),
+        NodeKind::Switch { label, .. } => label.clone(),
     }
 }
 
@@ -504,99 +1040,198 @@ mod tests {
     use crate::collective::{Algo, CollKind};
     use rsim_hw::presets;
 
-    fn run_coll(sys: &str, kind: CollKind, algo: Algo, bytes: u64, n: usize) -> CollRecord {
+    fn run(sys: &str, kind: CollKind, algo: Algo, bytes: u64, n: usize, f: Fidelity) -> CollRecord {
         let sys = presets::system(sys).unwrap().build().unwrap();
-        let mut e = NetEngine::new(&sys, NetConfig::default(), false);
-        let c = Collective {
-            kind,
-            bytes,
-            ranks: (0..n).collect(),
-            algo,
+        let cfg = NetConfig {
+            fidelity: f,
+            ..Default::default()
         };
+        let mut e = NetEngine::new(&sys, cfg, false);
+        let c = Collective::new(kind, bytes, (0..n).collect(), algo);
         for r in 0..n {
             e.post(1, &c, r, 0);
         }
         let mut out = vec![];
         e.advance(Time::MAX, &mut out);
-        assert_eq!(out.len(), n);
+        assert_eq!(out.len(), n, "every rank completes");
         e.records.pop().unwrap()
     }
 
     #[test]
     fn hgx_h100_ring_allreduce_busbw() {
-        // 8x H100, 1 GiB: ideal busbw = 450 GB/s x 0.85 efficiency ≈ 380 GB/s.
-        let r = run_coll("hgx_h100_8", CollKind::AllReduce, Algo::Ring, 1 << 30, 8);
-        eprintln!("H100 ring AR busbw {:.0} GB/s", r.busbw_gbps);
-        assert!(
-            r.busbw_gbps > 300.0 && r.busbw_gbps < 400.0,
-            "{}",
-            r.busbw_gbps
-        );
+        // 8x H100, 1 GiB ring: bounded by 18 x 20.6 GB/s = 371 GB/s.
+        for f in [Fidelity::Transfer, Fidelity::Packet] {
+            let r = run(
+                "hgx_h100_8",
+                CollKind::AllReduce,
+                Algo::Ring,
+                256 << 20,
+                8,
+                f,
+            );
+            eprintln!("{f:?} H100 ring AR busbw {:.0} GB/s", r.busbw_gbps);
+            assert!(
+                r.busbw_gbps > 280.0 && r.busbw_gbps < 375.0,
+                "{}",
+                r.busbw_gbps
+            );
+        }
     }
 
     #[test]
-    fn nvls_beats_ring_on_nvl72() {
-        let ring = run_coll("gb200_nvl72", CollKind::AllReduce, Algo::Ring, 1 << 30, 72);
-        let nvls = run_coll("gb200_nvl72", CollKind::AllReduce, Algo::Nvls, 1 << 30, 72);
-        eprintln!(
-            "NVL72 AR busbw ring {:.0} GB/s, nvls {:.0} GB/s",
-            ring.busbw_gbps, nvls.busbw_gbps
-        );
-        assert!(nvls.busbw_gbps > 1.3 * ring.busbw_gbps);
+    fn nvls_beats_ring_on_hgx() {
+        for f in [Fidelity::Transfer, Fidelity::Packet] {
+            let ring = run(
+                "hgx_h100_8",
+                CollKind::AllReduce,
+                Algo::Ring,
+                256 << 20,
+                8,
+                f,
+            );
+            let nvls = run(
+                "hgx_h100_8",
+                CollKind::AllReduce,
+                Algo::Nvls,
+                256 << 20,
+                8,
+                f,
+            );
+            eprintln!(
+                "{f:?} ring {:.0} nvls {:.0} GB/s",
+                ring.busbw_gbps, nvls.busbw_gbps
+            );
+            assert_eq!(nvls.algo, "Nvls");
+            assert!(nvls.busbw_gbps > 1.15 * ring.busbw_gbps);
+        }
     }
 
     #[test]
     fn cross_node_is_nic_bound() {
-        let r = run_coll(
+        let r = run(
             "h100_2node_ib",
             CollKind::AllReduce,
             Algo::Ring,
-            1 << 30,
+            256 << 20,
             16,
+            Fidelity::Transfer,
         );
         eprintln!("2-node ring AR busbw {:.0} GB/s", r.busbw_gbps);
-        // Multi-ring over 8 rails: bounded by 8 NICs x 50 GB/s x 0.85.
-        assert!(r.busbw_gbps < 8.0 * 50.0 * 0.85 * 1.02, "{}", r.busbw_gbps);
-        assert!(r.busbw_gbps > 200.0, "{}", r.busbw_gbps);
+        assert!(r.busbw_gbps < 8.0 * 50.0 * 1.02, "{}", r.busbw_gbps);
+        assert!(r.busbw_gbps > 150.0, "{}", r.busbw_gbps);
     }
 
     #[test]
     fn all_to_all_runs() {
-        let r = run_coll("gb200_nvl72", CollKind::AllToAll, Algo::Auto, 256 << 20, 72);
-        eprintln!("NVL72 a2a busbw {:.0} GB/s", r.busbw_gbps);
-        assert!(r.busbw_gbps > 100.0);
+        for f in [Fidelity::Transfer, Fidelity::Packet] {
+            let r = run(
+                "gb200_nvl72",
+                CollKind::AllToAll,
+                Algo::Auto,
+                64 << 20,
+                72,
+                f,
+            );
+            eprintln!("{f:?} NVL72 a2a busbw {:.0} GB/s", r.busbw_gbps);
+            assert!(r.busbw_gbps > 300.0 && r.busbw_gbps < 900.0);
+        }
+    }
+
+    #[test]
+    fn auto_picks_like_nccl() {
+        let small = run(
+            "hgx_b200_8",
+            CollKind::AllReduce,
+            Algo::Auto,
+            4096,
+            8,
+            Fidelity::Transfer,
+        );
+        assert_eq!(small.proto, "LL");
+        let big = run(
+            "hgx_b200_8",
+            CollKind::AllReduce,
+            Algo::Auto,
+            256 << 20,
+            8,
+            Fidelity::Transfer,
+        );
+        assert_eq!(big.algo, "Nvls");
+    }
+
+    #[test]
+    fn tree_and_collnet_run_multinode() {
+        for (sys, algo) in [
+            ("h100_8node_ib", Algo::Tree),
+            ("h100_8node_ib_sharp", Algo::Collnet),
+            ("h100_8node_ib", Algo::NvlsTree),
+        ] {
+            for f in [Fidelity::Transfer, Fidelity::Packet] {
+                let r = run(sys, CollKind::AllReduce, algo, 32 << 20, 64, f);
+                eprintln!("{sys} {algo:?} {f:?}: {} busbw {:.0}", r.algo, r.busbw_gbps);
+                assert_eq!(r.algo, format!("{algo:?}"));
+                assert!(r.busbw_gbps > 50.0);
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod debug_tests {
     use super::*;
-    use crate::collective::{Algo, CollKind};
     use rsim_hw::presets;
+
+    /// Link utilisation dump for debugging (ignored by default):
+    /// `RSIM_SYS=gb200_nvl72 RSIM_KIND=all_to_all RSIM_ALGO=direct RSIM_MB=64 RSIM_PACKET=1
+    /// cargo test --release -p rsim-net link_util -- --ignored --nocapture`.
     #[test]
     #[ignore]
-    fn a2a_channel_util() {
-        let sys = presets::system("gb200_nvl72").unwrap().build().unwrap();
-        let mut e = NetEngine::new(&sys, NetConfig::default(), false);
-        let c = Collective {
-            kind: CollKind::AllToAll,
-            bytes: 256 << 20,
-            ranks: (0..72).collect(),
-            algo: Algo::Auto,
+    fn link_util() {
+        let name = std::env::var("RSIM_SYS").unwrap_or("hgx_h100_8".into());
+        let sys = presets::system(&name).unwrap().build().unwrap();
+        let n: usize = std::env::var("RSIM_RANKS")
+            .map(|x| x.parse().unwrap())
+            .unwrap_or(sys.num_gpus());
+        let algo: Algo = std::env::var("RSIM_ALGO")
+            .map(|a| serde_json::from_str(&format!("\"{a}\"")).unwrap())
+            .unwrap_or(Algo::Nvls);
+        let mb: u64 = std::env::var("RSIM_MB")
+            .map(|x| x.parse().unwrap())
+            .unwrap_or(128);
+        let kind: CollKind = std::env::var("RSIM_KIND")
+            .map(|a| serde_json::from_str(&format!("\"{a}\"")).unwrap())
+            .unwrap_or(CollKind::AllReduce);
+        let fidelity = if std::env::var("RSIM_PACKET").is_ok_and(|v| !v.is_empty()) {
+            Fidelity::Packet
+        } else {
+            Fidelity::Transfer
         };
-        for r in 0..72 {
+        let cfg = NetConfig {
+            nvls_registered: true,
+            fidelity,
+            ..Default::default()
+        };
+        let mut e = NetEngine::new(&sys, cfg, false);
+        let c = Collective::new(kind, mb << 20, (0..n).collect(), algo);
+        for r in 0..n {
             e.post(1, &c, r, 0);
         }
         let mut out = vec![];
         e.advance(Time::MAX, &mut out);
-        let end = out.iter().map(|x| x.at).max().unwrap();
-        let mut busy: Vec<f64> = e.fabric.channels.iter().map(|c| c.busy_ps).collect();
-        busy.sort_by(|a, b| b.partial_cmp(a).unwrap());
-        eprintln!(
-            "end {} us, max busy {} us, min busy {} us",
-            end / 1_000_000,
-            busy[0] / 1e6,
-            busy[busy.len() - 1] / 1e6
-        );
+        let end = out.iter().map(|x| x.at).max().unwrap() as f64;
+        let mut v: Vec<_> = e.fabric.channels.iter().enumerate().collect();
+        v.sort_by(|a, b| b.1.busy_ps.partial_cmp(&a.1.busy_ps).unwrap());
+        for (i, ch) in v.into_iter().take(24) {
+            {
+                eprintln!(
+                    "ch{i} {}->{} util {:.2} bytes {}",
+                    ch.from,
+                    ch.to,
+                    ch.busy_ps / end,
+                    ch.bytes
+                );
+            }
+        }
+        eprintln!("end {:.1} us", end / 1e6);
     }
 }

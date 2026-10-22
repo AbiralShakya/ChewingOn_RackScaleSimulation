@@ -18,4 +18,8 @@ pub struct LinkSpec {
     pub gbps_per_dir: f64,
     /// Wire + SerDes latency, ns.
     pub latency_ns: f64,
+    /// Link technology (`nvlink4`, `nvlink5`, `ib_ndr`, `ib_xdr`, `roce400`,
+    /// `ideal`); inferred from the endpoints when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tech: Option<String>,
 }
