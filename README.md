@@ -477,9 +477,12 @@ Key design points (details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):
   the queued MMAs retire. Hopper HGMMA goes into a per-SMSP async queue waited on by
   `WARPGROUP.DEPBAR`. TMA reserves bytes on an mbarrier transaction count and streams through
   L2 and HBM, with cluster multicast.
-- **Fabric as a graph.** GPUs and switches form a topology. Transfers are chunked and reserve
-  every link on their ECMP path cut-through. Collectives are planned into DAGs (ring, NVLS
-  in-switch reduction, staggered direct all-to-all, broadcast, p2p) and reported as NCCL busbw.
+- **NCCL on a fabric graph.** GPUs and switches form a topology. Collectives follow a port of
+  NCCL 2.32's tuning model (algorithm, protocol, channels, chunking) and run as DAGs: ring,
+  double binary tree, NVLS in-switch reduction, NVLSTree, CollNet, direct all-to-all with PXN.
+  Links charge NVLink flit and IB/RoCE headers. A fast transfer-level mode and a packet-level
+  mode (credits, VOQs, adaptive routing) share the planner; both are checked against published
+  nccl-tests, TensorRT-LLM and DeepEP numbers ([docs/NETWORK.md](docs/NETWORK.md)).
 - **Parallel and deterministic.** One logical process per GPU plus one for the network,
   advanced in conservative windows whose lookahead is the minimum GPU↔network latency (80 ns on
   NVLink presets). Runs are bit-for-bit reproducible regardless of thread count.
@@ -564,7 +567,7 @@ targets, and the comparison is about scope, not quality. Corrections are welcome
 |---|---|---|---|---|
 | Primary scope | whole rack: every GPU's SMs + fabric | one GPU | distributed training systems | large-scale training clusters |
 | Compute model | cycle-level SM from SASS or synthetic kernels | cycle-level SM from SASS traces | analytical or trace-based per-op times | measured or analytical per-op times |
-| Network model | packet/chunk-level NVLink, NVSwitch (NVLS), IB | none | analytical, Garnet or ns-3 back ends | NCCL-level collectives over ns-3 |
+| Network model | NCCL algorithms/protocols on packet- or transfer-level NVLink, NVSwitch (NVLS), IB/RoCE fat-trees | none | analytical, Garnet or ns-3 back ends | NCCL-level collectives over ns-3 |
 | Blackwell `tcgen05` / TMEM / TMA | yes | no | n/a | n/a |
 | Inference (decode, MoE EP, MLA) | yes | n/a | limited | limited |
 | Engine trace ingest | PyTorch profiler (vLLM, SGLang, training) | NVBit SASS traces | Chakra execution traces | its own workload generator |
@@ -595,7 +598,7 @@ together.
 - End-to-end regression of `rsim sass` against the Nsight Compute reference kernels
 - CUTLASS NVFP4 GEMM cross-check of the B300 FP4 ceiling
 - Hopper (H100/H200) calibration runs
-- NVLink / NVSwitch fabric calibration (the current suite is single-GPU)
+- NVLink / NVSwitch fabric calibration on our own machines (the network is checked only against published numbers so far)
 - TMEM stores and `tcgen05.cp`, multi-dimensional TMA tensor maps, sparse UMMA
 - The planned guides listed under [recipes](#more-guides-planned)
 

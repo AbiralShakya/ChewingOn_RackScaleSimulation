@@ -47,12 +47,14 @@ far-die access crosses the D2D link.
 
 ## Network (`rsim-net`)
 
-The topology is a graph of GPUs and switches. Paths are ECMP shortest paths and never transit
-a GPU. A transfer is split into chunks. Each chunk reserves every link on its path in
-cut-through fashion, with FCFS per-link servers. Collectives are planned into dependency DAGs
-of transfers: ring (with one ring per path for multi-path fabrics), NVLS (reduce in the switch,
-pipelined), direct all-to-all with staggered peers, broadcast and p2p. Results are reported as
-NCCL `busbw`.
+The topology is a graph of GPUs and switches. Collectives are planned by a port of NCCL
+2.32.3's tuning model (algorithm, protocol, channels, chunking) into dependency DAGs of
+transfers: multi-ring, NCCL's double binary tree, NVLS (`multimem.ld_reduce` + multicast),
+NVLSTree, CollNet, direct all-to-all with PXN, broadcast and p2p. Links charge wire bytes
+(NVLink flit headers, IB/RoCE MTU headers, LL/LL128 flags), and every channel is an SM copy
+engine. Two fidelities share the planner: `transfer` (chunks on FCFS link servers,
+cut-through; the fast default) and `packet` (VOQs, credit flow control, adaptive/ECMP routing,
+streaming SHARP). See [NETWORK.md](NETWORK.md) for the model and its validation.
 
 ## Rack runner (`rsim-rack`)
 

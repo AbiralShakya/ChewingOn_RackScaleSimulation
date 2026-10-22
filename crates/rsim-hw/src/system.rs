@@ -82,12 +82,22 @@ pub enum TopologySpec {
     FullMesh { links_per_pair: u32, link: LinkSpec },
     /// `nodes` copies of `intra`, plus a rail-optimised scale-out network:
     /// local GPU `r` of every node attaches to leaf `r`; leaves join a
-    /// non-blocking spine.
+    /// spine layer. With `spines: 0` (default) the spine is one ideal
+    /// non-blocking switch; with `spines: k` every leaf has one uplink to
+    /// each of `k` spine switches, sized for `oversubscription` (1.0 =
+    /// full bisection), so ECMP hashing and congestion show up.
     MultiNode {
         nodes: u32,
         intra: Box<TopologySpec>,
         nic: LinkSpec,
         leaf: SwitchSpec,
+        #[serde(default)]
+        spines: u32,
+        #[serde(default = "one_f")]
+        oversubscription: f64,
+        /// Spine switch (defaults to `leaf`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        spine: Option<SwitchSpec>,
     },
     /// Arbitrary wiring. Endpoints are `gpu<i>` or `sw<j>`.
     Explicit {
@@ -107,6 +117,10 @@ pub struct ExplicitLink {
 
 fn one() -> u32 {
     1
+}
+
+fn one_f() -> f64 {
+    1.0
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -135,6 +149,8 @@ pub struct Link {
     pub gbps_per_dir: f64,
     /// One-way latency including endpoint port/PHY latencies, ns.
     pub latency_ns: f64,
+    /// Link technology override (see `LinkSpec::tech`).
+    pub tech: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -248,6 +264,7 @@ impl Builder<'_> {
             count,
             gbps_per_dir: l.gbps_per_dir * count as f64,
             latency_ns,
+            tech: l.tech.clone(),
         });
     }
 
@@ -289,6 +306,9 @@ impl Builder<'_> {
                 intra,
                 nic,
                 leaf,
+                spines,
+                oversubscription,
+                spine,
             } => {
                 let n = *nodes as usize;
                 if !ranks.len().is_multiple_of(n) {
@@ -315,23 +335,43 @@ impl Builder<'_> {
                             count: 1,
                             gbps_per_dir: nic.gbps_per_dir,
                             latency_ns: nic.latency_ns,
+                            tech: nic.tech.clone(),
                         });
                     }
                 }
-                if per > 1 {
-                    let spine = self.add_switch(leaf, "spine".into());
-                    let up = LinkSpec {
-                        gbps_per_dir: nic.gbps_per_dir * n as f64,
-                        latency_ns: 50.0,
-                    };
+                if per > 1 && *spines == 0 {
+                    let spine = self.add_switch(spine.as_ref().unwrap_or(leaf), "spine".into());
                     for &lf in &leaves {
                         self.links.push(Link {
                             a: lf,
                             b: spine,
                             count: n as u32,
-                            gbps_per_dir: up.gbps_per_dir,
-                            latency_ns: up.latency_ns,
+                            gbps_per_dir: nic.gbps_per_dir * n as f64 / oversubscription,
+                            latency_ns: 50.0,
+                            tech: nic.tech.clone(),
                         });
+                    }
+                } else if *spines > 0 {
+                    let k = *spines as usize;
+                    let sp: Vec<NodeId> = (0..k)
+                        .map(|j| {
+                            self.add_switch(spine.as_ref().unwrap_or(leaf), format!("spine{j}"))
+                        })
+                        .collect();
+                    // Each leaf has `n` down ports; split the same bandwidth
+                    // (over the oversubscription ratio) across k uplinks.
+                    let up = nic.gbps_per_dir * n as f64 / oversubscription / k as f64;
+                    for &lf in &leaves {
+                        for &s in &sp {
+                            self.links.push(Link {
+                                a: lf,
+                                b: s,
+                                count: 1,
+                                gbps_per_dir: up,
+                                latency_ns: 50.0,
+                                tech: nic.tech.clone(),
+                            });
+                        }
                     }
                 }
             }

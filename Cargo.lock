@@ -378,9 +378,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "rayon",
  "rsim-core",
  "rsim-gpu",
  "rsim-hw",
+ "rsim-net",
  "rsim-rack",
  "rsim-sass",
  "serde",

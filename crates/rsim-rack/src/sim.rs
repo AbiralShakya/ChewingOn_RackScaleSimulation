@@ -760,6 +760,9 @@ impl Flattener<'_> {
                         bytes: *bytes,
                         ranks,
                         algo: *algo,
+                        proto: None,
+                        // The communication kernel's CTAs are its channels.
+                        max_channels: (*sms > 0).then_some(*sms),
                     });
                     out.push(FlatOp::Coll {
                         label: name.clone().unwrap_or_else(|| format!("{kind:?} {bytes}B")),
@@ -805,6 +808,8 @@ impl Flattener<'_> {
                             bytes: *bytes,
                             ranks,
                             algo: rsim_net::Algo::Direct,
+                            proto: None,
+                            max_channels: (*sms > 0).then_some(*sms),
                         }),
                         idx: if is_send { 0 } else { 1 },
                         sms: *sms,

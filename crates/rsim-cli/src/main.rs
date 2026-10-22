@@ -20,6 +20,7 @@ use rsim_rack::{RunConfig, Simulation, Workload};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+mod net;
 mod validate;
 mod viz;
 
@@ -169,6 +170,12 @@ enum Cmd {
         /// Fast mode: simulate each distinct kernel once (cold GPU) and reuse it across ranks.
         #[arg(long)]
         fast: bool,
+    },
+    /// Network: nccl-tests-style sweeps, NCCL's cost model, and validation
+    /// against published numbers (see docs/NETWORK.md).
+    Net {
+        #[command(subcommand)]
+        cmd: net::NetCmd,
     },
     /// Simulate with full capture and write a zoomable viewer: rack, GPU,
     /// SMs, warps and SASS (see docs/VIZ.md).
@@ -359,6 +366,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
         Cmd::Viz { cmd } => viz::main(cmd)?,
+        Cmd::Net { cmd } => net::main(cmd)?,
         Cmd::Presets => {
             println!("GPUs:");
             for g in presets::GPU_PRESETS {
