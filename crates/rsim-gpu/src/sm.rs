@@ -5,7 +5,7 @@
 use crate::detail::{PcStat, WarpTrace};
 use crate::kernel::{BarOp, InstStream, KernelLaunch, KernelSource};
 use crate::mem::{Cache, MemSystem, Server};
-use crate::pipes::{mma_dtype, mma_flops, mma_shape, timing, Pipe, Sb, NUM_PIPES};
+use crate::pipes::{mma_dtype, mma_flops, mma_shape, timing, umma_shape, Pipe, Sb, NUM_PIPES};
 use crate::stats::{AccMap, Stall, StallCounts};
 use rsim_hw::GpuSpec;
 use rsim_sass::inst::flags;
@@ -168,6 +168,11 @@ pub struct Sm {
     pub reserved: bool,
     mio: Server,
     smem_srv: Server,
+    /// Shared-memory load wavefronts served so far, and the cycle and count
+    /// at the last tcgen05 MMA (LDS port utilisation between MMAs; stores
+    /// do not slow UMMA operand reads).
+    lds_wavefronts: u64,
+    umma_mark: (u64, u64),
     /// Per sub-partition TMEM port (`issue.tmem`).
     tmem_srv: Vec<Server>,
     tma: Server,
@@ -215,6 +220,8 @@ impl Sm {
             reserved: false,
             mio: Server::new(lsu_rate),
             // One 32-bank wavefront (128 B) per cycle at the default 128 B/clk.
+            lds_wavefronts: 0,
+            umma_mark: (0, 0),
             smem_srv: Server::new((spec.pipes.l1_bytes_per_cycle.max(1) as f64) / 128.0),
             tmem_srv: (0..spec.sub_partitions).map(|_| Server::new(1.0)).collect(),
             tma: Server::new(spec.tma.bytes_per_cycle),
@@ -1211,7 +1218,23 @@ impl Sm {
                 let k_ext = mma_shape(inst).map(|s| s.2).unwrap_or(0);
                 let rate = pair * spec.tensor.mma_rate(mma_dtype(inst), k_ext);
                 let flops = mma_flops(inst, op.payload);
-                let dur = (flops / rate).ceil().max(1.0) as u64;
+                let dur = if spec.tensor.umma_smem_bytes_per_clk > 0.0 {
+                    // Shape-aware: M padding and smem operand reads, slowed
+                    // by the LDS traffic since the previous MMA.
+                    let (c0, w0) = self.umma_mark;
+                    let port = (spec.pipes.l1_bytes_per_cycle.max(1) as f64) / 128.0;
+                    let lds = (self.lds_wavefronts - w0) as f64
+                        / port
+                        / c.saturating_sub(c0).max(1) as f64;
+                    self.umma_mark = (c, self.lds_wavefronts);
+                    let shape = umma_shape(inst, flops);
+                    spec.tensor
+                        .umma_cycles(mma_dtype(inst), shape, lds)
+                        .ceil()
+                        .max(1.0) as u64
+                } else {
+                    (flops / rate).ceil().max(1.0) as u64
+                };
                 let start = self.tensor_tail.max(c + t.lat as u64);
                 self.tensor_tail = start + dur;
                 // Visible to tcgen05.commit after the pipeline latency.
@@ -1503,6 +1526,9 @@ impl Sm {
                 let t0 = self.mio.serve(c, 1);
                 let t1 = self.smem_srv.serve(t0, ways as u64);
                 self.acc.get(kid).smem_wavefronts += ways as u64;
+                if !m.store {
+                    self.lds_wavefronts += ways as u64;
+                }
                 t1 + spec.latency.lds as u64
             }
             MemSpace::Const => c + spec.latency.ldc as u64,

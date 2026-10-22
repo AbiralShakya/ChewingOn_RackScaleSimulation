@@ -18,7 +18,7 @@ pub mod viz;
 pub mod workload;
 
 pub use report::Report;
-pub use sim::{Outcome, RunConfig, SimError, Simulation};
+pub use sim::{build_kernel, Outcome, RunConfig, SimError, Simulation};
 pub use workload::{Group, KernelSpec, Op, RankProgram, Spmd, Workload};
 
 /// Convenience: build a system from YAML text, a workload from JSON/YAML
