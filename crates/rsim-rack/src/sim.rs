@@ -38,6 +38,9 @@ pub struct RunConfig {
     /// Ranks whose kernels carry visualiser capture (`gpu.detail`); empty =
     /// all ranks. Other ranks run with capture off.
     pub detail_ranks: Vec<usize>,
+    /// Exact mode: simulate ranks that run in lockstep with an identical
+    /// rank once (see `fold`). Results are the same either way.
+    pub fold_ranks: bool,
 }
 
 impl Default for RunConfig {
@@ -51,6 +54,7 @@ impl Default for RunConfig {
             base_dir: None,
             memoize_kernels: false,
             detail_ranks: Vec::new(),
+            fold_ranks: true,
         }
     }
 }
@@ -160,6 +164,45 @@ impl KernelMemo {
     }
 }
 
+/// The memoized runs fast mode will most likely ask for: every kernel with
+/// the SM count it gets alone and next to each communication reservation
+/// of its rank (see `RankLp::start_memo_pending`). Deduplicated, in rank
+/// and stream order.
+fn memo_prefetch_jobs(lps: &[Lp]) -> Vec<(Arc<GpuSpec>, GpuConfig, Arc<KernelLaunch>, u32)> {
+    let mut seen = std::collections::HashSet::new();
+    let mut jobs = Vec::new();
+    for lp in lps {
+        let Lp::Rank(r) = lp else { continue };
+        let n = r.gpu.spec.sm_count;
+        let mut comms = vec![0u32];
+        for st in &r.streams {
+            for op in &st.ops {
+                if let FlatOp::Fixed { sms, .. } | FlatOp::Coll { sms, .. } = op {
+                    let c = (*sms).min(n - 1);
+                    if !comms.contains(&c) {
+                        comms.push(c);
+                    }
+                }
+            }
+        }
+        for st in &r.streams {
+            for op in &st.ops {
+                let FlatOp::Kernel { k, .. } = op else {
+                    continue;
+                };
+                for &comm in &comms {
+                    let want = (k.num_ctas() as u32).clamp(1, (n - comm).max(1));
+                    let reserved = n - want;
+                    if seen.insert((Arc::as_ptr(k) as usize, reserved)) {
+                        jobs.push((r.gpu.spec.clone(), r.gpu.cfg.clone(), k.clone(), reserved));
+                    }
+                }
+            }
+        }
+    }
+    jobs
+}
+
 /// Shared across ranks: the power-capped clock's wall-time factor per
 /// distinct `(kernel, reserved SMs)` (see [`rsim_gpu::dvfs_stretch`]).
 type DvfsCache = Mutex<HashMap<(usize, u32), Arc<std::sync::OnceLock<f64>>>>;
@@ -177,7 +220,7 @@ struct StreamState {
 pub struct RankLp {
     pub rank: usize,
     pub gpu: Gpu,
-    clock: Clock,
+    pub(crate) clock: Clock,
     streams: Vec<StreamState>,
     q: EventQueue<Local>,
     events: HashMap<u32, Vec<Time>>,
@@ -185,12 +228,14 @@ pub struct RankLp {
     coll_stream: HashMap<u64, usize>,
     net_lp: usize,
     lookahead: Time,
-    launch_gap: Time,
+    pub(crate) launch_gap: Time,
     pub spans: Vec<Span>,
     pub kernels: Vec<KernelDone>,
     pub finish: Time,
     memo: Option<Arc<KernelMemo>>,
     dvfs: Arc<DvfsCache>,
+    /// Exact mode: private kernel copy -> the shared kernel it was made from.
+    orig_of: HashMap<usize, usize>,
     /// Fast mode busy accounting: running memoized kernels and since when.
     memo_active: u32,
     memo_since: u64,
@@ -222,7 +267,7 @@ impl RankLp {
             .dvfs
             .lock()
             .unwrap()
-            .entry((Arc::as_ptr(k) as usize, reserved))
+            .entry((self.kernel_key(k), reserved))
             .or_default()
             .clone();
         cell.get_or_init(|| {
@@ -241,6 +286,30 @@ impl RankLp {
             rsim_gpu::dvfs_stretch(spec, &cfg, k, nominal, reserved)
         })
         .max(tc)
+    }
+
+    pub(crate) fn stream_ops(&self) -> impl Iterator<Item = &Vec<FlatOp>> {
+        self.streams.iter().map(|s| &s.ops)
+    }
+
+    /// What the report reads from a finished rank.
+    pub(crate) fn result(&self) -> (Vec<Span>, Vec<KernelDone>, Time, u64) {
+        (
+            self.spans.clone(),
+            self.kernels.clone(),
+            self.finish,
+            self.gpu.busy_cycles,
+        )
+    }
+
+    pub(crate) fn take_result(&mut self, r: (Vec<Span>, Vec<KernelDone>, Time, u64)) {
+        (self.spans, self.kernels, self.finish, self.gpu.busy_cycles) = r;
+    }
+
+    /// Identity of a kernel for caches shared across ranks.
+    pub(crate) fn kernel_key(&self, k: &Arc<KernelLaunch>) -> usize {
+        let p = Arc::as_ptr(k) as usize;
+        self.orig_of.get(&p).copied().unwrap_or(p)
     }
 
     fn ps(&self, cycle: u64) -> Time {
@@ -983,6 +1052,24 @@ impl Simulation {
                 fl.flatten(rank, &spec, ops, &mut flat)?;
                 final_streams.push(flat);
             }
+            // Exact mode: each rank simulates its own copy of every kernel's
+            // instructions (see `KernelLaunch::private_copy`); caches keyed by
+            // kernel still see the shared original.
+            let mut orig_of = HashMap::new();
+            if memo.is_none() {
+                let mut copies: HashMap<usize, Arc<KernelLaunch>> = HashMap::new();
+                for op in final_streams.iter_mut().flatten() {
+                    if let FlatOp::Kernel { k, .. } = op {
+                        let orig = Arc::as_ptr(k) as usize;
+                        let c = copies
+                            .entry(orig)
+                            .or_insert_with(|| Arc::new(k.private_copy()))
+                            .clone();
+                        orig_of.insert(Arc::as_ptr(&c) as usize, orig);
+                        *k = c;
+                    }
+                }
+            }
             let clock = Clock::from_mhz(spec.sm_clock_mhz);
             let gap = self.cfg.launch_gap_ns.unwrap_or(spec.launch_overhead_ns);
             let mut gcfg = self.cfg.gpu.clone();
@@ -1021,6 +1108,7 @@ impl Simulation {
                 finish: 0,
                 memo: memo.clone(),
                 dvfs: dvfs.clone(),
+                orig_of,
                 memo_active: 0,
                 memo_since: 0,
                 memo_held: 0,
@@ -1030,6 +1118,19 @@ impl Simulation {
                 lp.q.push(0, Local::StreamNext(s));
             }
             lps.push(Lp::Rank(Box::new(lp)));
+        }
+        if let Some(memo) = &memo {
+            // Fast mode: the memoized runs are independent cold-GPU
+            // simulations. On demand they run one at a time inside the PDES
+            // windows (every rank waits on the same one), so run the ones the
+            // workload will ask for up front, in parallel. A key's result is a
+            // pure function of its kernel and SM count: nothing else changes.
+            use rayon::prelude::*;
+            memo_prefetch_jobs(&lps)
+                .par_iter()
+                .for_each(|(spec, cfg, k, r)| {
+                    memo.get(spec, cfg, k, *r);
+                });
         }
         lps.push(Lp::Net(Box::new(NetLp {
             engine: net,
@@ -1041,7 +1142,24 @@ impl Simulation {
             .map(|h| (h * 1000.0) as Time)
             .unwrap_or(Time::MAX);
         let mut st = PdesStats::default();
-        let end = pdes::run(&mut lps, lookahead, horizon, &mut st);
+        // Exact mode folds ranks that are in lockstep onto one simulated
+        // rank (see `fold`); the result is the same as simulating each.
+        // Traces name every rank's own events, so they turn it off.
+        let fold = self.cfg.fold_ranks && memo.is_none() && !self.cfg.trace;
+        let end = if fold {
+            let mut first: HashMap<String, usize> = HashMap::new();
+            let classes: Vec<usize> = lps
+                .iter()
+                .enumerate()
+                .map(|(i, lp)| match lp {
+                    Lp::Rank(r) => *first.entry(crate::fold::signature(r)).or_insert(i),
+                    Lp::Net(_) => i,
+                })
+                .collect();
+            crate::fold::run(&mut lps, &classes, lookahead, horizon, &mut st)
+        } else {
+            pdes::run(&mut lps, lookahead, horizon, &mut st)
+        };
         let wall_s = wall.elapsed().as_secs_f64();
         Ok(build_report(
             &self.system,

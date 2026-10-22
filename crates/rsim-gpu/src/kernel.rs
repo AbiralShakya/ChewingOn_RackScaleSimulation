@@ -165,6 +165,41 @@ impl KernelLaunch {
         }
     }
 
+    /// A copy whose instruction objects are its own (recorded paths and
+    /// programs stay shared). Every dynamic instruction takes and drops a
+    /// reference to its static instruction, so GPUs simulated on different
+    /// host threads should not share them: the reference counts would
+    /// bounce between cores. Timing is unaffected.
+    pub fn private_copy(&self) -> KernelLaunch {
+        let fresh = |v: &[Arc<Inst>]| v.iter().map(|i| Arc::new((**i).clone())).collect();
+        let source = match &self.source {
+            KernelSource::Static { roles, barriers } => KernelSource::Static {
+                roles: roles
+                    .iter()
+                    .map(|r| WarpRole {
+                        insts: Arc::new(fresh(&r.insts)),
+                        ..r.clone()
+                    })
+                    .collect(),
+                barriers: barriers.clone(),
+            },
+            KernelSource::Path(p) => KernelSource::Path(Arc::new(PathKernel {
+                header: p.header.clone(),
+                program: p.program.clone(),
+                insts: fresh(&p.insts),
+                warps: p.warps.clone(),
+                tma_addrs: p.tma_addrs.clone(),
+            })),
+            // Trace ops carry their instructions per dynamic op.
+            KernelSource::Trace(t) => KernelSource::Trace(t.clone()),
+        };
+        KernelLaunch {
+            name: self.name.clone(),
+            source,
+            ..*self
+        }
+    }
+
     pub fn stream_for(&self, cta: u64, warp: u32) -> (Box<dyn InstStream>, Option<usize>) {
         match &self.source {
             KernelSource::Static { roles, .. } => {

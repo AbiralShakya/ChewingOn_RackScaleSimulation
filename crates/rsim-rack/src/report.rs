@@ -138,6 +138,11 @@ pub struct SimMeta {
     pub lookahead_ns: f64,
     pub warp_instructions: u64,
     pub sim_minstr_per_s: f64,
+    /// Ranks that stayed in lockstep with an identical lower rank for the
+    /// whole run, so were reported from it instead of simulated again, and
+    /// ranks that left lockstep part-way and were then simulated themselves.
+    pub folded_ranks: u64,
+    pub forked_ranks: u64,
 }
 
 fn fractions(c: &StallCounts) -> BTreeMap<String, f64> {
@@ -372,6 +377,8 @@ pub fn build_report(
             lookahead_ns: lookahead as f64 / 1000.0,
             warp_instructions: insts,
             sim_minstr_per_s: insts as f64 / wall_s.max(1e-9) / 1e6,
+            folded_ranks: st.folded,
+            forked_ranks: st.forked,
         },
     };
     Outcome {
@@ -479,6 +486,15 @@ impl Report {
             self.sim.lookahead_ns,
             self.sim.sim_minstr_per_s
         );
+        if self.sim.folded_ranks + self.sim.forked_ranks > 0 {
+            let _ = writeln!(
+                s,
+                "     {} of {} ranks ran in lockstep with an identical rank and were folded onto it ({} forked part-way)",
+                self.sim.folded_ranks + self.sim.forked_ranks,
+                self.world,
+                self.sim.forked_ranks
+            );
+        }
         s
     }
 }

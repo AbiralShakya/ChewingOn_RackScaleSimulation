@@ -68,3 +68,53 @@ and completes when the network reports done. The network then frees the stream a
 `RunConfig::memoize_kernels` keys each `(KernelLaunch, reserved SMs)` pair. The first rank to
 need a key simulates it on a cold GPU under a `OnceLock`, and every other rank reuses the
 result. Because the result does not depend on which thread computed it, determinism holds.
+Before the window loop starts, the keys the workload will most likely ask for (each kernel alone,
+and next to each communication reservation of its rank) are simulated in parallel. On demand
+they would run one at a time, with every rank waiting on the same one.
+
+### Rank folding (exact mode)
+
+SPMD ranks are often identical: same GPU, same kernels, same collectives, and the same
+completion times until the fabric tells them apart. A rank LP is deterministic in its own state
+and the messages delivered to it, so `rsim-rack::fold` simulates one *leader* per class of
+identical ranks (same GPU spec and config, same flattened streams up to each rank's index within
+its collectives). Each *follower* sends the leader's messages re-addressed and reports the
+leader's spans and kernels. The first window in which a follower's deliveries differ from its
+leader's, the follower *forks*: its untouched initial LP replays the leader's logged windows
+(the same deliveries and the same window bounds), which recreates exactly the state it would
+have had, and it then runs on its own. The report is identical to simulating every rank
+(`tests/golden.rs` checks both a rack that stays in lockstep and a two-node InfiniBand run in
+which every rank forks); only the work saved depends on how long ranks stay in step. The report's
+`sim.folded_ranks` and `sim.forked_ranks` say how much was folded. Tracing turns folding off,
+since a trace names every rank's own events, and so does `RunConfig::fold_ranks = false`
+(`rsim run --no-fold`).
+
+Exact mode also gives each rank a private copy of its kernels' instruction objects
+(`KernelLaunch::private_copy`): every dynamic instruction takes and drops a reference to its
+static instruction, and GPUs on different host threads sharing those reference counts made the
+cache lines bounce between cores.
+
+## Simulator speed
+
+The hot loop is `Gpu::advance_inner` -> `Sm::step` -> per-SMSP `account` / `evaluate` / `issue`.
+Rules that keep it fast:
+
+- **No allocation or string work per cycle.** Stall attribution for mbarrier waits is keyed
+  `(warp index, barrier id)` and only named when the kernel finishes.
+- **Caches are flat.** Each set is one contiguous block of `3 * assoc` words (tags, LRU stamps,
+  `valid | dirty << 8`) in one zero-initialised array, so a cold GPU (a fresh one per memoized
+  kernel in fast mode) costs only the pages its accesses touch.
+- **Per-op work is done once.** `timing()` is cached on the warp for the op it is about to issue
+  and in a per-GPU direct-mapped memo keyed by instruction; warp evaluation borrows the op
+  instead of cloning `Arc`s.
+- **Determinism is checked, not assumed.** `crates/rsim-gpu/tests/golden.rs` pins the cycle
+  count and a digest of every counter of six kernels (GEMMs on three architectures,
+  elementwise, attention, and the FA4 NVBit recording on the calibrated B300), and
+  `crates/rsim-rack/tests/golden.rs` pins exact and fast rack reports across host thread
+  counts. A change that is meant to move timing updates the digests in the same commit
+  (`RSIM_GOLDEN_PRINT=1` prints the new values).
+
+Single-kernel replays are one thread: the SMs of a GPU share the L2/HBM model, whose queueing
+state depends on the order of requests, so stepping SMs in parallel would change results.
+Parallelism is across independent simulations instead: rank LPs in the PDES windows, memoized
+kernels in fast mode, and reference kernels in `rsim validate`.

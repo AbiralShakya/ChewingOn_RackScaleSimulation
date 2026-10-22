@@ -54,6 +54,33 @@ pub struct RemoteMbar {
     pub why: Stall,
 }
 
+/// Direct-mapped memo of [`timing`] per static instruction. An entry keeps
+/// its `Arc<Inst>`, so a key can never alias a freed instruction. One per
+/// GPU (shared by its SMs, which run the same kernels), lent to the SM
+/// being stepped.
+#[derive(Default)]
+pub(crate) struct TimingMemo(Vec<Option<(Arc<Inst>, crate::pipes::Timing)>>);
+
+impl TimingMemo {
+    const N: usize = 4096;
+    #[inline]
+    fn get(&mut self, spec: &GpuSpec, inst: &Arc<Inst>) -> crate::pipes::Timing {
+        if self.0.is_empty() {
+            self.0.resize(Self::N, None);
+        }
+        let k = Arc::as_ptr(inst) as usize;
+        let i = ((k >> 4) ^ (k >> 13)) & (Self::N - 1);
+        if let Some((a, t)) = &self.0[i] {
+            if Arc::ptr_eq(a, inst) {
+                return *t;
+            }
+        }
+        let t = timing(spec, inst);
+        self.0[i] = Some((inst.clone(), t));
+        t
+    }
+}
+
 struct CtaBar {
     expected: u32,
     arrived: u32,
@@ -82,6 +109,8 @@ struct Warp {
     role: Option<usize>,
     stream: Box<dyn InstStream>,
     next: Option<DynOp>,
+    /// `timing()` of `next`, filled on its first evaluation.
+    next_t: Option<crate::pipes::Timing>,
     ready_at: u64,
     ready_reason: Stall,
     pending_regs: Vec<(Reg, u64, Sb)>,
@@ -162,6 +191,7 @@ pub struct Sm {
     pub idle_sched_cycles: u64,
     scratch_ws: Vec<usize>,
     scratch_el: Vec<usize>,
+    pub(crate) tmemo: TimingMemo,
     /// mbarrier events for CTAs on other SMs, drained by the GPU each step.
     pub outbox: Vec<RemoteMbar>,
     /// Visualiser capture: per-PC statistics, warp timeline (see `detail`).
@@ -207,6 +237,7 @@ impl Sm {
             idle_sched_cycles: 0,
             scratch_ws: Vec::with_capacity(16),
             scratch_el: Vec::with_capacity(16),
+            tmemo: TimingMemo::default(),
             outbox: Vec::new(),
             pc_stats: false,
             wtrace: None,
@@ -302,6 +333,7 @@ impl Sm {
                 role,
                 stream,
                 next: None,
+                next_t: None,
                 ready_at: at,
                 ready_reason: Stall::Wait,
                 pending_regs: Vec::new(),
@@ -418,10 +450,18 @@ impl Sm {
 
     /// Advance every SMSP whose next evaluation is at `c`. Completed CTAs
     /// are appended to `done` as `(kernel id, cta id)`.
-    pub fn step(&mut self, c: u64, mem: &mut MemSystem, done: &mut Vec<(u32, u64)>) {
+    /// `spec` is this SM's own spec, borrowed from the GPU so the hot path
+    /// takes no reference count.
+    pub fn step(
+        &mut self,
+        c: u64,
+        spec: &GpuSpec,
+        mem: &mut MemSystem,
+        done: &mut Vec<(u32, u64)>,
+    ) {
         for sp in 0..self.smsps.len() {
             if self.smsps[sp].next_eval <= c {
-                self.step_smsp(sp, c, mem, done);
+                self.step_smsp(sp, c, spec, mem, done);
             }
         }
     }
@@ -454,9 +494,7 @@ impl Sm {
                         Stall::AsyncWait | Stall::TmaWait | Stall::TensorWait
                     )
                 {
-                    *st.mbar_wait
-                        .entry(format!("w{}:{:#x}", w.widx, w.wait_bar))
-                        .or_default() += dt;
+                    *st.mbar_wait_raw.entry((w.widx, w.wait_bar)).or_default() += dt;
                 }
                 let i = w.widx as usize;
                 if st.warp_by_index.len() <= i {
@@ -477,7 +515,14 @@ impl Sm {
         }
     }
 
-    fn step_smsp(&mut self, sp: usize, c: u64, mem: &mut MemSystem, done: &mut Vec<(u32, u64)>) {
+    fn step_smsp(
+        &mut self,
+        sp: usize,
+        c: u64,
+        spec: &GpuSpec,
+        mem: &mut MemSystem,
+        done: &mut Vec<(u32, u64)>,
+    ) {
         self.account(sp, c);
         if self.smsps[sp].warps.is_empty() {
             self.smsps[sp].next_eval = NEVER;
@@ -574,7 +619,7 @@ impl Sm {
         // 3. Issue.
         if let Some(ws) = pick {
             self.smsps[sp].greedy = Some(ws);
-            self.issue(ws, sp, c, mem, done);
+            self.issue(ws, sp, c, spec, mem, done);
             self.smsps[sp].next_eval = c + 1;
         } else {
             self.smsps[sp].greedy = None;
@@ -602,10 +647,6 @@ impl Sm {
     /// Decide whether warp `ws` can issue at `c`: `(Selected, c)` if so,
     /// else `(reason, cycle when it might change)`.
     fn evaluate(&mut self, ws: usize, sp: usize, c: u64) -> (Stall, u64) {
-        let spec = self.spec.clone();
-        let use_ctrl = self.use_ctrl;
-        let mio_free = self.mio.free_at();
-        let tensor_tail = self.tensor_tail;
         let w = self.warps[ws].as_mut().unwrap();
         if w.exited {
             return (Stall::Drain, NEVER);
@@ -616,12 +657,41 @@ impl Sm {
         if w.ready_at > c {
             return (w.ready_reason, w.ready_at);
         }
-        let cta_idx = w.cta;
-        let Some(op) = Self::peek(w) else {
+        if Self::peek(w).is_none() {
             // Implicit exit.
             return (Stall::Selected, c);
+        }
+        // Lend the op out of the warp so the checks below can borrow the
+        // SM freely (no reference-count traffic on the hot path).
+        let op = w.next.take().unwrap();
+        let t = match w.next_t {
+            Some(t) => t,
+            None => {
+                let t = self.tmemo.get(&self.spec, &op.inst);
+                w.next_t = Some(t);
+                t
+            }
         };
-        let inst = op.inst.clone();
+        let r = self.evaluate_op(ws, sp, c, &op, t);
+        self.warps[ws].as_mut().unwrap().next = Some(op);
+        r
+    }
+
+    fn evaluate_op(
+        &mut self,
+        ws: usize,
+        sp: usize,
+        c: u64,
+        op: &DynOp,
+        t: crate::pipes::Timing,
+    ) -> (Stall, u64) {
+        let spec = &*self.spec;
+        let use_ctrl = self.use_ctrl;
+        let mio_free = self.mio.free_at();
+        let tensor_tail = self.tensor_tail;
+        let w = self.warps[ws].as_mut().unwrap();
+        let cta_idx = w.cta;
+        let inst = &*op.inst;
         let op_mbar = op.mbar;
         // Dependency checks.
         if use_ctrl && inst.ctrl.is_some() {
@@ -774,7 +844,6 @@ impl Sm {
             _ => {}
         }
         // Structural hazards.
-        let t = timing(&spec, &inst);
         let sps = &self.smsps[sp];
         match t.pipe {
             Pipe::Mio => {
@@ -831,7 +900,7 @@ impl Sm {
         // still busy with earlier (bank-conflicted) reads.
         if spec.issue.rf_banks > 0 {
             let w = self.warps[ws].as_ref().unwrap();
-            let per = rf_bank_reads(&spec, &inst, &w.reuse);
+            let per = rf_bank_reads(spec, inst, &w.reuse);
             let busy = per
                 .iter()
                 .zip(&sps.bank_free)
@@ -961,22 +1030,23 @@ impl Sm {
         ws: usize,
         sp: usize,
         c: u64,
+        spec: &GpuSpec,
         mem: &mut MemSystem,
         done: &mut Vec<(u32, u64)>,
     ) {
-        let spec = self.spec.clone();
         let w = self.warps[ws].as_mut().unwrap();
         let Some(op) = w.next.take() else {
             self.exit_warp(ws, sp, c, done);
             return;
         };
-        let inst = op.inst.clone();
+        let cached_t = w.next_t.take();
+        let inst = &*op.inst;
         let cta = w.cta;
         let kid = w.kid;
         let role = w.role;
         let widx = w.widx as usize;
         w.wait_bar = u32::MAX;
-        let t = timing(&spec, &inst);
+        let t = cached_t.unwrap_or_else(|| self.tmemo.get(spec, &op.inst));
         self.issued_total += 1;
         if let Some(tr) = &mut self.wtrace {
             tr.issue(ws, c, inst.pc);
@@ -990,7 +1060,7 @@ impl Sm {
             st.issued_by_index[widx] += 1;
             st.class_counts[inst.class as usize] += 1;
             if self.pc_stats {
-                pc_entry(&mut st.pc, role, &inst).issued += 1;
+                pc_entry(&mut st.pc, role, inst).issued += 1;
             }
             if inst.class == OpClass::Misc {
                 *st.unknown_opcodes
@@ -1003,7 +1073,7 @@ impl Sm {
         let mut next_ready = c + 1;
         let mut next_reason = Stall::Wait;
         // Multi-cycle dispatch holds the warp before its stall count starts.
-        let dispatch = dispatch_cycles(&spec, &inst);
+        let dispatch = dispatch_cycles(spec, inst);
         if self.use_ctrl {
             if let Some(ctrl) = inst.ctrl {
                 let mut stall = ctrl.stall.max(1) as u64;
@@ -1024,7 +1094,7 @@ impl Sm {
         // Operand reads through the banked register file (and reuse cache).
         if spec.issue.rf_banks > 0 {
             let w = self.warps[ws].as_mut().unwrap();
-            let per = rf_bank_reads(&spec, &inst, &w.reuse);
+            let per = rf_bank_reads(spec, inst, &w.reuse);
             if spec.issue.reuse_cache {
                 let bits = inst.ctrl.map(|x| x.reuse).unwrap_or(0);
                 if !spec.issue.reuse_sticky {
@@ -1073,7 +1143,7 @@ impl Sm {
                 let r = if op.active == 0 {
                     c + 1
                 } else {
-                    self.mem_op(&op, c, mem, kid, sp)
+                    self.mem_op(&op, c, spec, mem, kid, sp)
                 };
                 result = Some((r, t.sb));
                 if inst.class == OpClass::AsyncCopy {
@@ -1095,8 +1165,8 @@ impl Sm {
             }
             OpClass::MmaSync => {
                 let rate =
-                    spec.tensor.sync_flops_per_cycle(mma_dtype(&inst)) / spec.sub_partitions as f64;
-                let flops = mma_flops(&inst, op.payload);
+                    spec.tensor.sync_flops_per_cycle(mma_dtype(inst)) / spec.sub_partitions as f64;
+                let flops = mma_flops(inst, op.payload);
                 // Measured rates give fractional intervals (A100: 8.09 cycles
                 // per m16n8k16); carry the fraction instead of rounding up.
                 let exact = (flops / rate).max(1.0);
@@ -1122,8 +1192,8 @@ impl Sm {
             }
             OpClass::MmaWarpgroup => {
                 let rate =
-                    spec.tensor.flops_per_cycle(mma_dtype(&inst)) / spec.sub_partitions as f64;
-                let flops = mma_flops(&inst, op.payload);
+                    spec.tensor.flops_per_cycle(mma_dtype(inst)) / spec.sub_partitions as f64;
+                let flops = mma_flops(inst, op.payload);
                 let dur = (flops / rate).ceil().max(1.0) as u64;
                 let sps = &mut self.smsps[sp];
                 let start = sps.tensor_tail.max(c + t.lat as u64);
@@ -1145,9 +1215,9 @@ impl Sm {
                 } else {
                     1.0
                 };
-                let k_ext = mma_shape(&inst).map(|s| s.2).unwrap_or(0);
-                let rate = pair * spec.tensor.mma_rate(mma_dtype(&inst), k_ext);
-                let flops = mma_flops(&inst, op.payload);
+                let k_ext = mma_shape(inst).map(|s| s.2).unwrap_or(0);
+                let rate = pair * spec.tensor.mma_rate(mma_dtype(inst), k_ext);
+                let flops = mma_flops(inst, op.payload);
                 let dur = if spec.tensor.umma_smem_bytes_per_clk > 0.0 {
                     // Shape-aware: M padding and smem operand reads, slowed
                     // by the LDS traffic since the previous MMA.
@@ -1157,9 +1227,9 @@ impl Sm {
                         / port
                         / c.saturating_sub(c0).max(1) as f64;
                     self.umma_mark = (c, self.lds_wavefronts);
-                    let shape = umma_shape(&inst, flops);
+                    let shape = umma_shape(inst, flops);
                     spec.tensor
-                        .umma_cycles(mma_dtype(&inst), shape, lds)
+                        .umma_cycles(mma_dtype(inst), shape, lds)
                         .ceil()
                         .max(1.0) as u64
                 } else {
@@ -1423,7 +1493,15 @@ impl Sm {
     }
 
     /// LSU path for loads/stores/atomics/ldmatrix/cp.async/TMEM.
-    fn mem_op(&mut self, op: &DynOp, c: u64, mem: &mut MemSystem, kid: u32, sp: usize) -> u64 {
+    fn mem_op(
+        &mut self,
+        op: &DynOp,
+        c: u64,
+        spec: &GpuSpec,
+        mem: &mut MemSystem,
+        kid: u32,
+        sp: usize,
+    ) -> u64 {
         let inst = &op.inst;
         let m = inst.mem.unwrap_or(rsim_sass::MemInfo {
             space: MemSpace::Global,
@@ -1432,7 +1510,6 @@ impl Sm {
             width: 4,
         });
         let active = op.active.count_ones().clamp(1, 32);
-        let spec = self.spec.clone();
         match m.space {
             MemSpace::Shared => {
                 let ways = if inst.class == OpClass::Ldsm {
