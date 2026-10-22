@@ -206,5 +206,29 @@ MAMBA2_70B_SSU8 = replace(MAMBA2_70B, name="mamba2-70b-ssu8", mamba=replace(_M2_
 MAMBA2_HYBRID_70B = Model("mamba2-hybrid-70b", hidden=8192, layers=126, heads=64, kv_heads=8, head_dim=128, ffn=28672,
                           vocab=128256, mamba=_M2_70B, blocks=_hybrid_blocks(54, 9, 63))
 
-ALL = {m.name: m for m in [LLAMA3_8B, LLAMA3_70B, LLAMA3_405B, MIXTRAL_8X22B, QWEN3_235B_A22B, DEEPSEEK_V3,
+# Size ladder (published configs): Llama 3.2 1B/3B (tied embeddings in the
+# release; the LM head is still one 128256-wide GEMM per token), Qwen2.5-32B.
+LLAMA32_1B = Model("llama3.2-1b", hidden=2048, layers=16, heads=32, kv_heads=8, head_dim=64, ffn=8192, vocab=128256)
+LLAMA32_3B = Model("llama3.2-3b", hidden=3072, layers=28, heads=24, kv_heads=8, head_dim=128, ffn=8192, vocab=128256)
+QWEN25_32B = Model("qwen2.5-32b", hidden=5120, layers=64, heads=40, kv_heads=8, head_dim=128, ffn=27648, vocab=152064)
+
+# Smaller MoEs: Mixtral-8x7B (few large experts) and Qwen3-30B-A3B (many
+# small experts, 3.3B active).
+MIXTRAL_8X7B = Model("mixtral-8x7b", hidden=4096, layers=32, heads=32, kv_heads=8, head_dim=128, ffn=14336, vocab=32000,
+                     moe=MoE(experts=8, topk=2, expert_ffn=14336))
+QWEN3_30B_A3B = Model("qwen3-30b-a3b", hidden=2048, layers=48, heads=32, kv_heads=4, head_dim=128, ffn=6144,
+                      vocab=151936, moe=MoE(experts=128, topk=8, expert_ffn=768))
+
+# Attention what-ifs on the Llama-3-8B body: only the attention changes.
+# MHA keeps 32 KV heads (Llama-2 style, 4x the GQA cache), MQA keeps one, and
+# MLA swaps in DeepSeek's latent attention at this width (32 heads, 512-wide
+# latent + 64 RoPE dims: 576 cache elements per token per layer, vs 2048 for
+# GQA-8 and 8192 for MHA). Parameter counts stay within 10% of the original.
+LLAMA3_8B_MHA = replace(LLAMA3_8B, name="llama3-8b-mha", kv_heads=32)
+LLAMA3_8B_MQA = replace(LLAMA3_8B, name="llama3-8b-mqa", kv_heads=1)
+LLAMA3_8B_MLA = replace(LLAMA3_8B, name="llama3-8b-mla", kv_heads=32, mla=MLA())
+
+ALL = {m.name: m for m in [LLAMA32_1B, LLAMA32_3B, LLAMA3_8B, QWEN25_32B, LLAMA3_70B, LLAMA3_405B,
+                           MIXTRAL_8X7B, MIXTRAL_8X22B, QWEN3_30B_A3B, QWEN3_235B_A22B, DEEPSEEK_V3,
+                           LLAMA3_8B_MHA, LLAMA3_8B_MQA, LLAMA3_8B_MLA,
                            MAMBA2_8B, MAMBA2_HYBRID_8B, MAMBA2_70B, MAMBA2_HYBRID_70B, MAMBA2_70B_SSU8]}

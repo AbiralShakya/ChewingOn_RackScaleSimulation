@@ -1,0 +1,519 @@
+<title>Model Shape on the Rack</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column for prose, full-width bands for the matrix and explorers.
+   Palette: cool graphite plane, ink blue accent; five bottleneck colours in fixed order. */
+:root {
+  --plane: #f3f5f7; --surface: #fcfcfd; --ink: #0d1117; --ink-2: #4a5160; --muted: #7d8494;
+  --grid: #e1e4ea; --axis: #c2c7d0; --line: rgba(13,17,23,.10); --accent: #1f5fbf; --accent-wash: #e6eefb;
+  --c-compute: #2a78d6; --c-hbm: #eb6834; --c-latency: #1baf7a; --c-comm: #eda100; --c-launch: #e87ba4;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --bad: #d03b3b; --good: #0a7d0a;
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --plane: #0c0e12; --surface: #15181e; --ink: #eef0f4; --ink-2: #b9bfcb; --muted: #8a909c;
+  --grid: #262a33; --axis: #3a3f4a; --line: rgba(255,255,255,.10); --accent: #6aa3f5; --accent-wash: #18243a;
+  --c-compute: #3987e5; --c-hbm: #d95926; --c-latency: #199e70; --c-comm: #c98500; --c-launch: #d55181;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --bad: #e66767; --good: #0ca30c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --plane: #0c0e12; --surface: #15181e; --ink: #eef0f4; --ink-2: #b9bfcb; --muted: #8a909c;
+  --grid: #262a33; --axis: #3a3f4a; --line: rgba(255,255,255,.10); --accent: #6aa3f5; --accent-wash: #18243a;
+  --c-compute: #3987e5; --c-hbm: #d95926; --c-latency: #199e70; --c-comm: #c98500; --c-launch: #d55181;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --bad: #e66767; --good: #0ca30c; color-scheme: dark }
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { background: var(--plane); color: var(--ink); font: 16px/1.55 var(--f-body); margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 1180px; margin: 0 auto; padding-block: 40px 80px; display: grid; gap: 56px }
+.prose { max-width: 70ch }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -.01em }
+h1 { font-size: clamp(32px, 5vw, 52px); font-weight: 800; line-height: 1.05 }
+h2 { font-size: 26px; font-weight: 700; margin-bottom: 6px }
+h3 { font-size: 17px; font-weight: 700 }
+p { margin: 0 0 12px }
+.eyebrow { font: 600 12px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent) }
+.lede { font-size: 19px; color: var(--ink-2); max-width: 68ch; margin-top: 14px }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 18px; font: 13px var(--f-mono); color: var(--muted) }
+.meta b { color: var(--ink); font-weight: 600 }
+code, .mono { font-family: var(--f-mono); font-size: .88em }
+section { display: grid; gap: 16px; min-width: 0 }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0 }
+.sub { color: var(--ink-2); max-width: 75ch }
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px }
+.finding { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0 }
+.finding h3 { margin-bottom: 6px }
+.finding .num { font: 700 26px/1.1 var(--f-display); color: var(--accent); margin-bottom: 6px }
+.finding p { color: var(--ink-2); font-size: 15px; margin: 0 }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: end }
+.controls label { display: grid; gap: 4px; font: 600 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted) }
+select, input[type=range] { font: 14px var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 5px 8px; min-width: 0 }
+input[type=range] { padding: 0; accent-color: var(--accent) }
+select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 6px; overflow: hidden }
+.seg button { font: 14px var(--f-body); border: 0; background: var(--surface); color: var(--ink-2); padding: 5px 12px; cursor: pointer }
+.seg button + button { border-left: 1px solid var(--axis) }
+.seg button[aria-pressed=true] { background: var(--accent-wash); color: var(--ink); font-weight: 600 }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2) }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px }
+.legend i.ln { height: 3px; width: 16px; border-radius: 2px; vertical-align: 3px }
+.scroll { overflow-x: auto }
+/* matrix */
+.matrix { display: grid; gap: 3px; min-width: 760px }
+.matrix .hd { font: 600 12px var(--f-mono); color: var(--muted); padding: 6px 8px; text-transform: uppercase; letter-spacing: .05em }
+.matrix .rowh { font: 600 14px var(--f-body); padding: 8px; display: grid; align-content: center }
+.matrix .rowh small { font: 12px var(--f-mono); color: var(--muted); font-weight: 400 }
+.cell { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; display: grid; gap: 5px; cursor: default; min-width: 0 }
+.cell:hover, .cell:focus-visible { border-color: var(--accent) }
+.cell .v { font: 600 15px var(--f-mono); font-variant-numeric: tabular-nums }
+.cell .v small { font-weight: 400; color: var(--muted); font-size: 11px }
+.cell .p { font: 12px var(--f-mono); color: var(--ink-2); display: flex; justify-content: space-between; gap: 6px }
+.cell.nofit { background: transparent; border-style: dashed; color: var(--muted); font-size: 12px; align-content: center }
+.bar { display: flex; height: 9px; border-radius: 3px; overflow: hidden; gap: 1px; background: var(--surface) }
+.bar span { display: block; height: 100% }
+.dom { font: 600 11px var(--f-mono); text-transform: uppercase; letter-spacing: .04em }
+svg text { font-family: var(--f-mono); font-size: 11px; fill: var(--muted) }
+svg .lbl { fill: var(--ink-2); font-size: 11.5px }
+.charts2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px }
+.charts2 > * { min-width: 0 }
+table { border-collapse: collapse; font-size: 13.5px; width: 100% }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap }
+th { font: 600 11px var(--f-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted) }
+td.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums }
+tr.best td { background: var(--accent-wash) }
+.hbar-row { display: grid; grid-template-columns: minmax(120px, 210px) 1fr minmax(70px, auto); gap: 10px; align-items: center; font-size: 13px; padding: 3px 0 }
+.hbar-row .bar { height: 14px }
+.hbar-row .t { font-family: var(--f-mono); text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2) }
+.hbar-row .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--f-mono); font-size: 12px }
+#tip { position: fixed; pointer-events: none; z-index: 20; background: var(--surface); color: var(--ink); border: 1px solid var(--axis);
+  border-radius: 8px; padding: 9px 11px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,.18); max-width: 340px; display: none }
+#tip b { font-family: var(--f-mono) }
+#tip .k { display: flex; justify-content: space-between; gap: 14px; font-family: var(--f-mono); font-size: 12px }
+#tip .k i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: 3px }
+pre { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font: 13px/1.5 var(--f-mono) }
+.caveat { border-left: 3px solid var(--c-comm); padding: 4px 0 4px 12px; color: var(--ink-2); font-size: 14.5px }
+.pill { display: inline-block; font: 600 11px var(--f-mono); padding: 2px 7px; border-radius: 99px; border: 1px solid var(--axis); color: var(--ink-2) }
+@media (max-width: 560px) { .hbar-row { grid-template-columns: 110px 1fr 64px } }
+@media (prefers-reduced-motion: no-preference) { .cell, .seg button { transition: border-color .12s, background .12s } }
+</style>
+
+<main>
+<header>
+  <div class="eyebrow">rackscale · model sweep · simulator study</div>
+  <h1>What model size and architecture do to a GPU and a rack</h1>
+  <p class="lede">Dense models from 1B to 405B parameters, mixture-of-experts from 3B to 37B active, four attention
+  designs, Mamba-2 and a hybrid, contexts to 128k, on HGX A100, HGX H100, HGX B300 and GB300 NVL72. Every point is a
+  simulated decode step, prefill or training step: each distinct kernel runs at cycle level on the SM model, every
+  collective runs on the simulated NVLink fabric, and the step is split into what it was waiting on.</p>
+  <div class="meta"><span><b>__NPOINTS__</b> configurations</span><span><b>__NSIM__</b> simulated (the rest do not fit in HBM)</span>
+  <span>B300 and A100 models calibrated on real GPUs</span><span>BF16 unless marked</span></div>
+</header>
+
+<section>
+  <h2>Findings</h2>
+  <!--__FINDINGS__-->
+</section>
+
+<section id="matrix-sec">
+  <div class="prose"><h2>Where the step goes, by model size</h2>
+  <p class="sub">The best layout for each dense model on each system, and what its step is bound by. Decode picks the layout and
+  batch with the most tokens/s per GPU that still gives every user the chosen speed. A cell's bar splits the step into
+  <span id="bd-legend-inline"></span>. Hover a cell for the plan, memory and the top kernels.</p></div>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Phase" id="mx-phase"></div>
+    <label for="mx-slo">Decode speed per user, at least <span id="mx-slo-v"></span>
+      <input type="range" id="mx-slo" min="0" max="5" step="1" value="2"></label>
+  </div>
+  <div class="legend" id="bd-legend"></div>
+  <div class="scroll"><div class="matrix" id="matrix"></div></div>
+</section>
+
+<section id="explorer">
+  <div class="prose"><h2>Explore any model on any system</h2>
+  <p class="sub">Decode is a trade between tokens/s per GPU (cost) and tokens/s per user (speed). Each line is one layout, its
+  points the batch sizes; up and to the right is better. Prefill and training show one bar per layout.</p></div>
+  <div class="controls">
+    <label for="ex-study">Study<select id="ex-study"></select></label>
+    <label for="ex-model">Model<select id="ex-model"></select></label>
+    <label for="ex-system">System<select id="ex-system"></select></label>
+    <label for="ex-phase">Phase<select id="ex-phase"></select></label>
+    <label for="ex-ctx">Context / length<select id="ex-ctx"></select></label>
+  </div>
+  <div class="charts2">
+    <div class="card"><h3 id="ex-chart-title">Throughput</h3><div class="legend" id="ex-legend"></div><div id="ex-chart"></div></div>
+    <div class="card"><h3>Step-time breakdown</h3><div class="legend" id="ex-bd-legend"></div><div id="ex-bd"></div></div>
+  </div>
+  <div class="card scroll"><table id="ex-table"></table></div>
+  <p class="caveat" id="ex-caveat" hidden></p>
+</section>
+
+<section id="attn">
+  <div class="prose"><h2>Same body, different sequence mixer</h2>
+  <p class="sub">Llama-3-8B with its attention swapped: MHA (32 KV heads), GQA-4 (the original 8), MQA (one), DeepSeek MLA (a
+  576-wide latent), and Mamba-2 and a Mamba-2 hybrid of the same size. One GPU.</p></div>
+  <div class="controls">
+    <label for="at-sys">System<select id="at-sys"></select></label>
+    <label for="at-batch">Decode batch<select id="at-batch"></select></label>
+  </div>
+  <div class="charts2">
+    <div class="card"><h3>Decode: tokens/s per GPU vs context</h3><div class="legend" id="at-legend"></div><div id="at-dec"></div></div>
+    <div class="card"><h3>Decode: attention share of the step</h3><div id="at-share"></div></div>
+  </div>
+  <div class="card"><h3>Prefill time (TTFT) vs prompt length, B300</h3><div id="at-pre"></div></div>
+</section>
+
+<section id="moe">
+  <div class="prose"><h2>Mixture of experts: which layout, which batch</h2>
+  <p class="sub">For every MoE model, tensor parallelism against expert parallelism with data-parallel attention (the DeepSeek
+  layout). Bars are the best tokens/s per GPU each layout reaches at 4k context; hover for the breakdown.</p></div>
+  <div class="controls">
+    <label for="moe-sys">System<select id="moe-sys"></select></label>
+    <label for="moe-batch">Batch per replica / rank<select id="moe-batch"></select></label>
+  </div>
+  <div class="legend" id="moe-legend"></div>
+  <div class="card" id="moe-bars"></div>
+  <div class="card scroll"><h3>Two-micro-batch overlap (batch 128, EP layouts)</h3><table id="moe-ov"></table></div>
+</section>
+
+<section id="ctx">
+  <div class="prose"><h2>Long context on the rack</h2>
+  <p class="sub">GB300 NVL72, 70B-class models at TP8 and DeepSeek-V3 at EP72, decode from 4k to 128k tokens of context.</p></div>
+  <div class="controls"><label for="ctx-batch">Batch<select id="ctx-batch"></select></label></div>
+  <div class="charts2">
+    <div class="card"><h3>Tokens/s per GPU</h3><div class="legend" id="ctx-legend"></div><div id="ctx-chart"></div></div>
+    <div class="card"><h3>Step breakdown at the longest context that fits</h3><div class="legend" id="ctx-bd-legend"></div><div id="ctx-bd"></div></div>
+  </div>
+</section>
+
+<section id="infra">
+  <div class="prose"><h2>What the serving stack changes</h2>
+  <p class="sub">Same model, same GPU, different engine decisions: how kernels are launched, how prompts are batched with
+  decodes, and which precision the GEMMs run in. The measured rows come from real engines captured on a B300.</p></div>
+  <div class="charts2">
+    <div class="card"><h3>Launch mode: decode step time, B300</h3><div class="legend" id="lm-legend"></div><div id="lm"></div></div>
+    <div class="card"><h3>Chunked prefill: decode step time vs chunk size (batch 64, 4k context)</h3><div class="legend" id="ck-legend"></div><div id="ck"></div></div>
+  </div>
+  <div class="card scroll"><h3>Precision as a kernel choice: BF16 vs FP8 GEMMs, B300</h3><table id="dt"></table></div>
+  <div class="card scroll"><h3>Real engines on one B300, Llama-3.2-1B</h3><table id="meas"></table></div>
+</section>
+
+<section id="tool">
+  <div class="prose"><h2>Use it as a tool</h2>
+  <p class="sub">Everything on this page comes from two commands. <code>rackscale plan</code> answers one question with a
+  machine-readable result, so a script or an agent can call it in a loop: change a model dimension, a system or a target and
+  read back the best layout and what bounds it.</p></div>
+<pre>
+# best layout for Qwen3-235B decode on an NVL72 at 30 tokens/s per user, as JSON
+rackscale plan qwen3-235b-a22b --system gb300 --context 8192 --min-tps-user 30 --json
+
+# a custom grid, or one of this page's studies
+rackscale sweep --models llama3-8b,llama3-8b-mla --systems b300 --contexts 8192,131072 --batches 1,64
+rackscale sweep --study moe --jobs 8 -o moe.json
+
+# rebuild this page
+python research/model_sweep/run.py && python research/model_sweep/build_page.py
+</pre>
+  <p class="sub">The same is available from Python as <code>rackscale.sweep</code> (<code>best_plan</code>, <code>run</code>,
+  <code>study_points</code>, <code>pareto</code>).</p>
+</section>
+
+<section id="method">
+  <div class="prose"><h2>How to read these numbers</h2>
+  <p class="sub">A kernel counts as <b>compute</b>-bound when its tensor pipe runs at half of peak or more, <b>HBM</b>-bound
+  when it moves HBM bytes at half the achievable bandwidth or more, and <b>latency</b>-bound when it reaches neither (too
+  few CTAs, wave tails, dependency chains, barriers). <b>Comm</b> is collective time not hidden behind kernels and
+  <b>launch</b> is the GPU sitting idle between kernels. Throughput assumes every replica of a layout matches the simulated
+  one, which holds for TP and for EP under balanced routing.</p>
+  <ul class="sub" id="caveats"></ul></div>
+</section>
+</main>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const D = /*__DATA__*/null;
+const BD = ["compute", "hbm", "latency", "comm", "launch"];
+const BDN = {compute: "compute", hbm: "HBM", latency: "latency", comm: "NVLink comm", launch: "launch gaps"};
+const SER = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const $ = id => document.getElementById(id);
+const el = (tag, attrs = {}, kids = []) => { const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) { if (k === "text") e.textContent = v; else e.setAttribute(k, v); }
+  for (const k of kids) e.append(k); return e; };
+const NS = "http://www.w3.org/2000/svg";
+const sv = (tag, attrs = {}) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
+const fmt = (v, d = 0) => v == null ? "–" : v >= 1e4 ? (v / 1e3).toFixed(v >= 1e5 ? 0 : 1) + "k" : v.toFixed(d);
+const fus = us => us >= 1e3 ? (us / 1e3).toFixed(us >= 1e4 ? 1 : 2) + " ms" : us.toFixed(0) + " µs";
+const ctxs = c => c >= 1024 ? (c / 1024) + "k" : String(c);
+const ALL = Object.values(D.points).flat();
+const MODELS = Object.keys(D.archs).sort((a, b) => D.archs[a].total_params_b - D.archs[b].total_params_b);
+const SYS = Object.keys(D.systems);
+
+// ---------- tooltip
+const tip = $("tip");
+function showTip(ev, build) { tip.replaceChildren(); build(tip); tip.style.display = "block";
+  const r = tip.getBoundingClientRect(); let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14; if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px"; }
+function hideTip() { tip.style.display = "none"; }
+function attachTip(node, build) {
+  node.addEventListener("pointermove", ev => showTip(ev, build)); node.addEventListener("pointerleave", hideTip);
+  node.addEventListener("focus", () => { const r = node.getBoundingClientRect(); showTip({clientX: r.right, clientY: r.top}, build); });
+  node.addEventListener("blur", hideTip); }
+function pointTip(t, p) {
+  t.append(el("div", {}, [el("b", {text: `${p.model} · ${D.systems[p.system].label}`})]));
+  t.append(el("div", {text: `${p.phase} · ${p.plan} · batch ${p.batch}` + (p.context ? ` · ${ctxs(p.context)} ctx` : p.seqlen ? ` · ${ctxs(p.seqlen)} tokens` : "") +
+    (p.launch !== "graph" ? ` · ${p.launch}` : "") + (p.dtype && p.dtype !== "bf16" ? ` · ${p.dtype}` : "") + (p.overlap ? " · overlap" : "")}));
+  if (!p.step_us) { t.append(el("div", {text: p.error || `does not fit: needs ${fmt(p.memory_total_gb)} of ${p.hbm_gb} GB`})); return; }
+  const rows = [["step", fus(p.step_us)], ["tok/s per GPU", fmt(p.tok_s_gpu)]];
+  if (p.tok_s_user) rows.push(["tok/s per user", p.tok_s_user.toFixed(1)]);
+  if (p.ttft_ms) rows.push(["TTFT", p.ttft_ms.toFixed(1) + " ms"]);
+  if (p.mfu) rows.push(["MFU", (100 * p.mfu).toFixed(1) + "%"]);
+  rows.push(["memory / GPU", `${fmt(p.memory_total_gb)} of ${p.hbm_gb} GB`]);
+  for (const [k, v] of rows) t.append(el("div", {class: "k"}, [el("span", {text: k}), el("b", {text: v})]));
+  const tot = p.bd.reduce((a, b) => a + b, 0);
+  t.append(el("div", {style: "margin-top:6px"}));
+  BD.forEach((k, i) => { if (p.bd[i] / tot < 0.005) return; const kk = el("div", {class: "k"});
+    const s = el("span"); const ic = el("i"); ic.style.background = `var(--c-${k})`; s.append(ic, BDN[k]);
+    kk.append(s, el("b", {text: `${(100 * p.bd[i] / tot).toFixed(0)}%`})); t.append(kk); });
+  if (p.top) { t.append(el("div", {style: "margin-top:6px;color:var(--muted);font-size:11.5px", text: "top kernels"}));
+    for (const [n, us, b] of p.top) t.append(el("div", {class: "k"}, [el("span", {text: n.length > 38 ? n.slice(0, 37) + "…" : n}), el("b", {text: `${fus(us)} ${b}`})])); }
+}
+function bdBar(p, h) { const b = el("div", {class: "bar"}); if (h) b.style.height = h + "px";
+  const tot = p.bd.reduce((a, c) => a + c, 0) || 1;
+  BD.forEach((k, i) => { const w = 100 * p.bd[i] / tot; if (w < 0.3) return; const s = el("span"); s.style.width = w + "%"; s.style.background = `var(--c-${k})`; b.append(s); });
+  return b; }
+function bdLegend(node) { node.replaceChildren(...BD.map(k => { const s = el("span"); const i = el("i"); i.style.background = `var(--c-${k})`; s.append(i, BDN[k]); return s; })); }
+function seriesLegend(node, names, line = true) { node.replaceChildren(...names.map((n, i) => { const s = el("span"); const ic = el("i", {class: line ? "ln" : ""}); ic.style.background = `var(${SER[i % 8]})`; s.append(ic, n); return s; })); }
+function opts(sel, values, labels, keep) { const cur = keep ?? sel.value; sel.replaceChildren(...values.map((v, i) => el("option", {value: v, text: labels ? labels[i] : v})));
+  if (values.map(String).includes(String(cur))) sel.value = cur; }
+
+// ---------- line chart: series [{name, pts: [{x, y, p}]}]
+function lineChart(node, series, o) {
+  const W = 560, H = 320, m = {l: 58, r: 14, t: 12, b: 40};
+  const xs = series.flatMap(s => s.pts.map(q => q.x)), ys = series.flatMap(s => s.pts.map(q => q.y));
+  node.replaceChildren();
+  if (!xs.length) { node.append(el("p", {class: "sub", text: "Nothing simulated for this selection (it does not fit in HBM)."})); return; }
+  const lx = o.xlog, ly = o.ylog; const tx = v => lx ? Math.log10(v) : v, ty = v => ly ? Math.log10(v) : v;
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = ly ? Math.min(...ys) : 0, y1 = Math.max(...ys);
+  if (lx) { x0 = 10 ** Math.floor(Math.log10(x0)); x1 = 10 ** Math.ceil(Math.log10(x1)); }
+  if (ly) { y0 = 10 ** Math.floor(Math.log10(y0)); y1 = 10 ** Math.ceil(Math.log10(y1)); } else { y1 = niceMax(y1); }
+  if (x0 === x1) { x1 = x0 * 2; }
+  const X = v => m.l + (tx(v) - tx(x0)) / (tx(x1) - tx(x0)) * (W - m.l - m.r);
+  const Y = v => H - m.b - (ty(v) - ty(y0)) / (ty(y1) - ty(y0)) * (H - m.t - m.b);
+  const s = sv("svg", {viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": o.aria || "chart"});
+  const ticks = (a, b, log, ex) => { if (log) { const t = []; for (let e = Math.log10(a); e <= Math.log10(b) + 1e-9; e++) t.push(10 ** e); return t; }
+    if (ex) return ex; const st = niceStep((b - a) / 5); const t = []; for (let v = a; v <= b + 1e-9; v += st) t.push(v); return t; };
+  for (const v of ticks(y0, y1, ly)) { s.append(sv("line", {x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), stroke: css("--grid")}));
+    const t = sv("text", {x: m.l - 6, y: Y(v) + 4, "text-anchor": "end"}); t.textContent = (o.fy || fmt)(v); s.append(t); }
+  for (const v of (o.xticks || ticks(x0, x1, lx))) { const t = sv("text", {x: X(v), y: H - m.b + 16, "text-anchor": "middle"}); t.textContent = (o.fx || fmt)(v); s.append(t); }
+  s.append(sv("line", {x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: css("--axis")}));
+  const xl = sv("text", {x: (m.l + W - m.r) / 2, y: H - 6, "text-anchor": "middle", class: "lbl"}); xl.textContent = o.xlabel; s.append(xl);
+  const yl = sv("text", {x: 12, y: (m.t + H - m.b) / 2, transform: `rotate(-90 12 ${(m.t + H - m.b) / 2})`, "text-anchor": "middle", class: "lbl"}); yl.textContent = o.ylabel; s.append(yl);
+  series.forEach((se, i) => { const col = css(se.color || SER[i % 8]); const pts = se.pts.slice().sort((a, b) => a.x - b.x);
+    if (pts.length > 1) s.append(sv("polyline", {points: pts.map(q => `${X(q.x)},${Y(q.y)}`).join(" "), fill: "none", stroke: col, "stroke-width": 2, "stroke-linejoin": "round"}));
+    for (const q of pts) { const c = sv("circle", {cx: X(q.x), cy: Y(q.y), r: 4.5, fill: col, stroke: css("--surface"), "stroke-width": 2});
+      const hit = sv("circle", {cx: X(q.x), cy: Y(q.y), r: 12, fill: "transparent", tabindex: 0}); s.append(c, hit);
+      if (q.p) attachTip(hit, t => pointTip(t, q.p)); } });
+  if (o.hline) { const yv = Y(o.hline.y); s.append(sv("line", {x1: m.l, x2: W - m.r, y1: yv, y2: yv, stroke: css("--muted"), "stroke-dasharray": "4 4"})); }
+  if (o.vline && o.vline.x >= x0 && o.vline.x <= x1) { const xv = X(o.vline.x); s.append(sv("line", {x1: xv, x2: xv, y1: m.t, y2: H - m.b, stroke: css("--muted"), "stroke-dasharray": "4 4"}));
+    const t = sv("text", {x: xv + 4, y: m.t + 10}); t.textContent = o.vline.label; s.append(t); }
+  node.append(s);
+}
+function niceStep(r) { const p = 10 ** Math.floor(Math.log10(r)); const f = r / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+function niceMax(v) { const st = niceStep(v / 5); return Math.ceil(v / st) * st; }
+
+// ---------- horizontal stacked bars: rows [{label, p}] scaled to the largest step
+function stepBars(node, rows, valueOf) {
+  node.replaceChildren();
+  const vals = rows.map(r => valueOf ? valueOf(r.p) : r.p.step_us); const mx = Math.max(...vals, 1);
+  rows.forEach((r, j) => { const row = el("div", {class: "hbar-row", tabindex: 0});
+    const wrap = el("div"); const b = bdBar(r.p, 14); b.style.width = (100 * vals[j] / mx) + "%"; wrap.append(b);
+    row.append(el("div", {class: "l", text: r.label}), wrap, el("div", {class: "t", text: r.right ?? fus(r.p.step_us)}));
+    attachTip(row, t => pointTip(t, r.p)); node.append(row); });
+}
+function table(node, cols, rows, bestIdx) {
+  node.replaceChildren(el("thead", {}, [el("tr", {}, cols.map(c => el("th", {text: c[0]})))]));
+  const tb = el("tbody"); rows.forEach((r, i) => { const tr = el("tr", i === bestIdx ? {class: "best"} : {});
+    cols.forEach((c, j) => { tr.append(el("td", c[1] ? {class: "n", text: r[j]} : {text: r[j]})); }); tb.append(tr); });
+  node.append(tb);
+}
+
+// ---------- best-plan logic (mirrors rackscale.sweep.best)
+const SLOS = [0, 10, 20, 50, 100, 200];
+function best(pts, phase, slo) { let ok = pts.filter(p => p.step_us && p.phase === phase);
+  if (phase === "decode") ok = ok.filter(p => p.tok_s_user >= slo);
+  return ok.reduce((a, p) => !a || p.tok_s_gpu > a.tok_s_gpu ? p : a, null); }
+
+// ---------- matrix
+let mxPhase = "decode";
+function renderMatrix() {
+  const pts = D.points.ladder || []; const slo = SLOS[+$("mx-slo").value]; $("mx-slo-v").textContent = slo ? `${slo} tok/s` : "any";
+  const models = MODELS.filter(m => pts.some(p => p.model === m)); const syss = SYS.filter(s => pts.some(p => p.system === s));
+  const g = $("matrix"); g.style.gridTemplateColumns = `minmax(130px, 170px) repeat(${syss.length}, minmax(150px, 1fr))`; g.replaceChildren(el("div"));
+  for (const s of syss) g.append(el("div", {class: "hd", text: D.systems[s].label}));
+  for (const m of models) { const a = D.archs[m];
+    const rh = el("div", {class: "rowh"}, [el("span", {text: m}), el("small", {text: `${a.total_params_b.toFixed(a.total_params_b < 10 ? 1 : 0)}B params`})]); g.append(rh);
+    for (const s of syss) { const mine = pts.filter(p => p.model === m && p.system === s && p.phase === mxPhase);
+      const b = best(mine, mxPhase, slo);
+      if (!b) { const any = mine.some(p => p.step_us); g.append(el("div", {class: "cell nofit", text: any ? `no layout reaches ${slo} tok/s/user` : `does not fit (${fmt(Math.min(...mine.map(p => p.memory_total_gb || 1e9)))} GB > ${D.systems[s].hbm} GB)`})); continue; }
+      const dom = BD.indexOf(b.dominant);
+      const c = el("div", {class: "cell", tabindex: 0});
+      const v = el("div", {class: "v"}); v.append(fmt(b.tok_s_gpu), el("small", {text: " tok/s/GPU"}));
+      const right = mxPhase === "decode" ? `${b.tok_s_user.toFixed(0)} tok/s/u` : mxPhase === "prefill" ? `TTFT ${b.ttft_ms.toFixed(0)} ms` : `MFU ${(100 * b.mfu).toFixed(0)}%`;
+      const pl = el("div", {class: "p"}, [el("span", {text: b.plan + (mxPhase === "decode" ? ` b${b.batch}` : "")}), el("span", {text: right})]);
+      const d = el("div", {class: "dom", text: BDN[b.dominant] + "-bound"}); d.style.color = `var(--c-${b.dominant})`;
+      c.append(v, pl, bdBar(b), d); attachTip(c, t => pointTip(t, b)); g.append(c); } }
+}
+function initMatrix() {
+  const seg = $("mx-phase"); for (const ph of ["decode", "prefill", "train"]) { const b = el("button", {type: "button", "aria-pressed": ph === mxPhase, text: ph});
+    b.onclick = () => { mxPhase = ph; [...seg.children].forEach(x => x.setAttribute("aria-pressed", x === b)); renderMatrix(); }; seg.append(b); }
+  $("mx-slo").oninput = renderMatrix; bdLegend($("bd-legend"));
+  $("bd-legend-inline").textContent = BD.map(k => BDN[k]).join(", ");
+}
+
+// ---------- explorer
+function initExplorer() {
+  const st = $("ex-study"); opts(st, Object.keys(D.points)); st.value = "ladder" in D.points ? "ladder" : st.value;
+  const upd = () => { const pts = D.points[st.value];
+    opts($("ex-model"), MODELS.filter(m => pts.some(p => p.model === m)));
+    const pm = pts.filter(p => p.model === $("ex-model").value);
+    opts($("ex-system"), SYS.filter(s => pm.some(p => p.system === s)), SYS.filter(s => pm.some(p => p.system === s)).map(s => D.systems[s].label));
+    const ps = pm.filter(p => p.system === $("ex-system").value);
+    opts($("ex-phase"), [...new Set(ps.map(p => p.phase))]);
+    const pp = ps.filter(p => p.phase === $("ex-phase").value);
+    const cs = [...new Set(pp.map(p => p.context || p.seqlen))].sort((a, b) => a - b); opts($("ex-ctx"), cs, cs.map(ctxs));
+    renderExplorer(pp.filter(p => (p.context || p.seqlen) == $("ex-ctx").value)); };
+  for (const id of ["ex-study", "ex-model", "ex-system", "ex-phase", "ex-ctx"]) $(id).onchange = upd;
+  $("ex-model").value = "llama3-70b"; upd(); $("ex-system").value = "gb300"; upd();
+}
+function renderExplorer(pts) {
+  const phase = $("ex-phase").value; const sys = D.systems[$("ex-system").value];
+  const plans = [...new Set(pts.map(p => p.plan + (p.launch !== "graph" ? " " + p.launch : "") + (p.dtype && p.dtype !== "bf16" ? " " + p.dtype : "") + (p.overlap ? " overlap" : "")))];
+  const key = p => p.plan + (p.launch !== "graph" ? " " + p.launch : "") + (p.dtype && p.dtype !== "bf16" ? " " + p.dtype : "") + (p.overlap ? " overlap" : "");
+  const sim = pts.filter(p => p.step_us);
+  if (phase === "decode" || phase === "mixed") {
+    $("ex-chart-title").textContent = "Decode: tokens/s per GPU vs tokens/s per user";
+    const series = plans.map(pl => ({name: pl, pts: sim.filter(p => key(p) === pl).map(p => ({x: p.tok_s_user, y: p.tok_s_gpu, p}))})).filter(s => s.pts.length);
+    seriesLegend($("ex-legend"), series.map(s => s.name)); lineChart($("ex-chart"), series, {xlog: true, ylog: true, xlabel: "tokens/s per user", ylabel: "tokens/s per GPU", aria: "decode Pareto"});
+  } else {
+    $("ex-chart-title").textContent = phase === "prefill" ? "Prefill: tokens/s per GPU by layout" : "Training: tokens/s per GPU by layout";
+    $("ex-legend").replaceChildren(); stepBars($("ex-chart"), sim.map(p => ({label: key(p), p, right: fmt(p.tok_s_gpu)})), p => p.tok_s_gpu);
+  }
+  bdLegend($("ex-bd-legend"));
+  stepBars($("ex-bd"), sim.sort((a, b) => key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : a.batch - b.batch).map(p => ({label: `${key(p)} b${p.batch}`, p})));
+  const b = best(pts, phase === "mixed" ? "mixed" : phase, 0);
+  const rows = pts.map(p => [key(p), String(p.batch), p.step_us ? fus(p.step_us) : "–", p.step_us ? fmt(p.tok_s_gpu) : "–",
+    p.tok_s_user ? p.tok_s_user.toFixed(1) : p.ttft_ms ? p.ttft_ms.toFixed(1) + " ms" : p.mfu ? (100 * p.mfu).toFixed(1) + "%" : "–",
+    `${fmt(p.memory_total_gb)} / ${p.hbm_gb}`, p.step_us ? BDN[p.dominant] : p.error ? "error" : "no fit", p.top ? p.top[0][0] : (p.error || "")]);
+  table($("ex-table"), [["layout"], ["batch", 1], ["step", 1], ["tok/s/GPU", 1], [phase === "decode" ? "tok/s/user" : phase === "prefill" ? "TTFT" : "MFU", 1], ["GB / GPU", 1], ["bound"], ["top kernel"]], rows, pts.indexOf(b));
+  const cv = $("ex-caveat"); cv.hidden = !sys.caveat; cv.textContent = sys.caveat ? `${sys.label}: ${sys.caveat}` : "";
+}
+
+// ---------- attention study
+function initAttention() {
+  const pts = D.points.attention; if (!pts) { $("attn").hidden = true; return; }
+  const syss = SYS.filter(s => pts.some(p => p.system === s)); opts($("at-sys"), syss, syss.map(s => D.systems[s].label));
+  const bs = [...new Set(pts.filter(p => p.phase === "decode").map(p => p.batch))].sort((a, b) => a - b); opts($("at-batch"), bs); $("at-batch").value = bs.includes(64) ? 64 : bs[0];
+  const models = MODELS.filter(m => pts.some(p => p.model === m));
+  const render = () => { const sy = $("at-sys").value, b = +$("at-batch").value;
+    const dec = pts.filter(p => p.phase === "decode" && p.system === sy && p.batch === b && p.step_us);
+    seriesLegend($("at-legend"), models);
+    const ctxTicks = [...new Set(pts.map(p => p.context).filter(Boolean))].sort((a, b) => a - b);
+    lineChart($("at-dec"), models.map(m => ({name: m, pts: dec.filter(p => p.model === m).map(p => ({x: p.context, y: p.tok_s_gpu, p}))})),
+      {xlog: true, ylog: true, xlabel: "context (tokens)", ylabel: "tokens/s per GPU", fx: ctxs, xticks: ctxTicks});
+    lineChart($("at-share"), models.map(m => ({name: m, pts: dec.filter(p => p.model === m).map(p => { const tot = p.bd.reduce((a, c) => a + c, 0);
+      return {x: p.context, y: 100 * ((p.cls.attention || 0) + (p.cls.ssm || 0)) / tot, p}; })})),
+      {xlog: true, xlabel: "context (tokens)", ylabel: "% of step in the mixer (attention or SSM)", fx: ctxs, xticks: ctxTicks, fy: v => v.toFixed(0) + "%"});
+    const pre = pts.filter(p => p.phase === "prefill" && p.step_us);
+    const lt = [...new Set(pre.map(p => p.seqlen))].sort((a, b) => a - b);
+    lineChart($("at-pre"), models.map(m => ({name: m, pts: pre.filter(p => p.model === m).map(p => ({x: p.seqlen, y: p.ttft_ms, p}))})),
+      {xlog: true, ylog: true, xlabel: "prompt length (tokens)", ylabel: "TTFT (ms)", fx: ctxs, xticks: lt, fy: v => v >= 1 ? fmt(v) : v.toFixed(1)}); };
+  $("at-sys").onchange = render; $("at-batch").onchange = render; render();
+}
+
+// ---------- MoE
+function initMoE() {
+  const pts = D.points.moe; if (!pts) { $("moe").hidden = true; return; }
+  const syss = SYS.filter(s => pts.some(p => p.system === s)); opts($("moe-sys"), syss, syss.map(s => D.systems[s].label)); $("moe-sys").value = syss.includes("gb300") ? "gb300" : syss[0];
+  const bs = [...new Set(pts.filter(p => p.phase === "decode" && !p.overlap).map(p => p.batch))].sort((a, b) => a - b); opts($("moe-batch"), bs); $("moe-batch").value = bs.includes(128) ? 128 : bs.at(-1);
+  bdLegend($("moe-legend"));
+  const render = () => { const sy = $("moe-sys").value, b = +$("moe-batch").value; const node = $("moe-bars"); node.replaceChildren();
+    const models = MODELS.filter(m => pts.some(p => p.model === m));
+    for (const m of models) { const a = D.archs[m];
+      const mine = pts.filter(p => p.model === m && p.system === sy && p.phase === "decode" && !p.overlap && p.batch === b);
+      node.append(el("h3", {text: `${m}  ·  ${a.active_params_b.toFixed(1)}B active of ${a.total_params_b.toFixed(0)}B`, style: "margin:12px 0 4px"}));
+      const sim = mine.filter(p => p.step_us).sort((x, y) => y.tok_s_gpu - x.tok_s_gpu);
+      if (!sim.length) { node.append(el("p", {class: "sub", text: "no layout fits at this batch"})); continue; }
+      const mx = sim[0].tok_s_gpu;
+      for (const p of sim) { const row = el("div", {class: "hbar-row", tabindex: 0}); const w = el("div"); const bb = bdBar(p, 14); bb.style.width = (100 * p.tok_s_gpu / mx) + "%"; w.append(bb);
+        row.append(el("div", {class: "l", text: `${p.plan}  ${fus(p.step_us)}`}), w, el("div", {class: "t", text: fmt(p.tok_s_gpu)})); attachTip(row, t => pointTip(t, p)); node.append(row); }
+      const nf = mine.filter(p => !p.step_us).map(p => p.plan); if (nf.length) node.append(el("p", {class: "sub", style: "font-size:13px", text: `does not fit: ${nf.join(", ")}`})); }
+    const ov = pts.filter(p => p.overlap && p.system === sy && p.step_us);
+    const rows = ov.map(p => { const base = pts.find(q => !q.overlap && q.model === p.model && q.system === p.system && q.plan === p.plan && q.batch === p.batch && q.phase === "decode");
+      return [p.model, p.plan, base && base.step_us ? fus(base.step_us) : "–", fus(p.step_us), base && base.step_us ? ((p.step_us / base.step_us - 1) * 100).toFixed(0) + "%" : "–",
+        base && base.step_us ? (100 * base.bd[3] / base.step_us).toFixed(0) + "%" : "–"]; });
+    table($("moe-ov"), [["model"], ["layout"], ["single stream", 1], ["two-batch overlap", 1], ["change", 1], ["comm share, single", 1]], rows); };
+  $("moe-sys").onchange = render; $("moe-batch").onchange = render; render();
+}
+
+// ---------- context
+function initContext() {
+  const pts = D.points.context; if (!pts) { $("ctx").hidden = true; return; }
+  const bs = [...new Set(pts.map(p => p.batch))].sort((a, b) => a - b); opts($("ctx-batch"), bs); $("ctx-batch").value = bs.at(-1);
+  const models = [...new Set(pts.map(p => p.model))]; bdLegend($("ctx-bd-legend"));
+  const render = () => { const b = +$("ctx-batch").value; const mine = pts.filter(p => p.batch === b);
+    seriesLegend($("ctx-legend"), models.map(m => `${m} ${mine.find(p => p.model === m)?.plan || ""}`));
+    const ct = [...new Set(pts.map(p => p.context))].sort((a, c) => a - c);
+    lineChart($("ctx-chart"), models.map(m => ({name: m, pts: mine.filter(p => p.model === m && p.step_us).map(p => ({x: p.context, y: p.tok_s_gpu, p}))})),
+      {xlog: true, ylog: true, xlabel: "context (tokens)", ylabel: "tokens/s per GPU", fx: ctxs, xticks: ct});
+    stepBars($("ctx-bd"), models.map(m => { const s = mine.filter(p => p.model === m && p.step_us).sort((a, c) => c.context - a.context)[0]; return s && {label: `${m} @${ctxs(s.context)}`, p: s}; }).filter(Boolean)); };
+  $("ctx-batch").onchange = render; render();
+}
+
+// ---------- infra
+function initInfra() {
+  const pts = D.points.infra; if (!pts) { $("infra").hidden = true; return; }
+  const lm = pts.filter(p => p.tag === "launch" && p.step_us); const modes = ["eager", "graph", "megakernel"];
+  seriesLegend($("lm-legend"), modes.map(m => m === "graph" ? "CUDA graphs" : m === "megakernel" ? "no launch gaps (megakernel)" : "eager launches"));
+  const node = $("lm"); node.replaceChildren();
+  const models = [...new Set(lm.map(p => p.model))];
+  for (const m of models) { node.append(el("h3", {text: `${m} ${lm.find(p => p.model === m).plan}`, style: "margin:10px 0 2px;font-size:14px"}));
+    const bs = [...new Set(lm.filter(p => p.model === m).map(p => p.batch))].sort((a, b) => a - b);
+    const mx = Math.max(...lm.filter(p => p.model === m).map(p => p.step_us));
+    for (const b of bs) modes.forEach((mo, i) => { const p = lm.find(q => q.model === m && q.batch === b && q.launch === mo); if (!p) return;
+      const row = el("div", {class: "hbar-row", tabindex: 0}); const w = el("div"); const bar = el("div", {class: "bar"}); bar.style.height = "10px";
+      const s = el("span"); s.style.width = (100 * p.step_us / mx) + "%"; s.style.background = `var(${SER[i]})`; bar.append(s); w.append(bar);
+      row.append(el("div", {class: "l", text: i === 0 ? `batch ${b}` : ""}), w, el("div", {class: "t", text: fus(p.step_us)})); attachTip(row, t => pointTip(t, p)); node.append(row); }); }
+  const ck = pts.filter(p => p.tag === "chunked" && p.step_us); const cm = [...new Set(ck.map(p => p.model))];
+  seriesLegend($("ck-legend"), cm.map(m => `${m} ${ck.find(p => p.model === m).plan}`));
+  lineChart($("ck"), cm.map(m => ({name: m, pts: ck.filter(p => p.model === m).map(p => ({x: p.chunk || 128, y: p.step_us / 1e3, p}))})),
+    {xlog: true, xlabel: "prefill chunk riding along (tokens; leftmost = none)", ylabel: "step / TPOT (ms)", fx: v => v === 128 ? "0" : ctxs(v), xticks: [...new Set(ck.map(p => p.chunk || 128))].sort((a, b) => a - b)});
+  const dt = pts.filter(p => p.tag === "dtype"); const rows = [];
+  for (const m of [...new Set(dt.map(p => p.model))]) for (const ph of ["decode", "prefill"]) for (const b of [...new Set(dt.filter(p => p.phase === ph).map(p => p.batch))]) {
+    const g = d => dt.find(p => p.model === m && p.phase === ph && p.batch === b && p.dtype === d); const x = g("bf16"), y = g("fp8"); if (!x || !y) continue;
+    const ok = x.step_us && y.step_us;
+    rows.push([m, `${ph} b${b}` + (ph === "decode" ? ` @${ctxs(x.context)}` : ` ${ctxs(x.seqlen)}`), x.plan, x.step_us ? fus(x.step_us) : "no fit", y.step_us ? fus(y.step_us) : "no fit",
+      ok ? (x.step_us / y.step_us).toFixed(2) + "x" : "–", x.step_us ? BDN[x.dominant] : "–", y.step_us ? BDN[y.dominant] : "–"]); }
+  table($("dt"), [["model"], ["phase"], ["layout"], ["BF16", 1], ["FP8", 1], ["speedup", 1], ["BF16 bound"], ["FP8 bound"]], rows);
+  const an = pts.filter(p => (p.tag || "").startsWith("anchor:"));
+  const mrows = D.measured.map(m => { const key = m.engine.includes("megakernel") ? "anchor:megakernel" : m.engine.startsWith("vLLM 0.32") ? "anchor:vllm" : null;
+    const s = key && an.find(p => p.tag === key);
+    return [m.engine, m.model, String(m.batch), m.gpu_step_us ? fus(m.gpu_step_us) : "–", m.e2e_step_us ? fus(m.e2e_step_us) : "–",
+      s && s.step_us ? fus(s.step_us) : "–", s && s.step_us && m.gpu_step_us ? ((s.step_us / m.gpu_step_us - 1) * 100).toFixed(0) + "%" : "–", m.note]; });
+  table($("meas"), [["engine (measured)"], ["model"], ["batch", 1], ["GPU step", 1], ["end to end", 1], ["simulated", 1], ["sim vs GPU", 1], ["note"]], mrows);
+}
+
+function initCaveats() { const ul = $("caveats");
+  for (const s of SYS) { const i = D.systems[s]; ul.append(el("li", {text: `${i.label}: ${i.provenance}.` + (i.caveat ? ` ${i.caveat}` : "")})); }
+  ul.append(el("li", {text: "Synthetic kernels stand in for the engines' own (FlashAttention-4 / FA2-style attention, CUTLASS-style GEMMs). The measured table above shows how far that is from vLLM, SGLang and a megakernel on the same GPU."}));
+  ul.append(el("li", {text: "Not modelled: request scheduling over time (each point is one steady-state step), expert-load imbalance, KV-cache paging overheads, and host-side overheads beyond the launch gap."})); }
+
+initMatrix(); renderMatrix(); initExplorer(); initAttention(); initMoE(); initContext(); initInfra(); initCaveats();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderMatrix(); initAttention(); initMoE(); initContext(); initInfra(); });
+</script>

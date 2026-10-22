@@ -35,6 +35,12 @@ pub struct RunConfig {
     /// ignores cross-kernel L2 reuse and the CTA-level interleaving of
     /// concurrent kernels (they share SMs as fixed blocks instead).
     pub memoize_kernels: bool,
+    /// With `memoize_kernels`: also reuse memoized results across runs in
+    /// this process (keyed by the GPU spec, GPU config, kernel spec and
+    /// reserved SMs). For sweeps that simulate the same kernels under many
+    /// layouts. Only synthetic kernels are shared; recorded ones (`path`,
+    /// `trace`, `sass`) read files that can change between runs.
+    pub persist_memo: bool,
     /// Ranks whose kernels carry visualiser capture (`gpu.detail`); empty =
     /// all ranks. Other ranks run with capture off.
     pub detail_ranks: Vec<usize>,
@@ -50,6 +56,7 @@ impl Default for RunConfig {
             horizon_ns: None,
             base_dir: None,
             memoize_kernels: false,
+            persist_memo: false,
             detail_ranks: Vec::new(),
         }
     }
@@ -129,6 +136,23 @@ pub struct KernelMemo {
     map: Mutex<HashMap<(usize, u32), Arc<std::sync::OnceLock<KernelDone>>>>,
     /// Capture applied to every memoized run (shared by all ranks).
     detail: rsim_gpu::DetailConfig,
+    /// `RunConfig::persist_memo`: content keys of the shareable kernels
+    /// (filled by `KernelCache`), looked up in [`GLOBAL_MEMO`].
+    persist: Option<Arc<Mutex<HashMap<usize, String>>>>,
+}
+
+/// Process-wide memo for `RunConfig::persist_memo`, keyed by
+/// (GPU spec + config + kernel content key, reserved SMs).
+type GlobalMemo = Mutex<HashMap<(String, u32), Arc<std::sync::OnceLock<KernelDone>>>>;
+static GLOBAL_MEMO: std::sync::OnceLock<GlobalMemo> = std::sync::OnceLock::new();
+/// Entries kept before the process-wide memo is cleared.
+const GLOBAL_MEMO_MAX: usize = 20_000;
+
+fn content_hash(s: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    s.hash(&mut h);
+    h.finish()
 }
 
 impl KernelMemo {
@@ -139,13 +163,33 @@ impl KernelMemo {
         k: &Arc<KernelLaunch>,
         reserved: u32,
     ) -> KernelDone {
-        let cell = self
-            .map
-            .lock()
-            .unwrap()
-            .entry((Arc::as_ptr(k) as usize, reserved))
-            .or_default()
-            .clone();
+        let ptr = Arc::as_ptr(k) as usize;
+        let global_key = self.persist.as_ref().and_then(|keys| {
+            let kk = keys.lock().unwrap().get(&ptr).cloned()?;
+            let cfg_json = serde_json::to_string(cfg).ok()?;
+            Some(format!("{:016x}|{kk}", content_hash(&cfg_json)))
+        });
+        let cell = match global_key {
+            Some(gk) => {
+                let mut g = GLOBAL_MEMO.get_or_init(Default::default).lock().unwrap();
+                if g.len() >= GLOBAL_MEMO_MAX {
+                    g.clear();
+                }
+                let cell = g.entry((gk, reserved)).or_default().clone();
+                self.map
+                    .lock()
+                    .unwrap()
+                    .insert((ptr, reserved), cell.clone());
+                cell
+            }
+            None => self
+                .map
+                .lock()
+                .unwrap()
+                .entry((ptr, reserved))
+                .or_default()
+                .clone(),
+        };
         cell.get_or_init(|| {
             let mut cfg = cfg.clone();
             cfg.detail = self.detail.clone();
@@ -578,6 +622,9 @@ impl LogicalProcess for Lp {
 struct KernelCache {
     map: Mutex<HashMap<(String, String), Arc<KernelLaunch>>>,
     base: PathBuf,
+    /// With `persist_memo`: kernel pointer -> content key (GPU spec hash and
+    /// kernel spec) for synthetic kernels.
+    keys: Option<Arc<Mutex<HashMap<usize, String>>>>,
 }
 
 impl KernelCache {
@@ -598,6 +645,19 @@ impl KernelCache {
             return Ok(k.clone());
         }
         let k = Arc::new(self.build(g, spec)?);
+        if let Some(keys) = &self.keys {
+            let synthetic = !matches!(
+                spec,
+                KernelSpec::Path { .. } | KernelSpec::Trace { .. } | KernelSpec::Sass { .. }
+            );
+            if synthetic {
+                let gpu = serde_json::to_string(g).unwrap_or_default();
+                keys.lock().unwrap().insert(
+                    Arc::as_ptr(&k) as usize,
+                    format!("{:016x}|{}", content_hash(&gpu), key.1),
+                );
+            }
+        }
         self.map.lock().unwrap().insert(key, k.clone());
         Ok(k)
     }
@@ -925,9 +985,17 @@ impl Simulation {
         if world > self.system.num_gpus() || world == 0 {
             return Err(SimError::WorldMismatch(world, self.system.num_gpus()));
         }
+        // Results are shared across runs only without visualiser capture,
+        // whose per-kernel detail belongs to one run.
+        let persist = (self.cfg.memoize_kernels
+            && self.cfg.persist_memo
+            && serde_json::to_string(&self.cfg.gpu.detail).ok()
+                == serde_json::to_string(&rsim_gpu::DetailConfig::default()).ok())
+        .then(|| Arc::new(Mutex::new(HashMap::new())));
         let cache = KernelCache {
             map: Mutex::new(HashMap::new()),
             base: self.cfg.base_dir.clone().unwrap_or_else(|| ".".into()),
+            keys: persist.clone(),
         };
         let mut fl = Flattener {
             world,
@@ -941,6 +1009,7 @@ impl Simulation {
             Arc::new(KernelMemo {
                 map: Default::default(),
                 detail: self.cfg.gpu.detail.clone(),
+                persist: persist.clone(),
             })
         });
         let dvfs: Arc<DvfsCache> = Default::default();

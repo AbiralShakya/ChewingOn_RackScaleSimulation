@@ -392,6 +392,55 @@ def prefill(m: Model, p: Parallel, batch: int, seqlen: int, *, layers: Optional[
     }
 
 
+def mixed_step(m: Model, p: Parallel, decode_batch: int, context: int, chunk: int, *, prefix: int = 0,
+               layers: Optional[int] = None) -> dict:
+    """One continuous-batching iteration with chunked prefill (vLLM / SGLang
+    default): ``decode_batch`` sequences generate a token while one prompt
+    contributes a ``chunk``-token slice that starts at position ``prefix``.
+
+    The GEMMs see ``decode_batch + chunk`` rows; attention runs as two
+    kernels, the decode one over ``context`` cached tokens and a causal one
+    for the chunk over its ``prefix + chunk`` keys. GQA/MHA attention only.
+    """
+    check(m, p)
+    if m.mla or m.blocks is not None:
+        raise ValueError(f"mixed_step lowers GQA/MHA transformers; {m.name} has MLA or a block stack")
+    mem = memory(m, p, phase="decode", batch=decode_batch + 1, context=max(context, prefix + chunk))
+    if layers is not None:
+        m = m.with_layers(layers)
+    t = decode_batch + chunk
+    h, tp = m.hidden, p.tp
+    hq, hkv = max(1, m.heads // tp), max(1, m.kv_heads // tp)
+    ops: List[dict] = []
+    for layer in range(m.layers):
+        ops += [_k("input_norm", type="row_norm", rows=t, cols=h),
+                _gemm("qkv_proj", t, (hq + 2 * hkv) * m.head_dim, h)]
+        if decode_batch:
+            ops += [_k("attention", type="attention", batch=decode_batch, heads_q=hq, heads_kv=hkv, sq=1, skv=context,
+                       d=m.head_dim),
+                    _k("attn_combine", type="elementwise", n=decode_batch * hq * m.head_dim * 4, inputs=1,
+                       elem_bytes=4.0, flops_per_elem=4)]
+        if chunk:
+            ops.append(_k("chunk_attention", type="attention", batch=1, heads_q=hq, heads_kv=hkv, sq=chunk,
+                          skv=prefix + chunk, d=m.head_dim, causal=True))
+        ops.append(_gemm("o_proj", t, h, hq * m.head_dim))
+        if tp > 1:
+            ops.append(_coll("all_reduce", t * h * 2, f"block:{tp}", p.comm_sms, "attn_allreduce"))
+        ops.append(_k("residual", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
+        ops += _ffn_ops(m, p, layer, t, "")
+    # Only sequences that finish a token (decode rows, plus the prompt when
+    # this is its last chunk) need logits; count the decode rows.
+    rows = max(1, decode_batch)
+    ops += [_k("final_norm", type="row_norm", rows=rows, cols=h), _gemm("lm_head", rows, m.vocab // max(1, tp), h)]
+    flops = _model_flops(m, decode_batch, context, False, True) + _model_flops(m, chunk, prefix + chunk // 2, False, False)
+    return {
+        "name": f"{m.name} mixed d{decode_batch} ctx{context} + chunk{chunk}@{prefix} {p}",
+        "spmd": {"world": p.world(), "program": {"streams": [ops]}},
+        "model_flops": flops * p.world() / max(1, tp),
+        "memory": mem,
+    }
+
+
 TENSOR_KERNELS = ("gemm", "grouped_gemm", "attention")
 
 
