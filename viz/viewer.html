@@ -31,6 +31,7 @@
   --c-async: #e87ba4;
   --c-tensor: #6250d6;
   --c-sync: #e34948;
+  --c-grid: #9a6b2f;
   --c-notsel: #b9b8b2;
   --c-idle: #e4e3de;
   --c-green: #008300;
@@ -48,7 +49,7 @@
     --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --line: #353532; --grid: #2a2a28;
     --text: #f0efec; --text-2: #c3c2b7; --text-3: #8e8d86; --accent: #3987e5; --sel: #f0efec;
     --c-issued: #3987e5; --c-mem: #d95926; --c-dep: #199e70; --c-pipe: #c98500; --c-async: #d55181;
-    --c-tensor: #9085e9; --c-sync: #e66767; --c-notsel: #6b6a64; --c-idle: #33332f; --c-green: #008300;
+    --c-tensor: #9085e9; --c-sync: #e66767; --c-grid: #c4904f; --c-notsel: #6b6a64; --c-idle: #33332f; --c-green: #008300;
     --seq-0: #1b2a3d; --seq-1: #184f95; --seq-2: #2a78d6; --seq-3: #6da7ec; --seq-4: #cde2fb;
   }
 }
@@ -57,7 +58,7 @@
   --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --line: #353532; --grid: #2a2a28;
   --text: #f0efec; --text-2: #c3c2b7; --text-3: #8e8d86; --accent: #3987e5; --sel: #f0efec;
   --c-issued: #3987e5; --c-mem: #d95926; --c-dep: #199e70; --c-pipe: #c98500; --c-async: #d55181;
-  --c-tensor: #9085e9; --c-sync: #e66767; --c-notsel: #6b6a64; --c-idle: #33332f; --c-green: #008300;
+  --c-tensor: #9085e9; --c-sync: #e66767; --c-grid: #c4904f; --c-notsel: #6b6a64; --c-idle: #33332f; --c-green: #008300;
   --seq-0: #1b2a3d; --seq-1: #184f95; --seq-2: #2a78d6; --seq-3: #6da7ec; --seq-4: #cde2fb;
 }
 * { box-sizing: border-box; }
@@ -143,6 +144,7 @@ const FAMILIES = [
   ["async", "mbarrier / TMA wait", "--c-async", ["async_wait", "tma_wait"]],
   ["tensor", "Tensor core (wait, throttle)", "--c-tensor", ["tensor_wait", "tensor_throttle"]],
   ["sync", "Barrier, fence, branch", "--c-sync", ["barrier", "membar", "branch_resolving"]],
+  ["grid", "Inter-SM wait (flag in global memory)", "--c-grid", ["grid_sync"]],
   ["notsel", "Eligible, not selected", "--c-notsel", ["not_selected"]],
   ["idle", "Drain / idle", "--c-idle", ["drain", "idle"]],
 ];
@@ -163,7 +165,7 @@ function kcat(name, kind) {
   if (/moe|expert|grouped/.test(n)) return "moe";
   if (/ssd|ssm|scan|mamba|conv1d|chunk|state/.test(n)) return "ssm";
   if (/norm|rms|layernorm|softmax|elementwise|silu|gelu|rope|act|add|embed|sample|topk|router|gate/.test(n)) return n.includes("gate_up") ? "gemm" : "norm";
-  if (/gemm|linear|matmul|proj|mlp|lm_head|qkv|_o\b|wq|wkv|ffn|up|down|dense|mm/.test(n)) return "gemm";
+  if (/gemm|gemv|nvjet|cublas|cutlass|matvec|linear|matmul|proj|mlp|lm_head|qkv|_o\b|wq|wkv|ffn|up|down|dense|mm/.test(n)) return "gemm";
   return "other";
 }
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -387,6 +389,7 @@ function crumbs() {
     items.push([R.kind === "rack" ? `GPU ${S.rank}` : g.name, R.kind === "rack" ? () => go({ view: "gpu", k: -1 }) : null]);
   }
   if (S.view === "kernel" && S.k >= 0) items.push([R.kernels[S.k]._name, null]);
+  if (S.view === "mega") items.push(["megakernel schedule: " + R.megakernels[S.k].label, null]);
   items.forEach(([label, fn], i) => {
     if (i) c.append(h("span", {}, "›"));
     if (fn && i < items.length - 1) c.append(h("button", { onclick: fn }, label));
@@ -403,14 +406,17 @@ function render() {
   readColors();
   hideTip();
   R = prepRun(B.runs[S.run]);
-  if (R.kind === "kernel") { S.view = "kernel"; S.rank = 0; if (!R.kernels[S.k]) S.k = 0; }
+  if (R.kind === "kernel" && S.view !== "mega") { S.view = "kernel"; S.rank = 0; if (!R.kernels[S.k]) S.k = 0; }
   if (S.view === "kernel" && !R.kernels[S.k]) S.view = "rack";
+  if (S.view === "mega" && !(R.megakernels ?? [])[S.k]) S.view = R.kind === "rack" ? "rack" : "kernel";
   crumbs();
   const m = $("#main"); m.innerHTML = "";
   if (S.view === "rack") rackView(m);
   else if (S.view === "gpu") gpuView(m);
+  else if (S.view === "mega") megaView(m);
   else kernelView(m);
-  if (B.runs.length > 1 && S.view !== "kernel") compareCard(m);
+  if (B.runs.length > 1 && S.view === "rack") engineCompareCard(m);
+  if (B.runs.length > 1 && S.view !== "kernel" && S.view !== "mega") compareCard(m);
 }
 
 function kpis(list) { return h("div", { class: "kpis" }, list.map(([v, l]) => h("div", { class: "kpi" }, h("div", { class: "v" }, v), h("div", { class: "l" }, l)))); }
@@ -466,6 +472,7 @@ function rackView(m) {
   card.append(lanes.wrap, h("div", { class: "legend" }, KCATS.map(c => h("span", {}, h("i", { style: `background:var(${c[2]})` }), c[1]))));
   m.append(card);
   requestAnimationFrame(() => lanes.draw());
+  const mkl = megaListCard(null); if (mkl) m.append(mkl);
   m.append(h("div", { class: "grid2" }, anatomyCard(), collectiveCard()));
   m.append(kernelTableCard(null));
 }
@@ -643,6 +650,7 @@ function gpuView(m) {
   } else if (R.kind === "rack") {
     m.append(h("div", { class: "card note" }, `GPU ${r.rank} ran without per-SM capture. Re-run with --detail-ranks ${r.rank} to see its SMs, warps and SASS.`));
   }
+  const mkl = megaListCard(r.rank); if (mkl) m.append(mkl);
   m.append(kernelTableCard(r.rank));
 }
 
@@ -661,6 +669,8 @@ function kernelView(m) {
     [`${fmtN(k.ctas)} CTAs`, `${k.ctas / Math.max(1, k.ctas) ? Math.round(k.warps / k.ctas) : 0} warps/CTA · ${k.ctas_per_sm} CTA/SM · ${(k.ctas / (g.sm_count * k.ctas_per_sm)).toFixed(2)} waves`],
     [fmtN(k.insts), "warp instructions"],
   ]));
+  const mks = (R.megakernels ?? []).map((x, i) => [x, i]).filter(([x]) => x.kernel === S.k);
+  if (mks.length) m.append(h("div", { class: "card" }, h("h2", {}, "This kernel is a persistent megakernel"), h("p", { class: "sub" }, "One CTA per SM works through a queue of tasks for the whole forward pass. Its per-SM task schedule shows which SM did what, when, and where SMs waited on each other."), h("div", { class: "row" }, mks.map(([x, i]) => h("button", { class: "btn", onclick: () => go({ view: "mega", k: i }) }, `Open the ${x.source} task schedule`)))));
   if (R.note && R.kind === "kernel") { const [first, ...rest] = R.note.split(/\n\s*\n/); m.append(h("div", { class: "note", style: "margin:-6px 0 14px" }, first)); if (rest.length) m.append(noteCard(rest.join("\n\n"))); }
   const top = h("div", { class: "grid2" });
   const c1 = h("div", { class: "card" }, h("h2", {}, "Scheduler cycles"), h("p", { class: "sub" }, "Every issue slot of every SMSP while the kernel held the SM: issued, or the reason nothing issued."), stackBar(R, sch), famTable(sch, k.sched));
@@ -881,6 +891,203 @@ function compareCard(m) {
   });
   card.append(tb, famLegend());
   m.append(card);
+}
+
+// ---------------------------------------------------------- megakernels ---
+// A persistent megakernel runs the whole forward pass as one launch: one CTA
+// per SM, each working through its own queue of tasks (a fused norm+matvec, a
+// slice of attention, ...), ordering itself against other SMs through counters
+// in global memory. run.megakernels holds each one's per-SM task schedule:
+// {kernel, rank, source: "simulated"|"measured", label, sm_count, ops, cats?,
+//  tasks: flat [sm, op, layer, t0, t1, t2] (ns from the launch: task fetched,
+//  inputs ready = inter-SM wait over, done), note?}
+const MK_STRIDE = 6;
+function prepMega(mk) {
+  if (mk._prep) return mk;
+  mk._prep = true;
+  const T = mk.tasks, n = T.length / MK_STRIDE;
+  mk._cat = mk.ops.map((o, i) => mk.cats?.[i] ?? kcat(o, 0));
+  mk._per = Array.from({ length: mk.sm_count }, () => []);
+  let end = 0;
+  for (let i = 0; i < n; i++) { const b = i * MK_STRIDE; mk._per[T[b]]?.push(b); end = Math.max(end, T[b + 5]); }
+  mk._end = mk.span_ns ?? end;
+  // SM-time anatomy: working, waiting on another SM, between tasks (fetch, setup, pipeline drain), idle tail
+  let work = 0, wait = 0, gap = 0, tail = 0;
+  const byOp = mk.ops.map(() => ({ n: 0, work: 0, wait: 0 }));
+  for (const p of mk._per) {
+    let cur = 0;
+    for (const b of p) {
+      const [t0, t1, t2] = [T[b + 3], T[b + 4], T[b + 5]];
+      const s0 = Math.max(t0, cur), s1 = Math.max(t1, s0);
+      if (s0 > cur) gap += s0 - cur;
+      wait += Math.max(0, s1 - s0); work += Math.max(0, t2 - s1);
+      cur = Math.max(cur, t2);
+      const o = byOp[T[b + 1]]; o.n++; o.work += t2 - t1; o.wait += Math.max(0, t1 - t0);
+    }
+    tail += Math.max(0, mk._end - cur);
+  }
+  const tot = Math.max(1, mk.sm_count * mk._end);
+  mk._anat = { work: work / tot, wait: wait / tot, gap: gap / tot, tail: tail / tot };
+  mk._byOp = byOp;
+  return mk;
+}
+const MK_PARTS = [["work", "Working on a task", null], ["wait", "Waiting on another SM (inter-SM counter)", "grid"], ["gap", "Between tasks (fetch, setup, drain)", "--c-notsel"], ["tail", "Idle: no tasks left", "--c-idle"]];
+function megaExplainer() {
+  return h("div", { class: "card" }, h("h2", {}, "What a megakernel is"),
+    ...["A normal engine (vLLM, SGLang) runs a decode step as a chain of separate kernels: norm, QKV GEMM, attention, O projection, MLP, for every layer. Each kernel must finish on every SM before the next one starts, and each launch costs a few microseconds of setup and a ramp-up and tail where most SMs sit idle. At batch 1 the kernels are tiny, so those gaps are a large share of the step.",
+      "A megakernel fuses the whole forward pass into one persistent launch with one CTA per SM. A scheduler on the host splits every operation into tasks and gives each SM an ordered queue. An SM fetches its next task as soon as the previous one is done, and while one task computes, the next one's weights are already streaming in. Dependencies between SMs (attention needs all of the QKV slices) are counters in global memory: the producer adds one when its slice is stored, and the consumer spins until the count is reached.",
+      "It wins when launch gaps and tails dominate: small batches, small models, latency-bound decode. It loses or breaks even when every kernel is already long and saturates the GPU (large batches, prefill), when the static schedule is unbalanced (an SM with a longer queue becomes the critical path), and when a slow producer makes many SMs spin. The timeline below shows exactly those cases: brown is an SM waiting on another SM, grey is the gap between tasks, and the empty tail is load imbalance."]
+      .map(t => h("p", { class: "sub", style: "max-width:84ch;margin:6px 0 0" }, t)));
+}
+function megaView(m) {
+  const all = R.megakernels ?? [];
+  const mk = all[S.k] ? prepMega(all[S.k]) : null;
+  if (!mk) { m.append(h("div", { class: "card" }, "No megakernel schedule in this run.")); return; }
+  const twins = all.map((x, i) => [x, i]).filter(([x]) => x.kernel === mk.kernel && x.rank === mk.rank && x.label === mk.label);
+  const n = mk.tasks.length / MK_STRIDE, A = mk._anat;
+  m.append(kpis([
+    [fmtT(mk._end), `one launch (${mk.source})`],
+    [String(mk.sm_count), "persistent CTAs (one per SM)"],
+    [fmtN(n), `tasks · ${mk.ops.length} kinds`],
+    [pct(A.work), "SM-time working"],
+    [pct(A.wait), "SM-time waiting on other SMs"],
+    [pct(A.gap + A.tail), "between tasks + idle tail"],
+  ]));
+  if (twins.length > 1) {
+    const tabs = h("div", { class: "tabs" }, twins.map(([x, i]) => h("button", { class: i === S.k ? "on" : "", onclick: () => go({ view: "mega", k: i }) }, x.source)));
+    m.append(h("div", { class: "row" }, h("span", { class: "note" }, "Schedule:"), tabs,
+      h("span", { class: "note" }, "Measured comes from the kernel's own per-task globaltimer stamps on hardware; simulated stamps the same stores in the cycle-level replay.")));
+  }
+  if (mk.note) m.append(noteCard(mk.note));
+  m.append(megaExplainer());
+  const T = mk.tasks;
+  let colorBy = S.mkColor ?? "op";
+  const card = h("div", { class: "card" }, h("h2", {}, `${mk.sm_count} SMs × one launch: every task`),
+    h("p", { class: "sub" }, "One row per SM. Each task is a bar coloured by kind; the brown lead-in is the time the SM spent spinning on an inter-SM counter before the task's inputs were ready. Gaps are fetch/setup between tasks; empty space at the end is load imbalance. Scroll to zoom, drag to pan."));
+  const ctl = h("div", { class: "tabs" }, ["op", "layer"].map(c => h("button", { class: c === colorBy ? "on" : "", onclick: () => { S.mkColor = c; render(); } }, "colour by " + c)));
+  card.append(h("div", { class: "row" }, ctl));
+  const layers = Math.max(1, ...Array.from({ length: n }, (_, i) => T[i * MK_STRIDE + 2] + 1));
+  // each task kind its own colour (kinds of one category would otherwise blend)
+  const PAL = ["issued", "dep", "tensor", "async", "mem", "pipe", "--seq-4", "--text-3"];
+  const opCol = (o) => COL[PAL[o % PAL.length]];
+  const layerCol = (l) => seqColor((l % 8) / 7);
+  const rows = mk._per.map((_, s) => ({ label: `SM ${s}` }));
+  const lanes = new Lanes({
+    rows, rowH: mk.sm_count > 100 ? 4 : 7, gap: 0, labelW: 70, t0: 0, t1: mk._end * 1.01, maxH: 640,
+    draw(ctx, X, y, hh, i, t0, t1) {
+      for (const b of mk._per[i]) {
+        if (T[b + 5] < t0 || T[b + 3] > t1) continue;
+        if (T[b + 4] > T[b + 3]) box(ctx, X(T[b + 3]), X(T[b + 4]), y, hh, COL.grid);
+        box(ctx, X(T[b + 4]), X(T[b + 5]), y, hh, colorBy === "op" ? opCol(T[b + 1]) : layerCol(T[b + 2]));
+      }
+    },
+    hit(t, i, px) {
+      const b = mk._per[i].find(b => t >= T[b + 3] - px && t <= T[b + 5] + px); if (b === undefined) return null;
+      return { html: `<div class="t">${esc(mk.ops[T[b + 1]])} · layer ${T[b + 2]}</div><div class="r">SM ${i} · task ${mk._per[i].indexOf(b) + 1} of ${mk._per[i].length}</div><div class="m">waited ${fmtT(T[b + 4] - T[b + 3])} on other SMs<br>worked ${fmtT(T[b + 5] - T[b + 4])}<br>${fmtT(T[b + 3])} → ${fmtT(T[b + 5])}</div>` };
+    },
+  });
+  const cats = [...new Set(mk._cat)];
+  card.append(lanes.wrap, colorBy === "op"
+    ? h("div", { class: "legend" }, h("span", {}, h("i", { style: "background:var(--c-grid)" }), "waiting on another SM"), mk.ops.map((o, i) => h("span", {}, h("i", { style: `background:${opCol(i)}` }), o)))
+    : h("div", { class: "legend" }, h("span", {}, h("i", { style: "background:var(--c-grid)" }), "waiting on another SM"), h("span", {}, `layers 0–${layers - 1}, shade cycles every 8 layers`)));
+  void cats;
+  m.append(card);
+  requestAnimationFrame(() => lanes.draw());
+  // utilisation over time
+  const bins = 400, dt = mk._end / bins, work = new Float64Array(bins), wait = new Float64Array(bins);
+  const addTo = (arr, a, b) => { for (let k = Math.max(0, Math.floor(a / dt)); k < bins && k * dt < b; k++) arr[k] += Math.max(0, Math.min(b, (k + 1) * dt) - Math.max(a, k * dt)) / dt; };
+  for (let i = 0; i < n; i++) { const b = i * MK_STRIDE; addTo(wait, T[b + 3], T[b + 4]); addTo(work, T[b + 4], T[b + 5]); }
+  const c2 = h("div", { class: "card" }, h("h2", {}, "How many SMs are working, over the launch"), h("p", { class: "sub" }, `Blue: SMs working on a task; brown: SMs spinning on another SM; the rest of the ${mk.sm_count} are between tasks or done.`));
+  const cv = h("canvas", { style: "height:150px" }); c2.append(h("div", { class: "canvas-wrap" }, cv));
+  const drawU = () => {
+    const W = cv.clientWidth, H = 150, dpr = devicePixelRatio || 1; if (!W) return;
+    cv.width = W * dpr; cv.height = H * dpr; const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = COL["--surface"]; ctx.fillRect(0, 0, W, H);
+    const y = (v) => H - 14 - v / mk.sm_count * (H - 30), bw = W / bins;
+    for (let k = 0; k < bins; k++) { ctx.fillStyle = COL.issued; ctx.fillRect(k * bw, y(work[k]), bw + 0.5, H - 14 - y(work[k])); ctx.fillStyle = COL.grid; ctx.fillRect(k * bw, y(work[k] + wait[k]), bw + 0.5, y(work[k]) - y(work[k] + wait[k])); }
+    ctx.strokeStyle = COL["--line"]; ctx.beginPath(); ctx.moveTo(0, y(mk.sm_count) + 0.5); ctx.lineTo(W, y(mk.sm_count) + 0.5); ctx.stroke();
+    ctx.fillStyle = COL["--text-3"]; ctx.font = "11px " + css("--sans"); ctx.fillText(`${mk.sm_count} SMs`, 4, y(mk.sm_count) - 3); ctx.fillText("0", 4, H - 4); ctx.fillText(fmtT(mk._end), W - 60, H - 4);
+  };
+  m.append(c2); requestAnimationFrame(drawU); new ResizeObserver(drawU).observe(cv);
+  // anatomy + per-op table
+  const g2 = h("div", { class: "grid2" });
+  const an = h("div", { class: "card" }, h("h2", {}, "Where the SMs' time went"), h("p", { class: "sub" }, "Summed over every SM for the length of the launch."));
+  const st = h("div", { class: "stack", style: "height:14px" });
+  MK_PARTS.forEach(([k, , c]) => { if (A[k] > 0.002) st.append(h("b", { style: `width:${100 * A[k]}%;background:${c ? (c.startsWith("--") ? `var(${c})` : `var(--c-${c})`) : "var(--c-issued)"}`, title: `${k}: ${pct(A[k])}` })); });
+  const at = h("table", {}); MK_PARTS.forEach(([k, l, c]) => at.append(h("tr", {}, h("td", {}, h("span", { class: "legend", style: "margin:0" }, h("span", {}, h("i", { style: `background:${c ? (c.startsWith("--") ? `var(${c})` : `var(--c-${c})`) : "var(--c-issued)"}` }), l))), h("td", { class: "num" }, pct(A[k])))));
+  an.append(st, h("div", { style: "height:8px" }), at);
+  const ot = h("table", {}, h("tr", {}, h("th", {}, "task kind"), h("th", { class: "num" }, "tasks"), h("th", { class: "num" }, "mean work"), h("th", { class: "num" }, "mean wait"), h("th", { class: "num" }, "share of work")));
+  const totW = mk._byOp.reduce((a, o) => a + o.work, 0) || 1;
+  mk._byOp.map((o, i) => [o, i]).filter(([o]) => o.n).sort((a, b) => b[0].work - a[0].work).forEach(([o, i]) => ot.append(h("tr", {}, h("td", {}, h("span", { class: "legend", style: "margin:0" }, h("span", {}, h("i", { style: `background:${opCol(i)}` }), mk.ops[i]))), h("td", { class: "num" }, fmtN(o.n)), h("td", { class: "num" }, fmtT(o.work / o.n)), h("td", { class: "num" }, fmtT(o.wait / o.n)), h("td", { class: "num" }, pct(o.work / totW)))));
+  g2.append(an, h("div", { class: "card" }, h("h2", {}, "Task kinds"), ot));
+  m.append(g2);
+  if (mk.kernel >= 0 && R.kernels[mk.kernel]) m.append(h("div", { class: "card" }, h("h2", {}, "Down to warps and SASS"), h("p", { class: "sub" }, "The same launch as an ordinary kernel: warp states, per-warp timelines of the traced SMs, and per-instruction stall samples, where the spin loops show up as grid_sync on the flag loads."), h("button", { class: "btn", onclick: () => go({ view: "kernel", k: mk.kernel, rank: mk.rank, sm: null }) }, "Open the kernel view")));
+}
+function megaListCard(rank) {
+  const all = (R.megakernels ?? []).map((x, i) => [x, i]).filter(([x]) => rank === null || x.rank === rank);
+  if (!all.length) return null;
+  const tb = h("table", {}, h("tr", {}, h("th", {}, "megakernel"), h("th", {}, "schedule"), h("th", { class: "num" }, "launch"), h("th", { class: "num" }, "working"), h("th", { class: "num" }, "waiting on SMs"), h("th", { style: "width:30%" }, "SM time")));
+  for (const [x, i] of all) {
+    prepMega(x);
+    const st = h("div", { class: "stack" }); MK_PARTS.forEach(([k, , c]) => { if (x._anat[k] > 0.002) st.append(h("b", { style: `width:${100 * x._anat[k]}%;background:${c ? (c.startsWith("--") ? `var(${c})` : `var(--c-${c})`) : "var(--c-issued)"}` })); });
+    tb.append(h("tr", { class: "click", onclick: () => go({ view: "mega", k: i, rank: x.rank }) }, h("td", {}, x.label), h("td", {}, x.source), h("td", { class: "num" }, fmtT(x._end)), h("td", { class: "num" }, pct(x._anat.work)), h("td", { class: "num" }, pct(x._anat.wait)), h("td", {}, st)));
+  }
+  return h("div", { class: "card" }, h("h2", {}, "Persistent megakernels"), h("p", { class: "sub" }, "One launch runs the whole forward pass. Click one for its per-SM task schedule."), tb);
+}
+
+// Per-SM activity of every run in the file on one time axis: a many-kernel
+// engine against a megakernel, kernel launches and tails against inter-SM waits.
+function smActivity(run, rank) {
+  prepRun(run);
+  const g = run._gpu(rank), ghz = run._ghz(rank), per = Array.from({ length: g.sm_count }, () => []);
+  const mk = (run.megakernels ?? []).filter(x => x.rank === rank);
+  const mkKernels = new Set(mk.map(x => x.kernel));
+  // prefer a simulated schedule; fall back to measured
+  const pick = new Map(); for (const x of mk) if (!pick.has(x.kernel) || x.source === "simulated") pick.set(x.kernel, x);
+  for (const x of pick.values()) {
+    prepMega(x); const T = x.tasks, k0 = x.kernel >= 0 ? run.kernels[x.kernel]._t0 : 0;
+    for (let b = 0; b < T.length; b += MK_STRIDE) { per[T[b]]?.push([k0 + T[b + 3], k0 + T[b + 4], "grid"]); per[T[b]]?.push([k0 + T[b + 4], k0 + T[b + 5], "k_" + x._cat[T[b + 1]]]); }
+  }
+  // kernels kept at a measured duration have no CTA log: draw them across the SMs they occupy
+  // (run.span_sms: label -> SMs), lighter, so measured and simulated spans stay distinguishable
+  const r0 = run.ranks.find(r => r.rank === rank);
+  for (const sp of r0?._spans ?? []) {
+    const n = sp.k < 0 && sp.kind === 2 ? run.span_sms?.[sp.label] : 0;
+    for (let s = 0; s < Math.min(n || 0, g.sm_count); s++) per[s].push([sp.t0, sp.t1, "k_" + sp.cat, true]);
+  }
+  let launches = (r0?._spans ?? []).filter(sp => sp.k < 0 && sp.kind === 2).length;
+  for (const k of run.kernels) {
+    if (k.rank !== rank) continue; launches++;
+    if (k.d < 0 || mkKernels.has(k._i)) continue;
+    const c = run.details[k.d].ctas, col = "k_" + kcat(k._name, 0);
+    for (let i = 0; i < c.length; i += 4) per[c[i]]?.push([k._t0 + c[i + 2] / ghz, k._t0 + c[i + 3] / ghz, col]);
+  }
+  let busy = 0, span = 0;
+  for (const p of per) { p.sort((a, b) => a[0] - b[0]); let cur = 0; for (const [a, b] of p) { const s0 = Math.max(a, cur); if (b > s0) busy += b - s0; cur = Math.max(cur, b); } span = Math.max(span, cur); }
+  return { per, sms: g.sm_count, launches, span, busy: busy / Math.max(1, g.sm_count * span), gpu: g.name };
+}
+function engineCompareCard(m) {
+  let cand = B.runs.map((run, i) => [run, i]).filter(([run]) => run.kernels.some(k => k.rank === 0 && k.d >= 0) || (run.megakernels ?? []).length);
+  // replicas at node and rack scale repeat GPU 0: compare the single-GPU runs when there are several
+  const single = cand.filter(([run]) => run.ranks.length === 1);
+  if (single.length >= 2) cand = single;
+  const acts = cand.map(([run, i]) => [run, i, smActivity(run, 0)]);
+  if (acts.length < 2) return;
+  const card = h("div", { class: "card" }, h("h2", {}, "Engines on one GPU, one time axis"),
+    h("p", { class: "sub" }, "Every SM of GPU 0 for each run in this file, from the start of the step. Bars are CTAs of separate kernels, or tasks of a megakernel; brown is an SM spinning on another SM; faded bars are kernels kept at their measured duration; empty space is an idle SM (launch gaps, wave tails, load imbalance). Scroll to zoom: the time axis is shared."));
+  const tb = h("table", {}, h("tr", {}, h("th", {}, "run"), h("th", { class: "num" }, "step"), h("th", { class: "num" }, "kernel launches"), h("th", { class: "num" }, "SM-time busy")));
+  acts.forEach(([run, i, a]) => tb.append(h("tr", { class: "click", onclick: () => { $("#runSel").value = i; go({ run: i, view: run.kind === "rack" ? "rack" : "kernel", k: 0, rank: 0 }); } }, h("td", {}, run.name), h("td", { class: "num" }, fmtT(a.span)), h("td", { class: "num" }, String(a.launches)), h("td", { class: "num" }, pct(a.busy)))));
+  const rows = [], src = [];
+  for (const [run, , a] of acts) for (let s = 0; s < a.sms; s++) { rows.push({ label: s === 0 ? run.name : "", always: s === 0, group: s === 0 }); src.push([a, s]); }
+  const t1 = Math.max(...acts.map(x => x[2].span)) * 1.01;
+  const lanes = new Lanes({
+    rows, rowH: 2, gap: 0, labelW: 150, t0: 0, t1, maxH: Math.min(900, acts.length * 300 + 30),
+    draw(ctx, X, y, hh, i, t0, tt1) { const [a, s] = src[i]; for (const c of a.per[s]) { if (c[1] < t0 || c[0] > tt1) continue; if (c[3]) ctx.globalAlpha = 0.45; box(ctx, X(c[0]), X(c[1]), y, hh, COL[c[2]]); ctx.globalAlpha = 1; } },
+    hit(t, i, px) { const [a, s] = src[i]; const c = a.per[s].find(c => t >= c[0] - px && t <= c[1] + px); return { html: `<div class="t">SM ${s}</div><div class="r">${c ? (c[2] === "grid" ? "waiting on another SM" : KCATS.find(k => "k_" + k[0] === c[2])?.[1] ?? "") + " · " + fmtT(c[1] - c[0]) + (c[3] ? " · measured duration (not re-simulated)" : "") : "idle"}</div>` }; },
+  });
+  card.append(tb, h("div", { style: "height:10px" }), lanes.wrap, h("div", { class: "legend" }, h("span", {}, h("i", { style: "background:var(--c-grid)" }), "waiting on another SM"), KCATS.filter(c => c[0] !== "coll").map(c => h("span", {}, h("i", { style: `background:var(${c[2]})` }), c[1]))));
+  m.append(card);
+  requestAnimationFrame(() => lanes.draw());
 }
 
 // ----------------------------------------------------------------- boot ---
