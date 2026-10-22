@@ -45,10 +45,14 @@ def main() -> None:
     from rackscale import models
     for st in sw.STUDIES:
         p = os.path.join(RES, f"{st}.json")
-        if not os.path.exists(p):
+        if os.path.exists(p):
+            d = json.load(open(p))
+            systems = d["systems"]
+        elif os.path.exists(p + "l"):
+            # A sweep still running: preview from its checkpoint.
+            d = dict(points=[json.loads(line) for line in open(p + "l") if line.strip()])
+        else:
             continue
-        d = json.load(open(p))
-        systems = d["systems"]
         data[st] = [slim(r) for r in d["points"]]
         for r in d["points"]:
             if "arch" in r:
