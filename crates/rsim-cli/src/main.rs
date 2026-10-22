@@ -169,6 +169,10 @@ enum Cmd {
         /// Fast mode: simulate each distinct kernel once (cold GPU) and reuse it across ranks.
         #[arg(long)]
         fast: bool,
+        /// Exact mode: simulate every rank, even ranks in lockstep with an
+        /// identical one (same results, slower; for checking the folding).
+        #[arg(long)]
+        no_fold: bool,
     },
     /// Simulate with full capture and write a zoomable viewer: rack, GPU,
     /// SMs, warps and SASS (see docs/VIZ.md).
@@ -643,6 +647,7 @@ fn main() -> Result<()> {
             lrr,
             no_control_bits,
             fast,
+            no_fold,
         } => {
             let sys = SystemSpec::from_yaml(&std::fs::read_to_string(&system)?)?.build()?;
             let wsrc = std::fs::read_to_string(&workload)?;
@@ -662,6 +667,7 @@ fn main() -> Result<()> {
             }
             cfg.gpu.use_control_bits = !no_control_bits;
             cfg.memoize_kernels = fast;
+            cfg.fold_ranks = !no_fold;
             let out = Simulation::new(sys, wl, cfg).run()?;
             print!("{}", out.report.summary());
             if let Some(p) = report {

@@ -11,6 +11,7 @@
 //!  Report (makespan, MFU, per-kernel bubble anatomy, busbw) + Perfetto trace
 //! ```
 
+mod fold;
 pub mod report;
 pub mod sim;
 pub mod viz;

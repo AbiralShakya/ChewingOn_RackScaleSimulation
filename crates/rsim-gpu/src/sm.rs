@@ -878,7 +878,7 @@ impl Sm {
         // still busy with earlier (bank-conflicted) reads.
         if spec.issue.rf_banks > 0 {
             let w = self.warps[ws].as_ref().unwrap();
-            let per = rf_bank_reads(&spec, &inst, &w.reuse);
+            let per = rf_bank_reads(spec, inst, &w.reuse);
             let busy = per
                 .iter()
                 .zip(&sps.bank_free)
@@ -1038,7 +1038,7 @@ impl Sm {
             st.issued_by_index[widx] += 1;
             st.class_counts[inst.class as usize] += 1;
             if self.pc_stats {
-                pc_entry(&mut st.pc, role, &inst).issued += 1;
+                pc_entry(&mut st.pc, role, inst).issued += 1;
             }
             if inst.class == OpClass::Misc {
                 *st.unknown_opcodes
@@ -1051,7 +1051,7 @@ impl Sm {
         let mut next_ready = c + 1;
         let mut next_reason = Stall::Wait;
         // Multi-cycle dispatch holds the warp before its stall count starts.
-        let dispatch = dispatch_cycles(&spec, &inst);
+        let dispatch = dispatch_cycles(&spec, inst);
         if self.use_ctrl {
             if let Some(ctrl) = inst.ctrl {
                 let mut stall = ctrl.stall.max(1) as u64;
@@ -1072,7 +1072,7 @@ impl Sm {
         // Operand reads through the banked register file (and reuse cache).
         if spec.issue.rf_banks > 0 {
             let w = self.warps[ws].as_mut().unwrap();
-            let per = rf_bank_reads(&spec, &inst, &w.reuse);
+            let per = rf_bank_reads(&spec, inst, &w.reuse);
             if spec.issue.reuse_cache {
                 let bits = inst.ctrl.map(|x| x.reuse).unwrap_or(0);
                 if !spec.issue.reuse_sticky {
@@ -1143,8 +1143,8 @@ impl Sm {
             }
             OpClass::MmaSync => {
                 let rate =
-                    spec.tensor.sync_flops_per_cycle(mma_dtype(&inst)) / spec.sub_partitions as f64;
-                let flops = mma_flops(&inst, op.payload);
+                    spec.tensor.sync_flops_per_cycle(mma_dtype(inst)) / spec.sub_partitions as f64;
+                let flops = mma_flops(inst, op.payload);
                 // Measured rates give fractional intervals (A100: 8.09 cycles
                 // per m16n8k16); carry the fraction instead of rounding up.
                 let exact = (flops / rate).max(1.0);
@@ -1170,8 +1170,8 @@ impl Sm {
             }
             OpClass::MmaWarpgroup => {
                 let rate =
-                    spec.tensor.flops_per_cycle(mma_dtype(&inst)) / spec.sub_partitions as f64;
-                let flops = mma_flops(&inst, op.payload);
+                    spec.tensor.flops_per_cycle(mma_dtype(inst)) / spec.sub_partitions as f64;
+                let flops = mma_flops(inst, op.payload);
                 let dur = (flops / rate).ceil().max(1.0) as u64;
                 let sps = &mut self.smsps[sp];
                 let start = sps.tensor_tail.max(c + t.lat as u64);
@@ -1193,9 +1193,9 @@ impl Sm {
                 } else {
                     1.0
                 };
-                let k_ext = mma_shape(&inst).map(|s| s.2).unwrap_or(0);
-                let rate = pair * spec.tensor.mma_rate(mma_dtype(&inst), k_ext);
-                let flops = mma_flops(&inst, op.payload);
+                let k_ext = mma_shape(inst).map(|s| s.2).unwrap_or(0);
+                let rate = pair * spec.tensor.mma_rate(mma_dtype(inst), k_ext);
+                let flops = mma_flops(inst, op.payload);
                 let dur = (flops / rate).ceil().max(1.0) as u64;
                 let start = self.tensor_tail.max(c + t.lat as u64);
                 self.tensor_tail = start + dur;

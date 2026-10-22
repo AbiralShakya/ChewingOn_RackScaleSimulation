@@ -45,6 +45,10 @@ pub struct PdesStats {
     pub windows: u64,
     pub messages: u64,
     pub skipped_windows: u64,
+    /// Rank folding (rsim-rack): ranks that ran in lockstep with another
+    /// until the end, and ranks that left lockstep and were forked.
+    pub folded: u64,
+    pub forked: u64,
 }
 
 /// Run all LPs to completion (or until `horizon`). Returns final time.
