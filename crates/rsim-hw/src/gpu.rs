@@ -166,6 +166,19 @@ pub struct TensorSpec {
     /// for BF16 HMMA against 8192 for tcgen05).
     #[serde(default)]
     pub sync_flops_per_cycle_per_sm: BTreeMap<String, f64>,
+    /// Shared-memory bytes per cycle per SM that tcgen05 MMAs can read their
+    /// smem operands at (0 = not modelled). B300: 128, so M128N64K16 BF16
+    /// takes 48 cycles (6 KB of A and B) instead of the 32 its FLOPs need,
+    /// and 1-SM K=96 NVFP4 takes 144 instead of 128 (calibration.json
+    /// `tensor.tcgen05_*`, `bench_tc05x`).
+    #[serde(default)]
+    pub umma_smem_bytes_per_clk: f64,
+    /// How much concurrent LDS traffic slows those operand reads: an MMA's
+    /// smem time grows by this factor times the port utilisation of LDS
+    /// since the previous MMA. B300: 0.107 (N=128 BF16 UMMA 65.2 -> 68.4
+    /// cycles with LDS.128 streaming at 60 B/clk, `bench_tc05x smem`).
+    #[serde(default)]
+    pub umma_lds_interference: f64,
 }
 
 impl TensorSpec {
@@ -179,7 +192,61 @@ impl TensorSpec {
     }
 }
 
+/// Operand bytes per element of an MMA dtype.
+pub fn dtype_bytes(dtype: &str) -> f64 {
+    match dtype {
+        "fp4" => 0.5,
+        "fp6" => 0.75,
+        "fp8" | "int8" => 1.0,
+        "tf32" | "fp32" => 4.0,
+        "fp64" => 8.0,
+        _ => 2.0,
+    }
+}
+
+/// One tcgen05 MMA instruction, as the timing model sees it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct UmmaShape {
+    /// Instruction M, N, K (M spans both SMs for `cta_group::2`).
+    pub m: u64,
+    pub n: u64,
+    pub k: u64,
+    /// 2 for `cta_group::2` (`.2CTA`), else 1.
+    pub pair: u64,
+    /// A comes from tensor memory (`tcgen05.mma` TS form), not smem.
+    pub a_tmem: bool,
+}
+
 impl TensorSpec {
+    /// Cycles one tcgen05 MMA occupies its SM's tensor core.
+    ///
+    /// Two limits, measured on B300 for 19 shapes (all match exactly):
+    /// * **Math**: the per-SM rate, but an SM's slice of M is padded to 128
+    ///   rows (M=64 runs at half rate: M64N256K16 takes 128 cycles).
+    /// * **Operands**: A (unless in TMEM) and this SM's half of B (the pair
+    ///   multicasts B) are read from smem at `umma_smem_bytes_per_clk`.
+    ///
+    /// `lds_util` is the fraction of the smem port LDS used recently.
+    pub fn umma_cycles(&self, dtype: &str, s: UmmaShape, lds_util: f64) -> f64 {
+        let pair = s.pair.max(1);
+        let m_sm = (s.m / pair).max(1);
+        let rate = self.mma_rate(dtype, s.k);
+        let math = (2 * m_sm.max(128) * s.n * s.k) as f64 / rate;
+        if self.umma_smem_bytes_per_clk <= 0.0 {
+            return math;
+        }
+        let b = dtype_bytes(dtype);
+        let a = if s.a_tmem {
+            0.0
+        } else {
+            (m_sm * s.k) as f64 * b
+        };
+        let bytes = a + (s.n / pair * s.k) as f64 * b;
+        let smem = bytes / self.umma_smem_bytes_per_clk
+            * (1.0 + self.umma_lds_interference * lds_util.clamp(0.0, 1.0));
+        math.max(smem)
+    }
+
     /// Rate for one MMA instruction of K-extent `k`. Blackwell Ultra's
     /// K=96 FP4 UMMA (`fp4_k96`) runs faster than the K=64 form.
     pub fn mma_rate(&self, dtype: &str, k: u64) -> f64 {

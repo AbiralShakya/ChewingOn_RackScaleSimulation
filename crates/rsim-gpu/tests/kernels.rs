@@ -299,3 +299,42 @@ fn dvfs_resimulates_at_the_sustained_clock() {
     let d = rsim_gpu::run_alone(&spec, &cfg, &small, 0);
     assert_eq!(rsim_gpu::dvfs_stretch(&spec, &cfg, &small, &d, 0), 1.0);
 }
+
+/// tcgen05 MMA time follows the measured B300 shapes: SMEM-operand bound at
+/// N=64, half rate at M=64, and TMEM-sourced A frees the smem port.
+#[test]
+fn umma_time_depends_on_shape() {
+    let per_mma = |op: &str| {
+        let mut s = String::from("\t\tFunction : umma\n");
+        let mut pc = 0;
+        for _ in 0..64 {
+            s += &format!("        /*{pc:04x}*/                   {op} ;\n");
+            pc += 16;
+        }
+        s += &format!("        /*{pc:04x}*/                   EXIT ;\n");
+        let prog = rsim_sass::parse_listing(&s).unwrap().remove(0);
+        let k = KernelLaunch::from_program(
+            "umma",
+            prog,
+            [1, 1, 1],
+            [32, 1, 1],
+            64,
+            0,
+            Default::default(),
+        );
+        let spec = presets::b300();
+        let sp = spec.sub_partitions as f64;
+        run(spec, k).0.stats.tensor_busy_cycles as f64 / sp / 64.0
+    };
+    let ss = |m: u32, n: u32| {
+        per_mma(&format!(
+            "UTCHMMA.{m}x{n}x16.BF16 gdesc[UR8], gdesc[UR10], tmem[UR12], UR14"
+        ))
+    };
+    assert_eq!(ss(128, 256), 128.0);
+    assert_eq!(ss(128, 128), 64.0);
+    assert_eq!(ss(128, 64), 48.0);
+    assert_eq!(ss(64, 256), 128.0);
+    let ts = per_mma("UTCHMMA.128x64x16.BF16 tmem[UR8], gdesc[UR10], tmem[UR12], UR14");
+    assert_eq!(ts, 32.0);
+}

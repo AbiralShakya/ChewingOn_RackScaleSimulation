@@ -149,6 +149,8 @@ pub fn h100_sxm() -> GpuSpec {
             tmem_alloc_2cta_latency: 0,
             hmma_fma_pipe_cycles: 0,
             sync_flops_per_cycle_per_sm: BTreeMap::new(),
+            umma_smem_bytes_per_clk: 0.0,
+            umma_lds_interference: 0.0,
         },
         latency: LatencyTable {
             int_alu: 4,
@@ -310,6 +312,10 @@ pub fn b200() -> GpuSpec {
             hmma_fma_pipe_cycles: 0,
             // Legacy mma.sync path: measured 2037 FLOP/clk/SM BF16 on B300.
             sync_flops_per_cycle_per_sm: flops(&[("bf16", 2048.0), ("fp16", 2048.0), ("tf32", 1024.0)]),
+            // Measured on B300 (bench_tc05x); SemiAnalysis's Blackwell
+            // microbenchmarks report the same 48-cycle M128N64K16.
+            umma_smem_bytes_per_clk: 128.0,
+            umma_lds_interference: 0.107,
         },
         latency: LatencyTable {
             int_alu: 4,

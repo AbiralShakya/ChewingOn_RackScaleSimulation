@@ -154,6 +154,11 @@ pub struct PathHeader {
     /// about `grid / tiles per CTA` CTAs run.
     #[serde(default)]
     pub launch_ctas: Option<u32>,
+    /// instruction index -> tcgen05 MMA shape (M, N, K) decoded from its
+    /// instruction descriptor (SASS does not name it). Older recordings lack
+    /// it and the timing model infers the shape from the FLOPs.
+    #[serde(default)]
+    pub mma: HashMap<u32, [u32; 3]>,
 }
 
 fn one3() -> [u32; 3] {
@@ -214,7 +219,18 @@ impl PathKernel {
             .into_iter()
             .next()
             .ok_or("path SASS has no function")?;
-        let insts: Vec<Arc<Inst>> = program.insts.iter().cloned().map(Arc::new).collect();
+        let insts: Vec<Arc<Inst>> = program
+            .insts
+            .iter()
+            .enumerate()
+            .map(|(i, inst)| {
+                let mut inst = inst.clone();
+                if let Some(&[m, n, k]) = header.mma.get(&(i as u32)) {
+                    inst.meta.mma = Some((m, n, k));
+                }
+                Arc::new(inst)
+            })
+            .collect();
         let nw = r.u32()?;
         let mut warps = HashMap::new();
         for _ in 0..nw {
