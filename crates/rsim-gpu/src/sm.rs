@@ -130,6 +130,9 @@ struct Warp {
     /// keeps for the warp's next instruction (`NO_REG` = empty).
     reuse: [Reg; 4],
     exited: bool,
+    /// Issued at the start of the interval `account` has not counted yet:
+    /// its first cycle is the issue cycle (Nsight's `selected`).
+    just_issued: bool,
     // Cached evaluation.
     until: u64,
     state: Stall,
@@ -353,6 +356,7 @@ impl Sm {
                 wait_bar: u32::MAX,
                 reuse: [NO_REG; 4],
                 exited: false,
+                just_issued: false,
                 until: 0,
                 state: Stall::Wait,
                 age: self.age,
@@ -498,9 +502,13 @@ impl Sm {
             acc.sched.add(st, dt);
         }
         for &ws in &s.warps {
-            if let Some(w) = &self.warps[ws] {
+            if let Some(w) = self.warps[ws].as_mut() {
                 let st = self.acc.get(w.kid);
-                st.warp.add(w.state, dt);
+                // The issue cycle counts as `selected` (Nsight: 1.0 per
+                // issue); the warp's state covers the rest of the interval.
+                let dt_issue = u64::from(std::mem::take(&mut w.just_issued));
+                st.warp.add(Stall::Selected, dt_issue);
+                st.warp.add(w.state, dt - dt_issue);
                 if w.wait_bar != u32::MAX
                     && matches!(
                         w.state,
@@ -513,7 +521,8 @@ impl Sm {
                 if st.warp_by_index.len() <= i {
                     st.warp_by_index.resize(i + 1, StallCounts::default());
                 }
-                st.warp_by_index[i].add(w.state, dt);
+                st.warp_by_index[i].add(Stall::Selected, dt_issue);
+                st.warp_by_index[i].add(w.state, dt - dt_issue);
                 if self.pc_stats {
                     if let Some(op) = &w.next {
                         pc_entry(&mut st.pc, w.role, &op.inst)
@@ -1497,6 +1506,7 @@ impl Sm {
         w.ready_reason = next_reason;
         w.until = c + 1;
         w.state = Stall::Wait;
+        w.just_issued = true;
     }
 
     fn try_release_bar(&mut self, cta: usize, id: u64, c: u64) {
