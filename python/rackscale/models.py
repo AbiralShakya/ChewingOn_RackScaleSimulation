@@ -57,6 +57,52 @@ class Mamba2:
 
 
 @dataclass(frozen=True)
+class GLA:
+    """Grouped Latent Attention (Zadouri, Strauss and Dao, "Hardware-Efficient
+    Attention for Fast Decoding", 2025): MLA with ``latent_heads`` latents of
+    ``latent_dim`` each, every latent serving ``heads / latent_heads`` query
+    heads. Unlike MLA's single latent, the latents shard over tensor
+    parallelism, so a TP rank caches and reads only its own."""
+    latent_heads: int = 2
+    latent_dim: int = 256
+    rope_dim: int = 64
+    nope_dim: int = 128
+    v_head_dim: int = 128
+
+
+@dataclass(frozen=True)
+class LinearAttn:
+    """Chunked linear-attention mixer with a matrix state per value head.
+
+    ``delta=False`` is the scalar-gated form (GLA with a per-head scalar gate,
+    RetNet, Lightning Attention), which is exactly Mamba-2's SSD with
+    ``d_state = d_k`` and ``headdim = d_v``, and is lowered onto the SSD
+    kernels. ``delta=True`` is Gated DeltaNet (Yang, Kautz and Hatamizadeh,
+    2024; Qwen3-Next, Kimi Linear), lowered as SSD plus the per-chunk
+    ``K K^T`` and WY-transform passes; the delta rule's sequential
+    ``d_k x d_k`` correction between chunks is not modelled."""
+    heads_qk: int
+    heads_v: int
+    d_k: int = 128
+    d_v: int = 128
+    d_conv: int = 4
+    chunk: int = 64
+    delta: bool = False
+
+    def state_elems(self) -> int:
+        return self.heads_v * self.d_k * self.d_v
+
+    @property
+    def conv_dim(self) -> int:
+        return 2 * self.heads_qk * self.d_k + self.heads_v * self.d_v
+
+    @property
+    def in_proj_out(self) -> int:
+        # q, k, v, output gate, decay (and beta for the delta rule)
+        return self.conv_dim + self.heads_v * self.d_v + self.heads_v * (2 if self.delta else 1)
+
+
+@dataclass(frozen=True)
 class Model:
     name: str
     hidden: int
@@ -75,6 +121,13 @@ class Model:
     #: Mamba-2 mixer, ``A`` = attention, ``F`` = MLP, each with its own
     #: pre-norm and residual. ``None`` = the usual ``layers`` x (attention + FFN).
     blocks: Optional[str] = None
+    #: Grouped-Tied Attention (same paper as GLA): each of the ``kv_heads``
+    #: groups caches one tied state used as V and as the non-RoPE half of K,
+    #: plus a single RoPE key of ``head_dim / 2`` shared by all groups.
+    gta: bool = False
+    gla: Optional[GLA] = None
+    #: Linear-attention mixer for ``L`` blocks.
+    linear: Optional[LinearAttn] = None
 
     def with_layers(self, n: int) -> "Model":
         """Keep the first ``n`` layers. For a block stack, a layer is one block."""
@@ -90,11 +143,23 @@ class Model:
         mb = self.mamba
         return self.hidden * mb.in_proj_out + mb.conv_dim * mb.d_conv + mb.d_inner * self.hidden + 3 * mb.nheads + mb.d_inner
 
+    def linear_params(self) -> int:
+        la = self.linear
+        return (self.hidden * la.in_proj_out + la.conv_dim * la.d_conv + la.heads_v * la.d_v * self.hidden
+                + 2 * la.heads_v)
+
     def mlp_params(self) -> int:
         return 3 * self.hidden * self.ffn
 
     def attn_params(self) -> int:
         h = self.hidden
+        if self.gla:
+            g = self.gla
+            return (h * self.heads * (g.nope_dim + g.rope_dim) + h * (g.latent_heads * g.latent_dim + g.rope_dim)
+                    + g.latent_dim * self.heads * (g.nope_dim + g.v_head_dim) + self.heads * g.v_head_dim * h)
+        if self.gta:
+            d = self.head_dim
+            return h * self.heads * d + h * self.kv_heads * d + h * (d // 2) + self.heads * d * h
         if self.mla:
             m = self.mla
             return (h * m.q_lora_rank + m.q_lora_rank * self.heads * (m.nope_dim + m.rope_dim)
@@ -114,8 +179,7 @@ class Model:
         """Parameters touched per token (embedding lookups excluded, LM head optional)."""
         head = self.hidden * self.vocab if lm_head else 0
         if self.blocks is not None:
-            per = {"M": self.mamba_params() if self.mamba else 0, "A": self.attn_params(), "F": self.mlp_params()}
-            return sum(per[b] for b in self.blocks) + head
+            return sum(self._block_params()[b] for b in self.blocks) + head
         return sum(self.attn_params() + self.ffn_active_params(l) for l in range(self.layers)) + head
 
     def bytes_per_param(self) -> float:
@@ -134,23 +198,44 @@ class Model:
         """Every parameter, embedding and (untied) LM head included."""
         emb = 2 * self.vocab * self.hidden
         if self.blocks is not None:
-            per = {"M": self.mamba_params() if self.mamba else 0, "A": self.attn_params(), "F": self.mlp_params()}
-            return sum(per[b] for b in self.blocks) + emb
+            return sum(self._block_params()[b] for b in self.blocks) + emb
         return sum(self.attn_params() + self.ffn_params(l) for l in range(self.layers)) + emb
+
+    def _block_params(self) -> dict:
+        return {"M": self.mamba_params() if self.mamba else 0, "A": self.attn_params(), "F": self.mlp_params(),
+                "L": self.linear_params() if self.linear else 0}
 
     def attn_layers(self) -> int:
         return self.block_list().count("A")
 
+    def kv_elems_per_token_layer(self, tp: int = 1) -> int:
+        """Cache elements one attention layer keeps per token on one of ``tp``
+        tensor-parallel ranks. MLA's single latent is replicated on every
+        rank; GLA's latents and GQA/GTA's KV heads shard until one is left."""
+        if self.mla:
+            return self.mla.kv_lora_rank + self.mla.rope_dim
+        if self.gla:
+            g = self.gla
+            return max(1, g.latent_heads // tp) * g.latent_dim + g.rope_dim
+        kv = max(1, self.kv_heads // tp)
+        if self.gta:
+            return kv * self.head_dim + self.head_dim // 2
+        return 2 * kv * self.head_dim
+
     def cache_bytes_per_seq(self, context: int, elem_bytes: float = 2.0) -> float:
         """Inference cache of one sequence: the KV cache of the attention
         layers (grows with ``context``) plus the Mamba-2 conv and SSM states
-        (constant). MLA and MoE layouts are not handled here."""
-        kv = 2.0 * self.attn_layers() * self.kv_heads * self.head_dim * context * elem_bytes
+        (constant). Attention layers use :meth:`kv_elems_per_token_layer` (MLA, GLA, GTA, GQA)."""
+        kv = float(self.attn_layers() * self.kv_elems_per_token_layer() * context * elem_bytes)
         ssm = 0.0
         if self.mamba is not None:
             mb = self.mamba
             per = mb.nheads * mb.headdim * mb.d_state + mb.conv_dim * (mb.d_conv - 1)
             ssm = self.block_list().count("M") * per * elem_bytes
+        if self.linear is not None:
+            la = self.linear
+            per = la.state_elems() + la.conv_dim * (la.d_conv - 1)
+            ssm += self.block_list().count("L") * per * elem_bytes
         return kv + ssm
 
 
@@ -228,7 +313,36 @@ LLAMA3_8B_MHA = replace(LLAMA3_8B, name="llama3-8b-mha", kv_heads=32)
 LLAMA3_8B_MQA = replace(LLAMA3_8B, name="llama3-8b-mqa", kv_heads=1)
 LLAMA3_8B_MLA = replace(LLAMA3_8B, name="llama3-8b-mla", kv_heads=32, mla=MLA())
 
+# Decode-attention variants at Llama-3-70B's shape (64 query heads of 128,
+# everything but the attention block unchanged), after "Hardware-Efficient
+# Attention for Fast Decoding" (Zadouri, Strauss and Dao, 2025): MQA, GTA with
+# 8 tied groups, MLA with DeepSeek's 512 + 64 latent, and GLA with two 256-wide
+# latents (half of MLA's KV cache per TP rank once TP >= 2).
+LLAMA3_70B_MQA = replace(LLAMA3_70B, name="llama3-70b-mqa", kv_heads=1)
+LLAMA3_70B_GTA = replace(LLAMA3_70B, name="llama3-70b-gta8", gta=True)
+LLAMA3_70B_MLA = replace(LLAMA3_70B, name="llama3-70b-mla", mla=MLA())
+LLAMA3_70B_GLA = replace(LLAMA3_70B, name="llama3-70b-gla2", gla=GLA(latent_heads=2, latent_dim=256))
+LLAMA3_8B_GTA = replace(LLAMA3_8B, name="llama3-8b-gta8", gta=True)
+LLAMA3_8B_GLA = replace(LLAMA3_8B, name="llama3-8b-gla2", gla=GLA(latent_heads=2, latent_dim=256))
+
+# Linear-attention models at Llama-3-8B's width and depth (32 mixer + 32 MLP
+# blocks). The mixer follows Qwen3-Next's Gated DeltaNet layout scaled to
+# d_model 4096: 16 QK heads and 32 V heads of 128, short conv 4, chunk 64.
+# ``gla-8b`` is the scalar-gated variant of the same mixer (no delta rule);
+# ``gdn-hybrid-8b`` keeps one softmax-attention block in four (3:1, as in
+# Qwen3-Next and Kimi Linear).
+_GDN_8B = LinearAttn(heads_qk=16, heads_v=32, d_k=128, d_v=128, d_conv=4, chunk=64, delta=True)
+GDN_8B = Model("gdn-8b", hidden=4096, layers=64, heads=32, kv_heads=8, head_dim=128, ffn=14336, vocab=128256,
+               linear=_GDN_8B, blocks="LF" * 32)
+GLA_LINEAR_8B = replace(GDN_8B, name="gla-8b", linear=replace(_GDN_8B, delta=False))
+GDN_HYBRID_8B = replace(GDN_8B, name="gdn-hybrid-8b", blocks="LFLFLFAF" * 8)
+_GDN_70B = LinearAttn(heads_qk=32, heads_v=64, d_k=128, d_v=128, d_conv=4, chunk=64, delta=True)
+GDN_HYBRID_70B = Model("gdn-hybrid-70b", hidden=8192, layers=160, heads=64, kv_heads=8, head_dim=128, ffn=28672,
+                       vocab=128256, linear=_GDN_70B, blocks="LFLFLFAF" * 20)
+
 ALL = {m.name: m for m in [LLAMA32_1B, LLAMA32_3B, LLAMA3_8B, QWEN25_32B, LLAMA3_70B, LLAMA3_405B,
                            MIXTRAL_8X7B, MIXTRAL_8X22B, QWEN3_30B_A3B, QWEN3_235B_A22B, DEEPSEEK_V3,
                            LLAMA3_8B_MHA, LLAMA3_8B_MQA, LLAMA3_8B_MLA,
-                           MAMBA2_8B, MAMBA2_HYBRID_8B, MAMBA2_70B, MAMBA2_HYBRID_70B, MAMBA2_70B_SSU8]}
+                           MAMBA2_8B, MAMBA2_HYBRID_8B, MAMBA2_70B, MAMBA2_HYBRID_70B, MAMBA2_70B_SSU8,
+                           LLAMA3_70B_MQA, LLAMA3_70B_GTA, LLAMA3_70B_MLA, LLAMA3_70B_GLA, LLAMA3_8B_GTA, LLAMA3_8B_GLA,
+                           GDN_8B, GLA_LINEAR_8B, GDN_HYBRID_8B, GDN_HYBRID_70B]}

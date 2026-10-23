@@ -320,7 +320,7 @@ def _derive(out: dict, pt: Point, s: SystemDef) -> None:
         out["tok_s_gpu"] = pt.batch * pt.seqlen * pt.micro_batches * dp / step / world
 
 
-def run_point(pt: Point, *, cache: bool = True) -> dict:
+def run_point(pt: Point, *, cache: bool = True, transform=None) -> dict:
     import rackscale as rs
     s = SYSTEMS[pt.system]
     m = models.ALL[pt.model]
@@ -333,6 +333,8 @@ def run_point(pt: Point, *, cache: bool = True) -> dict:
         return out
     try:
         wl = workload(pt)
+        if transform is not None:
+            wl = transform(wl)
     except (ParallelError, ValueError) as e:
         out["error"] = str(e)
         return out
@@ -406,13 +408,17 @@ def _extrapolate(ra: dict, rb: dict, a: int, b: int, n: int) -> dict:
 def arch_of(m: models.Model) -> dict:
     """Architecture tags used to group results."""
     if m.blocks is not None:
-        kind = "ssm" if "A" not in m.blocks else "hybrid"
+        kind = ("linear" if "L" in m.blocks else "ssm") if "A" not in m.blocks else "hybrid"
     else:
         kind = "moe" if m.moe else "dense"
     if m.attn_layers() == 0:
         attn = "none"
     elif m.mla:
         attn = "mla"
+    elif m.gla:
+        attn = f"gla{m.gla.latent_heads}"
+    elif m.gta:
+        attn = f"gta{m.kv_heads}"
     elif m.kv_heads == m.heads:
         attn = "mha"
     elif m.kv_heads == 1:

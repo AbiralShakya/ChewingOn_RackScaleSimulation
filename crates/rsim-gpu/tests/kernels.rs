@@ -1,5 +1,6 @@
 //! End-to-end single-GPU checks against first-principles expectations.
 
+use rsim_gpu::synth::AttnOpts;
 use rsim_gpu::{synth, Gpu, GpuConfig, KernelDone, KernelLaunch};
 use rsim_hw::presets;
 use std::sync::Arc;
@@ -337,4 +338,67 @@ fn umma_time_depends_on_shape() {
     assert_eq!(ss(64, 256), 128.0);
     let ts = per_mma("UTCHMMA.128x64x16.BF16 tmem[UR8], gdesc[UR10], tmem[UR12], UR14");
     assert_eq!(ts, 32.0);
+}
+
+#[test]
+fn tied_kv_attention_reads_half_the_cache() {
+    // Grouped-Tied Attention: one cache tensor per KV head serves as K and V.
+    let tied = AttnOpts {
+        kv_tied: Some(true),
+        ..Default::default()
+    };
+    let spec = presets::b300();
+    let split = synth::attention_with(&spec, 16, 8, 1, 1, 16384, 128, false, AttnOpts::default());
+    let tied_k = synth::attention_with(&spec, 16, 8, 1, 1, 16384, 128, false, tied);
+    let kv = |k: &KernelLaunch| k.bytes - (2 * 16 * 8 * 128) as f64 * 2.0;
+    assert!((kv(&split) / kv(&tied_k) - 2.0).abs() < 1e-9);
+    let (_, ns_split) = run(spec.clone(), split);
+    let (_, ns_tied) = run(spec, tied_k);
+    assert!(
+        ns_tied <= ns_split,
+        "tied {ns_tied} ns vs split {ns_split} ns"
+    );
+    // The default keeps MLA's wide latent tied.
+    let mla = synth::attention_with(
+        &presets::b300(),
+        4,
+        16,
+        1,
+        1,
+        4096,
+        576,
+        false,
+        AttnOpts::default(),
+    );
+    assert_eq!(
+        mla.bytes,
+        synth::attention_with(&presets::b300(), 4, 16, 1, 1, 4096, 576, false, tied).bytes
+    );
+}
+
+#[test]
+fn split_kv_decode_overlaps_softmax_with_mma() {
+    // GQA-8 decode, 8 query rows per KV head: the single-warpgroup chain is
+    // latency bound; splitting each K/V block over two warpgroups overlaps it.
+    let spec = presets::b300();
+    let one = synth::attention_with(&spec, 64, 64, 8, 1, 4096, 128, false, AttnOpts::default());
+    let two = synth::attention_with(
+        &spec,
+        64,
+        64,
+        8,
+        1,
+        4096,
+        128,
+        false,
+        AttnOpts {
+            kv_warpgroups: 2,
+            ..Default::default()
+        },
+    );
+    assert_eq!(one.bytes, two.bytes);
+    assert!(two.name.ends_with("_kvwg2"));
+    let (_, ns1) = run(spec.clone(), one);
+    let (_, ns2) = run(spec, two);
+    assert!(ns2 < ns1, "split {ns2} ns vs single {ns1} ns");
 }

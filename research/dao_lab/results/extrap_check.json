@@ -1,0 +1,193 @@
+[
+ {
+  "spec": {
+   "type": "attention",
+   "batch": 1,
+   "heads_q": 32,
+   "heads_kv": 8,
+   "sq": 16384,
+   "skv": 16384,
+   "d": 128,
+   "causal": true
+  },
+  "extrapolated_us": 1607.3308352499998,
+  "simulated_us": 1604.926941,
+  "error": 0.0014978216070709038,
+  "how": {
+   "rule": "attention_waves",
+   "waves": 14,
+   "k_iters": 64,
+   "t_wave_us": 114.80934537499999,
+   "fit": {
+    "a_us": 2.3771828750000026,
+    "b_us_per_iter": 1.7567525390624998,
+    "points": [
+     [
+      16,
+      30.4852235
+     ],
+     [
+      32,
+      58.593264125
+     ]
+    ],
+    "reduced_waves": 8
+   }
+  },
+  "wall_s": 378.65974950790405
+ },
+ {
+  "spec": {
+   "type": "attention",
+   "batch": 1,
+   "heads_q": 8,
+   "heads_kv": 1,
+   "sq": 16384,
+   "skv": 8192,
+   "d": 128,
+   "causal": false
+  },
+  "extrapolated_us": 459.582534,
+  "simulated_us": 458.640476,
+  "error": 0.0020540228115411008,
+  "how": {
+   "rule": "attention_waves",
+   "waves": 4,
+   "k_iters": 64,
+   "t_wave_us": 114.8956335,
+   "fit": {
+    "a_us": 2.492253499999997,
+    "b_us_per_iter": 1.7563028125000002,
+    "points": [
+     [
+      16,
+      30.5930985
+     ],
+     [
+      32,
+      58.6939435
+     ]
+    ],
+    "reduced_waves": 2
+   }
+  },
+  "wall_s": 92.5248773097992
+ },
+ {
+  "spec": {
+   "type": "gemm",
+   "m": 262144,
+   "n": 6144,
+   "k": 4096
+  },
+  "extrapolated_us": 9946.178851689923,
+  "simulated_us": 9949.999096,
+  "error": -0.0003839441866494431,
+  "how": {
+   "rule": "token_linear",
+   "axis": "m",
+   "points": [
+    [
+     99072,
+     3799.228836
+    ],
+    [
+     198144,
+     7533.718092
+    ]
+   ],
+   "slope_us_per_token": 0.037694699370155044
+  },
+  "wall_s": 606.1206505298615
+ },
+ {
+  "spec": {
+   "type": "ssd",
+   "stage": "chunk_scan",
+   "batch": 1,
+   "seqlen": 65536,
+   "heads": 32,
+   "headdim": 128,
+   "d_state": 128,
+   "groups": 16,
+   "chunk": 64
+  },
+  "extrapolated_us": 1455.7296760000002,
+  "simulated_us": 1456.1228,
+  "error": -0.00026997997696343035,
+  "how": {
+   "rule": "token_linear",
+   "axis": "seqlen",
+   "points": [
+    [
+     16384,
+     367.42651
+    ],
+    [
+     32768,
+     730.194232
+    ]
+   ],
+   "slope_us_per_token": 0.022141584594726565
+  },
+  "wall_s": 542.9029927253723
+ },
+ {
+  "spec": {
+   "type": "ssd",
+   "stage": "chunk_state",
+   "batch": 1,
+   "seqlen": 65536,
+   "heads": 128,
+   "headdim": 64,
+   "d_state": 128,
+   "groups": 8,
+   "chunk": 256
+  },
+  "extrapolated_us": 863.330429,
+  "simulated_us": 862.60814,
+  "error": 0.0008373315373535473,
+  "how": {
+   "rule": "token_linear",
+   "axis": "seqlen",
+   "points": [
+    [
+     16384,
+     218.788673
+    ],
+    [
+     32768,
+     433.635925
+    ]
+   ],
+   "slope_us_per_token": 0.013113235595703125
+  },
+  "wall_s": 673.9455585479736
+ },
+ {
+  "spec": {
+   "type": "row_norm",
+   "rows": 65536,
+   "cols": 4096
+  },
+  "extrapolated_us": 159.81739299999998,
+  "simulated_us": 159.599918,
+  "error": 0.00136262601337922,
+  "how": {
+   "rule": "token_linear",
+   "axis": "rows",
+   "points": [
+    [
+     16384,
+     34.537801
+    ],
+    [
+     32768,
+     76.297665
+    ]
+   ],
+   "slope_us_per_token": 0.0025488198242187496
+  },
+  "wall_s": 39.567633867263794
+ }
+]

@@ -1,0 +1,2439 @@
+[
+ {
+  "model": "llama3-8b",
+  "cp": 72,
+  "seqlen": 147456,
+  "tokens_per_rank": 2048,
+  "system": "gb300_nvl72",
+  "makespan_us": 178620.993589,
+  "ttft_ms": 178.620993589,
+  "mfu": 0.24522135865689906,
+  "rank0_busy_us": 122463.02800096436,
+  "last_busy_us": 122463.02800096436,
+  "collective_us": 332163.54567402095,
+  "kernels": [
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq2048_skv1024_d128",
+    "count": 163584,
+    "total_us": 5369180.258121003
+   },
+   {
+    "name": "elementwise",
+    "count": 170496,
+    "total_us": 1834639.2328361364
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 592100.9235250561
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 270277.08112947724
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x6144x4096_tile128x256",
+    "count": 2304,
+    "total_us": 146602.9294981884
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 80923.38333915721
+   },
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq2048_skv2048_d128",
+    "count": 2304,
+    "total_us": 76001.17691630026
+   },
+   {
+    "name": "row_norm",
+    "count": 4608,
+    "total_us": 23438.551881244068
+   }
+  ],
+  "extrapolated": [],
+  "freeze_s": 24.765361547470093,
+  "sim_s": 198.15187549591064
+ },
+ {
+  "model": "llama3-8b-gta8",
+  "cp": 72,
+  "seqlen": 147456,
+  "tokens_per_rank": 2048,
+  "system": "gb300_nvl72",
+  "makespan_us": 128090.027209,
+  "ttft_ms": 128.090027209,
+  "mfu": 0.34032448179284985,
+  "rank0_busy_us": 119512.90671757451,
+  "last_busy_us": 119512.89195691855,
+  "collective_us": 222539.8594340094,
+  "kernels": [
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq2048_skv1024_d128",
+    "count": 163584,
+    "total_us": 5165658.889117672
+   },
+   {
+    "name": "elementwise",
+    "count": 170496,
+    "total_us": 1834572.6150438245
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 592100.9235250561
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 270277.08112947724
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x5184x4096_tile128x256",
+    "count": 2304,
+    "total_us": 145578.1384844794
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 80923.38333915721
+   },
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq2048_skv2048_d128",
+    "count": 2304,
+    "total_us": 72714.81723847915
+   },
+   {
+    "name": "row_norm",
+    "count": 4608,
+    "total_us": 23438.551881244068
+   }
+  ],
+  "extrapolated": [],
+  "freeze_s": 12.639246940612793,
+  "sim_s": 143.75825810432434
+ },
+ {
+  "model": "mamba2-8b",
+  "cp": 72,
+  "seqlen": 147456,
+  "tokens_per_rank": 2048,
+  "system": "gb300_nvl72",
+  "makespan_us": 38394.397347,
+  "ttft_ms": 38.394397347,
+  "mfu": 0.31335788409696763,
+  "rank0_busy_us": 32448.37755789867,
+  "last_busy_us": 32586.835462967974,
+  "collective_us": 2686.520846000001,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_2048x18560x4096_tile128x256",
+    "count": 4608,
+    "total_us": 674227.0321733843
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l2048_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 533087.6305703184
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x8192_tile128x256",
+    "count": 4608,
+    "total_us": 314863.8063795555
+   },
+   {
+    "name": "ssd_chunk_state_b1_l2048_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 142040.63116565562
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l2048_d10240_w4",
+    "count": 4608,
+    "total_us": 89625.6771450888
+   },
+   {
+    "name": "ssd_chunk_cumsum_b1_l2048_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 74220.2624444679
+   },
+   {
+    "name": "row_norm",
+    "count": 9216,
+    "total_us": 65711.55021329086
+   },
+   {
+    "name": "elementwise",
+    "count": 9152,
+    "total_us": 36328.52890382151
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l2048_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 30266.956795562186
+   },
+   {
+    "name": "ssd_state_passing_b1_l2048_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 27124.04756867348
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 16.323151,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 2.8562726974487305,
+  "sim_s": 223.3243329524994
+ },
+ {
+  "model": "gla-8b",
+  "cp": 72,
+  "seqlen": 147456,
+  "tokens_per_rank": 2048,
+  "system": "gb300_nvl72",
+  "makespan_us": 32007.664225,
+  "ttft_ms": 32.007664225,
+  "mfu": 0.40741155726091943,
+  "rank0_busy_us": 28504.66092313142,
+  "last_busy_us": 28551.940288226408,
+  "collective_us": 928.2865700000001,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_2048x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 577046.896572084
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 271219.3305550624
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x12320x4096_tile128x256",
+    "count": 2304,
+    "total_us": 248855.66440173527
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l2048_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 111919.03731001428
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 80751.27409062308
+   },
+   {
+    "name": "elementwise",
+    "count": 9184,
+    "total_us": 76489.27343131872
+   },
+   {
+    "name": "ssd_chunk_state_b1_l2048_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 57934.56798019907
+   },
+   {
+    "name": "ssd_state_passing_b1_l2048_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 44162.205832426545
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l2048_d8192_w4",
+    "count": 2304,
+    "total_us": 37732.49558410506
+   },
+   {
+    "name": "row_norm",
+    "count": 6912,
+    "total_us": 34940.48306706589
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l2048_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 11047.60311548223
+   },
+   {
+    "name": "ssd_chunk_cumsum_b1_l2048_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 5906.151749383906
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 5.084388,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 0.9902291297912598,
+  "sim_s": 164.1823694705963
+ },
+ {
+  "model": "gdn-8b",
+  "cp": 72,
+  "seqlen": 147456,
+  "tokens_per_rank": 2048,
+  "system": "gb300_nvl72",
+  "makespan_us": 34124.33983,
+  "ttft_ms": 34.12433983,
+  "mfu": 0.3823451553304975,
+  "rank0_busy_us": 30354.615903130732,
+  "last_busy_us": 30446.732236780597,
+  "collective_us": 928.2865700000001,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_2048x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 577046.896572084
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 271219.3305550624
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x12352x4096_tile128x256",
+    "count": 2304,
+    "total_us": 248855.0105046761
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l2048_h32_p128_n128_g16",
+    "count": 4608,
+    "total_us": 223824.6045374359
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 80751.27409062308
+   },
+   {
+    "name": "elementwise",
+    "count": 6912,
+    "total_us": 73154.65378882509
+   },
+   {
+    "name": "ssd_chunk_state_b1_l2048_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 57935.0703345237
+   },
+   {
+    "name": "ssd_state_passing_b1_l2048_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 44162.00508750544
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l2048_d8192_w4",
+    "count": 2304,
+    "total_us": 37731.25864113532
+   },
+   {
+    "name": "row_norm",
+    "count": 6912,
+    "total_us": 34940.48306706589
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l2048_h32_p128_n128_g32",
+    "count": 2304,
+    "total_us": 21103.87467219125
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l2048_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 11047.488966409446
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 5.084388,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 0.817875862121582,
+  "sim_s": 113.90361261367798
+ },
+ {
+  "model": "gdn-hybrid-8b",
+  "cp": 72,
+  "seqlen": 147456,
+  "tokens_per_rank": 2048,
+  "system": "gb300_nvl72",
+  "makespan_us": 87731.847099,
+  "ttft_ms": 87.731847099,
+  "mfu": 0.23635519344958983,
+  "rank0_busy_us": 53436.07799530611,
+  "last_busy_us": 53463.06047440748,
+  "collective_us": 126289.0455190029,
+  "kernels": [
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq2048_skv1024_d128",
+    "count": 40896,
+    "total_us": 1341988.305623623
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 580560.851788256
+   },
+   {
+    "name": "elementwise",
+    "count": 47808,
+    "total_us": 513476.1915538719
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 270999.3879248073
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x12352x4096_tile128x256",
+    "count": 1728,
+    "total_us": 186295.50980845708
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l2048_h32_p128_n128_g16",
+    "count": 3456,
+    "total_us": 169855.77166249123
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 80796.08301393139
+   },
+   {
+    "name": "ssd_chunk_state_b1_l2048_h32_p128_n128_g16",
+    "count": 1728,
+    "total_us": 43710.894348144175
+   },
+   {
+    "name": "sm100_gemm_bf16_2048x6144x4096_tile128x256",
+    "count": 576,
+    "total_us": 36717.804795244985
+   },
+   {
+    "name": "ssd_state_passing_b1_l2048_h32_p128_n128_g16",
+    "count": 1728,
+    "total_us": 33069.862184675774
+   },
+   {
+    "name": "row_norm",
+    "count": 6336,
+    "total_us": 32063.303533207436
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l2048_d8192_w4",
+    "count": 1728,
+    "total_us": 28513.362821843893
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 5.084388,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 3.368894338607788,
+  "sim_s": 169.22862219810486
+ },
+ {
+  "model": "llama3-8b",
+  "cp": 72,
+  "seqlen": 589824,
+  "tokens_per_rank": 8192,
+  "system": "gb300_nvl72",
+  "makespan_us": 1284341.30868,
+  "ttft_ms": 1284.34130868,
+  "mfu": 0.4370930567260765,
+  "rank0_busy_us": 1276036.9242729146,
+  "last_busy_us": 1276036.9242729146,
+  "collective_us": 1751784.6011408886,
+  "kernels": [
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq8192_skv4096_d128",
+    "count": 163584,
+    "total_us": 75252620.32556924
+   },
+   {
+    "name": "elementwise",
+    "count": 170496,
+    "total_us": 9228384.497396939
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 2162855.0533106723
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 1110142.700117547
+   },
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq8192_skv8192_d128",
+    "count": 2304,
+    "total_us": 1067375.3880822626
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x6144x4096_tile128x256",
+    "count": 2304,
+    "total_us": 499009.74104891
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 330906.0031587766
+   },
+   {
+    "name": "row_norm",
+    "count": 4608,
+    "total_us": 77533.26215417392
+   }
+  ],
+  "extrapolated": [],
+  "freeze_s": 12.584218502044678,
+  "sim_s": 523.1777017116547
+ },
+ {
+  "model": "llama3-8b-gta8",
+  "cp": 72,
+  "seqlen": 589824,
+  "tokens_per_rank": 8192,
+  "system": "gb300_nvl72",
+  "makespan_us": 1277900.350812,
+  "ttft_ms": 1277.900350812,
+  "mfu": 0.43864032569919487,
+  "rank0_busy_us": 1269595.966404747,
+  "last_busy_us": 1269595.966404747,
+  "collective_us": 1521515.256885036,
+  "kernels": [
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq8192_skv4096_d128",
+    "count": 163584,
+    "total_us": 74933099.39322037
+   },
+   {
+    "name": "elementwise",
+    "count": 170496,
+    "total_us": 9227709.95903827
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 2162855.0533106723
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 1110142.700117547
+   },
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq8192_skv8192_d128",
+    "count": 2304,
+    "total_us": 1059857.2309993936
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x5184x4096_tile128x256",
+    "count": 2304,
+    "total_us": 413429.48883847217
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 330906.0031587766
+   },
+   {
+    "name": "row_norm",
+    "count": 4608,
+    "total_us": 77533.26215417392
+   }
+  ],
+  "extrapolated": [],
+  "freeze_s": 12.48825478553772,
+  "sim_s": 512.9891839027405
+ },
+ {
+  "model": "mamba2-8b",
+  "cp": 72,
+  "seqlen": 589824,
+  "tokens_per_rank": 8192,
+  "system": "gb300_nvl72",
+  "makespan_us": 144405.175578,
+  "ttft_ms": 144.40517557799998,
+  "mfu": 0.3332619365110093,
+  "rank0_busy_us": 135072.0152723587,
+  "last_busy_us": 135520.19749757677,
+  "collective_us": 2686.520846000001,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_8192x18560x4096_tile128x256",
+    "count": 4608,
+    "total_us": 2709992.29050933
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l8192_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 2078676.632405654
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x8192_tile128x256",
+    "count": 4608,
+    "total_us": 1295543.9783903132
+   },
+   {
+    "name": "ssd_chunk_state_b1_l8192_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 512306.79826614575
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l8192_d10240_w4",
+    "count": 4608,
+    "total_us": 302902.2121303023
+   },
+   {
+    "name": "row_norm",
+    "count": 9216,
+    "total_us": 234845.2404265145
+   },
+   {
+    "name": "ssd_state_passing_b1_l8192_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 140187.5110089882
+   },
+   {
+    "name": "elementwise",
+    "count": 9152,
+    "total_us": 118271.11487236503
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l8192_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 99281.45421982167
+   },
+   {
+    "name": "ssd_chunk_cumsum_b1_l8192_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 74437.91717304243
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 61.682647,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 5.080781698226929,
+  "sim_s": 472.8942997455597
+ },
+ {
+  "model": "gla-8b",
+  "cp": 72,
+  "seqlen": 589824,
+  "tokens_per_rank": 8192,
+  "system": "gb300_nvl72",
+  "makespan_us": 121371.589673,
+  "ttft_ms": 121.37158967299999,
+  "mfu": 0.429764242565335,
+  "rank0_busy_us": 117420.82138130217,
+  "last_busy_us": 117557.29742229743,
+  "collective_us": 928.2865700000001,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_8192x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 2163545.8165841084
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 1120347.107649434
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x12320x4096_tile128x256",
+    "count": 2304,
+    "total_us": 927708.9907155822
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l8192_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 427880.7304556504
+   },
+   {
+    "name": "elementwise",
+    "count": 9184,
+    "total_us": 345188.57525227196
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 332965.9019006738
+   },
+   {
+    "name": "ssd_chunk_state_b1_l8192_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 227154.4077778682
+   },
+   {
+    "name": "ssd_state_passing_b1_l8192_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 183967.6623549186
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l8192_d8192_w4",
+    "count": 2304,
+    "total_us": 122975.76890716645
+   },
+   {
+    "name": "row_norm",
+    "count": 6912,
+    "total_us": 115061.13174870872
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l8192_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 40445.515958729135
+   },
+   {
+    "name": "ssd_chunk_cumsum_b1_l8192_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 6042.185954743919
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 16.323151,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 1.9059693813323975,
+  "sim_s": 363.87476348876953
+ },
+ {
+  "model": "gdn-8b",
+  "cp": 72,
+  "seqlen": 589824,
+  "tokens_per_rank": 8192,
+  "system": "gb300_nvl72",
+  "makespan_us": 128633.945573,
+  "ttft_ms": 128.633945573,
+  "mfu": 0.4057179760671394,
+  "rank0_busy_us": 124437.76169412967,
+  "last_busy_us": 124618.86608640887,
+  "collective_us": 928.2865700000001,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_8192x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 2163545.8165841084
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 1120347.107649434
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x12352x4096_tile128x256",
+    "count": 2304,
+    "total_us": 927708.9907155822
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l8192_h32_p128_n128_g16",
+    "count": 4608,
+    "total_us": 855733.322180784
+   },
+   {
+    "name": "elementwise",
+    "count": 6912,
+    "total_us": 341853.9580698752
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 332965.9019006738
+   },
+   {
+    "name": "ssd_chunk_state_b1_l8192_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 227154.91406836774
+   },
+   {
+    "name": "ssd_state_passing_b1_l8192_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 183967.59347185746
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l8192_d8192_w4",
+    "count": 2304,
+    "total_us": 122971.72891562922
+   },
+   {
+    "name": "row_norm",
+    "count": 6912,
+    "total_us": 115061.13174870872
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l8192_h32_p128_n128_g32",
+    "count": 2304,
+    "total_us": 77529.92378581554
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l8192_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 40445.46970867378
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 16.323151,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 0.8462145328521729,
+  "sim_s": 416.2794623374939
+ },
+ {
+  "model": "gdn-hybrid-8b",
+  "cp": 72,
+  "seqlen": 589824,
+  "tokens_per_rank": 8192,
+  "system": "gb300_nvl72",
+  "makespan_us": 432492.077464,
+  "ttft_ms": 432.492077464,
+  "mfu": 0.4150041226503713,
+  "rank0_busy_us": 411305.69908926747,
+  "last_busy_us": 396940.927362812,
+  "collective_us": 533190.7378140048,
+  "kernels": [
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq8192_skv4096_d128",
+    "count": 40896,
+    "total_us": 18593260.874419883
+   },
+   {
+    "name": "elementwise",
+    "count": 47808,
+    "total_us": 2563276.429201922
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 2163384.2671088693
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 1117960.5929847185
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x12352x4096_tile128x256",
+    "count": 1728,
+    "total_us": 694011.877407837
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l8192_h32_p128_n128_g16",
+    "count": 3456,
+    "total_us": 643896.3270567523
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 332464.005156383
+   },
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq8192_skv8192_d128",
+    "count": 576,
+    "total_us": 236664.89079574356
+   },
+   {
+    "name": "ssd_chunk_state_b1_l8192_h32_p128_n128_g16",
+    "count": 1728,
+    "total_us": 170630.2160467953
+   },
+   {
+    "name": "ssd_state_passing_b1_l8192_h32_p128_n128_g16",
+    "count": 1728,
+    "total_us": 137939.97923667487
+   },
+   {
+    "name": "sm100_gemm_bf16_8192x6144x4096_tile128x256",
+    "count": 576,
+    "total_us": 125520.69394764083
+   },
+   {
+    "name": "row_norm",
+    "count": 6336,
+    "total_us": 105670.28433944582
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 16.323151,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 3.4730639457702637,
+  "sim_s": 875.5565555095673
+ },
+ {
+  "model": "llama3-8b-gta8",
+  "cp": 72,
+  "seqlen": 1179648,
+  "tokens_per_rank": 16384,
+  "system": "gb300_nvl72",
+  "makespan_us": 4383796.409224,
+  "ttft_ms": 4383.796409224,
+  "mfu": 0.49063951688492197,
+  "rank0_busy_us": 4375492.024817582,
+  "last_busy_us": 4375492.024817582,
+  "collective_us": 4759263.621723286,
+  "kernels": [
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq16384_skv8192_d128",
+    "count": 163584,
+    "total_us": 278629128.352301
+   },
+   {
+    "name": "elementwise",
+    "count": 170496,
+    "total_us": 19738590.156613532
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 4324954.408270013
+   },
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq16384_skv16384_d128",
+    "count": 2304,
+    "total_us": 3933003.9410952185
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 2202639.390286574
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x5184x4096_tile128x256",
+    "count": 2304,
+    "total_us": 834980.2197369883
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 642006.0282518722
+   },
+   {
+    "name": "row_norm",
+    "count": 4608,
+    "total_us": 160101.91544112127
+   }
+  ],
+  "extrapolated": [],
+  "freeze_s": 13.334065437316895,
+  "sim_s": 1335.8599224090576
+ },
+ {
+  "model": "mamba2-8b",
+  "cp": 72,
+  "seqlen": 1179648,
+  "tokens_per_rank": 16384,
+  "system": "gb300_nvl72",
+  "makespan_us": 280301.071624,
+  "ttft_ms": 280.301071624,
+  "mfu": 0.34337898300932534,
+  "rank0_busy_us": 267127.3775726593,
+  "last_busy_us": 267263.3842247949,
+  "collective_us": 2686.520846000001,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_16384x18560x4096_tile128x256",
+    "count": 4608,
+    "total_us": 5439234.63932306
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l16384_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 4133127.602426934
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x8192_tile128x256",
+    "count": 4608,
+    "total_us": 2291811.3351996406
+   },
+   {
+    "name": "ssd_chunk_state_b1_l16384_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 1008536.0356814788
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l16384_d10240_w4",
+    "count": 4608,
+    "total_us": 583573.5508725605
+   },
+   {
+    "name": "row_norm",
+    "count": 9216,
+    "total_us": 509292.3820253933
+   },
+   {
+    "name": "ssd_state_passing_b1_l16384_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 333183.7893556032
+   },
+   {
+    "name": "elementwise",
+    "count": 9152,
+    "total_us": 259617.47071237816
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l16384_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 192778.91686304763
+   },
+   {
+    "name": "ssd_chunk_cumsum_b1_l16384_h128_p64_n128_g8",
+    "count": 4608,
+    "total_us": 75854.94014554411
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 122.670233,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 16.062095642089844,
+  "sim_s": 745.9946985244751
+ },
+ {
+  "model": "gla-8b",
+  "cp": 72,
+  "seqlen": 1179648,
+  "tokens_per_rank": 16384,
+  "system": "gb300_nvl72",
+  "makespan_us": 236014.088062,
+  "ttft_ms": 236.01408806199998,
+  "mfu": 0.44201742135888894,
+  "rank0_busy_us": 231653.4827767746,
+  "last_busy_us": 231693.01181344496,
+  "collective_us": 928.2865700000001,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_16384x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 4264534.03659654
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 1980845.0770753399
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x12320x4096_tile128x256",
+    "count": 2304,
+    "total_us": 1858703.7167331197
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l16384_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 846911.3893221737
+   },
+   {
+    "name": "elementwise",
+    "count": 9184,
+    "total_us": 735251.9220834671
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 592753.1791992483
+   },
+   {
+    "name": "ssd_chunk_state_b1_l16384_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 452806.6757526844
+   },
+   {
+    "name": "ssd_state_passing_b1_l16384_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 377044.2632710508
+   },
+   {
+    "name": "row_norm",
+    "count": 6912,
+    "total_us": 238723.0261312973
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l16384_d8192_w4",
+    "count": 2304,
+    "total_us": 235437.40448624323
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l16384_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 77529.07308001017
+   },
+   {
+    "name": "ssd_chunk_cumsum_b1_l16384_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 6380.744232273994
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 31.486773,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 2.6363887786865234,
+  "sim_s": 668.8784639835358
+ },
+ {
+  "model": "gdn-8b",
+  "cp": 72,
+  "seqlen": 1179648,
+  "tokens_per_rank": 16384,
+  "system": "gb300_nvl72",
+  "makespan_us": 250082.640977,
+  "ttft_ms": 250.082640977,
+  "mfu": 0.41737486334533663,
+  "rank0_busy_us": 245476.62059701933,
+  "last_busy_us": 245564.3131620769,
+  "collective_us": 928.2865700000001,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_16384x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 4264534.03659654
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 1980845.0770753399
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x12352x4096_tile128x256",
+    "count": 2304,
+    "total_us": 1858703.7167331197
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l16384_h32_p128_n128_g16",
+    "count": 4608,
+    "total_us": 1693747.308886298
+   },
+   {
+    "name": "elementwise",
+    "count": 6912,
+    "total_us": 731917.3049010816
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 592753.1791992483
+   },
+   {
+    "name": "ssd_chunk_state_b1_l16384_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 452806.7726809919
+   },
+   {
+    "name": "ssd_state_passing_b1_l16384_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 377044.2632710508
+   },
+   {
+    "name": "row_norm",
+    "count": 6912,
+    "total_us": 238723.0261312973
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l16384_d8192_w4",
+    "count": 2304,
+    "total_us": 235428.69077900608
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l16384_h32_p128_n128_g32",
+    "count": 2304,
+    "total_us": 151590.31553362674
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l16384_h32_p128_n128_g16",
+    "count": 2304,
+    "total_us": 77529.07308001017
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 31.486773,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 0.995635986328125,
+  "sim_s": 743.4380750656128
+ },
+ {
+  "model": "llama3-8b",
+  "cp": 8,
+  "seqlen": 147456,
+  "tokens_per_rank": 18432,
+  "system": "hgx_b300_8",
+  "makespan_us": 765209.713988,
+  "ttft_ms": 765.209713988,
+  "mfu": 0.5151726871557208,
+  "rank0_busy_us": 236511.26336454388,
+  "last_busy_us": 236511.26336454388,
+  "collective_us": 844349.6475130076,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_18432x28672x4096_tile128x256",
+    "count": 256,
+    "total_us": 531980.0239122647
+   },
+   {
+    "name": "elementwise",
+    "count": 2560,
+    "total_us": 328050.39091136685
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x14336_tile128x256",
+    "count": 256,
+    "total_us": 251986.23519629237
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x6144x4096_tile128x256",
+    "count": 256,
+    "total_us": 113211.8695354817
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x4096_tile128x256",
+    "count": 256,
+    "total_us": 75275.40923918654
+   },
+   {
+    "name": "row_norm",
+    "count": 512,
+    "total_us": 20663.59579419716
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.ring_diag",
+    "us": 2061.813851,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l0.ring_step",
+    "us": 2061.813851,
+    "rule": "attention_waves"
+   }
+  ],
+  "freeze_s": 0.22663474082946777,
+  "sim_s": 345.66315174102783
+ },
+ {
+  "model": "llama3-8b-gta8",
+  "cp": 8,
+  "seqlen": 147456,
+  "tokens_per_rank": 18432,
+  "system": "hgx_b300_8",
+  "makespan_us": 760344.882727,
+  "ttft_ms": 760.344882727,
+  "mfu": 0.5159889388451104,
+  "rank0_busy_us": 759033.6641360341,
+  "last_busy_us": 759033.6641360341,
+  "collective_us": 789740.7302969971,
+  "kernels": [
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq18432_skv9216_d128",
+    "count": 1792,
+    "total_us": 3673763.2804081077
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x28672x4096_tile128x256",
+    "count": 256,
+    "total_us": 539327.299833205
+   },
+   {
+    "name": "sm100_fmha_b1_hq32_hkv8_sq18432_skv18432_d128",
+    "count": 256,
+    "total_us": 524924.2571699908
+   },
+   {
+    "name": "elementwise",
+    "count": 2560,
+    "total_us": 328164.35892011214
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x14336_tile128x256",
+    "count": 256,
+    "total_us": 250034.99062698355
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x5184x4096_tile128x256",
+    "count": 256,
+    "total_us": 102436.14983049805
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x4096_tile128x256",
+    "count": 256,
+    "total_us": 74778.78204907406
+   },
+   {
+    "name": "row_norm",
+    "count": 512,
+    "total_us": 20778.29593147125
+   }
+  ],
+  "extrapolated": [],
+  "freeze_s": 0.10782599449157715,
+  "sim_s": 1091.9581940174103
+ },
+ {
+  "model": "mamba2-8b",
+  "cp": 8,
+  "seqlen": 147456,
+  "tokens_per_rank": 18432,
+  "system": "hgx_b300_8",
+  "makespan_us": 313587.347658,
+  "ttft_ms": 313.587347658,
+  "mfu": 0.3452967246070106,
+  "rank0_busy_us": 302410.5883105445,
+  "last_busy_us": 302546.18806059734,
+  "collective_us": 2273.1978240000017,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_18432x18560x4096_tile128x256",
+    "count": 512,
+    "total_us": 679932.9123266191
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l18432_h128_p64_n128_g8",
+    "count": 512,
+    "total_us": 516603.47269032884
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x8192_tile128x256",
+    "count": 512,
+    "total_us": 291489.22521317063
+   },
+   {
+    "name": "ssd_chunk_state_b1_l18432_h128_p64_n128_g8",
+    "count": 512,
+    "total_us": 126167.45275360119
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l18432_d10240_w4",
+    "count": 512,
+    "total_us": 72894.41702789333
+   },
+   {
+    "name": "row_norm",
+    "count": 1024,
+    "total_us": 65184.80341266321
+   },
+   {
+    "name": "ssd_state_passing_b1_l18432_h128_p64_n128_g8",
+    "count": 512,
+    "total_us": 42584.33894402248
+   },
+   {
+    "name": "elementwise",
+    "count": 960,
+    "total_us": 32927.40266577409
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l18432_h128_p64_n128_g8",
+    "count": 512,
+    "total_us": 23966.741289983147
+   },
+   {
+    "name": "ssd_chunk_cumsum_b1_l18432_h128_p64_n128_g8",
+    "count": 512,
+    "total_us": 8488.28249927424
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 137.964733,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 17.07555913925171,
+  "sim_s": 785.7858228683472
+ },
+ {
+  "model": "gla-8b",
+  "cp": 8,
+  "seqlen": 147456,
+  "tokens_per_rank": 18432,
+  "system": "hgx_b300_8",
+  "makespan_us": 263923.463047,
+  "ttft_ms": 263.923463047,
+  "mfu": 0.4446843398490367,
+  "rank0_busy_us": 261472.43250690057,
+  "last_busy_us": 261564.8725909379,
+  "collective_us": 753.1196799999999,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_18432x28672x4096_tile128x256",
+    "count": 256,
+    "total_us": 531980.0239122647
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x14336_tile128x256",
+    "count": 256,
+    "total_us": 251986.23519629237
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x12320x4096_tile128x256",
+    "count": 256,
+    "total_us": 226657.4843906054
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l18432_h32_p128_n128_g16",
+    "count": 256,
+    "total_us": 105706.52519398028
+   },
+   {
+    "name": "elementwise",
+    "count": 992,
+    "total_us": 92778.36678262023
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x4096_tile128x256",
+    "count": 256,
+    "total_us": 75275.40923918654
+   },
+   {
+    "name": "ssd_chunk_state_b1_l18432_h32_p128_n128_g16",
+    "count": 256,
+    "total_us": 56545.55236834725
+   },
+   {
+    "name": "ssd_state_passing_b1_l18432_h32_p128_n128_g16",
+    "count": 256,
+    "total_us": 47111.739149687746
+   },
+   {
+    "name": "row_norm",
+    "count": 768,
+    "total_us": 30995.393691295747
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l18432_d8192_w4",
+    "count": 256,
+    "total_us": 29320.30328227773
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l18432_h32_p128_n128_g16",
+    "count": 256,
+    "total_us": 9568.640494383564
+   },
+   {
+    "name": "ssd_chunk_cumsum_b1_l18432_h32_p128_n128_g16",
+    "count": 256,
+    "total_us": 716.9850868172596
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 35.374238,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 2.3768844604492188,
+  "sim_s": 581.6672394275665
+ },
+ {
+  "model": "gdn-8b",
+  "cp": 8,
+  "seqlen": 147456,
+  "tokens_per_rank": 18432,
+  "system": "hgx_b300_8",
+  "makespan_us": 279657.159656,
+  "ttft_ms": 279.657159656,
+  "mfu": 0.4198908558611936,
+  "rank0_busy_us": 277031.8958094497,
+  "last_busy_us": 277173.18825248594,
+  "collective_us": 753.1196799999999,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_18432x28672x4096_tile128x256",
+    "count": 256,
+    "total_us": 531980.0239122647
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x14336_tile128x256",
+    "count": 256,
+    "total_us": 251986.23519629237
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x12352x4096_tile128x256",
+    "count": 256,
+    "total_us": 226657.4843906054
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l18432_h32_p128_n128_g16",
+    "count": 512,
+    "total_us": 211308.4371909513
+   },
+   {
+    "name": "elementwise",
+    "count": 768,
+    "total_us": 92449.60170830082
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x4096_tile128x256",
+    "count": 256,
+    "total_us": 75275.40923918654
+   },
+   {
+    "name": "ssd_chunk_state_b1_l18432_h32_p128_n128_g16",
+    "count": 256,
+    "total_us": 56545.739828677986
+   },
+   {
+    "name": "ssd_state_passing_b1_l18432_h32_p128_n128_g16",
+    "count": 256,
+    "total_us": 47111.59351121557
+   },
+   {
+    "name": "row_norm",
+    "count": 768,
+    "total_us": 30995.393691295747
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l18432_d8192_w4",
+    "count": 256,
+    "total_us": 29309.88029108
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l18432_h32_p128_n128_g32",
+    "count": 256,
+    "total_us": 18886.28292241319
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l18432_h32_p128_n128_g16",
+    "count": 256,
+    "total_us": 9568.878632966444
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.state_correct",
+    "us": 35.374238,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 0.13882660865783691,
+  "sim_s": 642.3055822849274
+ },
+ {
+  "model": "gdn-hybrid-8b",
+  "cp": 8,
+  "seqlen": 147456,
+  "tokens_per_rank": 18432,
+  "system": "hgx_b300_8",
+  "makespan_us": 401097.685529,
+  "ttft_ms": 401.097685529,
+  "mfu": 0.46528041912989976,
+  "rank0_busy_us": 267031.86874824716,
+  "last_busy_us": 267022.741742643,
+  "collective_us": 406384.2732950009,
+  "kernels": [
+   {
+    "name": "sm100_gemm_bf16_18432x28672x4096_tile128x256",
+    "count": 256,
+    "total_us": 532068.9022500181
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x14336_tile128x256",
+    "count": 256,
+    "total_us": 251962.63143134105
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x12352x4096_tile128x256",
+    "count": 192,
+    "total_us": 170123.41384451106
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l18432_h32_p128_n128_g16",
+    "count": 384,
+    "total_us": 158501.32747499458
+   },
+   {
+    "name": "elementwise",
+    "count": 1216,
+    "total_us": 151349.88609693764
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x4096x4096_tile128x256",
+    "count": 256,
+    "total_us": 75269.40165220937
+   },
+   {
+    "name": "ssd_chunk_state_b1_l18432_h32_p128_n128_g16",
+    "count": 192,
+    "total_us": 42409.02368101239
+   },
+   {
+    "name": "ssd_state_passing_b1_l18432_h32_p128_n128_g16",
+    "count": 192,
+    "total_us": 35333.877181502015
+   },
+   {
+    "name": "row_norm",
+    "count": 704,
+    "total_us": 28414.525469511962
+   },
+   {
+    "name": "sm100_gemm_bf16_18432x6144x4096_tile128x256",
+    "count": 64,
+    "total_us": 28306.724462835093
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l18432_d8192_w4",
+    "count": 192,
+    "total_us": 21988.598869333706
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l18432_h32_p128_n128_g32",
+    "count": 192,
+    "total_us": 14163.93086108753
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l6.ring_diag",
+    "us": 2061.813851,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l6.ring_step",
+    "us": 2061.813851,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l0.state_correct",
+    "us": 35.374238,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 0.13739323616027832,
+  "sim_s": 813.7507619857788
+ },
+ {
+  "model": "llama3-8b",
+  "cp": 1,
+  "seqlen": 147456,
+  "tokens_per_rank": 147456,
+  "system": "hgx_b300_8",
+  "makespan_us": 5740544.998844,
+  "ttft_ms": 5740.544998844,
+  "mfu": 0.5493766109973789,
+  "rank0_busy_us": 96814.2686340981,
+  "last_busy_us": 96814.2686340981,
+  "collective_us": -0.0,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 96,
+    "total_us": 96814.26863409788
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 368.61671299999995,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.qkv_proj",
+    "us": 5638.151209,
+    "rule": "exact"
+   },
+   {
+    "op": "l0.ring_diag",
+    "us": 126783.330671875,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l0.o_proj",
+    "us": 3792.954573,
+    "rule": "exact"
+   },
+   {
+    "op": "l1.gate_up_proj",
+    "us": 26709.337135180725,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.down_proj",
+    "us": 12700.456222012048,
+    "rule": "token_linear"
+   }
+  ],
+  "freeze_s": 1291.9143657684326,
+  "sim_s": 708.067143201828
+ },
+ {
+  "model": "llama3-8b",
+  "cp": 72,
+  "seqlen": 1179648,
+  "tokens_per_rank": 16384,
+  "system": "gb300_nvl72",
+  "makespan_us": 4418940.14062,
+  "ttft_ms": 4418.9401406199995,
+  "mfu": 0.48711676751519556,
+  "rank0_busy_us": 446758.83646669256,
+  "last_busy_us": 446758.83646669256,
+  "collective_us": 5235779.788737683,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 170496,
+    "total_us": 19729241.453839287
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 4264534.03659654
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 1980845.0770753399
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x6144x4096_tile128x256",
+    "count": 2304,
+    "total_us": 930971.5877054025
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 592753.1791992483
+   },
+   {
+    "name": "row_norm",
+    "count": 4608,
+    "total_us": 159148.6840875175
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.ring_diag",
+    "us": 1722.1401806249999,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l0.ring_step",
+    "us": 1722.1401806249999,
+    "rule": "attention_waves"
+   }
+  ],
+  "freeze_s": 18.342129468917847,
+  "sim_s": 929.1601207256317
+ },
+ {
+  "model": "llama3-8b",
+  "cp": 8,
+  "seqlen": 1179648,
+  "tokens_per_rank": 147456,
+  "system": "hgx_b300_8",
+  "makespan_us": 34923939.758319,
+  "ttft_ms": 34923.939758319,
+  "mfu": 0.5547157241806587,
+  "rank0_busy_us": 343457.288073882,
+  "last_busy_us": 343457.288073882,
+  "collective_us": 34638500.10472595,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 2560,
+    "total_us": 2747658.3045910816
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 373.6662570136986,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.qkv_proj",
+    "us": 5638.151209,
+    "rule": "exact"
+   },
+   {
+    "op": "l0.ring_diag",
+    "us": 128811.863962625,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l0.ring_step",
+    "us": 128811.863962625,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l0.o_proj",
+    "us": 3792.954573,
+    "rule": "exact"
+   },
+   {
+    "op": "l1.gate_up_proj",
+    "us": 27075.21846579964,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.down_proj",
+    "us": 12874.435074368377,
+    "rule": "token_linear"
+   }
+  ],
+  "freeze_s": 0.3765442371368408,
+  "sim_s": 1957.2788624763489
+ },
+ {
+  "model": "gdn-hybrid-8b",
+  "cp": 72,
+  "seqlen": 1179648,
+  "tokens_per_rank": 16384,
+  "system": "gb300_nvl72",
+  "makespan_us": 1300873.544476,
+  "ttft_ms": 1300.873544476,
+  "mfu": 0.4738497588640708,
+  "rank0_busy_us": 296385.7461265578,
+  "last_busy_us": 295864.22016994434,
+  "collective_us": 1424362.7927690295,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 47808,
+    "total_us": 5481248.588638158
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x28672x4096_tile128x256",
+    "count": 2304,
+    "total_us": 4264615.2467735205
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x14336_tile128x256",
+    "count": 2304,
+    "total_us": 1981143.1877113767
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x12352x4096_tile128x256",
+    "count": 1728,
+    "total_us": 1393947.7148044098
+   },
+   {
+    "name": "ssd_chunk_scan_b1_l16384_h32_p128_n128_g16",
+    "count": 3456,
+    "total_us": 1270412.7630471813
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x4096x4096_tile128x256",
+    "count": 2304,
+    "total_us": 592819.3792651793
+   },
+   {
+    "name": "ssd_chunk_state_b1_l16384_h32_p128_n128_g16",
+    "count": 1728,
+    "total_us": 339606.36381080915
+   },
+   {
+    "name": "ssd_state_passing_b1_l16384_h32_p128_n128_g16",
+    "count": 1728,
+    "total_us": 282782.8796071721
+   },
+   {
+    "name": "sm100_gemm_bf16_16384x6144x4096_tile128x256",
+    "count": 576,
+    "total_us": 232806.60834567464
+   },
+   {
+    "name": "row_norm",
+    "count": 6336,
+    "total_us": 218831.36245775878
+   },
+   {
+    "name": "causal_conv1d_fwd_b1_l16384_d8192_w4",
+    "count": 1728,
+    "total_us": 176597.3480021406
+   },
+   {
+    "name": "ssd_bmm_chunk_b1_l16384_h32_p128_n128_g32",
+    "count": 1728,
+    "total_us": 113697.21860039755
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l6.ring_diag",
+    "us": 1722.1401806249999,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l6.ring_step",
+    "us": 1722.1401806249999,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l0.state_correct",
+    "us": 31.486773,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 3.864065408706665,
+  "sim_s": 1318.7536976337433
+ },
+ {
+  "model": "mamba2-8b",
+  "cp": 8,
+  "seqlen": 1179648,
+  "tokens_per_rank": 147456,
+  "system": "hgx_b300_8",
+  "makespan_us": 2565600.667182,
+  "ttft_ms": 2565.600667182,
+  "mfu": 0.33763846543878706,
+  "rank0_busy_us": 35020.242763588416,
+  "last_busy_us": 35153.475396446614,
+  "collective_us": 2273.1978240000017,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 960,
+    "total_us": 281094.63154942414
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 373.6662570136986,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.in_proj",
+    "us": 17432.638913534247,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.conv1d",
+    "us": 1126.725885479452,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_chunk_cumsum",
+    "us": 26.147923315068496,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_chunk_state",
+    "us": 1964.1086984383562,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_state_passing",
+    "us": 751.8474760273974,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_bmm_chunk",
+    "us": 364.8012638082192,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_chunk_scan",
+    "us": 8137.368909726028,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.gated_norm",
+    "us": 752.6534678082194,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.out_proj",
+    "us": 7422.635792,
+    "rule": "exact"
+   },
+   {
+    "op": "l0.state_correct",
+    "us": 1177.987268,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 450.6034882068634,
+  "sim_s": 87.01912093162537
+ },
+ {
+  "model": "mamba2-8b",
+  "cp": 1,
+  "seqlen": 147456,
+  "tokens_per_rank": 147456,
+  "system": "hgx_b300_8",
+  "makespan_us": 2462945.325546,
+  "ttft_ms": 2462.9453255460003,
+  "mfu": 0.35171120658312793,
+  "rank0_busy_us": 35020.242763588416,
+  "last_busy_us": 35020.242763588416,
+  "collective_us": -0.0,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 64,
+    "total_us": 35020.242763588416
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 368.61671299999995,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.in_proj",
+    "us": 17197.062712,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.conv1d",
+    "us": 1111.49986,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_chunk_cumsum",
+    "us": 25.794573000000003,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_chunk_state",
+    "us": 1937.566689,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_state_passing",
+    "us": 741.6873750000001,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_bmm_chunk",
+    "us": 359.871517,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_chunk_scan",
+    "us": 8027.404465,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.gated_norm",
+    "us": 742.4824750000001,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.out_proj",
+    "us": 7422.635792,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 288.1174280643463,
+  "sim_s": 138.6473355293274
+ },
+ {
+  "model": "gdn-8b",
+  "cp": 8,
+  "seqlen": 1179648,
+  "tokens_per_rank": 147456,
+  "system": "hgx_b300_8",
+  "makespan_us": 2289857.838646,
+  "ttft_ms": 2289.857838646,
+  "mfu": 0.4102454995550374,
+  "rank0_busy_us": 96814.2686340981,
+  "last_busy_us": 96903.91895415832,
+  "collective_us": 753.1196799999999,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 768,
+    "total_us": 774514.1490727818
+   },
+   {
+    "name": "sm100_gemm_bf16_4096x128x128_tile128x128",
+    "count": 224,
+    "total_us": 627.5522404215657
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 373.6662570136986,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.in_proj",
+    "us": 11628.528239080306,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.conv1d",
+    "us": 902.5803000821918,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_kkt",
+    "us": 586.9258676438357,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_wy",
+    "us": 3314.356892657535,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_cumsum",
+    "us": 15.30483509589041,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_state",
+    "us": 1786.5913544109592,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_state_passing",
+    "us": 1522.6869729863013,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_bmm_chunk",
+    "us": 294.7187305479452,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.out_proj",
+    "us": 3792.954573,
+    "rule": "exact"
+   },
+   {
+    "op": "l1.gate_up_proj",
+    "us": 27075.21846579964,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.down_proj",
+    "us": 12874.435074368377,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.state_correct",
+    "us": 287.329779,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 33.02049255371094,
+  "sim_s": 1091.6681048870087
+ },
+ {
+  "model": "gdn-8b",
+  "cp": 1,
+  "seqlen": 147456,
+  "tokens_per_rank": 147456,
+  "system": "hgx_b300_8",
+  "makespan_us": 2252462.669809,
+  "ttft_ms": 2252.462669809,
+  "mfu": 0.41705635592398266,
+  "rank0_busy_us": 96814.2686340981,
+  "last_busy_us": 96814.2686340981,
+  "collective_us": -0.0,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 96,
+    "total_us": 96814.26863409788
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 368.61671299999995,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.in_proj",
+    "us": 11471.38596557922,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.conv1d",
+    "us": 890.3832689999999,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_kkt",
+    "us": 578.9944370000001,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_wy",
+    "us": 3269.5682860000006,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_cumsum",
+    "us": 15.098012999999998,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_state",
+    "us": 1762.4482280000002,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_state_passing",
+    "us": 1502.1101219999998,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_bmm_chunk",
+    "us": 290.736045,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.out_proj",
+    "us": 3792.954573,
+    "rule": "exact"
+   },
+   {
+    "op": "l1.gate_up_proj",
+    "us": 26709.337135180725,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.down_proj",
+    "us": 12700.456222012048,
+    "rule": "token_linear"
+   }
+  ],
+  "freeze_s": 0.024318218231201172,
+  "sim_s": 933.7504999637604
+ },
+ {
+  "model": "gdn-hybrid-8b",
+  "cp": 1,
+  "seqlen": 147456,
+  "tokens_per_rank": 147456,
+  "system": "hgx_b300_8",
+  "makespan_us": 3124483.252068,
+  "ttft_ms": 3124.4832520679997,
+  "mfu": 0.4778336362953992,
+  "rank0_busy_us": 96814.2686340981,
+  "last_busy_us": 96814.2686340981,
+  "collective_us": -0.0,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 96,
+    "total_us": 96814.26863409788
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 368.61671299999995,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.in_proj",
+    "us": 11471.38596557922,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.conv1d",
+    "us": 890.3832689999999,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_kkt",
+    "us": 578.9944370000001,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_wy",
+    "us": 3269.5682860000006,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_cumsum",
+    "us": 15.098012999999998,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_state",
+    "us": 1762.4482280000002,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_state_passing",
+    "us": 1502.1101219999998,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_bmm_chunk",
+    "us": 290.736045,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.out_proj",
+    "us": 3792.954573,
+    "rule": "exact"
+   },
+   {
+    "op": "l1.gate_up_proj",
+    "us": 26709.337135180725,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.down_proj",
+    "us": 12700.456222012048,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l6.qkv_proj",
+    "us": 5638.151209,
+    "rule": "exact"
+   },
+   {
+    "op": "l6.ring_diag",
+    "us": 126783.330671875,
+    "rule": "attention_waves"
+   }
+  ],
+  "freeze_s": 0.07158231735229492,
+  "sim_s": 1148.117031097412
+ },
+ {
+  "model": "gdn-hybrid-8b",
+  "cp": 8,
+  "seqlen": 1179648,
+  "tokens_per_rank": 147456,
+  "system": "hgx_b300_8",
+  "makespan_us": 10448426.270031,
+  "ttft_ms": 10448.426270031,
+  "mfu": 0.5309668073340345,
+  "rank0_busy_us": 158475.02349404406,
+  "last_busy_us": 158542.26123408924,
+  "collective_us": 9581790.258900993,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 1216,
+    "total_us": 1267800.1879523555
+   },
+   {
+    "name": "sm100_gemm_bf16_4096x128x128_tile128x128",
+    "count": 168,
+    "total_us": 470.66418031617417
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 373.6662570136986,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.in_proj",
+    "us": 11628.528239080306,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.conv1d",
+    "us": 902.5803000821918,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_kkt",
+    "us": 586.9258676438357,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_wy",
+    "us": 3314.356892657535,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_cumsum",
+    "us": 15.30483509589041,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_state",
+    "us": 1786.5913544109592,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_state_passing",
+    "us": 1522.6869729863013,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_bmm_chunk",
+    "us": 294.7187305479452,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.out_proj",
+    "us": 3792.954573,
+    "rule": "exact"
+   },
+   {
+    "op": "l1.gate_up_proj",
+    "us": 27075.21846579964,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.down_proj",
+    "us": 12874.435074368377,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l6.qkv_proj",
+    "us": 5638.151209,
+    "rule": "exact"
+   },
+   {
+    "op": "l6.ring_diag",
+    "us": 128811.863962625,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l6.ring_step",
+    "us": 128811.863962625,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l0.state_correct",
+    "us": 287.329779,
+    "rule": "exact"
+   }
+  ],
+  "freeze_s": 0.17723369598388672,
+  "sim_s": 1388.496657371521
+ }
+]

@@ -151,6 +151,14 @@ pub enum KernelSpec {
         d: u64,
         #[serde(default)]
         causal: bool,
+        /// One cache tensor serves as both K and V (MLA latent, GTA, GLA).
+        /// Default: tied only when `d > 256`.
+        #[serde(default)]
+        kv_tied: Option<bool>,
+        /// Decode: softmax warpgroups splitting each K/V block (FlashMLA
+        /// schedule); default 1, the FA4 single-warpgroup chain.
+        #[serde(default)]
+        kv_warpgroups: u32,
     },
     Elementwise {
         n: u64,
