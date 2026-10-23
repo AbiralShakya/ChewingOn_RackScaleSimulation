@@ -187,7 +187,9 @@ footer { font-size: 14px; color: var(--muted); max-width: 72ch }
   <li><b>Node vs rack.</b> At 144k the HGX node (8 GPUs, 18k tokens per rank) is compute-bound for every model, and GQA and GTA
   are equal there (765 vs 760 ms). Going from 8 to 72 GPUs at 1.13M speeds up GQA by 7.9× and Gated DeltaNet by 9.2×. Long prompts
   use the whole rack well; short prompts stall on the ring.</li>
-  <!--CP1M--></ul></div>
+  <li><b>One GPU at 1.13M tokens.</b> A single B300 needs 272 s for GQA, 81 s for the hybrid, 19.6 s for Mamba-2 and
+  18.0 s for Gated DeltaNet. From 1 GPU to 72, the state-passing models scale 70× (Mamba-2) and 72× (Gated DeltaNet),
+  which is essentially linear. GQA scales 62× and the hybrid 63×, so at this length the ring costs only about 15%.</li></ul></div>
   <div class="fig"><div class="fig-head"><div class="fig-title">Time to first token for one prompt, context parallel</div>
     <div class="controls" id="cp-ctl"></div></div>
     <div class="legend" id="cp-leg"></div><div class="chart" id="cp-chart"></div>
