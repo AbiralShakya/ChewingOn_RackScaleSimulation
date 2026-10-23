@@ -775,7 +775,22 @@ impl KernelCache {
                 skv,
                 d,
                 causal,
-            } => synth::attention(g, *batch, *heads_q, *heads_kv, *sq, *skv, *d, *causal),
+                kv_tied,
+                kv_warpgroups,
+            } => synth::attention_with(
+                g,
+                *batch,
+                *heads_q,
+                *heads_kv,
+                *sq,
+                *skv,
+                *d,
+                *causal,
+                synth::AttnOpts {
+                    kv_tied: *kv_tied,
+                    kv_warpgroups: *kv_warpgroups,
+                },
+            ),
             KernelSpec::Elementwise {
                 n,
                 inputs,

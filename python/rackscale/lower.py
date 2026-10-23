@@ -66,7 +66,11 @@ def check(m: Model, p: Parallel) -> None:
     if p.tp > 1:
         if m.heads % p.tp:
             errs.append(f"tp={p.tp} does not divide {m.name}'s {m.heads} attention heads")
-        if not m.mla and m.kv_heads % p.tp and p.tp % m.kv_heads:
+        if m.gla is not None and m.gla.latent_heads % p.tp and p.tp % m.gla.latent_heads:
+            errs.append(f"tp={p.tp} and {m.gla.latent_heads} GLA latent heads: one must divide the other")
+        if m.linear is not None and (m.linear.heads_v % p.tp or m.linear.heads_qk % p.tp):
+            errs.append(f"tp={p.tp} does not divide the linear-attention heads")
+        if not m.mla and not m.gla and m.kv_heads % p.tp and p.tp % m.kv_heads:
             errs.append(f"tp={p.tp} and {m.kv_heads} KV heads: one must divide the other")
         if m.mamba is not None and m.mamba.nheads % p.tp:
             errs.append(f"tp={p.tp} does not divide {m.mamba.nheads} Mamba-2 heads")
@@ -109,7 +113,26 @@ def _attention_ops(m: Model, p: Parallel, batch: int, sq: int, skv: int, causal:
     h = m.hidden
     tp = p.tp
     ops = [_k(f"{tag}input_norm", type="row_norm", rows=t, cols=h)]
-    if m.mla:
+    if m.gla:
+        a = m.gla
+        heads = max(1, m.heads // tp)
+        lat = max(1, a.latent_heads // tp)
+        ops += [
+            _gemm(f"{tag}q_proj", t, heads * (a.nope_dim + a.rope_dim), h),
+            _gemm(f"{tag}kv_a_proj", t, lat * a.latent_dim + a.rope_dim, h),
+        ]
+        if sq == 1:
+            # Absorbed decode: each latent is an MQA head for its query heads.
+            ops.append(_k(f"{tag}gla_decode", type="attention", batch=batch, heads_q=heads, heads_kv=lat, sq=1,
+                          skv=skv, d=a.latent_dim + a.rope_dim, kv_tied=True))
+            ops.append(_k(f"{tag}attn_combine", type="elementwise", n=batch * heads * a.latent_dim * 4, inputs=1,
+                          elem_bytes=4.0, flops_per_elem=4))
+        else:
+            ops.append(_gemm(f"{tag}kv_b_proj", t, heads * (a.nope_dim + a.v_head_dim), a.latent_dim))
+            ops.append(_k(f"{tag}gla_prefill", type="attention", batch=batch, heads_q=heads, heads_kv=heads, sq=sq,
+                          skv=skv, d=a.nope_dim + a.rope_dim, causal=causal))
+        ops.append(_gemm(f"{tag}o_proj", t, h, heads * a.v_head_dim))
+    elif m.mla:
         a = m.mla
         heads = max(1, m.heads // tp)
         ops += [
@@ -129,11 +152,16 @@ def _attention_ops(m: Model, p: Parallel, batch: int, sq: int, skv: int, causal:
     else:
         hq = max(1, m.heads // tp)
         hkv = max(1, m.kv_heads // tp)
-        ops += [
-            _gemm(f"{tag}qkv_proj", t, (hq + 2 * hkv) * m.head_dim, h),
-            _k(f"{tag}attention", type="attention", batch=batch, heads_q=hq, heads_kv=hkv, sq=sq, skv=skv, d=m.head_dim,
-               causal=causal),
-        ]
+        if m.gta:
+            # Tied K/V state per group plus one shared half-width RoPE key.
+            proj = (hq + hkv) * m.head_dim + m.head_dim // 2
+            attn = _k(f"{tag}attention", type="attention", batch=batch, heads_q=hq, heads_kv=hkv, sq=sq, skv=skv,
+                      d=m.head_dim, causal=causal, kv_tied=True)
+        else:
+            proj = (hq + 2 * hkv) * m.head_dim
+            attn = _k(f"{tag}attention", type="attention", batch=batch, heads_q=hq, heads_kv=hkv, sq=sq, skv=skv,
+                      d=m.head_dim, causal=causal)
+        ops += [_gemm(f"{tag}qkv_proj", t, proj, h), attn]
         if sq == 1:
             # Split-KV decode (FA2/FA3/FA4) ends with a combine kernel over the
             # fp32 partial outputs and log-sum-exps.
@@ -227,6 +255,44 @@ def _mamba2_ops(m: Model, p: Parallel, batch: int, sq: int, tag: str) -> List[di
     return ops
 
 
+def _linear_ops(m: Model, p: Parallel, batch: int, sq: int, tag: str) -> List[dict]:
+    """Linear-attention mixer block (:class:`~rackscale.models.LinearAttn`),
+    heads split over TP. The recurrence runs on the Mamba-2 kernels with
+    ``d_state = d_k``, ``headdim = d_v`` and one B/C (K/Q) group per QK head:
+    ``selective_state_update`` for decode, the SSD chunked scan for prefill.
+    Gated DeltaNet adds a per-head ``K K^T`` and a WY-transform pass per chunk.
+    """
+    la = m.linear
+    tp = p.tp
+    t = batch * sq
+    h = m.hidden
+    hv = la.heads_v // tp
+    hqk = la.heads_qk // tp
+    conv_dim = 2 * hqk * la.d_k + hv * la.d_v
+    ops = [_k(f"{tag}input_norm", type="row_norm", rows=t, cols=h),
+           _gemm(f"{tag}in_proj", t, conv_dim + hv * la.d_v + hv * (2 if la.delta else 1), h),
+           _k(f"{tag}conv1d", type="conv1d", batch=batch, dim=conv_dim, seqlen=sq, width=la.d_conv)]
+    ssm = dict(batch=batch, heads=hv, headdim=la.d_v, d_state=la.d_k, groups=hqk)
+    if sq == 1:
+        ops.append(_k(f"{tag}state_update", type="ssm_state_update", **ssm))
+    else:
+        stages = ["chunk_cumsum", "chunk_state", "state_passing", "bmm_chunk", "chunk_scan"]
+        if la.delta:
+            # Per-head K K^T (the delta rule's beta-weighted Gram matrix) and
+            # the WY pass that forms W = A(beta K) and U = A(beta V).
+            ops.append(_k(f"{tag}delta_kkt", type="ssd", stage="bmm_chunk", seqlen=sq, chunk=la.chunk,
+                          **{**ssm, "groups": hv}))
+            ops.append(_k(f"{tag}delta_wy", type="ssd", stage="chunk_scan", seqlen=sq, chunk=la.chunk, **ssm))
+        for stage in stages:
+            ops.append(_k(f"{tag}lin_{stage}", type="ssd", stage=stage, seqlen=sq, chunk=la.chunk, **ssm))
+    ops += [_k(f"{tag}gated_norm", type="row_norm", rows=t, cols=hv * la.d_v),
+            _gemm(f"{tag}out_proj", t, h, hv * la.d_v)]
+    if tp > 1:
+        ops.append(_coll("all_reduce", t * h * 2, f"block:{tp}", p.comm_sms, f"{tag}linear_allreduce"))
+    ops.append(_k(f"{tag}residual", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
+    return ops
+
+
 def _mlp_ops(m: Model, p: Parallel, t: int, tag: str) -> List[dict]:
     """Standalone MLP block (hybrid stacks): pre-norm, gate/up, act, down, residual."""
     h = m.hidden
@@ -248,6 +314,8 @@ def _layers(m: Model, p: Parallel, batch: int, sq: int, skv: int, causal: bool, 
         for b in m.blocks:
             if b == "M":
                 ops += _mamba2_ops(m, p, batch, sq, tag)
+            elif b == "L":
+                ops += _linear_ops(m, p, batch, sq, tag)
             elif b == "A":
                 ops += _attention_ops(m, p, batch, sq, skv, causal, tag)
             elif b == "F":
@@ -278,6 +346,12 @@ def _model_flops(m: Model, tokens: int, skv: int, train: bool, lm_head: bool) ->
         if skv > 1:
             per_head += 2.0 * mb.headdim * (mb.chunk / 2) + 2.0 * mb.d_state * (mb.chunk / 2) / max(1, mb.nheads // mb.ngroups)
         ssm = n_m * mb.nheads * per_head * tokens
+    if m.linear is not None:
+        la = m.linear
+        per_head = 4.0 * la.d_k * la.d_v
+        if skv > 1:
+            per_head += 2.0 * (la.d_k + la.d_v) * (la.chunk / 2)
+        ssm += m.block_list().count("L") * la.heads_v * per_head * tokens
     return (3.0 if train else 1.0) * (dense + attn + ssm)
 
 
@@ -288,7 +362,7 @@ def _weights_per_gpu(m: Model, p: Parallel) -> float:
     stage a contiguous slice of layers, the last stage keeping the LM head."""
     tp, ep, pp = p.tp, p.ep, p.pp
     if m.blocks is not None:
-        per = {"M": m.mamba_params() if m.mamba else 0, "A": m.attn_params(), "F": m.mlp_params()}
+        per = m._block_params()
         layer_params = [per[b] / tp for b in m.blocks]
     else:
         layer_params = []
@@ -312,11 +386,8 @@ def _weights_per_gpu(m: Model, p: Parallel) -> float:
 def _kv_bytes_per_token(m: Model, p: Parallel, elem_bytes: float = 2.0) -> float:
     """Inference cache per token on one GPU, all layers (Mamba-2 state is per
     sequence and handled separately)."""
-    if m.mla:
-        # The compressed latent is not head-sharded: every TP rank keeps it.
-        per_layer = (m.mla.kv_lora_rank + m.mla.rope_dim) * elem_bytes
-    else:
-        per_layer = 2 * max(1, m.kv_heads // p.tp) * m.head_dim * elem_bytes
+    # MLA's compressed latent is not head-sharded: every TP rank keeps it.
+    per_layer = m.kv_elems_per_token_layer(p.tp) * elem_bytes
     return per_layer * m.attn_layers() / p.pp
 
 
@@ -344,6 +415,11 @@ def memory(m: Model, p: Parallel, *, phase: str, batch: int = 1, context: int = 
             n_m = m.block_list().count("M")
             state = (mb.nheads * mb.headdim * mb.d_state * 4 + mb.conv_dim * (mb.d_conv - 1) * 2) / p.tp
             out["ssm_state"] = batch * n_m * state / p.pp
+        if m.linear is not None:
+            la = m.linear
+            n_l = m.block_list().count("L")
+            state = (la.state_elems() * 4 + la.conv_dim * (la.d_conv - 1) * 2) / p.tp
+            out["ssm_state"] = out.get("ssm_state", 0.0) + batch * n_l * state / p.pp
         if phase == "prefill":
             t = batch * seqlen
             ffn = max(m.ffn, m.moe.expert_ffn * m.moe.topk if m.moe else 0)
@@ -400,6 +476,104 @@ def prefill(m: Model, p: Parallel, batch: int, seqlen: int, *, layers: Optional[
     }
 
 
+def prefill_cp(m: Model, cp: int, seqlen: int, *, layers: Optional[int] = None, comm_sms: int = 2) -> dict:
+    """Context-parallel prefill of one ``seqlen``-token sequence over ``cp``
+    ranks, ``seqlen / cp`` tokens each (no TP; one model replica per rank).
+
+    * Attention blocks run **ring attention**: each rank computes its causal
+      diagonal block, then ``cp - 1`` steps of its queries against a K/V chunk
+      received from its left neighbour, forwarding each chunk to the right
+      while the next step computes. Chunks are zig-zag assigned, so every
+      off-diagonal step does half a chunk's work (``skv = T / 2``).
+    * Mamba-2 and linear-attention blocks run the local chunked scan from a
+      zero state, then pass the ``heads x d_v x d_k`` FP32 state along the
+      ranks: rank ``r`` waits for rank ``r - 1``'s final state, folds in its
+      own (``S_out = decay * S_in + S_local``; a ``d_k x d_k`` matmul per head
+      for the delta rule), sends it on, and adds ``C_t S_in`` to its outputs.
+      Successive layers pipeline across ranks. The ``d_conv - 1``-token conv
+      halo is not exchanged (a few KB).
+    """
+    if seqlen % cp:
+        raise ParallelError(f"seqlen={seqlen} is not a multiple of cp={cp}")
+    if m.moe or m.mla or m.gla:
+        raise ValueError("prefill_cp lowers dense GQA/GTA attention, Mamba-2 and linear-attention stacks")
+    if layers is not None:
+        m = m.with_layers(layers)
+    p = Parallel()
+    t = seqlen // cp
+    blocks = m.block_list()
+    ranks = []
+    for r in range(cp):
+        comp: List[dict] = []
+        tx: List[dict] = []
+        rx: List[dict] = []
+        for li, b in enumerate(blocks):
+            tag = f"l{li}."
+            if b == "F":
+                comp += _mlp_ops(m, p, t, tag)
+            elif b == "A":
+                hq, hkv, d = m.heads, m.kv_heads, m.head_dim
+                proj = (hq + hkv) * d + d // 2 if m.gta else (hq + 2 * hkv) * d
+                kv = t * hkv * d * 2 * (1 if m.gta else 2)
+                ev = f"{tag}kv"
+                comp += [_k(f"{tag}input_norm", type="row_norm", rows=t, cols=m.hidden),
+                         _gemm(f"{tag}qkv_proj", t, proj, m.hidden),
+                         {"op": "record", "event": f"{ev}_mine"},
+                         _k(f"{tag}ring_diag", type="attention", batch=1, heads_q=hq, heads_kv=hkv, sq=t, skv=t,
+                            d=d, causal=True, **({"kv_tied": True} if m.gta else {}))]
+                tx += [{"op": "wait", "event": f"{ev}_mine"}]
+                for step in range(1, cp):
+                    tx.append({"op": "send", "bytes": kv, "peer": (r + 1) % cp, "sms": comm_sms})
+                    rx.append({"op": "recv", "bytes": kv, "peer": (r - 1) % cp, "sms": comm_sms})
+                    rx.append({"op": "record", "event": f"{ev}_rx"})
+                    if step < cp - 1:
+                        tx.append({"op": "wait", "event": f"{ev}_rx"})
+                    comp += [{"op": "wait", "event": f"{ev}_rx"},
+                             _k(f"{tag}ring_step", type="attention", batch=1, heads_q=hq, heads_kv=hkv, sq=t,
+                                skv=t // 2, d=d, causal=False, **({"kv_tied": True} if m.gta else {})),
+                             _k(f"{tag}ring_merge", type="elementwise", n=t * hq * d, inputs=2, elem_bytes=4.0,
+                                flops_per_elem=4)]
+                comp += [_gemm(f"{tag}o_proj", t, m.hidden, hq * d),
+                         _k(f"{tag}residual", type="elementwise", n=t * m.hidden, inputs=2, flops_per_elem=1)]
+            elif b in "ML":
+                ops = _mamba2_ops(m, p, 1, t, tag) if b == "M" else _linear_ops(m, p, 1, t, tag)
+                cut = next(i for i, o in enumerate(ops) if o.get("name", "").endswith("gated_norm"))
+                comp += ops[:cut]
+                if b == "M":
+                    mb = m.mamba
+                    heads, dv, dk, delta = mb.nheads, mb.headdim, mb.d_state, False
+                else:
+                    la = m.linear
+                    heads, dv, dk, delta = la.heads_v, la.d_v, la.d_k, la.delta
+                state = heads * dv * dk * 4
+                ev = f"{tag}state"
+                if r > 0:
+                    rx += [{"op": "recv", "bytes": state, "peer": r - 1, "sms": comm_sms},
+                           {"op": "record", "event": f"{ev}_in"}]
+                    comp.append({"op": "wait", "event": f"{ev}_in"})
+                    if delta:
+                        comp.append(_gemm(f"{tag}state_fold", heads * dk, dv, dk))
+                    else:
+                        comp.append(_k(f"{tag}state_fold", type="elementwise", n=heads * dv * dk, inputs=2,
+                                       elem_bytes=4.0, flops_per_elem=2))
+                if r < cp - 1:
+                    comp.append({"op": "record", "event": f"{ev}_out"})
+                    tx += [{"op": "wait", "event": f"{ev}_out"},
+                           {"op": "send", "bytes": state, "peer": r + 1, "sms": comm_sms}]
+                if r > 0:
+                    # y_t += C_t (decay_t * S_in): T x d_k by d_k x d_v per head.
+                    comp.append(_gemm(f"{tag}state_correct", t * heads, dv, dk))
+                comp += ops[cut:]
+            else:
+                raise ValueError(f"unknown block {b!r} in {m.name}")
+        ranks.append({"streams": [comp, tx, rx]})
+    return {
+        "name": f"{m.name} prefill s{seqlen} cp{cp}",
+        "ranks": ranks,
+        "model_flops": _model_flops(m, seqlen, seqlen // 2, False, lm_head=False),
+    }
+
+
 def mixed_step(m: Model, p: Parallel, decode_batch: int, context: int, chunk: int, *, prefix: int = 0,
                layers: Optional[int] = None) -> dict:
     """One continuous-batching iteration with chunked prefill (vLLM / SGLang
@@ -411,7 +585,7 @@ def mixed_step(m: Model, p: Parallel, decode_batch: int, context: int, chunk: in
     for the chunk over its ``prefix + chunk`` keys. GQA/MHA attention only.
     """
     check(m, p)
-    if m.mla or m.blocks is not None:
+    if m.mla or m.gla or m.blocks is not None:
         raise ValueError(f"mixed_step lowers GQA/MHA transformers; {m.name} has MLA or a block stack")
     mem = memory(m, p, phase="decode", batch=decode_batch + 1, context=max(context, prefix + chunk))
     if layers is not None:
@@ -459,6 +633,8 @@ def _layer_ops(m: Model, p: Parallel, idx: int, batch: int, seqlen: int, tag: st
         b = m.blocks[idx]
         if b == "M":
             return _mamba2_ops(m, p, batch, seqlen, tag)
+        if b == "L":
+            return _linear_ops(m, p, batch, seqlen, tag)
         if b == "A":
             return _attention_ops(m, p, batch, seqlen, seqlen, True, tag)
         return _mlp_ops(m, p, t, tag)
@@ -468,8 +644,7 @@ def _layer_ops(m: Model, p: Parallel, idx: int, batch: int, seqlen: int, tag: st
 def _layer_params(m: Model, p: Parallel, idx: int) -> float:
     """Parameters of layer ``idx`` on one GPU (all experts of an MoE layer)."""
     if m.blocks is not None:
-        per = {"M": m.mamba_params() if m.mamba else 0, "A": m.attn_params(), "F": m.mlp_params()}
-        return per[m.blocks[idx]] / max(1, p.tp)
+        return m._block_params()[m.blocks[idx]] / max(1, p.tp)
     return (m.attn_params() + m.ffn_params(idx)) / max(1, p.tp)
 
 

@@ -798,6 +798,48 @@ pub fn attention(
     d: u64,
     causal: bool,
 ) -> KernelLaunch {
+    attention_with(
+        g,
+        batch,
+        heads_q,
+        heads_kv,
+        sq,
+        skv,
+        d,
+        causal,
+        AttnOpts::default(),
+    )
+}
+
+/// Layout and schedule options of [`attention_with`].
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct AttnOpts {
+    /// `Some(true)` streams one cache tensor per KV head that serves as both
+    /// K and V (MLA's latent, Grouped-Tied Attention's tied state, GLA's
+    /// latent heads); `None` keeps the default, tied only for heads wider
+    /// than 256.
+    pub kv_tied: Option<bool>,
+    /// Blackwell decode only: softmax warpgroups that split each K/V block
+    /// (FlashMLA's schedule). With 2, the MMA warp issues one half's
+    /// `S = Q K^T` while the other half's softmax runs, instead of the
+    /// single-warpgroup chain QK -> softmax -> PV per block. 0 or 1 = one.
+    pub kv_warpgroups: u32,
+}
+
+/// [`attention`] with explicit [`AttnOpts`].
+#[allow(clippy::too_many_arguments)]
+pub fn attention_with(
+    g: &GpuSpec,
+    batch: u64,
+    heads_q: u64,
+    heads_kv: u64,
+    sq: u64,
+    skv: u64,
+    d: u64,
+    causal: bool,
+    opts: AttnOpts,
+) -> KernelLaunch {
+    let kv_tied = opts.kv_tied;
     if g.arch == Arch::Ampere {
         // No TMA / wgmma / tcgen05: FlashAttention-2 on mma.sync.
         return crate::synth_ssm::attention_fa2(g, batch, heads_q, heads_kv, sq, skv, d, causal);
@@ -812,7 +854,7 @@ pub fn attention(
     };
     // MLA-style heads (d > 256, e.g. DeepSeek's 576-wide latent) share one
     // smem buffer between K and V, as FlashMLA does.
-    let kv_shared = d > 256;
+    let kv_shared = kv_tied.unwrap_or(d > 256);
     let kv_mult = if kv_shared { 1 } else { 2 };
     let fits =
         |tq: u64, kb: u64| (kv_mult * 2 * kb * d + tq * d) * 2 + 1024 <= g.smem_per_sm_bytes as u64;
@@ -823,11 +865,17 @@ pub fn attention(
         tile_q /= 2;
     }
     // Blackwell prefill packs two Q tiles per CTA (FA4 `q_stage = 2`).
-    let q_stage: u32 = if g.arch == Arch::Blackwell && !decode && sq > tile_q {
+    // Split-block decode runs the same two-stage pipeline on the two halves
+    // of each K/V block of a single Q tile.
+    let split_kv = g.arch == Arch::Blackwell && decode && opts.kv_warpgroups >= 2;
+    let q_stage: u32 = if (g.arch == Arch::Blackwell && !decode && sq > tile_q) || split_kv {
         2
     } else {
         1
     };
+    // K/V columns each stage handles per block, and Q tiles held in smem.
+    let kv_w = if split_kv { kv_blk / 2 } else { kv_blk };
+    let q_tiles = if split_kv { 1 } else { q_stage as u64 };
     let rows_total = if decode {
         batch * heads_kv * (sq * group).div_ceil(tile_q)
     } else {
@@ -941,7 +989,7 @@ pub fn attention(
             mma.bar(w, BarOp::Wait(FULL));
             for st in 0..q_stage {
                 for _ in 0..(d / 16) {
-                    let pc = mma.op(&mma_opcode(Arch::Blackwell, tile_q, kv_blk, 16, dt));
+                    let pc = mma.op(&mma_opcode(Arch::Blackwell, tile_q, kv_w, 16, dt));
                     mma.single_thread(pc);
                 }
                 let c = mma.op("UTCBAR [UR26], URZ");
@@ -950,7 +998,7 @@ pub fn attention(
             for st in 0..q_stage {
                 let w = mma.op("SYNCS.PHASECHK.TRANS64.TRYWAIT P2, [UR28], R3");
                 mma.bar(w, BarOp::Wait(P_READY + 10 * st));
-                for _ in 0..(kv_blk / 16) {
+                for _ in 0..(kv_w / 16) {
                     // P comes from tensor memory (TS form): only V is read from smem.
                     let ts = mma_opcode(Arch::Blackwell, tile_q, d, 16, dt)
                         .replace("gdesc[UR8], gdesc", "tmem[UR8], gdesc");
@@ -989,11 +1037,11 @@ pub fn attention(
                 let top = sm.here();
                 let w = sm.op("SYNCS.PHASECHK.TRANS64.TRYWAIT P0, [UR26], R3");
                 sm.bar(w, BarOp::Wait(S_READY + 10 * st));
-                for _ in 0..(kv_blk / 32) {
+                for _ in 0..(kv_w / 32) {
                     sm.op("LDTM.32x32b.x32 R24, tmem[UR12]");
                 }
-                softmax_body(&mut sm, kv_blk);
-                for _ in 0..(kv_blk / 64) {
+                softmax_body(&mut sm, kv_w);
+                for _ in 0..(kv_w / 64) {
                     sm.op("STTM.32x32b.x32 tmem[UR13], R60");
                 }
                 let r = sm.op("SYNCS.ARRIVE.TRANS64.A1T0 RZ, [UR28], RZ");
@@ -1014,8 +1062,9 @@ pub fn attention(
                 roles,
                 128 * (1 + q_stage),
                 format!(
-                    "sm100_fmha_{}b{batch}_hq{heads_q}_hkv{heads_kv}_sq{sq}_skv{skv}_d{d}",
-                    if decode { "decode_" } else { "" }
+                    "sm100_fmha_{}b{batch}_hq{heads_q}_hkv{heads_kv}_sq{sq}_skv{skv}_d{d}{}",
+                    if decode { "decode_" } else { "" },
+                    if split_kv { "_kvwg2" } else { "" }
                 ),
             )
         }
@@ -1054,7 +1103,7 @@ pub fn attention(
         block: [block, 1, 1],
         regs_per_thread: 160,
         smem_per_cta: ((kv_mult as f64 * kv_bytes) as u32) * ml.stages
-            + (q_stage as u64 * tile_q * d * 2) as u32,
+            + (q_tiles * tile_q * d * 2) as u32,
         cluster: 1,
         source: KernelSource::Static { roles, barriers },
         flops: flops_real,
