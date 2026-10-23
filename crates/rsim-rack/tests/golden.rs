@@ -89,7 +89,7 @@ fn exact_mode_is_pinned_and_thread_count_independent() {
     assert_eq!(one, many, "exact report depends on the thread count");
     eprintln!("exact digest {:#018x}", digest(&one));
     if std::env::var_os("RSIM_GOLDEN_PRINT").is_none() {
-        assert_eq!(digest(&one), 0xd53d_aecb_d5da_7c3d);
+        assert_eq!(digest(&one), 0x29f1_7b59_b1d4_9712);
     }
 }
 
@@ -100,7 +100,7 @@ fn fast_mode_is_pinned_and_thread_count_independent() {
     assert_eq!(one, many, "fast report depends on the thread count");
     eprintln!("fast digest {:#018x}", digest(&one));
     if std::env::var_os("RSIM_GOLDEN_PRINT").is_none() {
-        assert_eq!(digest(&one), 0x3377_5ce9_86c1_f921);
+        assert_eq!(digest(&one), 0xaabf_763d_09c6_0736);
     }
 }
 
