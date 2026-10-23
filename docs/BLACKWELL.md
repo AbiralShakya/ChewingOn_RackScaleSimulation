@@ -364,23 +364,39 @@ run time:
   a uniform rate difference (such as the probes' cost) drops out.
 
 Results cover CTAs 0 to 3 (116 warps), with the original model (main) and the
-final calibration:
+current one:
 
-| role | end vs probed hw, main | final | timeline error, main | final | shape error, main | final |
+| role | end vs probed hw, main | now | timeline error, main | now | shape error, main | now |
 |---|---|---|---|---|---|---|
-| MMA | −4.0% | −4.4% | 1.9% | 1.5% | 0.5% | 0.9% |
-| load (TMA) | −4.4% | −4.7% | 1.0% | 1.2% | 1.6% | 1.6% |
-| softmax, warpgroup 0 | −6.6% | −6.9% | 3.3% | 3.4% | 1.0% | 0.9% |
-| softmax, warpgroup 1 | −4.5% | −4.8% | 1.8% | 2.0% | 0.7% | 0.7% |
-| correction | −4.5% | −4.8% | 1.7% | 1.9% | 0.9% | 0.9% |
-| all warps | | | 3.4% | 3.5% | 1.6% | 1.6% |
+| MMA | −4.0% | −4.8% | 1.9% | 1.8% | 0.5% | 0.8% |
+| load (TMA) | −4.4% | −5.1% | 1.0% | 1.4% | 1.6% | 1.5% |
+| softmax, warpgroup 0 | −6.6% | −7.4% | 3.3% | 3.7% | 1.0% | 0.9% |
+| softmax, warpgroup 1 | −4.5% | −5.2% | 1.8% | 2.3% | 0.7% | 0.7% |
+| correction | −4.5% | −5.2% | 1.7% | 2.1% | 0.9% | 0.8% |
+| all warps | | | 3.4% | 3.8% | 1.6% | 1.6% |
 
 What this says:
 
 * **FA4's structure is right.** Where each role spends its time and when its
   barriers fire matches hardware to ~1% of the run in every role.
-* **What is left is rate.** The replay runs ~4.5% ahead of the probed run,
-  about 3% after taking out the probes' cost, and uniformly across roles.
+* **The end-time gap is which SMs are compared, not rate.** The SMs do not
+  finish together, on hardware or in the simulator. ncu's per-SM
+  `sm__cycles_elapsed` runs from 494.8K to 510.2K (avg 503.5K); the
+  simulator's per-SM finish times are 496.2K / 504.6K / 511.2K, within 0.3%
+  at the minimum, the average and the maximum. But they order the SMs
+  differently. Hardware CTAs 0–7 all span 517–519K probed, so they are among
+  the slowest SMs. In the simulator CTAs 0–3 finish first: identical work
+  takes 490.7K on SM 2 and 504.6K on SM 147. The lag builds at each tile's
+  first barrier wait, behind the HBM and L2 queues, which serve requests in
+  the order they are booked; CTAs launch one cycle apart and stay in that
+  order, so the low SMs are always first in the queue (with HBM and L2
+  bandwidth ×10 the spread drops from 14K to 4–6K cycles). Comparing
+  hardware's slow CTAs with the simulator's fast ones gives the −5% above. The
+  earlier reading, "the replay runs ~3% ahead after the probes' cost", rested
+  on the probe cost being 1.6%, which was itself worked out by assuming CTA 0
+  is the slowest SM. The probe cost and hardware's SM order are not
+  measured, so only the shape error says anything about the per-role
+  timelines.
 * **FA4 is not issue-bound.** The issue-stage model barely moves it. In the
   replay its MMA warp sits in `tensor_throttle` (the 7-deep UMMA queue) about a
   third of the time, so FA4 is tensor-bound there.
@@ -394,7 +410,8 @@ What this says:
   and half of K (the pair multicasts B), 6 KB per 64-cycle MMA, so the port
   sits at 75% and the measured LDS interference never makes the MMA
   smem-bound. All seven B300 FA4 kernels simulate to the same cycle with and
-  without the operand model. The gap is elsewhere.
+  without the operand model. It does not need to: the "3%" was the SM
+  ordering above.
 
 An earlier version of this table showed per-role errors falling from 4.1% to
 2.8%. That came from a "minimum 2 cycles between a warp's instructions" rule,
