@@ -2435,5 +2435,311 @@
   ],
   "freeze_s": 0.17723369598388672,
   "sim_s": 1388.496657371521
+ },
+ {
+  "model": "llama3-8b",
+  "cp": 1,
+  "seqlen": 1179648,
+  "tokens_per_rank": 1179648,
+  "system": "hgx_b300_8",
+  "makespan_us": 271781298.799959,
+  "ttft_ms": 271781.298799959,
+  "mfu": 0.5702484643297479,
+  "rank0_busy_us": 779085.339224475,
+  "last_busy_us": 779085.339224475,
+  "collective_us": -0.0,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 96,
+    "total_us": 779085.339224474
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 2999.4881449999993,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.qkv_proj",
+    "us": 44531.21630260466,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ring_diag",
+    "us": 8073200.404226374,
+    "rule": "attention_waves"
+   },
+   {
+    "op": "l0.o_proj",
+    "us": 29723.393909165516,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.gate_up_proj",
+    "us": 213708.3682854458,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.down_proj",
+    "us": 101651.6899850964,
+    "rule": "token_linear"
+   }
+  ],
+  "freeze_s": 0.959796667098999,
+  "sim_s": 3071.361176967621
+ },
+ {
+  "model": "mamba2-8b",
+  "cp": 1,
+  "seqlen": 1179648,
+  "tokens_per_rank": 1179648,
+  "system": "hgx_b300_8",
+  "makespan_us": 19625733.562288,
+  "ttft_ms": 19625.733562288002,
+  "mfu": 0.3531059746416206,
+  "rank0_busy_us": 283129.78651171253,
+  "last_busy_us": 283129.78651171253,
+  "collective_us": -0.0,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 64,
+    "total_us": 283129.7865117122
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 2999.4881449999993,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.in_proj",
+    "us": 137259.34459,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.conv1d",
+    "us": 8867.508672999998,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_chunk_cumsum",
+    "us": 99.28936500000002,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_chunk_state",
+    "us": 15472.943565,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_state_passing",
+    "us": 6013.0394400000005,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_bmm_chunk",
+    "us": 2864.397646,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.ssd_chunk_scan",
+    "us": 64182.16057,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.gated_norm",
+    "us": 5991.144397000001,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.out_proj",
+    "us": 58477.160265737926,
+    "rule": "token_linear"
+   }
+  ],
+  "freeze_s": 0.012741327285766602,
+  "sim_s": 424.97221326828003
+ },
+ {
+  "model": "gdn-8b",
+  "cp": 1,
+  "seqlen": 1179648,
+  "tokens_per_rank": 1179648,
+  "system": "hgx_b300_8",
+  "makespan_us": 18005101.140999,
+  "ttft_ms": 18005.101140999,
+  "mfu": 0.4173945441655983,
+  "rank0_busy_us": 779085.339224475,
+  "last_busy_us": 779085.339224475,
+  "collective_us": -0.0,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 96,
+    "total_us": 779085.339224474
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 2999.4881449999993,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.in_proj",
+    "us": 91695.81692063376,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.conv1d",
+    "us": 7097.763125999999,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_kkt",
+    "us": 4620.494522,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_wy",
+    "us": 26123.934772000004,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_cumsum",
+    "us": 112.18176899999999,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_state",
+    "us": 14094.072890000003,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_state_passing",
+    "us": 12042.489425999998,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_bmm_chunk",
+    "us": 2315.267757,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.out_proj",
+    "us": 29723.393909165516,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.gate_up_proj",
+    "us": 213708.3682854458,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.down_proj",
+    "us": 101651.6899850964,
+    "rule": "token_linear"
+   }
+  ],
+  "freeze_s": 0.016869544982910156,
+  "sim_s": 3000.310149908066
+ },
+ {
+  "model": "gdn-hybrid-8b",
+  "cp": 1,
+  "seqlen": 1179648,
+  "tokens_per_rank": 1179648,
+  "system": "hgx_b300_8",
+  "makespan_us": 81449150.555739,
+  "ttft_ms": 81449.150555739,
+  "mfu": 0.5449061163103819,
+  "rank0_busy_us": 779085.339224475,
+  "last_busy_us": 779085.339224475,
+  "collective_us": -0.0,
+  "kernels": [
+   {
+    "name": "elementwise",
+    "count": 96,
+    "total_us": 779085.339224474
+   }
+  ],
+  "extrapolated": [
+   {
+    "op": "l0.input_norm",
+    "us": 2999.4881449999993,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.in_proj",
+    "us": 91695.81692063376,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.conv1d",
+    "us": 7097.763125999999,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_kkt",
+    "us": 4620.494522,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.delta_wy",
+    "us": 26123.934772000004,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_cumsum",
+    "us": 112.18176899999999,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_chunk_state",
+    "us": 14094.072890000003,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_state_passing",
+    "us": 12042.489425999998,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.lin_bmm_chunk",
+    "us": 2315.267757,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l0.out_proj",
+    "us": 29723.393909165516,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.gate_up_proj",
+    "us": 213708.3682854458,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l1.down_proj",
+    "us": 101651.6899850964,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l6.qkv_proj",
+    "us": 44531.21630260466,
+    "rule": "token_linear"
+   },
+   {
+    "op": "l6.ring_diag",
+    "us": 8073200.404226374,
+    "rule": "attention_waves"
+   }
+  ],
+  "freeze_s": 0.0240170955657959,
+  "sim_s": 3003.4472513198853
  }
 ]
