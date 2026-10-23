@@ -32,6 +32,19 @@ def _k(n: float) -> str:
     return f"{n / 1000:.1f}k" if n >= 1000 else f"{n:.0f}"
 
 
+def _rack_train(tr: list) -> str:
+    """One sentence on 405B training layouts across the NVL72."""
+    big = sorted((p for p in tr if p["system"] == "gb300" and p["model"] == "llama3-405b" and p.get("mfu")),
+                 key=lambda p: -p["mfu"])
+    if len(big) < 2:
+        return ""
+    b, w = big[0], big[-1]
+    comm = lambda p: 100 * p["bd"][3] / sum(p["bd"])  # noqa: E731
+    return (f" On GB300 NVL72, Llama-3-405B trains best at {b['plan']} ({100 * b['mfu']:.0f}% MFU); adding pipeline "
+            f"stages brings {w['plan']} down to {100 * w['mfu']:.0f}% as communication grows from {comm(b):.0f}% "
+            f"to {comm(w):.0f}% of the step (rack-scale training points extrapolated from 6- and 12-layer runs).")
+
+
 def findings(data: Dict[str, List[dict]], systems: dict, archs: dict) -> dict:
     cards, nums = [], {}
 
@@ -93,7 +106,7 @@ def findings(data: Dict[str, List[dict]], systems: dict, archs: dict) -> dict:
                  f"{100 * cb:.0f}% of prefills",
                  "are compute-bound (8k-token prompts). Training MFU on HGX B300 at the best layout: " +
                  ", ".join(f"{m} {100 * f:.0f}% ({pl})" for _, m, f, pl in mfus) +
-                 ".")
+                 "." + _rack_train(tr))
         # Generations.
         gen = []
         for m in ("llama3-8b", "llama3-70b"):

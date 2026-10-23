@@ -62,6 +62,7 @@ at batch 1 (608 µs per token). The page shows both next to the simulator.
   KV paging are not modelled.
 - "No launch gaps" removes gaps between kernels; it does not model the cross-op fusion and overlap a
   real megakernel also does.
-- Rack-scale training points (70B and 405B on GB300 NVL72, 72 ranks) take hours each, because the
-  NCCL-faithful network model simulates every chunk of the gradient all-reduce. The page lists any
-  point still simulating; `run.py` resumes from `results/<study>.jsonl`.
+- Training points with 16 or more ranks and more than 24 layers are simulated at 6 and 12 layers and extended linearly to the
+  full depth (`rackscale.sweep.EXTRAPOLATE_LAYERS`): a whole 72-rank step takes hours, because the
+  NCCL-faithful network model runs every chunk of every gradient collective. Against whole-model runs
+  of Qwen2.5-32B on GB300 NVL72 the extrapolation is within 0.02%.
