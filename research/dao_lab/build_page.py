@@ -44,8 +44,7 @@ def slim_dec_r(r):
 
 def slim_cp(r):
     return {"model": r["model"], "cp": r["cp"], "s": r["seqlen"], "ttft_ms": round(r["ttft_ms"], 2),
-            "mfu": round(r["mfu"], 4), "busy": round(r["rank0_busy_us"] / r["makespan_us"], 3),
-            "last_busy": round(r["last_busy_us"] / r["makespan_us"], 3), "top": r["kernels"][:5]}
+            "mfu": round(r["mfu"], 4), "tpr": r["tokens_per_rank"], "top": r["kernels"][:5]}
 
 
 def main():

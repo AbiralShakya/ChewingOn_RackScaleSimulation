@@ -106,12 +106,13 @@ def _gpu(system: str) -> dict:
 # attention prefill
 
 
-def _attn_tiles(g: dict, d: int, sq: int) -> Tuple[int, int, int]:
+def _attn_tiles(g: dict, d: int, sq: int, tied: bool = False) -> Tuple[int, int, int]:
     """(rows per CTA, K/V block, CTAs per SM) of the synthetic Blackwell
     attention kernel (``rsim_gpu::synth::attention``)."""
     smem = g["smem_per_sm_bytes"]
     tile_q, kv_blk = 128, 128
-    fits = lambda tq, kb: (2 * 2 * kb * d + tq * d) * 2 + 1024 <= smem
+    kv_mult = 1 if tied else 2
+    fits = lambda tq, kb: (kv_mult * 2 * kb * d + tq * d) * 2 + 1024 <= smem
     while not fits(tile_q, kv_blk) and kv_blk > 32:
         kv_blk //= 2
     while not fits(tile_q, kv_blk) and tile_q > 64:
@@ -121,20 +122,21 @@ def _attn_tiles(g: dict, d: int, sq: int) -> Tuple[int, int, int]:
 
 
 def _is_long_attention(spec: dict) -> bool:
-    return (spec.get("type") == "attention" and spec["sq"] > 16 and not spec.get("kv_tied")
-            and spec["sq"] * spec["skv"] > ATTN_EXACT_MAX)
+    return spec.get("type") == "attention" and spec["sq"] > 16 and spec["sq"] * spec["skv"] > ATTN_EXACT_MAX
 
 
-def _attention_us(system: str, spec: dict) -> Tuple[float, dict]:
+def _attention_us(system: str, spec: dict, reserved: int = 0) -> Tuple[float, dict]:
     g = _gpu(system)
     if g.get("arch", "").lower() != "blackwell":
         raise ValueError("attention extrapolation is implemented for the Blackwell kernel only")
     sms = g["sm_count"]
-    rows, kv_blk, cps = _attn_tiles(g, spec["d"], spec["sq"])
+    rows, kv_blk, cps = _attn_tiles(g, spec["d"], spec["sq"], spec.get("kv_tied", spec["d"] > 256))
     skv_eff = math.ceil(spec["skv"] / 2) if spec.get("causal") else spec["skv"]
     hq = spec["heads_q"]
     ctas = spec["batch"] * hq * math.ceil(spec["sq"] / rows)
-    waves = math.ceil(ctas / (sms * cps))
+    # SMs held by concurrent communication kernels (ring sends) are not
+    # available to the attention grid, which changes its wave count.
+    waves = math.ceil(ctas / ((sms - reserved) * cps))
     # Reduced grid: batch 1, the same heads, the fewest Q tiles that make an
     # exact number of full waves (whole heads, so GQA sharing in L2 is kept).
     per_wave = sms * cps
@@ -153,7 +155,7 @@ def _attention_us(system: str, spec: dict) -> Tuple[float, dict]:
     b = (t2 - t1) / (k2 - k1) if k2 != k1 else t1 / k1
     a = t1 - b * k1
     us = waves * (a + b * k_full)
-    return us, {"rule": "attention_waves", "waves": waves, "k_iters": k_full, "t_wave_us": a + b * k_full,
+    return us, {"rule": "attention_waves", "waves": waves, "reserved_sms": reserved, "k_iters": k_full, "t_wave_us": a + b * k_full,
                 "fit": {"a_us": a, "b_us_per_iter": b, "points": pts, "reduced_waves": red_waves}}
 
 
@@ -215,13 +217,20 @@ def is_long(spec: dict) -> bool:
     return _is_long_attention(spec) or _is_long_linear(spec)
 
 
-def estimate(system: str, spec: dict) -> Tuple[float, dict]:
+def estimate(system: str, spec: dict, reserved: int = 0) -> Tuple[float, dict]:
     """``(microseconds, how)``: a full simulation when the kernel is small,
-    otherwise the steady-state extrapolation and its fit."""
+    otherwise the steady-state extrapolation and its fit. ``reserved`` SMs are
+    held by concurrent communication kernels: the attention rule counts waves
+    on the rest, token-linear kernels scale by the lost SM fraction."""
     if _is_long_attention(spec):
-        return _attention_us(system, spec)
+        return _attention_us(system, spec, reserved)
     if _is_long_linear(spec):
-        return _linear_us(system, spec)
+        us, how = _linear_us(system, spec)
+        if reserved and how["rule"] != "exact":
+            sms = _gpu(system)["sm_count"]
+            us *= sms / (sms - reserved)
+            how["reserved_sms"] = reserved
+        return us, how
     return simulate_us(system, spec), {"rule": "exact"}
 
 
@@ -243,10 +252,12 @@ def _programs(wl: dict) -> Iterable[dict]:
         yield r
 
 
-def freeze(system: str, workload: dict) -> Tuple[dict, List[dict]]:
+def freeze(system: str, workload: dict, reserved_sms: int = 0) -> Tuple[dict, List[dict]]:
     """Copy of ``workload`` whose long kernels are ``fixed`` ops with their
     extrapolated time. Returns ``(workload, log)``; the log lists every
-    rewritten op with the rule used."""
+    rewritten op with the rule used. ``reserved_sms``: SMs that concurrent
+    communication holds while these kernels run (a ``fixed`` op does not see
+    them, so the estimate must)."""
     wl = copy.deepcopy(workload)
     log = []
     done: Dict[str, Tuple[float, dict]] = {}
@@ -258,7 +269,7 @@ def freeze(system: str, workload: dict) -> Tuple[dict, List[dict]]:
                     continue
                 key = json.dumps(spec, sort_keys=True)
                 if key not in done:
-                    done[key] = estimate(system, spec)
+                    done[key] = estimate(system, spec, reserved_sms)
                     log.append({"op": op.get("name"), "spec": spec, "us": done[key][0], **done[key][1]})
                 op["kernel"] = {"type": "fixed", "ns": done[key][0] * 1e3}
     return wl, log

@@ -21,19 +21,25 @@ SEQLENS = [147456, 589824, 1179648]
 PEAK_BF16 = 2.46e15  # dense BF16 FLOP/s of one B300 at the measured max clock
 
 
+# One GPU and one node: the shortest and longest prompts, one model per mixer family.
+SMALL_MODELS = ["llama3-8b", "mamba2-8b", "gdn-8b", "gdn-hybrid-8b"]
+SMALL_SEQLENS = [147456, 1179648]
+
+
 def main(cps=(72, 8, 1)):
     rows = load("cp_prefill.json")
     done = {(r["model"], r["cp"], r["seqlen"]) for r in rows}
-    for s in SEQLENS:
-        for cp in cps:
-            for name in MODELS:
+    for cp in cps:
+        for s in SEQLENS if cp == 72 else SMALL_SEQLENS:
+            for name in MODELS if cp == 72 else SMALL_MODELS:
+                rows = load("cp_prefill.json")  # another process may have added rows
                 if (name, cp, s) in done:
                     continue
                 m = models.ALL[name]
                 system = SYSTEMS[cp]
                 t0 = time.time()
                 wl = lower.prefill_cp(m, cp, s)
-                wl, log = extrap.freeze(system, wl)
+                wl, log = extrap.freeze(system, wl, reserved_sms=2 if cp > 1 else 0)
                 t1 = time.time()
                 rep = simulate(system, wl, fast=True).raw
                 mk = rep["makespan_us"]
@@ -47,6 +53,7 @@ def main(cps=(72, 8, 1)):
                                   for kk in rep["kernels"][:12]],
                          extrapolated=[{k: l[k] for k in ("op", "us", "rule")} for l in log],
                          freeze_s=t1 - t0, sim_s=time.time() - t1)
+                rows = load("cp_prefill.json")
                 print(f"S={s:<8d} cp{cp:<3d} {name:16s} TTFT {mk / 1e3:9.1f} ms  MFU {100 * r['mfu']:5.1f}%  "
                       f"rank0 busy {r0['gpu_busy_us'] / mk:5.1%}  ({r['freeze_s']:.0f}+{r['sim_s']:.0f}s)", flush=True)
                 rows.append(r)

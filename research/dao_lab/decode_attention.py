@@ -28,7 +28,10 @@ def split_kv(wl, wg=2):
         for st in prog["streams"]:
             for o in st:
                 k = o.get("kernel")
-                if o.get("op") == "kernel" and k and k["type"] == "attention" and k["sq"] == 1:
+                # Only 128-wide K/V blocks split usefully (d <= 256); MLA's and
+                # GLA's wide latents get 32/64-wide blocks, where the split
+                # schedule measured slower in the kernel sweep, so they keep one.
+                if o.get("op") == "kernel" and k and k["type"] == "attention" and k["sq"] == 1 and k["d"] <= 256:
                     k["kv_warpgroups"] = wg
     return wl
 

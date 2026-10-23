@@ -1402,5 +1402,317 @@
   },
   "us_per_token": 0.190388784024246,
   "wall_s": 0.006345272064208984
+ },
+ {
+  "mixer": "GQA-8 (FA4)",
+  "model": "llama3-8b",
+  "seqlen": 524288,
+  "block_us": 1631258.5208854116,
+  "parts_us": {
+   "input_norm": 1329.0935849999996,
+   "qkv_proj": 19827.618123379845,
+   "attention": 1594891.4276136248,
+   "o_proj": 13248.841602406896,
+   "residual": 1961.539961
+  },
+  "rules": {
+   "input_norm": "token_linear",
+   "qkv_proj": "token_linear",
+   "attention": "attention_waves",
+   "o_proj": "token_linear",
+   "residual": "exact"
+  },
+  "us_per_token": 3.111378709574531,
+  "wall_s": 269.90239787101746
+ },
+ {
+  "mixer": "MLA",
+  "model": "llama3-8b-mla",
+  "seqlen": 524288,
+  "block_us": 2346567.2789607816,
+  "parts_us": {
+   "input_norm": 1329.0935849999996,
+   "q_a_proj": 5157.41977,
+   "q_b_proj": 7912.367787,
+   "kv_a_proj": 2608.161493,
+   "kv_b_proj": 4135.205966,
+   "mla_prefill": 2310214.648796375,
+   "o_proj": 13248.841602406896,
+   "residual": 1961.539961
+  },
+  "rules": {
+   "input_norm": "token_linear",
+   "q_a_proj": "exact",
+   "q_b_proj": "exact",
+   "kv_a_proj": "exact",
+   "kv_b_proj": "exact",
+   "mla_prefill": "attention_waves",
+   "o_proj": "token_linear",
+   "residual": "exact"
+  },
+  "us_per_token": 4.475721891328395,
+  "wall_s": 1042.0024545192719
+ },
+ {
+  "mixer": "Mamba-2 (SSD)",
+  "model": "mamba2-8b",
+  "seqlen": 524288,
+  "block_us": 136361.65787677243,
+  "parts_us": {
+   "input_norm": 1329.0935849999996,
+   "in_proj": 61029.32435,
+   "conv1d": 3943.058633,
+   "ssd_chunk_cumsum": 52.626005000000006,
+   "ssd_chunk_state": 6879.053485,
+   "ssd_state_passing": 2666.14924,
+   "ssd_bmm_chunk": 1274.2223259999998,
+   "ssd_chunk_scan": 28528.34717,
+   "gated_norm": 2658.6606370000004,
+   "out_proj": 26039.582484772414,
+   "residual": 1961.539961
+  },
+  "rules": {
+   "input_norm": "token_linear",
+   "in_proj": "token_linear",
+   "conv1d": "token_linear",
+   "ssd_chunk_cumsum": "token_linear",
+   "ssd_chunk_state": "token_linear",
+   "ssd_state_passing": "token_linear",
+   "ssd_bmm_chunk": "token_linear",
+   "ssd_chunk_scan": "token_linear",
+   "gated_norm": "token_linear",
+   "out_proj": "token_linear",
+   "residual": "exact"
+  },
+  "us_per_token": 0.26008922171930776,
+  "wall_s": 0.015449762344360352
+ },
+ {
+  "mixer": "Linear attn (scalar gate)",
+  "model": "gla-8b",
+  "seqlen": 524288,
+  "block_us": 86103.49716996131,
+  "parts_us": {
+   "input_norm": 1329.0935849999996,
+   "in_proj": 40770.08585655441,
+   "conv1d": 3156.569566,
+   "lin_chunk_cumsum": 50.54128899999999,
+   "lin_chunk_state": 6264.46993,
+   "lin_state_passing": 5350.185106,
+   "lin_bmm_chunk": 1029.850797,
+   "lin_chunk_scan": 11613.225892,
+   "gated_norm": 1329.0935849999996,
+   "out_proj": 13248.841602406896,
+   "residual": 1961.539961
+  },
+  "rules": {
+   "input_norm": "token_linear",
+   "in_proj": "token_linear",
+   "conv1d": "token_linear",
+   "lin_chunk_cumsum": "token_linear",
+   "lin_chunk_state": "token_linear",
+   "lin_state_passing": "token_linear",
+   "lin_bmm_chunk": "token_linear",
+   "lin_chunk_scan": "token_linear",
+   "gated_norm": "token_linear",
+   "out_proj": "token_linear",
+   "residual": "exact"
+  },
+  "us_per_token": 0.16422938760750067,
+  "wall_s": 0.012776613235473633
+ },
+ {
+  "mixer": "Gated DeltaNet",
+  "model": "gdn-8b",
+  "seqlen": 524288,
+  "block_us": 99760.77020991078,
+  "parts_us": {
+   "input_norm": 1329.0935849999996,
+   "in_proj": 40759.670282503896,
+   "conv1d": 3156.569566,
+   "delta_kkt": 2054.462722,
+   "delta_wy": 11613.225892,
+   "lin_chunk_cumsum": 50.54128899999999,
+   "lin_chunk_state": 6264.46993,
+   "lin_state_passing": 5350.185106,
+   "lin_bmm_chunk": 1029.850797,
+   "lin_chunk_scan": 11613.225892,
+   "gated_norm": 1329.0935849999996,
+   "out_proj": 13248.841602406896,
+   "residual": 1961.539961
+  },
+  "rules": {
+   "input_norm": "token_linear",
+   "in_proj": "token_linear",
+   "conv1d": "token_linear",
+   "delta_kkt": "token_linear",
+   "delta_wy": "token_linear",
+   "lin_chunk_cumsum": "token_linear",
+   "lin_chunk_state": "token_linear",
+   "lin_state_passing": "token_linear",
+   "lin_bmm_chunk": "token_linear",
+   "lin_chunk_scan": "token_linear",
+   "gated_norm": "token_linear",
+   "out_proj": "token_linear",
+   "residual": "exact"
+  },
+  "us_per_token": 0.1902785686681953,
+  "wall_s": 0.009628057479858398
+ },
+ {
+  "mixer": "GQA-8 (FA4)",
+  "model": "llama3-8b",
+  "seqlen": 1048576,
+  "block_us": 6450075.498491823,
+  "parts_us": {
+   "input_norm": 2665.4092329999994,
+   "qkv_proj": 39590.4966667597,
+   "attention": 6377459.526427249,
+   "o_proj": 26428.48344781379,
+   "residual": 3931.582717
+  },
+  "rules": {
+   "input_norm": "token_linear",
+   "qkv_proj": "token_linear",
+   "attention": "attention_waves",
+   "o_proj": "token_linear",
+   "residual": "exact"
+  },
+  "us_per_token": 6.151271341792891,
+  "wall_s": 558.279314994812
+ },
+ {
+  "mixer": "MLA",
+  "model": "llama3-8b-mla",
+  "seqlen": 1048576,
+  "block_us": 9311728.379960196,
+  "parts_us": {
+   "input_norm": 2665.4092329999994,
+   "q_a_proj": 10390.570250417582,
+   "q_b_proj": 15671.623008212795,
+   "kv_a_proj": 5451.546997,
+   "kv_b_proj": 8342.48297,
+   "mla_prefill": 9238846.681336751,
+   "o_proj": 26428.48344781379,
+   "residual": 3931.582717
+  },
+  "rules": {
+   "input_norm": "token_linear",
+   "q_a_proj": "token_linear",
+   "q_b_proj": "token_linear",
+   "kv_a_proj": "exact",
+   "kv_b_proj": "exact",
+   "mla_prefill": "attention_waves",
+   "o_proj": "token_linear",
+   "residual": "exact"
+  },
+  "us_per_token": 8.880356197319218,
+  "wall_s": 2053.273658514023
+ },
+ {
+  "mixer": "Mamba-2 (SSD)",
+  "model": "mamba2-8b",
+  "seqlen": 1048576,
+  "block_us": 272592.7876255448,
+  "parts_us": {
+   "input_norm": 2665.4092329999994,
+   "in_proj": 122013.340542,
+   "conv1d": 7882.618664999999,
+   "ssd_chunk_cumsum": 89.95669300000002,
+   "ssd_chunk_state": 13754.165549,
+   "ssd_state_passing": 5343.6614,
+   "ssd_bmm_chunk": 2546.3625819999997,
+   "ssd_chunk_scan": 57051.39789,
+   "gated_norm": 5324.647645000001,
+   "out_proj": 51989.644709544824,
+   "residual": 3931.582717
+  },
+  "rules": {
+   "input_norm": "token_linear",
+   "in_proj": "token_linear",
+   "conv1d": "token_linear",
+   "ssd_chunk_cumsum": "token_linear",
+   "ssd_chunk_state": "token_linear",
+   "ssd_state_passing": "token_linear",
+   "ssd_bmm_chunk": "token_linear",
+   "ssd_chunk_scan": "token_linear",
+   "gated_norm": "token_linear",
+   "out_proj": "token_linear",
+   "residual": "exact"
+  },
+  "us_per_token": 0.25996474039606554,
+  "wall_s": 0.008215188980102539
+ },
+ {
+  "mixer": "Linear attn (scalar gate)",
+  "model": "gla-8b",
+  "seqlen": 1048576,
+  "block_us": 172144.18662492262,
+  "parts_us": {
+   "input_norm": 2665.4092329999994,
+   "in_proj": 81531.76568610882,
+   "conv1d": 6309.5244139999995,
+   "lin_chunk_cumsum": 99.853673,
+   "lin_chunk_state": 12528.152298000003,
+   "lin_state_passing": 10704.028562,
+   "lin_bmm_chunk": 2058.184365,
+   "lin_chunk_scan": 23221.792996000004,
+   "gated_norm": 2665.4092329999994,
+   "out_proj": 26428.48344781379,
+   "residual": 3931.582717
+  },
+  "rules": {
+   "input_norm": "token_linear",
+   "in_proj": "token_linear",
+   "conv1d": "token_linear",
+   "lin_chunk_cumsum": "token_linear",
+   "lin_chunk_state": "token_linear",
+   "lin_state_passing": "token_linear",
+   "lin_bmm_chunk": "token_linear",
+   "lin_chunk_scan": "token_linear",
+   "gated_norm": "token_linear",
+   "out_proj": "token_linear",
+   "residual": "exact"
+  },
+  "us_per_token": 0.164169489502833,
+  "wall_s": 0.008301258087158203
+ },
+ {
+  "mixer": "Gated DeltaNet",
+  "model": "gdn-8b",
+  "seqlen": 1048576,
+  "block_us": 199450.0896898216,
+  "parts_us": {
+   "input_norm": 2665.4092329999994,
+   "in_proj": 81508.58759300779,
+   "conv1d": 6309.5244139999995,
+   "delta_kkt": 4107.288162,
+   "delta_wy": 23221.792996000004,
+   "lin_chunk_cumsum": 99.853673,
+   "lin_chunk_state": 12528.152298000003,
+   "lin_state_passing": 10704.028562,
+   "lin_bmm_chunk": 2058.184365,
+   "lin_chunk_scan": 23221.792996000004,
+   "gated_norm": 2665.4092329999994,
+   "out_proj": 26428.48344781379,
+   "residual": 3931.582717
+  },
+  "rules": {
+   "input_norm": "token_linear",
+   "in_proj": "token_linear",
+   "conv1d": "token_linear",
+   "delta_kkt": "token_linear",
+   "delta_wy": "token_linear",
+   "lin_chunk_cumsum": "token_linear",
+   "lin_chunk_state": "token_linear",
+   "lin_state_passing": "token_linear",
+   "lin_bmm_chunk": "token_linear",
+   "lin_chunk_scan": "token_linear",
+   "gated_norm": "token_linear",
+   "out_proj": "token_linear",
+   "residual": "exact"
+  },
+  "us_per_token": 0.19021042794210585,
+  "wall_s": 0.007720470428466797
  }
 ]
