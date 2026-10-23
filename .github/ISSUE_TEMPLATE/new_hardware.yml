@@ -1,0 +1,23 @@
+name: New hardware or model
+description: Request a GPU, system topology, interconnect or model architecture preset.
+labels: [hardware]
+body:
+  - type: input
+    id: what
+    attributes:
+      label: Hardware or model
+      description: e.g. "MI355X", "GB300 NVL72 with 2-rack IB", "Qwen3-Next"
+    validations:
+      required: true
+  - type: textarea
+    id: specs
+    attributes:
+      label: Specifications and sources
+      description: Datasheets, papers, or config files. Every number in a preset carries a provenance tag, so links matter.
+    validations:
+      required: true
+  - type: textarea
+    id: access
+    attributes:
+      label: Can you measure it?
+      description: If you have access to the hardware, the calibration suite in `calibration/` can turn microbenchmarks into a calibrated preset. Tell us what you can run.

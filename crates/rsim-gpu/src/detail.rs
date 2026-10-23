@@ -113,6 +113,9 @@ pub struct KernelDetail {
     /// Flat `[sm, cta, start, end, ...]` quadruples.
     pub ctas: Vec<u64>,
     pub warps: Vec<WarpTimeline>,
+    /// Probe hits (`PathHeader::probes`): flat `[sm, cta, warp index, address, cycle, ...]`.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub probes: Vec<u64>,
 }
 
 /// Per-SM warp-timeline recorder.

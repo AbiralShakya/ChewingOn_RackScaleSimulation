@@ -22,6 +22,12 @@ What the conversion does (see crates/rsim-sass/src/path.rs for the format):
 * tcgen05.commit (UTCBAR) arrives when the CTA's tensor work drains; the
   multicast form arrives on every CTA in its mask.
 * UMMA FLOPs come from the instruction descriptor (M, N) and the operand type (K).
+* Spin loops on a counter in global memory (a strong/volatile load of one address, compare,
+  branch back, maybe NANOSLEEP; the load repeating) become one wait for that counter
+  (`GlobalWait`), and atomic adds to it become `GlobalAdd`. This is how a persistent
+  megakernel orders work across SMs. A wait needs every increment of its counter recorded in
+  the launch, so a megakernel must be recorded with every CTA: several paths passes with
+  RSIM_CAP_CTAS, merged with `--merge`.
 * CTAs that were not recorded replay the primary CTA's path. Their memory
   addresses are shifted by per-instruction strides inferred from recorded CTAs
   that differ in one grid coordinate, and, when the trace recorded every CTA's
@@ -43,6 +49,7 @@ except ImportError:  # run as a script
     from wpread import WP_BAR, WP_BASIC, WP_MBAR, WP_MBARV, WP_MEM, WP_TMA, WP_UREG, WP_WAIT, read_listing, read_wp  # noqa: E402,E501
 
 K_NONE, K_WAIT, K_ARRIVE, K_TXDONE, K_COMMIT, K_NAMED, K_WAIT_PARITY = 0, 1, 2, 3, 4, 5, 6
+K_GWAIT, K_GADD = 7, 8
 
 
 def popcount(x):
@@ -65,7 +72,8 @@ def umma_flops(op, idesc):
 
 
 class Conv:
-    def __init__(self, trace_dir, primary=None, parity_waits=False, detect_completed_init=None, clock_waits=None):
+    def __init__(self, trace_dir, primary=None, parity_waits=False, detect_completed_init=None, clock_waits=None,
+                 merge=()):
         self.dir = trace_dir
         base = glob.glob(os.path.join(trace_dir, "*.json"))[0][:-5]
         self.meta = json.load(open(base + ".json"))
@@ -74,12 +82,23 @@ class Conv:
         self.cluster = max(1, self.meta["cluster"][0] * self.meta["cluster"][1] * self.meta["cluster"][2])
         self.warps = defaultdict(list)
         self.tma_all = defaultdict(list)  # (cta, warp) -> [runs] for every CTA (address-only)
-        sampled = set(c for c in self.meta["ctas"] if c != 0xFFFFFFFF)
-        for r in read_wp(base + ".wp"):
-            if r["cta"] in sampled:
-                self.warps[(r["cta"], r["warp"])].append(r)
-            if r["kind"] == WP_TMA:
-                self.tma_all[(r["cta"], r["warp"])].append(r)
+        # Recordings of the same launch with other sampled CTAs (RSIM_CAP_CTAS), one per paths
+        # pass: their CTAs join this one's. SM clocks are only comparable within one pass.
+        for d in (trace_dir,) + tuple(merge):
+            b = glob.glob(os.path.join(d, "*.json"))[0][:-5]
+            m = json.load(open(b + ".json"))
+            if m["kernel"] != self.meta["kernel"] or m["grid"] != self.meta["grid"]:
+                raise ValueError(f"{d}: not a recording of the same kernel and grid")
+            sampled = set(c for c in m["ctas"] if c != 0xFFFFFFFF)
+            got = defaultdict(list)
+            for r in read_wp(b + ".wp"):
+                if r["cta"] in sampled:
+                    got[(r["cta"], r["warp"])].append(r)
+                if r["kind"] == WP_TMA and d == trace_dir:
+                    self.tma_all[(r["cta"], r["warp"])].append(r)
+            for k, v in got.items():
+                if k not in self.warps:  # a CTA recorded twice keeps its first recording
+                    self.warps[k] = v
         self.ctas = sorted(set(k[0] for k in self.warps))
         self.primary = primary if primary is not None else self.ctas[0]
         self.stats = Counter()
@@ -239,6 +258,75 @@ class Conv:
             self.stats["completed_init_barriers"] += len(self._completed_init[cta])
         return self._completed_init[cta]
 
+    GRID_SPIN_GAP = 48  # records between two polls of one flag that still count as one spin loop
+
+    def _is_flag_load(self, op):
+        return op.startswith(("LDG", "LD.")) and (".STRONG" in op or ".VOLATILE" in op or ".SYS" in op)
+
+    def _is_atomic(self, op):
+        return op.startswith(("RED", "ATOMG", "ATOM."))
+
+    @staticmethod
+    def _lane_addr(r):
+        for lane in range(32):
+            if (r["predon"] >> lane) & 1:
+                return r["addrs"][lane]
+        return None
+
+    def grid_sync(self):
+        """Find the global-memory counters CTAs spin on (inter-SM synchronisation).
+
+        Returns (flags, increments): flag address -> counter id, and counter id -> total
+        increments recorded in the launch. A flag is the address of a strong/volatile load that
+        a warp polls repeatedly (one failed iteration or more) and that some CTA increments
+        atomically; once known, every strong load of it is a wait."""
+        if hasattr(self, "_grid"):
+            return self._grid
+        spun, incs = set(), Counter()
+        for (_c, _w), recs in self.warps.items():
+            last = {}  # (idx, addr) -> record position of the previous poll
+            for n, r in enumerate(recs):
+                if r["kind"] != WP_MEM or not r["predon"]:
+                    continue
+                op = self.L[r["idx"]]["op"]
+                a = self._lane_addr(r)
+                if self._is_atomic(op):
+                    incs[a] += popcount(r["predon"])
+                elif self._is_flag_load(op):
+                    k = (r["idx"], a)
+                    if k in last and n - last[k] <= self.GRID_SPIN_GAP:
+                        spun.add(a)
+                    last[k] = n
+        flags = {a: i for i, a in enumerate(sorted(a for a in spun if incs[a] > 0))}
+        self.stats["grid_flags"] = len(flags)
+        self.stats["grid_flags_without_increments"] = len([a for a in spun if incs[a] == 0])
+        self._grid = (flags, {flags[a]: incs[a] for a in flags})
+        return self._grid
+
+    def collapse_grid_spins(self, recs):
+        """Indices of records to drop: every poll of a flag but the last of each spin loop, and
+        the compare/branch/sleep records between polls."""
+        flags, _ = self.grid_sync()
+        if not flags:
+            return set()
+        drop, prev = set(), {}
+        for n, r in enumerate(recs):
+            if r["kind"] != WP_MEM or not r["predon"]:
+                continue
+            op = self.L[r["idx"]]["op"]
+            if not self._is_flag_load(op):
+                continue
+            a = self._lane_addr(r)
+            if a not in flags:
+                continue
+            p = prev.get((r["idx"], a))
+            if p is not None and n - p <= self.GRID_SPIN_GAP and \
+                    all(recs[k]["kind"] != WP_MEM or k == p for k in range(p, n)):
+                drop.update(range(p, n))  # the failed poll and the loop around it
+                self.stats["grid_polls_dropped"] += 1
+            prev[(r["idx"], a)] = n
+        return drop
+
     def convert_warp(self, cta, recs):
         """Records of one warp -> list of op tuples. Spin loops on mbarriers (a failed wait, the
         branch and sleep around it, the failed retries) are removed; the simulator times the wait."""
@@ -261,8 +349,10 @@ class Conv:
                     continue
                 self.stats["polls_kept"] += 1
             i += 1
+        gdrop = self.collapse_grid_spins(recs)
+        flags, gincs = self.grid_sync()
         for n, r in enumerate(recs):
-            if n in drop:
+            if n in drop or n in gdrop:
                 self.stats["spin_ops_dropped"] += 1
                 continue
             op = self.L[r["idx"]]["op"]
@@ -397,6 +487,14 @@ class Conv:
             elif kind == WP_MEM:
                 active = r["predon"]
                 addrs = [r["addrs"][l] for l in range(32) if (active >> l) & 1]
+                fa = addrs[0] if addrs else None
+                if fa in flags and self._is_flag_load(op):
+                    fid = flags[fa]
+                    mk, mid, marg = K_GWAIT, fid, gincs[fid]
+                    self.stats["grid_waits"] += 1
+                elif fa in flags and self._is_atomic(op):
+                    mk, mid, mn = K_GADD, flags[fa], popcount(active)
+                    self.stats["grid_adds"] += 1
             ops.append((r["idx"], active, payload, mk, mid, marg, mn, mranks, run_bytes, addrs))
         return ops
 
@@ -505,9 +603,10 @@ class Conv:
 
 
 def convert(trace_dir, out, primary=None, regs=None, flops=0.0, nbytes=0.0, parity_waits=False,
-            detect_completed_init=None, clock_waits=None):
-    """Write `out` (.rpath) from the recording in `trace_dir`; return a summary dict."""
-    c = Conv(trace_dir, primary, parity_waits, detect_completed_init, clock_waits)
+            detect_completed_init=None, clock_waits=None, merge=()):
+    """Write `out` (.rpath) from the recording in `trace_dir` (plus the other CTAs recorded in
+    the `merge` directories); return a summary dict."""
+    c = Conv(trace_dir, primary, parity_waits, detect_completed_init, clock_waits, merge)
     paths, header = c.write(out, regs, flops, nbytes)
     lens = {f"{k[0]}:{k[1]}": len(v) for k, v in paths.items() if k[0] == c.primary}
     return {"out": out, "primary": c.primary, "ctas": c.ctas, "cluster": c.cluster,
@@ -525,8 +624,11 @@ def main():
     ap.add_argument("--flops", type=float, default=0.0)
     ap.add_argument("--bytes", type=float, default=0.0)
     ap.add_argument("--parity-waits", action="store_true", help="hardware try_wait.parity semantics for waits")
+    ap.add_argument("--merge", nargs="*", default=[],
+                    help="recordings of the same launch with other CTAs sampled (RSIM_CAP_CTAS), to merge")
     a = ap.parse_args()
-    print(json.dumps(convert(a.trace_dir, a.out, a.primary, a.regs, a.flops, a.bytes, a.parity_waits), indent=1))
+    print(json.dumps(convert(a.trace_dir, a.out, a.primary, a.regs, a.flops, a.bytes, a.parity_waits,
+                             merge=a.merge), indent=1))
 
 
 if __name__ == "__main__":

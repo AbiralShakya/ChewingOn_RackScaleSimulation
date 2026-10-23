@@ -1,0 +1,16 @@
+# HGX A100 8-GPU (SXM4 80GB) with the SM model driven by the measured A100
+# SXM4 calibration. Third-generation NVSwitch: six switch chips, two NVLink3
+# links (25 GB/s per direction each) from every GPU to every chip, so
+# 300 GB/s per direction per GPU. No in-switch reduction (SHARP arrived with
+# NVSwitch3), so all-reduce runs as a ring or tree over the switches.
+name: HGX A100 8-GPU (calibrated)
+gpus:
+  - preset: a100_sxm
+    count: 8
+    calibration: calibration/results/a100-sxm4-80gb-sm80/calibration.json
+topology:
+  kind: switched
+  switches: 6
+  switch: {name: NVSwitch2 (NVLink3), ports: 36, gbps_per_port_per_dir: 25.0, latency_ns: 100.0, in_network_reduction: false}
+  links_per_gpu_per_switch: [2, 2, 2, 2, 2, 2]
+  link: {gbps_per_dir: 25.0, latency_ns: 20.0}

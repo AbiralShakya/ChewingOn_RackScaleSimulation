@@ -6,7 +6,8 @@
 //! simulator-speed work (hot-path layout, memos, parallel runs) and must not
 //! move: a change that is meant to alter timing updates them in the same
 //! commit and says why (`RSIM_GOLDEN_PRINT=1` prints the new values
-//! instead of checking them).
+//! instead of checking them). Digests last moved for a format-only change:
+//! the `grid_sync` stall adds one entry to every stall-count array.
 
 use rsim_gpu::{synth, Gpu, GpuConfig, KernelDone, KernelLaunch, SchedPolicy};
 use std::sync::Arc;
@@ -52,13 +53,13 @@ fn hopper_gemm_and_attention() {
         GpuConfig::default(),
         synth::gemm(&g, 1024, 1024, 1024, "bf16"),
     );
-    check("h100 gemm 1024^3", &d, 19767, 0xa266_04b4_25ab_2082);
+    check("h100 gemm 1024^3", &d, 19767, 0x2e09_7673_23d0_954a);
     let d = run(
         g.clone(),
         GpuConfig::default(),
         synth::attention(&g, 1, 16, 16, 1024, 1024, 128, true),
     );
-    check("h100 attention", &d, 19112, 0xd74f_8599_6a6b_665f);
+    check("h100 attention", &d, 19112, 0x1575_a50e_339b_b7bf);
 }
 
 #[test]
@@ -69,13 +70,13 @@ fn blackwell_gemm_and_elementwise() {
         GpuConfig::default(),
         synth::gemm(&g, 2048, 2048, 1024, "bf16"),
     );
-    check("b300 gemm", &d, 18145, 0xc807_dbdb_3af0_3bab);
+    check("b300 gemm", &d, 18145, 0x4ee7_78dd_98ed_9e7b);
     let d = run(
         g.clone(),
         GpuConfig::default(),
         synth::elementwise("add", 1 << 24, 2, 2.0, 1),
     );
-    check("b300 elementwise", &d, 21847, 0x369b_6318_712b_3feb);
+    check("b300 elementwise", &d, 21847, 0x691a_3c78_9a4d_c563);
 }
 
 #[test]
@@ -86,7 +87,7 @@ fn ampere_gemm_round_robin() {
         ..Default::default()
     };
     let d = run(g.clone(), cfg, synth::gemm(&g, 1024, 1024, 2048, "bf16"));
-    check("a100 gemm lrr", &d, 45429, 0xfc5d_c04f_e650_0cad);
+    check("a100 gemm lrr", &d, 45429, 0xefa1_2a87_cc0d_f905);
 }
 
 /// FA4 replayed from its NVBit recording on the calibrated B300: exact
@@ -108,5 +109,5 @@ fn fa4_recording_on_calibrated_b300() {
     .unwrap();
     let d = run(g, GpuConfig::default(), KernelLaunch::from_path(p));
     assert!(d.stats.warp_by_index.len() > 1, "per-role stalls recorded");
-    check("b300 fa4 c1024 kv8", &d, 49398, 0xbace_653f_b917_6b29);
+    check("b300 fa4 c1024 kv8", &d, 49398, 0x464f_c757_c6d3_d921);
 }

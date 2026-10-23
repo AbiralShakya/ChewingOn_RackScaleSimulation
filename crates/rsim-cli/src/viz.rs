@@ -1,11 +1,11 @@
 //! `rsim viz`: simulate with full capture and write a zoomable viewer page
 //! (or an `rsviz/1` JSON bundle). See docs/VIZ.md.
 
-use crate::{sim_kernel, synth_kernel};
+use super::{sim_kernel, synth_kernel};
 use anyhow::{bail, Context, Result};
 use clap::{Args, Subcommand};
 use rsim_gpu::{DetailConfig, KernelLaunch};
-use rsim_hw::{presets, SystemSpec};
+use rsim_hw::presets;
 use rsim_rack::{viz, RunConfig, Simulation, Workload};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -175,7 +175,12 @@ fn kernel_page(
 }
 
 fn gpu_with(name: &str, cal: &Option<PathBuf>) -> Result<(rsim_hw::GpuSpec, String)> {
-    let mut g = presets::gpu(name).with_context(|| format!("unknown gpu preset {name}"))?;
+    let mut g = presets::gpu(name).with_context(|| {
+        format!(
+            "unknown gpu preset `{name}` (presets: {})",
+            presets::GPU_PRESETS.join(", ")
+        )
+    })?;
     let mut note = format!("{} preset", g.name);
     if let Some(c) = cal {
         rsim_hw::calibration::apply_file(&mut g, c)
@@ -196,8 +201,8 @@ pub fn main(cmd: VizCmd) -> Result<()> {
             launch_gap_ns,
             out,
         } => {
-            let sys = SystemSpec::from_yaml(&std::fs::read_to_string(&system)?)?.build()?;
-            let wsrc = std::fs::read_to_string(&workload)?;
+            let sys = super::net::load_system(&system.to_string_lossy())?;
+            let wsrc = super::read(&workload)?;
             let wl = if workload.extension().map(|e| e == "json").unwrap_or(false) {
                 Workload::from_json(&wsrc).map_err(anyhow::Error::msg)?
             } else {
@@ -265,7 +270,7 @@ pub fn main(cmd: VizCmd) -> Result<()> {
             out,
         } => {
             let (g, note) = gpu_with(&gpu, &None)?;
-            let src = std::fs::read_to_string(&path)?;
+            let src = super::read(&path)?;
             let Some(p) = rsim_sass::parse_listing(&src)?.into_iter().next() else {
                 bail!("no kernel in {}", path.display());
             };

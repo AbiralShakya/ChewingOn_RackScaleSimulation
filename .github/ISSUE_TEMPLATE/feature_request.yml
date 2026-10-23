@@ -1,0 +1,20 @@
+name: Feature request
+description: A question you would like the simulator to answer, or a way to make it easier to use.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you want to find out or do?
+      description: Describe the question or workflow, not only the feature. "I want to know whether X is faster on Y because Z" helps us most.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What you tried
+      description: What you did today, and where it fell short.
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed solution

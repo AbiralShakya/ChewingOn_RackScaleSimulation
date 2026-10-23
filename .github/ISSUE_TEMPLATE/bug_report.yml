@@ -1,0 +1,33 @@
+name: Bug report
+description: Something crashes, errors, or does not do what the docs say.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting. A command we can paste and run is the most useful thing you can include.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command or code you ran, and the full output or traceback.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `rackscale --version` (or the commit you built).
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: OS, CPU architecture, Python version, and how you installed (pip wheel, git, maturin develop).
