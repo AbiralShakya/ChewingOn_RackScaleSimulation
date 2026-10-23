@@ -130,6 +130,7 @@ pub fn h100_sxm() -> GpuSpec {
             efficiency: 0.9,
             latency_ns: 350.0,
             loaded_latency: Vec::new(),
+            ..HbmSpec::default()
         },
         dies: 1,
         d2d: None,
@@ -232,6 +233,7 @@ pub fn a100_sxm() -> GpuSpec {
         efficiency: 0.88,
         latency_ns: 400.0,
         loaded_latency: Vec::new(),
+        ..HbmSpec::default()
     };
     g.nvlink = NvlinkSpec {
         generation: 3,
@@ -277,6 +279,7 @@ pub fn h200_sxm() -> GpuSpec {
         efficiency: 0.9,
         latency_ns: 350.0,
         loaded_latency: Vec::new(),
+        ..HbmSpec::default()
     };
     g.notes
         .push("H200 = H100 compute + HBM3e 141 GB / 4.8 TB/s (spec)".into());
@@ -298,7 +301,7 @@ pub fn b200() -> GpuSpec {
         l1: CacheSpec { size_bytes: 64 * 1024, line_bytes: 128, sector_bytes: 32, assoc: 4, hit_latency: 33 },
         l2: CacheSpec { size_bytes: 126 * 1024 * 1024, line_bytes: 128, sector_bytes: 32, assoc: 16, hit_latency: 300 },
         l2_bytes_per_cycle: 6000.0,
-        hbm: HbmSpec { capacity_gb: 180.0, bw_gbps: 7700.0, efficiency: 0.9, latency_ns: 380.0, loaded_latency: Vec::new() },
+        hbm: HbmSpec { capacity_gb: 180.0, bw_gbps: 7700.0, efficiency: 0.9, latency_ns: 380.0, loaded_latency: Vec::new(), ..HbmSpec::default() },
         dies: 2,
         d2d: Some(DieLink {
             gbps_per_dir: 5000.0,

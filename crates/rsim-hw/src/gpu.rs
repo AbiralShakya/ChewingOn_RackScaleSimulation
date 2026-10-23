@@ -37,6 +37,33 @@ pub struct HbmSpec {
     /// bandwidth falls as total load rises). Empty = load-independent.
     #[serde(default)]
     pub loaded_latency: Vec<[f64; 2]>,
+    /// HBM time of a written byte relative to a read byte (measured write
+    /// stream vs read stream bandwidth).
+    #[serde(default = "one_f64")]
+    pub write_cost: f64,
+    /// Read/write bus turnaround: extra time per byte, in read-byte units,
+    /// at an even read/write mix; it scales as `4 * reads * writes` of the
+    /// traffic fractions. From the measured copy bandwidth.
+    #[serde(default)]
+    pub turnaround_cost: f64,
+}
+
+fn one_f64() -> f64 {
+    1.0
+}
+
+impl Default for HbmSpec {
+    fn default() -> Self {
+        Self {
+            capacity_gb: 0.0,
+            bw_gbps: 0.0,
+            efficiency: 1.0,
+            latency_ns: 0.0,
+            loaded_latency: Vec::new(),
+            write_cost: 1.0,
+            turnaround_cost: 0.0,
+        }
+    }
 }
 
 impl HbmSpec {
@@ -92,6 +119,12 @@ pub struct TmaSpec {
     pub bytes_per_cycle: f64,
     /// Fixed issue latency on top of the L2/HBM access, cycles.
     pub issue_latency: u32,
+    /// Lines of one bulk copy that miss L2 come back from HBM in order at
+    /// this rate (bytes per cycle), on top of the engine's own rate: the
+    /// HBM-sourced latency curve is steeper than the L2-resident one.
+    /// 0 = no pacing.
+    #[serde(default)]
+    pub hbm_fill_bytes_per_cycle: f64,
 }
 
 impl Default for TmaSpec {
@@ -99,6 +132,7 @@ impl Default for TmaSpec {
         Self {
             bytes_per_cycle: 256.0, // est
             issue_latency: 0,
+            hbm_fill_bytes_per_cycle: 0.0,
         }
     }
 }
@@ -484,6 +518,12 @@ pub struct OpTiming {
     /// The measured interval unrounded (0 = use `issue_interval`).
     #[serde(default)]
     pub issue_interval_exact: f64,
+    /// The unit is one per SM, shared by its sub-partitions, rather than one
+    /// per SMSP. `issue_interval` stays the per-SMSP rate at full occupancy;
+    /// the shared unit accepts one warp instruction every
+    /// `issue_interval / sub_partitions` cycles from any SMSP.
+    #[serde(default)]
+    pub sm_shared: bool,
 }
 
 impl GpuSpec {

@@ -75,8 +75,14 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         spec.l1.hit_latency = cyc(l);
         set("l1.hit_latency", &mut took);
     }
-    if let Some(l) = f(mem, &["latency_cycles", "l2_hit_repeat"]) {
-        spec.l2.hit_latency = cyc(l);
+    // The chases time a load from issue to use, so a measured L2 hit already
+    // includes the trip through L1 that the simulator charges separately
+    // (`l1.hit_latency` on every global load): `l2.hit_latency` is what is
+    // left after it.
+    let l1_trip = f(mem, &["latency_cycles", "l1_hit"]).unwrap_or(0.0);
+    let l2_repeat = f(mem, &["latency_cycles", "l2_hit_repeat"]);
+    if let Some(l) = l2_repeat {
+        spec.l2.hit_latency = cyc((l - l1_trip).max(1.0));
         set("l2.hit_latency", &mut took);
     }
     if let Some(l) = f(mem, &["latency_cycles", "dsmem_remote"]) {
@@ -87,9 +93,13 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         spec.latency.lds = cyc(l);
         set("latency.lds", &mut took);
     }
+    // A cold chase is L1 trip + L2 lookup + HBM, and the first two are the
+    // warm L2 chase, so HBM is the rest. (Subtracting the first-touch L2
+    // latency instead dropped the ~85 cycles a first touch costs on B300,
+    // which every cold miss pays too.)
     if let (Some(dram), Some(l2)) = (
         f(mem, &["latency_cycles", "dram"]),
-        f(mem, &["latency_cycles", "l2_hit_first_touch"]),
+        l2_repeat.or_else(|| f(mem, &["latency_cycles", "l2_hit_first_touch"])),
     ) {
         spec.hbm.latency_ns = ((dram - l2) / ghz).max(0.0);
         set("hbm.latency_ns", &mut took);
@@ -100,6 +110,17 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         if let Some(rd) = f(mem, &["bandwidth", "hbm_read_GBps"]) {
             spec.hbm.efficiency = (rd / peak).clamp(0.3, 1.0);
             set("hbm.efficiency", &mut took);
+            // Write and mixed streams: a written byte costs rd/wr read bytes,
+            // and a 1:1 copy pays a turnaround on top (rd+wr bandwidth below
+            // the harmonic mean of the two streams).
+            if let Some(wr) = f(mem, &["bandwidth", "hbm_write_GBps"]) {
+                spec.hbm.write_cost = rd / wr;
+                set("hbm.write_cost", &mut took);
+                if let Some(cp) = f(mem, &["bandwidth", "hbm_copy_GBps"]) {
+                    spec.hbm.turnaround_cost = (rd / cp - 0.5 - 0.5 * spec.hbm.write_cost).max(0.0);
+                    set("hbm.turnaround_cost", &mut took);
+                }
+            }
         }
     }
     // Loaded latency, measured directly when the calibration has it: a
@@ -186,9 +207,9 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
         // mean is the chase's (they disagree by 20-40%: the partition bench
         // times one 8-load chain per line, not a random chase).
         let mean = near + frac * (far - near);
-        let s = f(mem, &["latency_cycles", "l2_hit_repeat"])
+        let s = l2_repeat
             .filter(|_| mean > 0.0)
-            .map_or(1.0, |r| r / mean);
+            .map_or(1.0, |r| (r - l1_trip).max(1.0) / mean);
         let (near, far) = (near * s, far * s);
         spec.l2.hit_latency = cyc(near);
         let d = spec.d2d.get_or_insert(DieLink {
@@ -214,6 +235,18 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
             }
             spec.tma.issue_latency = (icept - spec.l2.hit_latency as f64).max(0.0).round() as u32;
             set("tma", &mut took);
+            // The same copies from HBM: whatever slope the HBM curve has
+            // beyond the engine's is the in-order fill from HBM.
+            let xh: Vec<(f64, f64)> = pts
+                .iter()
+                .filter_map(|p| Some((f(p, &["bytes"])?, f(p, &["hbm_cycles"])?)))
+                .collect();
+            if let Some((sh, _)) = linear_fit(&xh) {
+                if sh > slope && slope > 0.0 {
+                    spec.tma.hbm_fill_bytes_per_cycle = 1.0 / (sh - slope);
+                    set("tma.hbm_fill_bytes_per_cycle", &mut took);
+                }
+            }
         }
     }
 
@@ -235,6 +268,13 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
                     latency: cyc(lat),
                     issue_interval: cyc(ii),
                     issue_interval_exact: ii.max(1.0),
+                    // A single warp's dependent chain issues every `lat`
+                    // cycles. If a per-SMSP pipe needed `ii > lat` cycles per
+                    // instruction, that chain would run at `ii` instead, so
+                    // the full-occupancy limit must come from a unit the
+                    // SMSPs share (B300 FP64: 64-cycle chain, 66/78-cycle
+                    // per-SMSP interval).
+                    sm_shared: ii > lat,
                 },
             );
         }
@@ -461,13 +501,14 @@ mod tests {
         });
         apply(&mut g, &doc).unwrap();
         assert_eq!(g.sm_clock_mhz, 2000.0);
-        assert_eq!(g.l2.hit_latency, 299);
+        assert_eq!(g.l2.hit_latency, 259); // 298.8 minus the 39.4-cycle L1 trip
         assert_eq!(
             g.opcode_timing["MUFU.EX2"],
             OpTiming {
                 latency: 14,
                 issue_interval: 4,
-                issue_interval_exact: 4.01
+                issue_interval_exact: 4.01,
+                sm_shared: false,
             }
         );
         assert_eq!(g.opcode_timing.len(), 1);
