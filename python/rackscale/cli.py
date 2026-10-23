@@ -135,6 +135,33 @@ def main(argv=None) -> int:
     r.add_argument("--kernels", action="store_true", help="also compare every recorded kernel alone to its measurement")
     _common(r)
 
+    sw = sub.add_parser("sweep", help="simulate a grid of models x systems x phases x layouts (rackscale.sweep)")
+    sw.add_argument("--study", choices=["ladder", "attention", "moe", "context", "infra"],
+                    help="a named grid from research/model_sweep (otherwise build one from the flags below)")
+    sw.add_argument("--quick", action="store_true", help="the study's smoke-test grid")
+    sw.add_argument("--models", help="comma-separated model presets")
+    sw.add_argument("--systems", default="b300", help="comma-separated: a100, h100, b300, gb300")
+    sw.add_argument("--phases", default="decode", help="comma-separated: decode, prefill, train")
+    sw.add_argument("--batches", default="1,16,64,256")
+    sw.add_argument("--contexts", default="8192", help="decode context lengths")
+    sw.add_argument("--seqlen", type=int, default=8192, help="prefill prompt / training sequence length")
+    sw.add_argument("--launch", default="graph", help="graph | eager | megakernel | gap in ns")
+    sw.add_argument("--jobs", type=int, default=1)
+    sw.add_argument("-o", "--out", help="write the points as JSON")
+
+    pl = sub.add_parser("plan", help="best layout (and decode batch) for a model on a system, with the bottleneck")
+    pl.add_argument("model", choices=sorted(models.ALL))
+    pl.add_argument("--system", default="gb300", help="a100, h100, b300, gb300")
+    pl.add_argument("--phase", choices=["decode", "prefill", "train"], default="decode")
+    pl.add_argument("--context", type=int, default=8192)
+    pl.add_argument("--seqlen", type=int, default=8192)
+    pl.add_argument("--batches", default="1,8,32,128,256")
+    pl.add_argument("--min-tps-user", type=float, default=0.0, help="decode: tokens/s each user must see")
+    pl.add_argument("--max-ttft-ms", type=float, default=float("inf"), help="prefill: time-to-first-token budget")
+    pl.add_argument("--launch", default="graph")
+    pl.add_argument("--jobs", type=int, default=1)
+    pl.add_argument("--json", action="store_true", help="machine-readable output (for scripts and agents)")
+
     w = sub.add_parser("run", help="simulate a workload JSON/YAML file")
     w.add_argument("workload")
     _common(w)
@@ -261,6 +288,10 @@ def _run(a, cmd) -> int:
         return 0
     if a.cmd == "replay":
         return _replay(a)
+    if a.cmd == "sweep":
+        return _sweep(a)
+    if a.cmd == "plan":
+        return _plan(a)
     if a.cmd == "decode":
         wl = lower.decode_step(models.ALL[a.model], _par(a), a.batch, a.context, overlap=a.overlap, layers=a.layers)
     elif a.cmd == "prefill":
@@ -337,6 +368,86 @@ def _replay(a) -> int:
     if a.report:
         with open(a.report, "w") as f:
             json.dump(rep.raw, f, indent=1)
+    return 0
+
+
+
+def _ints(s: str) -> list:
+    return [int(x) for x in s.split(",") if x]
+
+
+def _point_line(r: dict) -> str:
+    from .sweep import _plan_str
+    if "step_us" not in r:
+        why = r.get("error") or f"does not fit ({r.get('memory_total_gb', 0):.0f} of {r.get('hbm_gb', 0):.0f} GB)"
+        return f"{r['model']:18s} {r['system']:6s} {r['phase']:7s} {_plan_str(r['plan']):10s} b{r['batch']:<4d} {why}"
+    bd = r["breakdown_us"]
+    tot = sum(bd.values()) or 1.0
+    parts = " ".join(f"{k} {100 * v / tot:3.0f}%" for k, v in bd.items() if v / tot >= 0.02)
+    rate = f"{r['tok_s_gpu']:9.0f} tok/s/GPU"
+    if "tok_s_user" in r:
+        rate += f" {r['tok_s_user']:6.1f} tok/s/user"
+    if "ttft_ms" in r:
+        rate += f" TTFT {r['ttft_ms']:7.1f} ms"
+    return (f"{r['model']:18s} {r['system']:6s} {r['phase']:7s} {_plan_str(r['plan']):10s} b{r['batch']:<4d} "
+            f"{r['step_us']:10.1f} us {rate}  [{r['dominant']}] {parts}")
+
+
+def _sweep(a) -> int:
+    from . import sweep as sw
+    if a.study:
+        pts = sw.study_points(a.study, quick=a.quick)
+    else:
+        if not a.models:
+            raise ValueError("give --study or --models")
+        pts = []
+        for mo in a.models.split(","):
+            if mo not in models.ALL:
+                raise ValueError(f"unknown model {mo!r}")
+            for sy in a.systems.split(","):
+                if sy not in sw.SYSTEMS:
+                    raise ValueError(f"unknown system {sy!r} (known: {', '.join(sw.SYSTEMS)})")
+                for ph in a.phases.split(","):
+                    if ph == "train":
+                        for p in sw.train_plans(mo, sy):
+                            pts.append(sw.Point(mo, sy, "train", p, seqlen=a.seqlen, micro_batches=max(4, 2 * p["pp"]),
+                                                launch=a.launch))
+                        continue
+                    for p in sw.inference_plans(mo, sy):
+                        if ph == "decode":
+                            pts += [sw.Point(mo, sy, "decode", p, batch=b, context=c, launch=a.launch)
+                                    for c in _ints(a.contexts) for b in _ints(a.batches)]
+                        else:
+                            pts.append(sw.Point(mo, sy, "prefill", p, seqlen=a.seqlen, launch=a.launch))
+    res = sw.run(pts, jobs=a.jobs)
+    for r in res:
+        print(_point_line(r))
+    if a.out:
+        sw.save(res, a.out, study=a.study or "custom")
+        print("wrote", a.out)
+    return 0
+
+
+def _plan(a) -> int:
+    import json
+    from . import sweep as sw
+    if a.system not in sw.SYSTEMS:
+        raise ValueError(f"unknown system {a.system!r} (known: {', '.join(sw.SYSTEMS)})")
+    out = sw.best_plan(a.model, a.system, a.phase, context=a.context, seqlen=a.seqlen, batches=_ints(a.batches),
+                       min_tps_user=a.min_tps_user, max_ttft_ms=a.max_ttft_ms, launch=a.launch, jobs=a.jobs)
+    if a.json:
+        print(json.dumps(sw.plan_report(out, a.system), indent=1))
+        return 0
+    for r in out["points"]:
+        print(_point_line(r))
+    b = out["best"]
+    print()
+    if b is None:
+        print("no layout meets the target")
+        return 1
+    print("best: " + _point_line(b))
+    if sw.SYSTEMS[a.system].caveat:
+        print("note: " + sw.SYSTEMS[a.system].caveat)
     return 0
 
 

@@ -155,23 +155,31 @@ def _ffn_ops(m: Model, p: Parallel, layer: int, t: int, tag: str) -> List[dict]:
         local = max(1, moe.experts // ep)
         # Tokens arriving at this rank's experts (balanced routing).
         recv = t * moe.topk
-        per_expert = max(0, recv // local)
+        # Spread the tokens as evenly as routing allows. With fewer tokens than
+        # local experts (small decode batches over many experts) only that many
+        # experts run, and the others' weights are never read.
+        ms = [n for n in (recv // local + (1 if i < recv % local else 0) for i in range(local)) if n > 0]
         ops += [
             _gemm(f"{tag}router", t, moe.experts, h),
             _k(f"{tag}topk", type="elementwise", n=t * moe.experts, inputs=1, flops_per_elem=4),
         ]
         if ep > 1:
             ops.append(_coll("all_to_all", t * moe.topk * h * moe.dispatch_bytes, f"block:{ep}", p.comm_sms, f"{tag}moe_dispatch"))
+        # Without EP, tensor parallelism splits every expert's FFN over the TP
+        # ranks (vLLM / SGLang FusedMoE) and all-reduces the output.
+        efn = max(1, moe.expert_ffn // p.tp)
         ops += [
-            _k(f"{tag}experts_gate_up", type="grouped_gemm", ms=[per_expert] * local, n=2 * moe.expert_ffn, k=h),
-            _k(f"{tag}experts_act", type="elementwise", n=max(1, recv * moe.expert_ffn), inputs=2, flops_per_elem=4),
-            _k(f"{tag}experts_down", type="grouped_gemm", ms=[per_expert] * local, n=h, k=moe.expert_ffn),
+            _k(f"{tag}experts_gate_up", type="grouped_gemm", ms=ms, n=2 * efn, k=h),
+            _k(f"{tag}experts_act", type="elementwise", n=max(1, recv * efn), inputs=2, flops_per_elem=4),
+            _k(f"{tag}experts_down", type="grouped_gemm", ms=ms, n=h, k=efn),
         ]
         if moe.shared_experts:
-            sf = moe.shared_experts * moe.expert_ffn
+            sf = max(1, moe.shared_experts * moe.expert_ffn // p.tp)
             ops += [_gemm(f"{tag}shared_gate_up", t, 2 * sf, h), _gemm(f"{tag}shared_down", t, h, sf)]
         if ep > 1:
             ops.append(_coll("all_to_all", t * moe.topk * h * 2, f"block:{ep}", p.comm_sms, f"{tag}moe_combine"))
+        elif p.tp > 1:
+            ops.append(_coll("all_reduce", t * h * 2, f"block:{p.tp}", p.comm_sms, f"{tag}moe_allreduce"))
     else:
         ffn = (moe.dense_ffn if moe and moe.dense_ffn else m.ffn) // p.tp
         ops += [
@@ -288,7 +296,7 @@ def _weights_per_gpu(m: Model, p: Parallel) -> float:
             attn = m.attn_params() / tp
             if m.moe and l >= m.moe.first_dense_layers:
                 mo = m.moe
-                routed = 3 * m.hidden * mo.expert_ffn * mo.experts / ep
+                routed = 3 * m.hidden * mo.expert_ffn * mo.experts / (ep * tp)
                 shared = 3 * m.hidden * mo.expert_ffn * mo.shared_experts / tp
                 layer_params.append(attn + routed + shared + m.hidden * mo.experts)
             else:
@@ -388,6 +396,55 @@ def prefill(m: Model, p: Parallel, batch: int, seqlen: int, *, layers: Optional[
         "name": f"{m.name} prefill b{batch} s{seqlen} {p}",
         "spmd": {"world": world, "program": {"streams": [ops]}},
         "model_flops": _model_flops(m, batch * seqlen * world // max(1, p.tp), seqlen // 2, False, lm_head=False),
+        "memory": mem,
+    }
+
+
+def mixed_step(m: Model, p: Parallel, decode_batch: int, context: int, chunk: int, *, prefix: int = 0,
+               layers: Optional[int] = None) -> dict:
+    """One continuous-batching iteration with chunked prefill (vLLM / SGLang
+    default): ``decode_batch`` sequences generate a token while one prompt
+    contributes a ``chunk``-token slice that starts at position ``prefix``.
+
+    The GEMMs see ``decode_batch + chunk`` rows; attention runs as two
+    kernels, the decode one over ``context`` cached tokens and a causal one
+    for the chunk over its ``prefix + chunk`` keys. GQA/MHA attention only.
+    """
+    check(m, p)
+    if m.mla or m.blocks is not None:
+        raise ValueError(f"mixed_step lowers GQA/MHA transformers; {m.name} has MLA or a block stack")
+    mem = memory(m, p, phase="decode", batch=decode_batch + 1, context=max(context, prefix + chunk))
+    if layers is not None:
+        m = m.with_layers(layers)
+    t = decode_batch + chunk
+    h, tp = m.hidden, p.tp
+    hq, hkv = max(1, m.heads // tp), max(1, m.kv_heads // tp)
+    ops: List[dict] = []
+    for layer in range(m.layers):
+        ops += [_k("input_norm", type="row_norm", rows=t, cols=h),
+                _gemm("qkv_proj", t, (hq + 2 * hkv) * m.head_dim, h)]
+        if decode_batch:
+            ops += [_k("attention", type="attention", batch=decode_batch, heads_q=hq, heads_kv=hkv, sq=1, skv=context,
+                       d=m.head_dim),
+                    _k("attn_combine", type="elementwise", n=decode_batch * hq * m.head_dim * 4, inputs=1,
+                       elem_bytes=4.0, flops_per_elem=4)]
+        if chunk:
+            ops.append(_k("chunk_attention", type="attention", batch=1, heads_q=hq, heads_kv=hkv, sq=chunk,
+                          skv=prefix + chunk, d=m.head_dim, causal=True))
+        ops.append(_gemm("o_proj", t, h, hq * m.head_dim))
+        if tp > 1:
+            ops.append(_coll("all_reduce", t * h * 2, f"block:{tp}", p.comm_sms, "attn_allreduce"))
+        ops.append(_k("residual", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
+        ops += _ffn_ops(m, p, layer, t, "")
+    # Only sequences that finish a token (decode rows, plus the prompt when
+    # this is its last chunk) need logits; count the decode rows.
+    rows = max(1, decode_batch)
+    ops += [_k("final_norm", type="row_norm", rows=rows, cols=h), _gemm("lm_head", rows, m.vocab // max(1, tp), h)]
+    flops = _model_flops(m, decode_batch, context, False, True) + _model_flops(m, chunk, prefix + chunk // 2, False, False)
+    return {
+        "name": f"{m.name} mixed d{decode_batch} ctx{context} + chunk{chunk}@{prefix} {p}",
+        "spmd": {"world": p.world(), "program": {"streams": [ops]}},
+        "model_flops": flops * p.world() / max(1, tp),
         "memory": mem,
     }
 

@@ -246,3 +246,12 @@ comparisons as the result.
   causal attention on B300 takes minutes) can be slow, which matters for an interactive agent.
 - **Session state.** Runs live in the server process. Restarting the MCP server clears them, and
   identical inputs simply re-simulate.
+
+## Best layout
+
+`best_layout(model, system, phase)` searches every parallel layout (TP; EP with data-parallel
+attention for MoE; TP x PP x DP for training) and decode batch that fits in HBM, and returns the
+best one under a per-user speed (`min_tps_user`) or TTFT (`max_ttft_ms`) target, the decode Pareto
+front, and each point's step split into compute, HBM, latency, communication and launch gaps. It is
+the same search as `rackscale plan ... --json` and the one behind
+[research/model_sweep](../research/model_sweep/README.md).

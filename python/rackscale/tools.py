@@ -29,6 +29,8 @@ A typical performance-engineering loop:
 4. inspect_kernel(run_id, name) -> per-warp-role stalls and the SASS instructions warps wait on.
 5. what_if(run_id, change) or sweep(run_id, key, values) -> re-simulate and compare, with a
    verdict on whether the difference beats the error band.
+6. best_layout(model, system, phase) -> the best TP / EP / PP layout and batch under a latency
+   target, and what bounds each step (compute, HBM, latency, communication, launch gaps).
 Bands come from measured validation (accuracy tool). Differences between runs are more
 reliable than absolute times, especially on GPUs without measured calibration.
 Runs are cached by content, so repeating a call is free. Fast mode takes seconds to a minute;
@@ -104,6 +106,25 @@ TOOLS: List[dict] = [
           "workload.parallel.tp), hardware.<knob>, system, mode or launch_gap_ns.",
           {"run_id": _RUN_ID, "key": {"type": "string"}, "values": {"type": "array"},
            "objective": {"type": "string", "enum": ["step_time", "tokens_per_s"]}}, ["run_id", "key", "values"]),
+    _tool("best_layout",
+          lambda model, system, phase="decode", context=8192, seqlen=8192, batches=None, min_tps_user=0.0,
+          max_ttft_ms=None, launch="graph": _best_layout(model, system, phase, context, seqlen, batches,
+                                                         min_tps_user, max_ttft_ms, launch),
+          "Search every parallel layout (TP, and EP with data-parallel attention for MoE; TP x PP x DP for "
+          "training) and decode batch size that fits in HBM, and return the best one under a per-user speed or "
+          "TTFT target, the decode Pareto front, and each point's step split into compute / hbm / latency / comm "
+          "/ launch. Systems: a100, h100, b300, gb300 (NVL72). Takes a minute or more on a cold cache.",
+          {"model": {"type": "string", "description": "a list_models name, e.g. llama3-70b, deepseek-v3"},
+           "system": {"type": "string", "enum": ["a100", "h100", "b300", "gb300"]},
+           "phase": {"type": "string", "enum": ["decode", "prefill", "train"]},
+           "context": {"type": "integer", "description": "decode: cached tokens per sequence"},
+           "seqlen": {"type": "integer", "description": "prefill / train: tokens per sequence"},
+           "batches": {"type": "array", "items": {"type": "integer"},
+                       "description": "decode batch sizes to try (default 1, 8, 32, 128, 256)"},
+           "min_tps_user": {"type": "number", "description": "decode: minimum tokens/s per user"},
+           "max_ttft_ms": {"type": "number", "description": "prefill: maximum time to first token"},
+           "launch": {"type": "string", "enum": ["eager", "graph", "megakernel"]}},
+          ["model", "system"]),
     _tool("compare_runs", lambda run_a, run_b: api.compare(run_a, run_b),
           "Compare two runs: step time and throughput with a significance verdict, per-op and stall deltas.",
           {"run_a": _RUN_ID, "run_b": _RUN_ID}, ["run_a", "run_b"]),
@@ -111,6 +132,18 @@ TOOLS: List[dict] = [
     _tool("accuracy", lambda: api.accuracy_table(),
           "How the error bands are derived: per kernel class, typical and worst measured error with sources.", {}, []),
 ]
+
+
+def _best_layout(model, system, phase, context, seqlen, batches, min_tps_user, max_ttft_ms, launch) -> dict:
+    from . import sweep
+    if system not in sweep.SYSTEMS:
+        raise ValueError(f"unknown system {system!r} (known: {', '.join(sweep.SYSTEMS)})")
+    out = sweep.best_plan(model, system, phase, context=context, seqlen=seqlen,
+                          batches=tuple(batches or (1, 8, 32, 128, 256)), min_tps_user=min_tps_user,
+                          max_ttft_ms=float("inf") if max_ttft_ms is None else max_ttft_ms, launch=launch)
+    return dict(sweep.plan_report(out, system), schema="rackscale-api/v1")
+
+
 _BY_NAME = {t["name"]: t for t in TOOLS}
 
 

@@ -1,0 +1,5204 @@
+{
+"study": "context",
+"quick": false,
+"wall_s": 547.1393754482269,
+"bound": 0.5,
+"hbm_usable": 0.92,
+"systems": {
+"a100": {
+"key": "a100",
+"system": "configs/hgx_a100_8.yaml",
+"label": "HGX A100 80GB x8",
+"gpu": "a100_sxm",
+"gpus": 8,
+"graph_gap_ns": 940.0,
+"eager_gap_ns": 1900.0,
+"provenance": "calibrated A100 SXM4 microbenchmarks; NVLink3 / NVSwitch2 from spec",
+"caveat": "The Ampere mma.sync GEMM model runs 1.5-2.4x slower than cuBLAS (decode GEMMs stream weights at ~0.8 TB/s instead of ~1.7 TB/s), so A100 step times are pessimistic and over-weight GEMMs.",
+"peaks": {
+"tflops": {
+"bf16": 311.86944,
+"fp16": 311.86944,
+"fp64": 19.49184,
+"int4": 1247.47776,
+"int8": 623.73888,
+"tf32": 155.93472
+},
+"hbm_gbps": 1794.32,
+"hbm_gb": 80.0,
+"name": "A100 SXM4 80GB",
+"sms": 108
+}
+},
+"h100": {
+"key": "h100",
+"system": "hgx_h100_8",
+"label": "HGX H100 x8",
+"gpu": "h100_sxm",
+"gpus": 8,
+"graph_gap_ns": 600.0,
+"eager_gap_ns": 1500.0,
+"provenance": "datasheet preset (no H100 measurements)",
+"caveat": "Uncalibrated preset.",
+"peaks": {
+"tflops": {
+"bf16": 989.42976,
+"fp16": 989.42976,
+"fp64": 61.83936,
+"fp8": 1978.85952,
+"int8": 1978.85952,
+"tf32": 494.71488
+},
+"hbm_gbps": 3015.0,
+"hbm_gb": 80.0,
+"name": "H100 SXM5 80GB",
+"sms": 132
+}
+},
+"b300": {
+"key": "b300",
+"system": "hgx_b300_8",
+"label": "HGX B300 x8",
+"gpu": "b300",
+"gpus": 8,
+"graph_gap_ns": 554.0,
+"eager_gap_ns": 2600.0,
+"provenance": "calibrated B300 SXM6 (clock, caches, HBM, tcgen05, launch gaps, DVFS)",
+"caveat": "",
+"peaks": {
+"tflops": {
+"bf16": 2464.1536588764,
+"fp16": 2464.1536588764,
+"fp4": 9856.993643052,
+"fp4_k96": 14784.90390528,
+"fp6": 4928.30130176,
+"fp64": 38.50235392,
+"fp8": 4928.30130176,
+"int8": 4928.30130176,
+"tf32": 1232.07532544
+},
+"hbm_gbps": 6817.93,
+"hbm_gb": 288.0,
+"name": "NVIDIA B300 SXM6 AC",
+"sms": 148
+}
+},
+"gb300": {
+"key": "gb300",
+"system": "gb300_nvl72",
+"label": "GB300 NVL72",
+"gpu": "gb300",
+"gpus": 72,
+"graph_gap_ns": 554.0,
+"eager_gap_ns": 2600.0,
+"provenance": "calibrated B300 die; NVL72 fabric from spec",
+"caveat": "GB300 board power and clocks are taken from the measured HGX B300.",
+"peaks": {
+"tflops": {
+"bf16": 2464.1536588764,
+"fp16": 2464.1536588764,
+"fp4": 9856.993643052,
+"fp4_k96": 14784.90390528,
+"fp6": 4928.30130176,
+"fp64": 38.50235392,
+"fp8": 4928.30130176,
+"int8": 4928.30130176,
+"tf32": 1232.07532544
+},
+"hbm_gbps": 6817.93,
+"hbm_gb": 288.0,
+"name": "GB300 (NVIDIA B300 SXM6 AC)",
+"sms": 148
+}
+}
+},
+"points": [
+{
+"model": "llama3-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 4096,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa8",
+"total_params_b": 70.552387584,
+"active_params_b": 69.501714432,
+"layers": 80,
+"hidden": 8192,
+"kv_bytes_per_token": 327680.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.638096896,
+"kv_cache": 2.68435456
+},
+"memory_total_gb": 20.322451456,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 9057.184257,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 4880.187755543872,
+"latency": 742.4870721254688,
+"comm": 2945.831866000001,
+"launch": 488.67756333065836
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 3877.6046407502654,
+"attention": 960.5054048601783,
+"norm_elementwise": 742.4870721254688,
+"lm_head": 42.07770993342942,
+"communication": 2945.831866000001,
+"launch_idle": 488.67756333065836
+},
+"sched": {
+"async_wait": 0.5999117342176085,
+"barrier": 0.00019821519326871645,
+"branch_resolving": 0.0028263319249843158,
+"dispatch": 0.010484832168975741,
+"drain": 0.013488595473502948,
+"lg_throttle": 0.09386462468799801,
+"long_scoreboard": 0.025322288381845137,
+"math_pipe_throttle": 0.018732376866304017,
+"selected": 0.029620610017410787,
+"short_scoreboard": 0.031167303830150702,
+"tensor_throttle": 0.029694109508528185,
+"tensor_wait": 0.04906109081010016,
+"tma_wait": 0.09364228848559103,
+"wait": 0.0019855984337317978
+},
+"mfu": 0.013418211766003817,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x7168x8192_tile128x128_splitk2",
+"us": 1723.6903607996542,
+"count": 80.0,
+"tflops": 697.6838011219685,
+"gbps": 6229.3196528747185,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x3584_tile128x128_splitk2",
+"us": 1020.8469664391989,
+"count": 80.0,
+"tflops": 589.0162200680966,
+"gbps": 5988.358961699573,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_fmha_decode_b16_hq8_hkv1_sq1_skv4096_d128",
+"us": 960.5054048601787,
+"count": 80.0,
+"tflops": 402.44131337945976,
+"gbps": 3580.749533107172,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x1280x8192_tile128x128_splitk14",
+"us": 612.0358388726833,
+"count": 80.0,
+"tflops": 383.7700492059916,
+"gbps": 5696.586667901437,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x1024_tile128x128_splitk2",
+"us": 521.0314746387307,
+"count": 80.0,
+"tflops": 329.7280494601994,
+"gbps": 5192.2507788532375,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 438.2994740286174,
+"count": 161.0,
+"tflops": 0.0,
+"gbps": 194.09063674679572,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 25.030758005924973,
+"n_collectives": 160,
+"sim_wall_s": 4.770373821258545,
+"replicas": 9,
+"tok_s_gpu": 220.8191799183356,
+"tok_s_user": 110.4095899591678,
+"tpot_ms": 9.057184257000001
+},
+{
+"model": "llama3-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 4096,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa8",
+"total_params_b": 70.552387584,
+"active_params_b": 69.501714432,
+"layers": 80,
+"hidden": 8192,
+"kv_bytes_per_token": 327680.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.638096896,
+"kv_cache": 10.73741824
+},
+"memory_total_gb": 28.375515136,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 10998.169679,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 6138.819049118532,
+"latency": 797.4409942777952,
+"comm": 3573.22729,
+"launch": 488.68234560367273
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 2219.1366984348674,
+"gemm": 3877.6046407502363,
+"norm_elementwise": 797.4409942777952,
+"lm_head": 42.077709933429105,
+"communication": 3573.22729,
+"launch_idle": 488.68234560367273
+},
+"sched": {
+"async_wait": 0.5283213928966405,
+"barrier": 0.0005792325400594458,
+"branch_resolving": 0.0026638567177072778,
+"dispatch": 0.027324220522869456,
+"drain": 0.012861878981478949,
+"lg_throttle": 0.06962419259278357,
+"long_scoreboard": 0.06000489813541734,
+"math_pipe_throttle": 0.04906880689633091,
+"selected": 0.0611452391706004,
+"short_scoreboard": 0.03661864236897403,
+"tensor_throttle": 0.03816842738481125,
+"tensor_wait": 0.03612253571928284,
+"tma_wait": 0.07019182586331252,
+"wait": 0.007304850209731488
+},
+"mfu": 0.044201267887321,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b64_hq8_hkv1_sq1_skv4096_d128",
+"us": 2219.136698434885,
+"count": 80.0,
+"tflops": 619.3352287352694,
+"gbps": 5140.966254150186,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_64x7168x8192_tile128x128_splitk2",
+"us": 1723.6903607996542,
+"count": 80.0,
+"tflops": 697.6838011219685,
+"gbps": 6229.3196528747185,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x3584_tile128x128_splitk2",
+"us": 1020.8469664391989,
+"count": 80.0,
+"tflops": 589.0162200680966,
+"gbps": 5988.358961699573,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x1280x8192_tile128x128_splitk14",
+"us": 612.0358388726833,
+"count": 80.0,
+"tflops": 383.7700492059916,
+"gbps": 5696.586667901437,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x1024_tile128x128_splitk2",
+"us": 521.0314746387307,
+"count": 80.0,
+"tflops": 329.7280494601994,
+"gbps": 5192.2507788532375,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 439.0916292320094,
+"count": 161.0,
+"tflops": 0.0,
+"gbps": 770.4563363954428,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 82.49430343991938,
+"n_collectives": 160,
+"sim_wall_s": 7.8478944301605225,
+"replicas": 9,
+"tok_s_gpu": 727.3937603704431,
+"tok_s_user": 90.9242200463054,
+"tpot_ms": 10.998169679
+},
+{
+"model": "llama3-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 16384,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa8",
+"total_params_b": 70.552387584,
+"active_params_b": 69.501714432,
+"layers": 80,
+"hidden": 8192,
+"kv_bytes_per_token": 327680.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.638096896,
+"kv_cache": 10.73741824
+},
+"memory_total_gb": 28.375515136,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 10337.582598,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 6160.586096446145,
+"latency": 742.487072125466,
+"comm": 2945.8318580000005,
+"launch": 488.67757142838946
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 2240.9037457624645,
+"gemm": 3877.6046407502513,
+"norm_elementwise": 742.487072125466,
+"lm_head": 42.07770993342927,
+"communication": 2945.8318580000005,
+"launch_idle": 488.67757142838946
+},
+"sched": {
+"async_wait": 0.5545217228119185,
+"barrier": 0.00014795138835651826,
+"branch_resolving": 0.002805839993438295,
+"dispatch": 0.03111854087204008,
+"drain": 0.009834380056717718,
+"lg_throttle": 0.07006224553798934,
+"long_scoreboard": 0.018901011878434095,
+"math_pipe_throttle": 0.05594868926982223,
+"selected": 0.06590127797232513,
+"short_scoreboard": 0.03858056590915345,
+"tensor_throttle": 0.04160287819323411,
+"tensor_wait": 0.036620081336545776,
+"tma_wait": 0.07117312709353145,
+"wait": 0.0027816876864933783
+},
+"mfu": 0.014285315764145802,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b16_hq8_hkv1_sq1_skv16384_d128",
+"us": 2240.9037457624736,
+"count": 80.0,
+"tflops": 689.9842215373269,
+"gbps": 5139.576682746456,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x7168x8192_tile128x128_splitk2",
+"us": 1723.6903607996542,
+"count": 80.0,
+"tflops": 697.6838011219685,
+"gbps": 6229.3196528747185,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x3584_tile128x128_splitk2",
+"us": 1020.8469664391989,
+"count": 80.0,
+"tflops": 589.0162200680966,
+"gbps": 5988.358961699573,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x1280x8192_tile128x128_splitk14",
+"us": 612.0358388726833,
+"count": 80.0,
+"tflops": 383.7700492059916,
+"gbps": 5696.586667901437,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x1024_tile128x128_splitk2",
+"us": 521.0314746387307,
+"count": 80.0,
+"tflops": 329.7280494601994,
+"gbps": 5192.2507788532375,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 438.2994740286174,
+"count": 161.0,
+"tflops": 0.0,
+"gbps": 194.09063674679572,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 25.030758031487284,
+"n_collectives": 160,
+"sim_wall_s": 4.54840612411499,
+"replicas": 9,
+"tok_s_gpu": 193.46882900717404,
+"tok_s_user": 96.73441450358702,
+"tpot_ms": 10.337582598
+},
+{
+"model": "llama3-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 16384,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa8",
+"total_params_b": 70.552387584,
+"active_params_b": 69.501714432,
+"layers": 80,
+"hidden": 8192,
+"kv_bytes_per_token": 327680.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.638096896,
+"kv_cache": 42.94967296
+},
+"memory_total_gb": 60.587769856,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 16267.015346,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 11407.664716620002,
+"latency": 797.4409942777907,
+"comm": 3573.2272869999997,
+"launch": 488.68234810220747
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 7487.98236593636,
+"gemm": 3877.604640750213,
+"norm_elementwise": 797.4409942777907,
+"lm_head": 42.07770993342886,
+"communication": 3573.2272869999997,
+"launch_idle": 488.68234810220747
+},
+"sched": {
+"async_wait": 0.480007441948134,
+"barrier": 0.00030273562723536233,
+"branch_resolving": 0.0026684681933372987,
+"dispatch": 0.05699729025733125,
+"drain": 0.006789021999385575,
+"lg_throttle": 0.03638905302725021,
+"long_scoreboard": 0.031361533094040744,
+"math_pipe_throttle": 0.10257777843523613,
+"selected": 0.11223080586667557,
+"short_scoreboard": 0.04721521985271733,
+"tensor_throttle": 0.053621834308272345,
+"tensor_wait": 0.01887942709017447,
+"tma_wait": 0.04475926488862461,
+"wait": 0.006200125411585117
+},
+"mfu": 0.03631355965309349,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b64_hq8_hkv1_sq1_skv16384_d128",
+"us": 7487.982365936464,
+"count": 80.0,
+"tflops": 734.1841727471087,
+"gbps": 5825.43594098658,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_64x7168x8192_tile128x128_splitk2",
+"us": 1723.6903607996542,
+"count": 80.0,
+"tflops": 697.6838011219685,
+"gbps": 6229.3196528747185,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x3584_tile128x128_splitk2",
+"us": 1020.8469664391989,
+"count": 80.0,
+"tflops": 589.0162200680966,
+"gbps": 5988.358961699573,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x1280x8192_tile128x128_splitk14",
+"us": 612.0358388726833,
+"count": 80.0,
+"tflops": 383.7700492059916,
+"gbps": 5696.586667901437,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x1024_tile128x128_splitk2",
+"us": 521.0314746387307,
+"count": 80.0,
+"tflops": 329.7280494601994,
+"gbps": 5192.2507788532375,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 439.0916292320094,
+"count": 161.0,
+"tflops": 0.0,
+"gbps": 770.4563363954428,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 82.49430339259021,
+"n_collectives": 160,
+"sim_wall_s": 11.976485967636108,
+"replicas": 9,
+"tok_s_gpu": 491.7927370104296,
+"tok_s_user": 61.4740921263037,
+"tpot_ms": 16.267015345999997
+},
+{
+"model": "llama3-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 65536,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa8",
+"total_params_b": 70.552387584,
+"active_params_b": 69.501714432,
+"layers": 80,
+"hidden": 8192,
+"kv_bytes_per_token": 327680.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.638096896,
+"kv_cache": 42.94967296
+},
+"memory_total_gb": 60.587769856,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 15022.299907,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 10845.303405283352,
+"latency": 742.4870721254642,
+"comm": 2945.8318550000004,
+"launch": 488.6775745911855
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 6925.62105459968,
+"gemm": 3877.6046407502417,
+"norm_elementwise": 742.4870721254642,
+"lm_head": 42.07770993342916,
+"communication": 2945.8318550000004,
+"launch_idle": 488.6775745911855
+},
+"sched": {
+"async_wait": 0.49415250082877704,
+"barrier": 7.732695174301591e-05,
+"branch_resolving": 0.002740046527664259,
+"dispatch": 0.05889396008222825,
+"drain": 0.0052853528756416236,
+"lg_throttle": 0.036618107744068006,
+"long_scoreboard": 0.009878634122012633,
+"math_pipe_throttle": 0.10601193319499959,
+"selected": 0.11455100501847007,
+"short_scoreboard": 0.04818274156763423,
+"tensor_throttle": 0.05414097344721075,
+"tensor_wait": 0.019139524770884903,
+"tma_wait": 0.04649670782275751,
+"wait": 0.0038311850459081466
+},
+"mfu": 0.01679194186163115,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b16_hq8_hkv1_sq1_skv65536_d128",
+"us": 6925.6210545997255,
+"count": 80.0,
+"tflops": 809.3039277044221,
+"gbps": 6415.56464751853,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x7168x8192_tile128x128_splitk2",
+"us": 1723.6903607996542,
+"count": 80.0,
+"tflops": 697.6838011219685,
+"gbps": 6229.3196528747185,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x3584_tile128x128_splitk2",
+"us": 1020.8469664391989,
+"count": 80.0,
+"tflops": 589.0162200680966,
+"gbps": 5988.358961699573,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x1280x8192_tile128x128_splitk14",
+"us": 612.0358388726833,
+"count": 80.0,
+"tflops": 383.7700492059916,
+"gbps": 5696.586667901437,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x1024_tile128x128_splitk2",
+"us": 521.0314746387307,
+"count": 80.0,
+"tflops": 329.7280494601994,
+"gbps": 5192.2507788532375,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 438.2994740286174,
+"count": 161.0,
+"tflops": 0.0,
+"gbps": 194.09063674679572,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 25.0307580050436,
+"n_collectives": 160,
+"sim_wall_s": 9.942392110824585,
+"replicas": 9,
+"tok_s_gpu": 133.13540618823967,
+"tok_s_user": 66.56770309411984,
+"tpot_ms": 15.022299907
+},
+{
+"model": "llama3-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 65536,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa8",
+"total_params_b": 70.552387584,
+"active_params_b": 69.501714432,
+"layers": 80,
+"hidden": 8192,
+"kv_bytes_per_token": 327680.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.638096896,
+"kv_cache": 171.79869184
+},
+"memory_total_gb": 189.436788736,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 37359.520377,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 32500.169747543558,
+"latency": 797.440994277807,
+"comm": 3573.227285,
+"launch": 488.6823501786357
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 28580.487396859833,
+"gemm": 3877.604640750294,
+"norm_elementwise": 797.440994277807,
+"lm_head": 42.07770993342973,
+"communication": 3573.227285,
+"launch_idle": 488.6823501786357
+},
+"sched": {
+"async_wait": 0.44555748628181774,
+"barrier": 0.00010402388099048681,
+"branch_resolving": 0.0026710020157853257,
+"dispatch": 0.07829905033173977,
+"drain": 0.0023308021480939185,
+"lg_throttle": 0.01250374974373359,
+"long_scoreboard": 0.010776228804142004,
+"math_pipe_throttle": 0.14097151611650782,
+"selected": 0.14889570291835494,
+"short_scoreboard": 0.054813560348314125,
+"tensor_throttle": 0.06470836334720599,
+"tensor_wait": 0.006487215577273419,
+"tma_wait": 0.02647656910277315,
+"wait": 0.005404729383267741
+},
+"mfu": 0.02700864026493884,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b64_hq8_hkv1_sq1_skv65536_d128",
+"us": 28580.487396859637,
+"count": 80.0,
+"tflops": 769.4141898341537,
+"gbps": 6034.529015728073,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_64x7168x8192_tile128x128_splitk2",
+"us": 1723.6903607996542,
+"count": 80.0,
+"tflops": 697.6838011219685,
+"gbps": 6229.3196528747185,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x3584_tile128x128_splitk2",
+"us": 1020.8469664391989,
+"count": 80.0,
+"tflops": 589.0162200680966,
+"gbps": 5988.358961699573,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x1280x8192_tile128x128_splitk14",
+"us": 612.0358388726833,
+"count": 80.0,
+"tflops": 383.7700492059916,
+"gbps": 5696.586667901437,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x1024_tile128x128_splitk2",
+"us": 521.0314746387307,
+"count": 80.0,
+"tflops": 329.7280494601994,
+"gbps": 5192.2507788532375,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 439.0916292320094,
+"count": 161.0,
+"tflops": 0.0,
+"gbps": 770.4563363954428,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 82.49430352850764,
+"n_collectives": 160,
+"sim_wall_s": 34.575915813446045,
+"replicas": 9,
+"tok_s_gpu": 214.13551135750438,
+"tok_s_user": 26.766938919688048,
+"tpot_ms": 37.359520377
+},
+{
+"model": "llama3-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 131072,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa8",
+"total_params_b": 70.552387584,
+"active_params_b": 69.501714432,
+"layers": 80,
+"hidden": 8192,
+"kv_bytes_per_token": 327680.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.638096896,
+"kv_cache": 85.89934592
+},
+"memory_total_gb": 103.537442816,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 21240.393519,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 17063.397017363463,
+"latency": 742.4870721254703,
+"comm": 2945.8318600000007,
+"launch": 488.6775695110641
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 13143.71466667976,
+"gemm": 3877.604640750273,
+"norm_elementwise": 742.4870721254703,
+"lm_head": 42.0777099334295,
+"communication": 2945.8318600000007,
+"launch_idle": 488.6775695110641
+},
+"sched": {
+"async_wait": 0.4689028708048297,
+"barrier": 4.7177549894586584e-05,
+"branch_resolving": 0.002707731760395975,
+"dispatch": 0.07061322474906101,
+"drain": 0.00322566873882957,
+"lg_throttle": 0.022340885890373228,
+"long_scoreboard": 0.006027002793676135,
+"math_pipe_throttle": 0.1271254962302503,
+"selected": 0.13505353426188776,
+"short_scoreboard": 0.0521888779284406,
+"tensor_throttle": 0.05822894151734815,
+"tensor_wait": 0.011677117285547886,
+"tma_wait": 0.03759014924694303,
+"wait": 0.004271321242522062
+},
+"mfu": 0.01844087196561009,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b16_hq8_hkv1_sq1_skv131072_d128",
+"us": 13143.71466667974,
+"count": 80.0,
+"tflops": 838.1642019487725,
+"gbps": 6605.59780866974,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x7168x8192_tile128x128_splitk2",
+"us": 1723.6903607996542,
+"count": 80.0,
+"tflops": 697.6838011219685,
+"gbps": 6229.3196528747185,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x3584_tile128x128_splitk2",
+"us": 1020.8469664391989,
+"count": 80.0,
+"tflops": 589.0162200680966,
+"gbps": 5988.358961699573,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x1280x8192_tile128x128_splitk14",
+"us": 612.0358388726833,
+"count": 80.0,
+"tflops": 383.7700492059916,
+"gbps": 5696.586667901437,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x1024_tile128x128_splitk2",
+"us": 521.0314746387307,
+"count": 80.0,
+"tflops": 329.7280494601994,
+"gbps": 5192.2507788532375,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 438.2994740286174,
+"count": 161.0,
+"tflops": 0.0,
+"gbps": 194.09063674679572,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 25.030758039530124,
+"n_collectives": 160,
+"sim_wall_s": 17.878659963607788,
+"replicas": 9,
+"tok_s_gpu": 94.16021403798173,
+"tok_s_user": 47.080107018990866,
+"tpot_ms": 21.240393518999998
+},
+{
+"model": "llama3-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 131072,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa8",
+"total_params_b": 70.552387584,
+"active_params_b": 69.501714432,
+"layers": 80,
+"hidden": 8192,
+"kv_bytes_per_token": 327680.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.638096896,
+"kv_cache": 343.59738368
+},
+"memory_total_gb": 361.235480576,
+"hbm_gb": 288.0,
+"fits": false
+},
+{
+"model": "mamba2-hybrid-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 4096,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "hybrid",
+"attention": "gqa8",
+"total_params_b": 70.620209664,
+"active_params_b": 69.569536512,
+"layers": 126,
+"hidden": 8192,
+"kv_bytes_per_token": 36864.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.655052416,
+"kv_cache": 0.301989888,
+"ssm_state": 0.9179136
+},
+"memory_total_gb": 18.874955904,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 7612.077661,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3739.4891828992936,
+"latency": 1140.6095166869143,
+"comm": 2316.9930080000004,
+"launch": 414.9859534137913
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 3589.354614919093,
+"ssm": 543.0474850302343,
+"norm_elementwise": 597.5620316566799,
+"attention": 108.0568580467714,
+"lm_head": 42.0777099334293,
+"communication": 2316.9930080000004,
+"launch_idle": 414.9859534137913
+},
+"sched": {
+"async_wait": 0.5280089881344566,
+"barrier": 0.0024109057907618367,
+"branch_resolving": 0.002751066042816293,
+"dispatch": 0.0026265688520721343,
+"drain": 0.009983413591380465,
+"lg_throttle": 0.08009367938724642,
+"long_scoreboard": 0.025936582959303085,
+"math_pipe_throttle": 0.0034910455115966083,
+"mio_throttle": 0.003528811998955096,
+"selected": 0.1236925215222892,
+"short_scoreboard": 0.019448603355528463,
+"tensor_throttle": 0.023958823505710145,
+"tensor_wait": 0.05382616768745795,
+"tma_wait": 0.10917027152771365,
+"wait": 0.011072550132711996
+},
+"mfu": 0.015038258206203645,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x7168x8192_tile128x128_splitk2",
+"us": 1357.4061591297254,
+"count": 63.0,
+"tflops": 697.6838011219696,
+"gbps": 6229.3196528747285,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x4384x8192_tile128x128_splitk4",
+"us": 813.9202826173575,
+"count": 54.0,
+"tflops": 623.332558083595,
+"gbps": 6226.368744250195,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x3584_tile128x128_splitk2",
+"us": 803.9169860708682,
+"count": 63.0,
+"tflops": 589.0162200680973,
+"gbps": 5988.3589616995805,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x2048_tile128x128_splitk2",
+"us": 486.6411143311207,
+"count": 54.0,
+"tflops": 476.5898876069711,
+"gbps": 5643.215221908716,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "selective_state_update_b16_h32_p64_n128",
+"us": 479.2017437254932,
+"count": 54.0,
+"tflops": 0.0,
+"gbps": 2274.6844774096157,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "row_norm",
+"us": 408.8145717195653,
+"count": 181.0,
+"tflops": 0.0,
+"gbps": 181.99899207858672,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 25.062745343538094,
+"n_collectives": 126,
+"sim_wall_s": 17.1767520904541,
+"replicas": 9,
+"tok_s_gpu": 262.74035671586404,
+"tok_s_user": 131.37017835793202,
+"tpot_ms": 7.612077661
+},
+{
+"model": "mamba2-hybrid-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 4096,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "hybrid",
+"attention": "gqa8",
+"total_params_b": 70.620209664,
+"active_params_b": 69.569536512,
+"layers": 126,
+"hidden": 8192,
+"kv_bytes_per_token": 36864.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.655052416,
+"kv_cache": 1.207959552,
+"ssm_state": 3.6716544
+},
+"memory_total_gb": 22.534666368,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 9598.110636,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3881.0852034264453,
+"latency": 2490.3996693613003,
+"comm": 2811.637427000001,
+"launch": 414.9883362122523
+},
+"dominant": "hbm",
+"classes_us": {
+"ssm": 1855.7775667550475,
+"gemm": 3589.354614919093,
+"norm_elementwise": 634.6221026062526,
+"attention": 249.6528785739233,
+"lm_head": 42.07770993342929,
+"communication": 2811.637427000001,
+"launch_idle": 414.9883362122523
+},
+"sched": {
+"async_wait": 0.3652661779949641,
+"barrier": 0.0036184323288190805,
+"branch_resolving": 0.001918000612203039,
+"dispatch": 0.006313359263910857,
+"drain": 0.010045676584903488,
+"lg_throttle": 0.056249991948018885,
+"long_scoreboard": 0.04896121623259288,
+"math_pipe_throttle": 0.008467407954010544,
+"mio_throttle": 0.008802738601446139,
+"selected": 0.3182233321045823,
+"short_scoreboard": 0.019294592985834153,
+"tensor_throttle": 0.017972511657977176,
+"tensor_wait": 0.0362381262392947,
+"tma_wait": 0.07363889135794134,
+"wait": 0.02498954413350133
+},
+"mfu": 0.047706205684173615,
+"top_kernels": [
+{
+"name": "selective_state_update_b64_h32_p64_n128",
+"us": 1746.0999886834857,
+"count": 54.0,
+"tflops": 0.0,
+"gbps": 2497.003065263943,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "sm100_gemm_bf16_64x7168x8192_tile128x128_splitk2",
+"us": 1357.4061591297254,
+"count": 63.0,
+"tflops": 697.6838011219696,
+"gbps": 6229.3196528747285,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+"us": 813.9202826173575,
+"count": 54.0,
+"tflops": 623.332558083595,
+"gbps": 6226.368744250195,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x3584_tile128x128_splitk2",
+"us": 803.9169860708682,
+"count": 63.0,
+"tflops": 589.0162200680973,
+"gbps": 5988.3589616995805,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+"us": 486.6411143311207,
+"count": 54.0,
+"tflops": 476.5898876069711,
+"gbps": 5643.215221908716,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 409.43943948870015,
+"count": 181.0,
+"tflops": 0.0,
+"gbps": 721.4528047637001,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 82.56293279878162,
+"n_collectives": 126,
+"sim_wall_s": 64.87481164932251,
+"replicas": 9,
+"tok_s_gpu": 833.497372909424,
+"tok_s_user": 104.187171613678,
+"tpot_ms": 9.598110636
+},
+{
+"model": "mamba2-hybrid-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 16384,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "hybrid",
+"attention": "gqa8",
+"total_params_b": 70.620209664,
+"active_params_b": 69.569536512,
+"layers": 126,
+"hidden": 8192,
+"kv_bytes_per_token": 36864.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.655052416,
+"kv_cache": 1.207959552,
+"ssm_state": 0.9179136
+},
+"memory_total_gb": 19.780925568,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 7756.122474,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3883.5339962507996,
+"latency": 1140.6095166869143,
+"comm": 2316.9930110000005,
+"launch": 414.98595006228516
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 3589.3546149190943,
+"ssm": 543.0474850302343,
+"norm_elementwise": 597.56203165668,
+"attention": 252.1016713982761,
+"lm_head": 42.077709933429304,
+"communication": 2316.9930110000005,
+"launch_idle": 414.98595006228516
+},
+"sched": {
+"async_wait": 0.523694241453703,
+"barrier": 0.002313770764743892,
+"branch_resolving": 0.0027508426758875103,
+"dispatch": 0.0062215208723640355,
+"drain": 0.009544044435493353,
+"lg_throttle": 0.07686671727990722,
+"long_scoreboard": 0.024891601993965416,
+"math_pipe_throttle": 0.010018152634074774,
+"mio_throttle": 0.00338663670258127,
+"selected": 0.12566675687107542,
+"short_scoreboard": 0.021098588698306425,
+"tensor_throttle": 0.026081997188604565,
+"tensor_wait": 0.05165751961385766,
+"tma_wait": 0.10497468559724724,
+"wait": 0.01083292321818817
+},
+"mfu": 0.015138190001236096,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x7168x8192_tile128x128_splitk2",
+"us": 1357.4061591297254,
+"count": 63.0,
+"tflops": 697.6838011219696,
+"gbps": 6229.3196528747285,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x4384x8192_tile128x128_splitk4",
+"us": 813.9202826173575,
+"count": 54.0,
+"tflops": 623.332558083595,
+"gbps": 6226.368744250195,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x3584_tile128x128_splitk2",
+"us": 803.9169860708682,
+"count": 63.0,
+"tflops": 589.0162200680973,
+"gbps": 5988.3589616995805,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x2048_tile128x128_splitk2",
+"us": 486.6411143311207,
+"count": 54.0,
+"tflops": 476.5898876069711,
+"gbps": 5643.215221908716,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "selective_state_update_b16_h32_p64_n128",
+"us": 479.2017437254932,
+"count": 54.0,
+"tflops": 0.0,
+"gbps": 2274.6844774096157,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "row_norm",
+"us": 408.8145717195653,
+"count": 181.0,
+"tflops": 0.0,
+"gbps": 181.99899207858672,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 25.06274532174619,
+"n_collectives": 126,
+"sim_wall_s": 1.8087866306304932,
+"replicas": 9,
+"tok_s_gpu": 257.860806956618,
+"tok_s_user": 128.930403478309,
+"tpot_ms": 7.756122474
+},
+{
+"model": "mamba2-hybrid-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 16384,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "hybrid",
+"attention": "gqa8",
+"total_params_b": 70.620209664,
+"active_params_b": 69.569536512,
+"layers": 126,
+"hidden": 8192,
+"kv_bytes_per_token": 36864.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.655052416,
+"kv_cache": 4.831838208,
+"ssm_state": 3.6716544
+},
+"memory_total_gb": 26.158545024,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 10190.855774,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 4473.830341020359,
+"latency": 2490.399669361301,
+"comm": 2811.637423,
+"launch": 414.98834061833895
+},
+"dominant": "hbm",
+"classes_us": {
+"ssm": 1855.7775667550484,
+"gemm": 3589.3546149190947,
+"attention": 842.3980161678351,
+"norm_elementwise": 634.6221026062531,
+"lm_head": 42.07770993342931,
+"communication": 2811.637423,
+"launch_idle": 414.98834061833895
+},
+"sched": {
+"async_wait": 0.3710512663053869,
+"barrier": 0.0032799440404043933,
+"branch_resolving": 0.001988675844416732,
+"dispatch": 0.014093813559714282,
+"drain": 0.009119032277131843,
+"lg_throttle": 0.05098805479745215,
+"long_scoreboard": 0.0443811117079684,
+"math_pipe_throttle": 0.022751551617974018,
+"mio_throttle": 0.007979281465372563,
+"selected": 0.3041859696246698,
+"short_scoreboard": 0.022991774360993814,
+"tensor_throttle": 0.02289012806447229,
+"tensor_wait": 0.03284821032781006,
+"tma_wait": 0.06833245757406314,
+"wait": 0.023118728432169656
+},
+"mfu": 0.046085899830812294,
+"top_kernels": [
+{
+"name": "selective_state_update_b64_h32_p64_n128",
+"us": 1746.0999886834857,
+"count": 54.0,
+"tflops": 0.0,
+"gbps": 2497.003065263943,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "sm100_gemm_bf16_64x7168x8192_tile128x128_splitk2",
+"us": 1357.4061591297254,
+"count": 63.0,
+"tflops": 697.6838011219696,
+"gbps": 6229.3196528747285,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_fmha_decode_b64_hq8_hkv1_sq1_skv16384_d128",
+"us": 842.3980161678376,
+"count": 9.0,
+"tflops": 734.1841727471214,
+"gbps": 5825.435940986681,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+"us": 813.9202826173575,
+"count": 54.0,
+"tflops": 623.332558083595,
+"gbps": 6226.368744250195,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x3584_tile128x128_splitk2",
+"us": 803.9169860708682,
+"count": 63.0,
+"tflops": 589.0162200680973,
+"gbps": 5988.3589616995805,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+"us": 486.6411143311207,
+"count": 54.0,
+"tflops": 476.5898876069711,
+"gbps": 5643.215221908716,
+"bound": "hbm",
+"cls": "gemm"
+}
+],
+"busbw_gbps": 82.5629327720813,
+"n_collectives": 126,
+"sim_wall_s": 3.121389389038086,
+"replicas": 9,
+"tok_s_gpu": 785.017487972939,
+"tok_s_user": 98.12718599661737,
+"tpot_ms": 10.190855774
+},
+{
+"model": "mamba2-hybrid-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 65536,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "hybrid",
+"attention": "gqa8",
+"total_params_b": 70.620209664,
+"active_params_b": 69.569536512,
+"layers": 126,
+"hidden": 8192,
+"kv_bytes_per_token": 36864.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.655052416,
+"kv_cache": 4.831838208,
+"ssm_state": 0.9179136
+},
+"memory_total_gb": 23.404804224,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 8283.153171,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 4410.564693494985,
+"latency": 1140.6095166869145,
+"comm": 2316.993004000001,
+"launch": 414.9859568180991
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 3589.3546149190947,
+"attention": 779.1323686424604,
+"ssm": 543.0474850302345,
+"norm_elementwise": 597.5620316566801,
+"lm_head": 42.07770993342931,
+"communication": 2316.993004000001,
+"launch_idle": 414.9859568180991
+},
+"sched": {
+"async_wait": 0.5115744773810343,
+"barrier": 0.0020205640407640795,
+"branch_resolving": 0.0027403457916464528,
+"dispatch": 0.01675011030565278,
+"drain": 0.00837320013060052,
+"lg_throttle": 0.06712597774764904,
+"long_scoreboard": 0.021737276947392435,
+"math_pipe_throttle": 0.02912893977558446,
+"mio_throttle": 0.0029574737673396874,
+"selected": 0.13100823665314437,
+"short_scoreboard": 0.025863050317328492,
+"tensor_throttle": 0.03137734638551113,
+"tensor_wait": 0.04511135163313349,
+"tma_wait": 0.09414038680831112,
+"wait": 0.010091262314907552
+},
+"mfu": 0.015595355121114702,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x7168x8192_tile128x128_splitk2",
+"us": 1357.4061591297254,
+"count": 63.0,
+"tflops": 697.6838011219696,
+"gbps": 6229.3196528747285,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x4384x8192_tile128x128_splitk4",
+"us": 813.9202826173575,
+"count": 54.0,
+"tflops": 623.332558083595,
+"gbps": 6226.368744250195,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x3584_tile128x128_splitk2",
+"us": 803.9169860708682,
+"count": 63.0,
+"tflops": 589.0162200680973,
+"gbps": 5988.3589616995805,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_fmha_decode_b16_hq8_hkv1_sq1_skv65536_d128",
+"us": 779.1323686424628,
+"count": 9.0,
+"tflops": 809.3039277044287,
+"gbps": 6415.564647518582,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x2048_tile128x128_splitk2",
+"us": 486.6411143311207,
+"count": 54.0,
+"tflops": 476.5898876069711,
+"gbps": 5643.215221908716,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "selective_state_update_b16_h32_p64_n128",
+"us": 479.2017437254932,
+"count": 54.0,
+"tflops": 0.0,
+"gbps": 2274.6844774096157,
+"bound": "latency",
+"cls": "ssm"
+}
+],
+"busbw_gbps": 25.062745354952035,
+"n_collectives": 126,
+"sim_wall_s": 1.7332818508148193,
+"replicas": 9,
+"tok_s_gpu": 241.4539437713363,
+"tok_s_user": 120.72697188566815,
+"tpot_ms": 8.283153171
+},
+{
+"model": "mamba2-hybrid-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 65536,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "hybrid",
+"attention": "gqa8",
+"total_params_b": 70.620209664,
+"active_params_b": 69.569536512,
+"layers": 126,
+"hidden": 8192,
+"kv_bytes_per_token": 36864.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.655052416,
+"kv_cache": 19.327352832,
+"ssm_state": 3.6716544
+},
+"memory_total_gb": 40.654059648,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 12563.76259,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 6846.73715699926,
+"latency": 2490.399669361302,
+"comm": 2811.6374269999997,
+"launch": 414.98833663943697
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 3215.304832146735,
+"ssm": 1855.777566755049,
+"gemm": 3589.354614919095,
+"norm_elementwise": 634.6221026062532,
+"lm_head": 42.077709933429325,
+"communication": 2811.6374269999997,
+"launch_idle": 414.98833663943697
+},
+"sched": {
+"async_wait": 0.38643324876979634,
+"barrier": 0.0023865442664005535,
+"branch_resolving": 0.0021748909370332714,
+"dispatch": 0.034619621521109624,
+"drain": 0.0066343389762914705,
+"lg_throttle": 0.03709979448819308,
+"long_scoreboard": 0.03229246791359148,
+"math_pipe_throttle": 0.06042717724514452,
+"mio_throttle": 0.005805863818589187,
+"selected": 0.2671156446770908,
+"short_scoreboard": 0.032742923014448456,
+"tensor_throttle": 0.03586151646742028,
+"tensor_wait": 0.023900928507819653,
+"tma_wait": 0.054324712039735365,
+"wait": 0.018180327357335907
+},
+"mfu": 0.041127474993307676,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b64_hq8_hkv1_sq1_skv65536_d128",
+"us": 3215.304832146744,
+"count": 9.0,
+"tflops": 769.4141898341455,
+"gbps": 6034.529015728009,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "selective_state_update_b64_h32_p64_n128",
+"us": 1746.0999886834857,
+"count": 54.0,
+"tflops": 0.0,
+"gbps": 2497.003065263943,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "sm100_gemm_bf16_64x7168x8192_tile128x128_splitk2",
+"us": 1357.4061591297254,
+"count": 63.0,
+"tflops": 697.6838011219696,
+"gbps": 6229.3196528747285,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+"us": 813.9202826173575,
+"count": 54.0,
+"tflops": 623.332558083595,
+"gbps": 6226.368744250195,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x3584_tile128x128_splitk2",
+"us": 803.9169860708682,
+"count": 63.0,
+"tflops": 589.0162200680973,
+"gbps": 5988.3589616995805,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+"us": 486.6411143311207,
+"count": 54.0,
+"tflops": 476.5898876069711,
+"gbps": 5643.215221908716,
+"bound": "hbm",
+"cls": "gemm"
+}
+],
+"busbw_gbps": 82.56293274278612,
+"n_collectives": 126,
+"sim_wall_s": 3.2976248264312744,
+"replicas": 9,
+"tok_s_gpu": 636.7519238518181,
+"tok_s_user": 79.59399048147726,
+"tpot_ms": 12.56376259
+},
+{
+"model": "mamba2-hybrid-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 131072,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "hybrid",
+"attention": "gqa8",
+"total_params_b": 70.620209664,
+"active_params_b": 69.569536512,
+"layers": 126,
+"hidden": 8192,
+"kv_bytes_per_token": 36864.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.655052416,
+"kv_cache": 9.663676416,
+"ssm_state": 0.9179136
+},
+"memory_total_gb": 28.236642432,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 8982.688703,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 5110.100224853998,
+"latency": 1140.6095166869152,
+"comm": 2316.9930120000013,
+"launch": 414.9859494590851
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 1478.6679000014713,
+"gemm": 3589.354614919098,
+"ssm": 543.0474850302347,
+"norm_elementwise": 597.5620316566806,
+"lm_head": 42.07770993342934,
+"communication": 2316.9930120000013,
+"launch_idle": 414.9859494590851
+},
+"sched": {
+"async_wait": 0.4996543504310354,
+"barrier": 0.0017274904890761701,
+"branch_resolving": 0.0027282809243731783,
+"dispatch": 0.0272225820701979,
+"drain": 0.0071590961516313474,
+"lg_throttle": 0.05738966238612863,
+"long_scoreboard": 0.01858438457156506,
+"math_pipe_throttle": 0.04813495075738341,
+"mio_throttle": 0.002528505754680065,
+"selected": 0.13624836436007057,
+"short_scoreboard": 0.030590747439626226,
+"tensor_throttle": 0.036199876687402786,
+"tensor_wait": 0.0385681568727412,
+"tma_wait": 0.08391654863684042,
+"wait": 0.00934700246724765
+},
+"mfu": 0.016127183519308468,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b16_hq8_hkv1_sq1_skv131072_d128",
+"us": 1478.6679000014747,
+"count": 9.0,
+"tflops": 838.1642019487704,
+"gbps": 6605.597808669722,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x7168x8192_tile128x128_splitk2",
+"us": 1357.4061591297254,
+"count": 63.0,
+"tflops": 697.6838011219696,
+"gbps": 6229.3196528747285,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x4384x8192_tile128x128_splitk4",
+"us": 813.9202826173575,
+"count": 54.0,
+"tflops": 623.332558083595,
+"gbps": 6226.368744250195,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x3584_tile128x128_splitk2",
+"us": 803.9169860708682,
+"count": 63.0,
+"tflops": 589.0162200680973,
+"gbps": 5988.3589616995805,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x2048_tile128x128_splitk2",
+"us": 486.6411143311207,
+"count": 54.0,
+"tflops": 476.5898876069711,
+"gbps": 5643.215221908716,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "selective_state_update_b16_h32_p64_n128",
+"us": 479.2017437254932,
+"count": 54.0,
+"tflops": 0.0,
+"gbps": 2274.6844774096157,
+"bound": "latency",
+"cls": "ssm"
+}
+],
+"busbw_gbps": 25.062745342944247,
+"n_collectives": 126,
+"sim_wall_s": 1.7677149772644043,
+"replicas": 9,
+"tok_s_gpu": 222.65048540890086,
+"tok_s_user": 111.32524270445043,
+"tpot_ms": 8.982688702999999
+},
+{
+"model": "mamba2-hybrid-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 131072,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "hybrid",
+"attention": "gqa8",
+"total_params_b": 70.620209664,
+"active_params_b": 69.569536512,
+"layers": 126,
+"hidden": 8192,
+"kv_bytes_per_token": 36864.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.655052416,
+"kv_cache": 38.654705664,
+"ssm_state": 3.6716544
+},
+"memory_total_gb": 59.98141248,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 15727.137958,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 10010.112525400627,
+"latency": 2490.3996693613053,
+"comm": 2811.6374300000007,
+"launch": 414.988333238065
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 6378.680200548099,
+"ssm": 1855.777566755051,
+"gemm": 3589.3546149191006,
+"norm_elementwise": 634.622102606254,
+"lm_head": 42.077709933429375,
+"communication": 2811.6374300000007,
+"launch_idle": 414.988333238065
+},
+"sched": {
+"async_wait": 0.3973729062083921,
+"barrier": 0.001750739550586425,
+"branch_resolving": 0.0023074405314588405,
+"dispatch": 0.04922721120594858,
+"drain": 0.00486677468068585,
+"lg_throttle": 0.027215953394851652,
+"long_scoreboard": 0.023689357686893557,
+"math_pipe_throttle": 0.08724308727762244,
+"mio_throttle": 0.00425911036121415,
+"selected": 0.2407354957361252,
+"short_scoreboard": 0.03968308579428006,
+"tensor_throttle": 0.04509345533737533,
+"tensor_wait": 0.01753342748487506,
+"tma_wait": 0.044356084423222905,
+"wait": 0.01466587032646784
+},
+"mfu": 0.03684482366064312,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b64_hq8_hkv1_sq1_skv131072_d128",
+"us": 6378.680200548109,
+"count": 9.0,
+"tflops": 775.6780665327672,
+"gbps": 6071.820802784875,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "selective_state_update_b64_h32_p64_n128",
+"us": 1746.0999886834857,
+"count": 54.0,
+"tflops": 0.0,
+"gbps": 2497.003065263943,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "sm100_gemm_bf16_64x7168x8192_tile128x128_splitk2",
+"us": 1357.4061591297254,
+"count": 63.0,
+"tflops": 697.6838011219696,
+"gbps": 6229.3196528747285,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+"us": 813.9202826173575,
+"count": 54.0,
+"tflops": 623.332558083595,
+"gbps": 6226.368744250195,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x3584_tile128x128_splitk2",
+"us": 803.9169860708682,
+"count": 63.0,
+"tflops": 589.0162200680973,
+"gbps": 5988.3589616995805,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+"us": 486.6411143311207,
+"count": 54.0,
+"tflops": 476.5898876069711,
+"gbps": 5643.215221908716,
+"bound": "hbm",
+"cls": "gemm"
+}
+],
+"busbw_gbps": 82.56293280334773,
+"n_collectives": 126,
+"sim_wall_s": 67.01523232460022,
+"replicas": 9,
+"tok_s_gpu": 508.67487913976123,
+"tok_s_user": 63.584359892470154,
+"tpot_ms": 15.727137957999997
+},
+{
+"model": "mamba2-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 4096,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "ssm",
+"attention": "none",
+"total_params_b": 70.82515072,
+"active_params_b": 69.774477568,
+"layers": 163,
+"hidden": 8192,
+"kv_bytes_per_token": 0.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.70628768,
+"kv_cache": 0.0,
+"ssm_state": 2.7707392
+},
+"memory_total_gb": 20.47702688,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 10034.509922,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3967.846371092755,
+"latency": 2431.325556107689,
+"comm": 3002.0609960000006,
+"launch": 633.2769987995548
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 3925.768661159326,
+"ssm": 1639.1988899986582,
+"norm_elementwise": 792.126666109031,
+"lm_head": 42.07770993342897,
+"communication": 3002.0609960000006,
+"launch_idle": 633.2769987995548
+},
+"sched": {
+"async_wait": 0.41981439533593506,
+"barrier": 0.004989845941687349,
+"branch_resolving": 0.00197710726002712,
+"dispatch": 0.0028591588602541063,
+"drain": 0.012086557176320147,
+"lg_throttle": 0.07876087361182034,
+"long_scoreboard": 0.03106863150236489,
+"math_pipe_throttle": 0.0025332255269481557,
+"mio_throttle": 0.0076139250480130065,
+"selected": 0.25103235670049234,
+"short_scoreboard": 0.021723535175506178,
+"tensor_throttle": 0.017777889019074185,
+"tensor_wait": 0.03893915610218823,
+"tma_wait": 0.08656301464581624,
+"wait": 0.02226032809355265
+},
+"mfu": 0.01145671837272792,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x4384x8192_tile128x128_splitk4",
+"us": 2456.833445678346,
+"count": 163.0,
+"tflops": 623.3325580835884,
+"gbps": 6226.36874425013,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x2048_tile128x128_splitk2",
+"us": 1468.9352154810235,
+"count": 163.0,
+"tflops": 476.5898876069556,
+"gbps": 5643.215221908531,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "selective_state_update_b16_h32_p64_n128",
+"us": 1446.479337541769,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2274.6844774096116,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "row_norm",
+"us": 636.8603100721771,
+"count": 327.0,
+"tflops": 0.0,
+"gbps": 170.6612239467116,
+"bound": "latency",
+"cls": "norm_elementwise"
+},
+{
+"name": "causal_conv1d_update_b16_d2304_w4",
+"us": 192.71955245690742,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 892.5031934082571,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "elementwise",
+"us": 155.26635603686273,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 825.6033004958655,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 25.02495973420427,
+"n_collectives": 163,
+"sim_wall_s": 2.3880910873413086,
+"replicas": 9,
+"tok_s_gpu": 199.31217523788902,
+"tok_s_user": 99.65608761894451,
+"tpot_ms": 10.034509922
+},
+{
+"model": "mamba2-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 4096,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "ssm",
+"attention": "none",
+"total_params_b": 70.82515072,
+"active_params_b": 69.774477568,
+"layers": 163,
+"hidden": 8192,
+"kv_bytes_per_token": 0.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.70628768,
+"kv_cache": 0.0,
+"ssm_state": 11.0829568
+},
+"memory_total_gb": 28.78924448,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 14674.459145,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3967.846371092714,
+"latency": 6432.24612901799,
+"comm": 3641.085617999999,
+"launch": 633.2810268892972
+},
+"dominant": "latency",
+"classes_us": {
+"ssm": 5601.69895150142,
+"gemm": 3925.7686611592853,
+"norm_elementwise": 830.5471775165694,
+"lm_head": 42.07770993342853,
+"communication": 3641.085617999999,
+"launch_idle": 633.2810268892972
+},
+"sched": {
+"async_wait": 0.2218217533311294,
+"barrier": 0.005682724529768189,
+"branch_resolving": 0.0010446649848487959,
+"dispatch": 0.005437139277793094,
+"drain": 0.00960047131339619,
+"lg_throttle": 0.04500348289214605,
+"long_scoreboard": 0.03780644689799114,
+"math_pipe_throttle": 0.004939409415949932,
+"mio_throttle": 0.01490638779073077,
+"selected": 0.5214950167483211,
+"short_scoreboard": 0.018594964698668545,
+"tensor_throttle": 0.009393490448515148,
+"tensor_wait": 0.02057469199671007,
+"tma_wait": 0.045738211685185604,
+"wait": 0.03796114398884597
+},
+"mfu": 0.03133447361995441,
+"top_kernels": [
+{
+"name": "selective_state_update_b64_h32_p64_n128",
+"us": 5270.635151026247,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2497.003065263863,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+"us": 2456.833445678346,
+"count": 163.0,
+"tflops": 623.3325580835884,
+"gbps": 6226.36874425013,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+"us": 1468.9352154810235,
+"count": 163.0,
+"tflops": 476.5898876069556,
+"gbps": 5643.215221908531,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 637.6672259315354,
+"count": 327.0,
+"tflops": 0.0,
+"gbps": 675.4796961232668,
+"bound": "latency",
+"cls": "norm_elementwise"
+},
+{
+"name": "causal_conv1d_update_b64_d2304_w4",
+"us": 331.0638004752945,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2044.1519218604567,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "elementwise",
+"us": 192.87995158505183,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2658.4082989770845,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 82.45506492712101,
+"n_collectives": 163,
+"sim_wall_s": 4.337009906768799,
+"replicas": 9,
+"tok_s_gpu": 545.1648964333942,
+"tok_s_user": 68.14561205417428,
+"tpot_ms": 14.674459145
+},
+{
+"model": "mamba2-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 16384,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "ssm",
+"attention": "none",
+"total_params_b": 70.82515072,
+"active_params_b": 69.774477568,
+"layers": 163,
+"hidden": 8192,
+"kv_bytes_per_token": 0.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.70628768,
+"kv_cache": 0.0,
+"ssm_state": 2.7707392
+},
+"memory_total_gb": 20.47702688,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 10034.509922,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3967.846371092755,
+"latency": 2431.325556107689,
+"comm": 3002.0609960000006,
+"launch": 633.2769987995548
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 3925.768661159326,
+"ssm": 1639.1988899986582,
+"norm_elementwise": 792.126666109031,
+"lm_head": 42.07770993342897,
+"communication": 3002.0609960000006,
+"launch_idle": 633.2769987995548
+},
+"sched": {
+"async_wait": 0.41981439533593506,
+"barrier": 0.004989845941687349,
+"branch_resolving": 0.00197710726002712,
+"dispatch": 0.0028591588602541063,
+"drain": 0.012086557176320147,
+"lg_throttle": 0.07876087361182034,
+"long_scoreboard": 0.03106863150236489,
+"math_pipe_throttle": 0.0025332255269481557,
+"mio_throttle": 0.0076139250480130065,
+"selected": 0.25103235670049234,
+"short_scoreboard": 0.021723535175506178,
+"tensor_throttle": 0.017777889019074185,
+"tensor_wait": 0.03893915610218823,
+"tma_wait": 0.08656301464581624,
+"wait": 0.02226032809355265
+},
+"mfu": 0.01145671837272792,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x4384x8192_tile128x128_splitk4",
+"us": 2456.833445678346,
+"count": 163.0,
+"tflops": 623.3325580835884,
+"gbps": 6226.36874425013,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x2048_tile128x128_splitk2",
+"us": 1468.9352154810235,
+"count": 163.0,
+"tflops": 476.5898876069556,
+"gbps": 5643.215221908531,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "selective_state_update_b16_h32_p64_n128",
+"us": 1446.479337541769,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2274.6844774096116,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "row_norm",
+"us": 636.8603100721771,
+"count": 327.0,
+"tflops": 0.0,
+"gbps": 170.6612239467116,
+"bound": "latency",
+"cls": "norm_elementwise"
+},
+{
+"name": "causal_conv1d_update_b16_d2304_w4",
+"us": 192.71955245690742,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 892.5031934082571,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "elementwise",
+"us": 155.26635603686273,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 825.6033004958655,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 25.02495973420427,
+"n_collectives": 163,
+"sim_wall_s": 2.8362622261047363,
+"replicas": 9,
+"tok_s_gpu": 199.31217523788902,
+"tok_s_user": 99.65608761894451,
+"tpot_ms": 10.034509922
+},
+{
+"model": "mamba2-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 16384,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "ssm",
+"attention": "none",
+"total_params_b": 70.82515072,
+"active_params_b": 69.774477568,
+"layers": 163,
+"hidden": 8192,
+"kv_bytes_per_token": 0.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.70628768,
+"kv_cache": 0.0,
+"ssm_state": 11.0829568
+},
+"memory_total_gb": 28.78924448,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 14674.459145,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3967.846371092714,
+"latency": 6432.24612901799,
+"comm": 3641.085617999999,
+"launch": 633.2810268892972
+},
+"dominant": "latency",
+"classes_us": {
+"ssm": 5601.69895150142,
+"gemm": 3925.7686611592853,
+"norm_elementwise": 830.5471775165694,
+"lm_head": 42.07770993342853,
+"communication": 3641.085617999999,
+"launch_idle": 633.2810268892972
+},
+"sched": {
+"async_wait": 0.2218217533311294,
+"barrier": 0.005682724529768189,
+"branch_resolving": 0.0010446649848487959,
+"dispatch": 0.005437139277793094,
+"drain": 0.00960047131339619,
+"lg_throttle": 0.04500348289214605,
+"long_scoreboard": 0.03780644689799114,
+"math_pipe_throttle": 0.004939409415949932,
+"mio_throttle": 0.01490638779073077,
+"selected": 0.5214950167483211,
+"short_scoreboard": 0.018594964698668545,
+"tensor_throttle": 0.009393490448515148,
+"tensor_wait": 0.02057469199671007,
+"tma_wait": 0.045738211685185604,
+"wait": 0.03796114398884597
+},
+"mfu": 0.03133447361995441,
+"top_kernels": [
+{
+"name": "selective_state_update_b64_h32_p64_n128",
+"us": 5270.635151026247,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2497.003065263863,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+"us": 2456.833445678346,
+"count": 163.0,
+"tflops": 623.3325580835884,
+"gbps": 6226.36874425013,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+"us": 1468.9352154810235,
+"count": 163.0,
+"tflops": 476.5898876069556,
+"gbps": 5643.215221908531,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 637.6672259315354,
+"count": 327.0,
+"tflops": 0.0,
+"gbps": 675.4796961232668,
+"bound": "latency",
+"cls": "norm_elementwise"
+},
+{
+"name": "causal_conv1d_update_b64_d2304_w4",
+"us": 331.0638004752945,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2044.1519218604567,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "elementwise",
+"us": 192.87995158505183,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2658.4082989770845,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 82.45506492712101,
+"n_collectives": 163,
+"sim_wall_s": 4.000466823577881,
+"replicas": 9,
+"tok_s_gpu": 545.1648964333942,
+"tok_s_user": 68.14561205417428,
+"tpot_ms": 14.674459145
+},
+{
+"model": "mamba2-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 65536,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "ssm",
+"attention": "none",
+"total_params_b": 70.82515072,
+"active_params_b": 69.774477568,
+"layers": 163,
+"hidden": 8192,
+"kv_bytes_per_token": 0.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.70628768,
+"kv_cache": 0.0,
+"ssm_state": 2.7707392
+},
+"memory_total_gb": 20.47702688,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 10034.509922,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3967.846371092755,
+"latency": 2431.325556107689,
+"comm": 3002.0609960000006,
+"launch": 633.2769987995548
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 3925.768661159326,
+"ssm": 1639.1988899986582,
+"norm_elementwise": 792.126666109031,
+"lm_head": 42.07770993342897,
+"communication": 3002.0609960000006,
+"launch_idle": 633.2769987995548
+},
+"sched": {
+"async_wait": 0.41981439533593506,
+"barrier": 0.004989845941687349,
+"branch_resolving": 0.00197710726002712,
+"dispatch": 0.0028591588602541063,
+"drain": 0.012086557176320147,
+"lg_throttle": 0.07876087361182034,
+"long_scoreboard": 0.03106863150236489,
+"math_pipe_throttle": 0.0025332255269481557,
+"mio_throttle": 0.0076139250480130065,
+"selected": 0.25103235670049234,
+"short_scoreboard": 0.021723535175506178,
+"tensor_throttle": 0.017777889019074185,
+"tensor_wait": 0.03893915610218823,
+"tma_wait": 0.08656301464581624,
+"wait": 0.02226032809355265
+},
+"mfu": 0.01145671837272792,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x4384x8192_tile128x128_splitk4",
+"us": 2456.833445678346,
+"count": 163.0,
+"tflops": 623.3325580835884,
+"gbps": 6226.36874425013,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x2048_tile128x128_splitk2",
+"us": 1468.9352154810235,
+"count": 163.0,
+"tflops": 476.5898876069556,
+"gbps": 5643.215221908531,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "selective_state_update_b16_h32_p64_n128",
+"us": 1446.479337541769,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2274.6844774096116,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "row_norm",
+"us": 636.8603100721771,
+"count": 327.0,
+"tflops": 0.0,
+"gbps": 170.6612239467116,
+"bound": "latency",
+"cls": "norm_elementwise"
+},
+{
+"name": "causal_conv1d_update_b16_d2304_w4",
+"us": 192.71955245690742,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 892.5031934082571,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "elementwise",
+"us": 155.26635603686273,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 825.6033004958655,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 25.02495973420427,
+"n_collectives": 163,
+"sim_wall_s": 2.1595828533172607,
+"replicas": 9,
+"tok_s_gpu": 199.31217523788902,
+"tok_s_user": 99.65608761894451,
+"tpot_ms": 10.034509922
+},
+{
+"model": "mamba2-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 65536,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "ssm",
+"attention": "none",
+"total_params_b": 70.82515072,
+"active_params_b": 69.774477568,
+"layers": 163,
+"hidden": 8192,
+"kv_bytes_per_token": 0.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.70628768,
+"kv_cache": 0.0,
+"ssm_state": 11.0829568
+},
+"memory_total_gb": 28.78924448,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 14674.459145,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3967.846371092714,
+"latency": 6432.24612901799,
+"comm": 3641.085617999999,
+"launch": 633.2810268892972
+},
+"dominant": "latency",
+"classes_us": {
+"ssm": 5601.69895150142,
+"gemm": 3925.7686611592853,
+"norm_elementwise": 830.5471775165694,
+"lm_head": 42.07770993342853,
+"communication": 3641.085617999999,
+"launch_idle": 633.2810268892972
+},
+"sched": {
+"async_wait": 0.2218217533311294,
+"barrier": 0.005682724529768189,
+"branch_resolving": 0.0010446649848487959,
+"dispatch": 0.005437139277793094,
+"drain": 0.00960047131339619,
+"lg_throttle": 0.04500348289214605,
+"long_scoreboard": 0.03780644689799114,
+"math_pipe_throttle": 0.004939409415949932,
+"mio_throttle": 0.01490638779073077,
+"selected": 0.5214950167483211,
+"short_scoreboard": 0.018594964698668545,
+"tensor_throttle": 0.009393490448515148,
+"tensor_wait": 0.02057469199671007,
+"tma_wait": 0.045738211685185604,
+"wait": 0.03796114398884597
+},
+"mfu": 0.03133447361995441,
+"top_kernels": [
+{
+"name": "selective_state_update_b64_h32_p64_n128",
+"us": 5270.635151026247,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2497.003065263863,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+"us": 2456.833445678346,
+"count": 163.0,
+"tflops": 623.3325580835884,
+"gbps": 6226.36874425013,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+"us": 1468.9352154810235,
+"count": 163.0,
+"tflops": 476.5898876069556,
+"gbps": 5643.215221908531,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 637.6672259315354,
+"count": 327.0,
+"tflops": 0.0,
+"gbps": 675.4796961232668,
+"bound": "latency",
+"cls": "norm_elementwise"
+},
+{
+"name": "causal_conv1d_update_b64_d2304_w4",
+"us": 331.0638004752945,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2044.1519218604567,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "elementwise",
+"us": 192.87995158505183,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2658.4082989770845,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 82.45506492712101,
+"n_collectives": 163,
+"sim_wall_s": 4.320688247680664,
+"replicas": 9,
+"tok_s_gpu": 545.1648964333942,
+"tok_s_user": 68.14561205417428,
+"tpot_ms": 14.674459145
+},
+{
+"model": "mamba2-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 131072,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "ssm",
+"attention": "none",
+"total_params_b": 70.82515072,
+"active_params_b": 69.774477568,
+"layers": 163,
+"hidden": 8192,
+"kv_bytes_per_token": 0.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.70628768,
+"kv_cache": 0.0,
+"ssm_state": 2.7707392
+},
+"memory_total_gb": 20.47702688,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 10034.509922,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3967.846371092755,
+"latency": 2431.325556107689,
+"comm": 3002.0609960000006,
+"launch": 633.2769987995548
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 3925.768661159326,
+"ssm": 1639.1988899986582,
+"norm_elementwise": 792.126666109031,
+"lm_head": 42.07770993342897,
+"communication": 3002.0609960000006,
+"launch_idle": 633.2769987995548
+},
+"sched": {
+"async_wait": 0.41981439533593506,
+"barrier": 0.004989845941687349,
+"branch_resolving": 0.00197710726002712,
+"dispatch": 0.0028591588602541063,
+"drain": 0.012086557176320147,
+"lg_throttle": 0.07876087361182034,
+"long_scoreboard": 0.03106863150236489,
+"math_pipe_throttle": 0.0025332255269481557,
+"mio_throttle": 0.0076139250480130065,
+"selected": 0.25103235670049234,
+"short_scoreboard": 0.021723535175506178,
+"tensor_throttle": 0.017777889019074185,
+"tensor_wait": 0.03893915610218823,
+"tma_wait": 0.08656301464581624,
+"wait": 0.02226032809355265
+},
+"mfu": 0.01145671837272792,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x4384x8192_tile128x128_splitk4",
+"us": 2456.833445678346,
+"count": 163.0,
+"tflops": 623.3325580835884,
+"gbps": 6226.36874425013,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x8192x2048_tile128x128_splitk2",
+"us": 1468.9352154810235,
+"count": 163.0,
+"tflops": 476.5898876069556,
+"gbps": 5643.215221908531,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "selective_state_update_b16_h32_p64_n128",
+"us": 1446.479337541769,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2274.6844774096116,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "row_norm",
+"us": 636.8603100721771,
+"count": 327.0,
+"tflops": 0.0,
+"gbps": 170.6612239467116,
+"bound": "latency",
+"cls": "norm_elementwise"
+},
+{
+"name": "causal_conv1d_update_b16_d2304_w4",
+"us": 192.71955245690742,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 892.5031934082571,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "elementwise",
+"us": 155.26635603686273,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 825.6033004958655,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 25.02495973420427,
+"n_collectives": 163,
+"sim_wall_s": 2.2294483184814453,
+"replicas": 9,
+"tok_s_gpu": 199.31217523788902,
+"tok_s_user": 99.65608761894451,
+"tpot_ms": 10.034509922
+},
+{
+"model": "mamba2-70b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 131072,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "ssm",
+"attention": "none",
+"total_params_b": 70.82515072,
+"active_params_b": 69.774477568,
+"layers": 163,
+"hidden": 8192,
+"kv_bytes_per_token": 0.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 17.70628768,
+"kv_cache": 0.0,
+"ssm_state": 11.0829568
+},
+"memory_total_gb": 28.78924448,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 14674.459145,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 3967.846371092714,
+"latency": 6432.24612901799,
+"comm": 3641.085617999999,
+"launch": 633.2810268892972
+},
+"dominant": "latency",
+"classes_us": {
+"ssm": 5601.69895150142,
+"gemm": 3925.7686611592853,
+"norm_elementwise": 830.5471775165694,
+"lm_head": 42.07770993342853,
+"communication": 3641.085617999999,
+"launch_idle": 633.2810268892972
+},
+"sched": {
+"async_wait": 0.2218217533311294,
+"barrier": 0.005682724529768189,
+"branch_resolving": 0.0010446649848487959,
+"dispatch": 0.005437139277793094,
+"drain": 0.00960047131339619,
+"lg_throttle": 0.04500348289214605,
+"long_scoreboard": 0.03780644689799114,
+"math_pipe_throttle": 0.004939409415949932,
+"mio_throttle": 0.01490638779073077,
+"selected": 0.5214950167483211,
+"short_scoreboard": 0.018594964698668545,
+"tensor_throttle": 0.009393490448515148,
+"tensor_wait": 0.02057469199671007,
+"tma_wait": 0.045738211685185604,
+"wait": 0.03796114398884597
+},
+"mfu": 0.03133447361995441,
+"top_kernels": [
+{
+"name": "selective_state_update_b64_h32_p64_n128",
+"us": 5270.635151026247,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2497.003065263863,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "sm100_gemm_bf16_64x4384x8192_tile128x128_splitk4",
+"us": 2456.833445678346,
+"count": 163.0,
+"tflops": 623.3325580835884,
+"gbps": 6226.36874425013,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x8192x2048_tile128x128_splitk2",
+"us": 1468.9352154810235,
+"count": 163.0,
+"tflops": 476.5898876069556,
+"gbps": 5643.215221908531,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 637.6672259315354,
+"count": 327.0,
+"tflops": 0.0,
+"gbps": 675.4796961232668,
+"bound": "latency",
+"cls": "norm_elementwise"
+},
+{
+"name": "causal_conv1d_update_b64_d2304_w4",
+"us": 331.0638004752945,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2044.1519218604567,
+"bound": "latency",
+"cls": "ssm"
+},
+{
+"name": "elementwise",
+"us": 192.87995158505183,
+"count": 163.0,
+"tflops": 0.0,
+"gbps": 2658.4082989770845,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 82.45506492712101,
+"n_collectives": 163,
+"sim_wall_s": 4.295983791351318,
+"replicas": 9,
+"tok_s_gpu": 545.1648964333942,
+"tok_s_user": 68.14561205417428,
+"tpot_ms": 14.674459145
+},
+{
+"model": "deepseek-v3",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 1,
+"ep": 72,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 4096,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "moe",
+"attention": "mla",
+"total_params_b": 671.02539776,
+"active_params_b": 36.624596992,
+"layers": 61,
+"hidden": 7168,
+"kv_bytes_per_token": 70272.0
+},
+"world": 72,
+"memory_gb": {
+"weights": 52.39738641066667,
+"kv_cache": 4.605345792
+},
+"memory_total_gb": 57.00273220266667,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 13511.058683,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 7935.184657519488,
+"latency": 3069.757210097108,
+"comm": 1970.9124660000011,
+"launch": 535.204349383403
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 6034.4303039949145,
+"attention": 1895.0906338697127,
+"moe_experts": 2239.455711880239,
+"norm_elementwise": 559.9082103754475,
+"lm_head": 276.05700749628267,
+"communication": 1970.9124660000011,
+"launch_idle": 535.204349383403
+},
+"sched": {
+"async_wait": 0.6377559118663135,
+"barrier": 0.00010941961937667239,
+"branch_resolving": 0.003167401206861261,
+"dispatch": 0.003913142430137955,
+"drain": 0.006544939008481907,
+"lg_throttle": 0.06579471118339508,
+"long_scoreboard": 0.010096005378627992,
+"math_pipe_throttle": 0.006800217996378537,
+"mio_throttle": 6.933588431336229e-09,
+"selected": 0.0184373964285942,
+"short_scoreboard": 0.027402100019708858,
+"tensor_throttle": 0.05302068277223751,
+"tensor_wait": 0.06738406464242253,
+"tma_wait": 0.09796816426429242,
+"wait": 0.00160583624958311
+},
+"mfu": 0.04306904042714337,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x7168x16384_tile128x128_splitk2",
+"us": 2383.8390498073877,
+"count": 61.0,
+"tflops": 769.3267024634831,
+"gbps": 6493.34061091528,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_fmha_decode_b16_hq128_hkv1_sq1_skv4096_d576",
+"us": 1895.0719089954302,
+"count": 61.0,
+"tflops": 699.8887914491261,
+"gbps": 3797.1397105529845,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "grouped_gemm_3x[128]x4096x7168",
+"us": 1498.6631765915404,
+"count": 58.0,
+"tflops": 872.6560858100304,
+"gbps": 1592.8083783502461,
+"bound": "latency",
+"cls": "moe_experts"
+},
+{
+"name": "sm100_gemm_bf16_16x24576x1536_tile128x256",
+"us": 964.3284147546769,
+"count": 61.0,
+"tflops": 611.2899426757674,
+"gbps": 5596.52657479035,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x4096x7168_tile128x128_splitk4",
+"us": 747.1056813764934,
+"count": 58.0,
+"tflops": 583.5040361904497,
+"gbps": 6003.546689319987,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "grouped_gemm_3x[128]x7168x2048",
+"us": 740.770407836894,
+"count": 58.0,
+"tflops": 882.7414862932543,
+"gbps": 2134.60552861092,
+"bound": "latency",
+"cls": "moe_experts"
+}
+],
+"busbw_gbps": 78.18723012012572,
+"n_collectives": 116,
+"sim_wall_s": 32.10104250907898,
+"replicas": 1,
+"tok_s_gpu": 1184.2151215086988,
+"tok_s_user": 74.01344509429366,
+"tpot_ms": 13.511058682999998
+},
+{
+"model": "deepseek-v3",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 1,
+"ep": 72,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 4096,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "moe",
+"attention": "mla",
+"total_params_b": 671.02539776,
+"active_params_b": 36.624596992,
+"layers": 61,
+"hidden": 7168,
+"kv_bytes_per_token": 70272.0
+},
+"world": 72,
+"memory_gb": {
+"weights": 52.39738641066667,
+"kv_cache": 18.421383168
+},
+"memory_total_gb": 70.81876957866668,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 19889.269495,
+"breakdown_us": {
+"compute": 1928.7575593591996,
+"hbm": 6040.331310446559,
+"latency": 8173.4139470194195,
+"comm": 3211.56112,
+"launch": 535.2055581748232
+},
+"dominant": "latency",
+"classes_us": {
+"attention": 6220.749345915781,
+"gemm": 6034.667368290874,
+"moe_experts": 2994.2773900327447,
+"norm_elementwise": 616.7408601121176,
+"lm_head": 276.0678524736592,
+"communication": 3211.56112,
+"launch_idle": 535.2055581748232
+},
+"sched": {
+"async_wait": 0.6538386474459976,
+"barrier": 0.0003329818864351314,
+"branch_resolving": 0.0028003770793533014,
+"dispatch": 0.008622260445605434,
+"drain": 0.005043111944033072,
+"lg_throttle": 0.04002615505732657,
+"long_scoreboard": 0.016854792668210966,
+"math_pipe_throttle": 0.014988517738275111,
+"mio_throttle": 4.294606248084739e-09,
+"selected": 0.026111465300770575,
+"short_scoreboard": 0.018157150827408132,
+"tensor_throttle": 0.08940007059588273,
+"tensor_wait": 0.05640931638509687,
+"tma_wait": 0.06297237196403443,
+"wait": 0.004442776366963799
+},
+"mfu": 0.11702967866718143,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b64_hq128_hkv1_sq1_skv4096_d576",
+"us": 6220.443508509036,
+"count": 61.0,
+"tflops": 758.1250572498708,
+"gbps": 3331.604255492596,
+"bound": "latency",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_64x7168x16384_tile128x128_splitk2",
+"us": 2383.8390498073877,
+"count": 61.0,
+"tflops": 769.3267024634831,
+"gbps": 6493.34061091528,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "grouped_gemm_3x[512]x4096x7168",
+"us": 1928.662733771896,
+"count": 58.0,
+"tflops": 1356.1910216145404,
+"gbps": 1592.4396993939336,
+"bound": "compute",
+"cls": "moe_experts"
+},
+{
+"name": "grouped_gemm_3x[512]x7168x2048",
+"us": 1065.4674453733621,
+"count": 58.0,
+"tflops": 1227.4589404969697,
+"gbps": 1569.713581829737,
+"bound": "latency",
+"cls": "moe_experts"
+},
+{
+"name": "sm100_gemm_bf16_64x24576x1536_tile128x256",
+"us": 964.3284147546769,
+"count": 61.0,
+"tflops": 611.2899426757674,
+"gbps": 5596.52657479035,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x4096x7168_tile128x128_splitk4",
+"us": 747.1056813764934,
+"count": 58.0,
+"tflops": 583.5040361904497,
+"gbps": 6003.546689319987,
+"bound": "hbm",
+"cls": "gemm"
+}
+],
+"busbw_gbps": 191.08738573372534,
+"n_collectives": 116,
+"sim_wall_s": 34.055227756500244,
+"replicas": 1,
+"tok_s_gpu": 3217.815516858931,
+"tok_s_user": 50.2783674509208,
+"tpot_ms": 19.889269495
+},
+{
+"model": "deepseek-v3",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 1,
+"ep": 72,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 16384,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "moe",
+"attention": "mla",
+"total_params_b": 671.02539776,
+"active_params_b": 36.624596992,
+"layers": 61,
+"hidden": 7168,
+"kv_bytes_per_token": 70272.0
+},
+"world": 72,
+"memory_gb": {
+"weights": 52.39738641066667,
+"kv_cache": 18.421383168
+},
+"memory_total_gb": 70.81876957866668,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 17314.301108,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 11737.731771492048,
+"latency": 3069.749420972137,
+"comm": 1971.6129659999997,
+"launch": 535.2069495358091
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 5697.653073825398,
+"gemm": 6034.414992382774,
+"moe_experts": 2239.45002954147,
+"norm_elementwise": 559.9067896783943,
+"lm_head": 276.05630703615395,
+"communication": 1971.6129659999997,
+"launch_idle": 535.2069495358091
+},
+"sched": {
+"async_wait": 0.6558504125977347,
+"barrier": 7.350561145929671e-05,
+"branch_resolving": 0.00294607513268403,
+"dispatch": 0.009476393905390438,
+"drain": 0.004391816280208288,
+"lg_throttle": 0.04419939041895762,
+"long_scoreboard": 0.006782266771534876,
+"math_pipe_throttle": 0.016567393871230157,
+"mio_throttle": 4.6578269980815826e-09,
+"selected": 0.027251371568117515,
+"short_scoreboard": 0.018408107510259928,
+"tensor_throttle": 0.09752265834488767,
+"tensor_wait": 0.048109330541675516,
+"tma_wait": 0.0658150393671675,
+"wait": 0.0026062334208654288
+},
+"mfu": 0.05203083825186524,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b16_hq128_hkv1_sq1_skv16384_d576",
+"us": 5697.611233843438,
+"count": 61.0,
+"tflops": 843.859085767191,
+"gbps": 3724.7441303018104,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x7168x16384_tile128x128_splitk2",
+"us": 2383.8390498073877,
+"count": 61.0,
+"tflops": 769.3267024634831,
+"gbps": 6493.34061091528,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "grouped_gemm_3x[128]x4096x7168",
+"us": 1498.6631765915404,
+"count": 58.0,
+"tflops": 872.6560858100304,
+"gbps": 1592.8083783502461,
+"bound": "latency",
+"cls": "moe_experts"
+},
+{
+"name": "sm100_gemm_bf16_16x24576x1536_tile128x256",
+"us": 964.3284147546769,
+"count": 61.0,
+"tflops": 611.2899426757674,
+"gbps": 5596.52657479035,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x4096x7168_tile128x128_splitk4",
+"us": 747.1056813764934,
+"count": 58.0,
+"tflops": 583.5040361904497,
+"gbps": 6003.546689319987,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "grouped_gemm_3x[128]x7168x2048",
+"us": 740.770407836894,
+"count": 58.0,
+"tflops": 882.7414862932543,
+"gbps": 2134.60552861092,
+"bound": "latency",
+"cls": "moe_experts"
+}
+],
+"busbw_gbps": 78.1618410193024,
+"n_collectives": 116,
+"sim_wall_s": 17.824793577194214,
+"replicas": 1,
+"tok_s_gpu": 924.0915876533571,
+"tok_s_user": 57.75572422833483,
+"tpot_ms": 17.314301108
+},
+{
+"model": "deepseek-v3",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 1,
+"ep": 72,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 16384,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "moe",
+"attention": "mla",
+"total_params_b": 671.02539776,
+"active_params_b": 36.624596992,
+"layers": 61,
+"hidden": 7168,
+"kv_bytes_per_token": 70272.0
+},
+"world": 72,
+"memory_gb": {
+"weights": 52.39738641066667,
+"kv_cache": 73.685532672
+},
+"memory_total_gb": 126.08291908266668,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 37210.3546,
+"breakdown_us": {
+"compute": 1928.7084755303388,
+"hbm": 6040.177593569669,
+"latency": 25494.701852747236,
+"comm": 3211.5611130000016,
+"launch": 535.2055651527571
+},
+"dominant": "latency",
+"classes_us": {
+"attention": 23542.086943868853,
+"gemm": 6034.513795552352,
+"moe_experts": 2994.2011904096967,
+"norm_elementwise": 616.7251650328257,
+"lm_head": 276.0608269835145,
+"communication": 3211.5611130000016,
+"launch_idle": 535.2055651527571
+},
+"sched": {
+"async_wait": 0.6754212152753231,
+"barrier": 0.00014940755678574015,
+"branch_resolving": 0.002632132739517262,
+"dispatch": 0.015384625289578626,
+"drain": 0.00226283035191262,
+"lg_throttle": 0.017959565604801664,
+"long_scoreboard": 0.00756267381282371,
+"math_pipe_throttle": 0.026894141164893585,
+"mio_throttle": 1.926971565187871e-09,
+"selected": 0.03670645080475977,
+"short_scoreboard": 0.008147036381937598,
+"tensor_throttle": 0.1440724328000711,
+"tensor_wait": 0.02999078034092571,
+"tma_wait": 0.02825543557601929,
+"wait": 0.004561270373678656
+},
+"mfu": 0.09684170424611263,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b64_hq128_hkv1_sq1_skv16384_d576",
+"us": 23541.528613531278,
+"count": 61.0,
+"tflops": 801.2859603853243,
+"gbps": 3227.836510341272,
+"bound": "latency",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_64x7168x16384_tile128x128_splitk2",
+"us": 2383.8390498073877,
+"count": 61.0,
+"tflops": 769.3267024634831,
+"gbps": 6493.34061091528,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "grouped_gemm_3x[512]x4096x7168",
+"us": 1928.662733771896,
+"count": 58.0,
+"tflops": 1356.1910216145404,
+"gbps": 1592.4396993939336,
+"bound": "compute",
+"cls": "moe_experts"
+},
+{
+"name": "grouped_gemm_3x[512]x7168x2048",
+"us": 1065.4674453733621,
+"count": 58.0,
+"tflops": 1227.4589404969697,
+"gbps": 1569.713581829737,
+"bound": "latency",
+"cls": "moe_experts"
+},
+{
+"name": "sm100_gemm_bf16_64x24576x1536_tile128x256",
+"us": 964.3284147546769,
+"count": 61.0,
+"tflops": 611.2899426757674,
+"gbps": 5596.52657479035,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x4096x7168_tile128x128_splitk4",
+"us": 747.1056813764934,
+"count": 58.0,
+"tflops": 583.5040361904497,
+"gbps": 6003.546689319987,
+"bound": "hbm",
+"cls": "gemm"
+}
+],
+"busbw_gbps": 191.0873857460312,
+"n_collectives": 116,
+"sim_wall_s": 36.12929725646973,
+"replicas": 1,
+"tok_s_gpu": 1719.9513599905338,
+"tok_s_user": 26.874239999852087,
+"tpot_ms": 37.210354599999995
+},
+{
+"model": "deepseek-v3",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 1,
+"ep": 72,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 65536,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "moe",
+"attention": "mla",
+"total_params_b": 671.02539776,
+"active_params_b": 36.624596992,
+"layers": 61,
+"hidden": 7168,
+"kv_bytes_per_token": 70272.0
+},
+"world": 72,
+"memory_gb": {
+"weights": 52.39738641066667,
+"kv_cache": 73.685532672
+},
+"memory_total_gb": 126.08291908266668,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 32653.972339,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 27078.00834325791,
+"latency": 3069.7379505873864,
+"comm": 1971.0206199999998,
+"launch": 535.2054251547047
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 21037.952214868772,
+"gemm": 6034.392444268184,
+"moe_experts": 2239.441661642353,
+"norm_elementwise": 559.9046975381505,
+"lm_head": 276.0552755278384,
+"communication": 1971.0206199999998,
+"launch_idle": 535.2054251547047
+},
+"sched": {
+"async_wait": 0.6742404481514817,
+"barrier": 3.158216676715492e-05,
+"branch_resolving": 0.0026888719982045206,
+"dispatch": 0.015986423924124873,
+"drain": 0.0018871121086870553,
+"lg_throttle": 0.018990557203800516,
+"long_scoreboard": 0.002914045281516488,
+"math_pipe_throttle": 0.0279843314840473,
+"mio_throttle": 2.00126583679162e-09,
+"selected": 0.03756119648446915,
+"short_scoreboard": 0.00790916380008178,
+"tensor_throttle": 0.14976368067772816,
+"tensor_wait": 0.027989505963348132,
+"tma_wait": 0.02827689329658318,
+"wait": 0.0037761854578941666
+},
+"mfu": 0.06666140321347849,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b16_hq128_hkv1_sq1_skv65536_d576",
+"us": 21037.876335222805,
+"count": 61.0,
+"tflops": 898.395770999185,
+"gbps": 3632.4938657450602,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x7168x16384_tile128x128_splitk2",
+"us": 2383.8390498073877,
+"count": 61.0,
+"tflops": 769.3267024634831,
+"gbps": 6493.34061091528,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "grouped_gemm_3x[128]x4096x7168",
+"us": 1498.6631765915404,
+"count": 58.0,
+"tflops": 872.6560858100304,
+"gbps": 1592.8083783502461,
+"bound": "latency",
+"cls": "moe_experts"
+},
+{
+"name": "sm100_gemm_bf16_16x24576x1536_tile128x256",
+"us": 964.3284147546769,
+"count": 61.0,
+"tflops": 611.2899426757674,
+"gbps": 5596.52657479035,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x4096x7168_tile128x128_splitk4",
+"us": 747.1056813764934,
+"count": 58.0,
+"tflops": 583.5040361904497,
+"gbps": 6003.546689319987,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "grouped_gemm_3x[128]x7168x2048",
+"us": 740.770407836894,
+"count": 58.0,
+"tflops": 882.7414862932543,
+"gbps": 2134.60552861092,
+"bound": "latency",
+"cls": "moe_experts"
+}
+],
+"busbw_gbps": 78.21527812447172,
+"n_collectives": 116,
+"sim_wall_s": 24.913845777511597,
+"replicas": 1,
+"tok_s_gpu": 489.9863279693703,
+"tok_s_user": 30.624145498085646,
+"tpot_ms": 32.653972339
+},
+{
+"model": "deepseek-v3",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 1,
+"ep": 72,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 65536,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "moe",
+"attention": "mla",
+"total_params_b": 671.02539776,
+"active_params_b": 36.624596992,
+"layers": 61,
+"hidden": 7168,
+"kv_bytes_per_token": 70272.0
+},
+"world": 72,
+"memory_gb": {
+"weights": 52.39738641066667,
+"kv_cache": 294.742130688
+},
+"memory_total_gb": 347.1395170986667,
+"hbm_gb": 288.0,
+"fits": false
+},
+{
+"model": "deepseek-v3",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 1,
+"ep": 72,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 131072,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "moe",
+"attention": "mla",
+"total_params_b": 671.02539776,
+"active_params_b": 36.624596992,
+"layers": 61,
+"hidden": 7168,
+"kv_bytes_per_token": 70272.0
+},
+"world": 72,
+"memory_gb": {
+"weights": 52.39738641066667,
+"kv_cache": 147.371065344
+},
+"memory_total_gb": 199.7684517546667,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 53221.951064,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 47645.37013481184,
+"latency": 3069.7334603919107,
+"comm": 1971.6436669999998,
+"launch": 535.2038017962373
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 41605.322841389454,
+"gemm": 6034.383617585876,
+"moe_experts": 2239.438385945541,
+"norm_elementwise": 559.9038785491747,
+"lm_head": 276.05487173371347,
+"communication": 1971.6436669999998,
+"launch_idle": 535.2038017962373
+},
+"sched": {
+"async_wait": 0.679892704493839,
+"barrier": 1.7894631238932007e-05,
+"branch_resolving": 0.0026049475654623265,
+"dispatch": 0.018109670472611004,
+"drain": 0.0010692394268012515,
+"lg_throttle": 0.010760155270197361,
+"long_scoreboard": 0.0016511142541530224,
+"math_pipe_throttle": 0.03171304178409476,
+"mio_throttle": 1.1339283471108353e-09,
+"selected": 0.04092813841648873,
+"short_scoreboard": 0.004481376172009983,
+"tensor_throttle": 0.1667683147665271,
+"tensor_wait": 0.02182330256634012,
+"tma_wait": 0.01602184491822845,
+"wait": 0.004158254128079661
+},
+"mfu": 0.07286276308260153,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b16_hq128_hkv1_sq1_skv131072_d576",
+"us": 41605.2336365823,
+"count": 61.0,
+"tflops": 908.5558463851273,
+"gbps": 3611.3102446777266,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x7168x16384_tile128x128_splitk2",
+"us": 2383.8390498073877,
+"count": 61.0,
+"tflops": 769.3267024634831,
+"gbps": 6493.34061091528,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "grouped_gemm_3x[128]x4096x7168",
+"us": 1498.6631765915404,
+"count": 58.0,
+"tflops": 872.6560858100304,
+"gbps": 1592.8083783502461,
+"bound": "latency",
+"cls": "moe_experts"
+},
+{
+"name": "sm100_gemm_bf16_16x24576x1536_tile128x256",
+"us": 964.3284147546769,
+"count": 61.0,
+"tflops": 611.2899426757674,
+"gbps": 5596.52657479035,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x4096x7168_tile128x128_splitk4",
+"us": 747.1056813764934,
+"count": 58.0,
+"tflops": 583.5040361904497,
+"gbps": 6003.546689319987,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "grouped_gemm_3x[128]x7168x2048",
+"us": 740.770407836894,
+"count": 58.0,
+"tflops": 882.7414862932543,
+"gbps": 2134.60552861092,
+"bound": "latency",
+"cls": "moe_experts"
+}
+],
+"busbw_gbps": 78.18116552207336,
+"n_collectives": 116,
+"sim_wall_s": 35.96816635131836,
+"replicas": 1,
+"tok_s_gpu": 300.62783644966,
+"tok_s_user": 18.789239778103752,
+"tpot_ms": 53.221951063999995
+},
+{
+"model": "deepseek-v3",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 1,
+"ep": 72,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 131072,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "moe",
+"attention": "mla",
+"total_params_b": 671.02539776,
+"active_params_b": 36.624596992,
+"layers": 61,
+"hidden": 7168,
+"kv_bytes_per_token": 70272.0
+},
+"world": 72,
+"memory_gb": {
+"weights": 52.39738641066667,
+"kv_cache": 589.484261376
+},
+"memory_total_gb": 641.8816477866666,
+"hbm_gb": 288.0,
+"fits": false
+},
+{
+"model": "llama3-405b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 4096,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa16",
+"total_params_b": 405.849243648,
+"active_params_b": 403.747897344,
+"layers": 126,
+"hidden": 16384,
+"kv_bytes_per_token": 516096.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 101.462310912,
+"kv_cache": 4.227858432
+},
+"memory_total_gb": 105.690169344,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 25879.538779,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 18416.15258582091,
+"latency": 1748.3854302485179,
+"comm": 4945.964343999999,
+"launch": 769.0364189305701
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 16822.214787225177,
+"attention": 1512.7960126547666,
+"norm_elementwise": 1748.3854302485179,
+"lm_head": 81.141785940967,
+"communication": 4945.964343999999,
+"launch_idle": 769.0364189305701
+},
+"sched": {
+"async_wait": 0.6514961404437776,
+"barrier": 0.0001505874303763372,
+"branch_resolving": 0.003729238253506005,
+"dispatch": 0.004247453430259067,
+"drain": 0.006305904760068609,
+"lg_throttle": 0.024565072418323987,
+"long_scoreboard": 0.02070874150140853,
+"math_pipe_throttle": 0.007579983201660535,
+"selected": 0.01559701215079173,
+"short_scoreboard": 0.012764170264758056,
+"tensor_throttle": 0.03114584302420581,
+"tensor_wait": 0.07147872069432262,
+"tma_wait": 0.14901001939720804,
+"wait": 0.0012211130293331405
+},
+"mfu": 0.026385552963778564,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x13312x16384_tile128x128",
+"us": 8777.837367092534,
+"count": 126.0,
+"tflops": 801.4680765472237,
+"gbps": 6419.511242626783,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x16384x6656_tile128x128",
+"us": 4441.862204356441,
+"count": 126.0,
+"tflops": 791.9152043874905,
+"gbps": 6473.1274922937055,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x2304x16384_tile128x128_splitk8",
+"us": 1972.9830793680765,
+"count": 126.0,
+"tflops": 617.1483380414952,
+"gbps": 6294.698760405876,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x16384x2048_tile128x128",
+"us": 1629.532136408168,
+"count": 126.0,
+"tflops": 664.1978604838608,
+"gbps": 5878.215928354482,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_fmha_decode_b16_hq16_hkv1_sq1_skv4096_d128",
+"us": 1512.7960126547705,
+"count": 126.0,
+"tflops": 402.4413133794626,
+"gbps": 3580.7495331071977,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "row_norm",
+"us": 1241.4543182298846,
+"count": 253.0,
+"tflops": 0.0,
+"gbps": 214.52743938233533,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 46.97849680068795,
+"n_collectives": 252,
+"sim_wall_s": 8.672427654266357,
+"replicas": 9,
+"tok_s_gpu": 77.2811299721811,
+"tok_s_user": 38.64056498609055,
+"tpot_ms": 25.879538778999997
+},
+{
+"model": "llama3-405b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 4096,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa16",
+"total_params_b": 405.849243648,
+"active_params_b": 403.747897344,
+"layers": 126,
+"hidden": 16384,
+"kv_bytes_per_token": 516096.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 101.462310912,
+"kv_cache": 16.911433728
+},
+"memory_total_gb": 118.37374464,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 30591.611027,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 21145.49673960669,
+"latency": 1258.8842230832943,
+"comm": 7418.196357,
+"launch": 769.0337073100172
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 16878.995405164715,
+"attention": 3506.9375709966685,
+"norm_elementwise": 1937.0323198409706,
+"lm_head": 81.41566668762971,
+"communication": 7418.196357,
+"launch_idle": 769.0337073100172
+},
+"sched": {
+"async_wait": 0.6038589016879544,
+"barrier": 0.0005321840647137956,
+"branch_resolving": 0.0034978890673306273,
+"dispatch": 0.01299787500217751,
+"drain": 0.006779220733516455,
+"lg_throttle": 0.021843706243377628,
+"long_scoreboard": 0.04342410142302876,
+"math_pipe_throttle": 0.0232934949641671,
+"selected": 0.033283784883788234,
+"short_scoreboard": 0.018049801332292555,
+"tensor_throttle": 0.03464285508386801,
+"tensor_wait": 0.06174089760428904,
+"tma_wait": 0.12930089984834106,
+"wait": 0.006754388061154816
+},
+"mfu": 0.08928434951237986,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_64x13312x16384_tile128x128",
+"us": 8777.837367092534,
+"count": 126.0,
+"tflops": 801.4680765472237,
+"gbps": 6419.511242626783,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x16384x6656_tile128x128",
+"us": 4441.862204356441,
+"count": 126.0,
+"tflops": 791.9152043874905,
+"gbps": 6473.1274922937055,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_fmha_decode_b64_hq16_hkv1_sq1_skv4096_d128",
+"us": 3495.1403000349446,
+"count": 126.0,
+"tflops": 619.3352287352692,
+"gbps": 5140.966254150184,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_64x2304x16384_tile128x128_splitk8",
+"us": 1972.9830793680765,
+"count": 126.0,
+"tflops": 617.1483380414952,
+"gbps": 6294.698760405876,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x16384x2048_tile128x128",
+"us": 1629.532136408168,
+"count": 126.0,
+"tflops": 664.1978604838608,
+"gbps": 5878.215928354482,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 1254.6493606175413,
+"count": 253.0,
+"tflops": 0.0,
+"gbps": 846.6072142077888,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 125.04499251090637,
+"n_collectives": 252,
+"sim_wall_s": 15.920507192611694,
+"replicas": 9,
+"tok_s_gpu": 261.50960120862027,
+"tok_s_user": 32.68870015107753,
+"tpot_ms": 30.591611026999995
+},
+{
+"model": "llama3-405b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 16384,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa16",
+"total_params_b": 405.849243648,
+"active_params_b": 403.747897344,
+"layers": 126,
+"hidden": 16384,
+"kv_bytes_per_token": 516096.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 101.462310912,
+"kv_cache": 16.911433728
+},
+"memory_total_gb": 118.37374464,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 27897.277151,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 20432.77997274199,
+"latency": 1748.385430248514,
+"comm": 4947.076199,
+"launch": 769.0355490094944
+},
+"dominant": "hbm",
+"classes_us": {
+"gemm": 16822.21478722514,
+"attention": 3529.4233995758827,
+"norm_elementwise": 1748.385430248514,
+"lm_head": 81.14178594096683,
+"communication": 4947.076199,
+"launch_idle": 769.0355490094944
+},
+"sched": {
+"async_wait": 0.6236296827589515,
+"barrier": 0.0001323883594394467,
+"branch_resolving": 0.003610352360689741,
+"dispatch": 0.01483501934541274,
+"drain": 0.005432409504236082,
+"lg_throttle": 0.021596288806081804,
+"long_scoreboard": 0.01820601033283761,
+"math_pipe_throttle": 0.02666459881416207,
+"selected": 0.034582707989019836,
+"short_scoreboard": 0.018521323213917272,
+"tensor_throttle": 0.036645958244740096,
+"tensor_wait": 0.06284024200361664,
+"tma_wait": 0.13161010854592378,
+"wait": 0.0016929097209713974
+},
+"mfu": 0.027429260558396434,
+"top_kernels": [
+{
+"name": "sm100_gemm_bf16_16x13312x16384_tile128x128",
+"us": 8777.837367092534,
+"count": 126.0,
+"tflops": 801.4680765472237,
+"gbps": 6419.511242626783,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x16384x6656_tile128x128",
+"us": 4441.862204356441,
+"count": 126.0,
+"tflops": 791.9152043874905,
+"gbps": 6473.1274922937055,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_fmha_decode_b16_hq16_hkv1_sq1_skv16384_d128",
+"us": 3529.4233995758996,
+"count": 126.0,
+"tflops": 689.9842215373261,
+"gbps": 5139.57668274645,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x2304x16384_tile128x128_splitk8",
+"us": 1972.9830793680765,
+"count": 126.0,
+"tflops": 617.1483380414952,
+"gbps": 6294.698760405876,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x16384x2048_tile128x128",
+"us": 1629.532136408168,
+"count": 126.0,
+"tflops": 664.1978604838608,
+"gbps": 5878.215928354482,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 1241.4543182298846,
+"count": 253.0,
+"tflops": 0.0,
+"gbps": 214.52743938233533,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 46.967922364049244,
+"n_collectives": 252,
+"sim_wall_s": 7.8460493087768555,
+"replicas": 9,
+"tok_s_gpu": 71.69158442146777,
+"tok_s_user": 35.84579221073388,
+"tpot_ms": 27.897277150999997
+},
+{
+"model": "llama3-405b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 16384,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa16",
+"total_params_b": 405.849243648,
+"active_params_b": 403.747897344,
+"layers": 126,
+"hidden": 16384,
+"kv_bytes_per_token": 516096.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 101.462310912,
+"kv_cache": 67.645734912
+},
+"memory_total_gb": 169.108045824,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 38891.757158,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 29445.076091634368,
+"latency": 1257.7367973704183,
+"comm": 7419.911555000008,
+"launch": 769.0327139952078
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 11822.593807583738,
+"gemm": 16863.610834462917,
+"norm_elementwise": 1935.2667875944758,
+"lm_head": 81.34145936365553,
+"communication": 7419.911555000008,
+"launch_idle": 769.0327139952078
+},
+"sched": {
+"async_wait": 0.5504036414692158,
+"barrier": 0.00037123359096443765,
+"branch_resolving": 0.00324857113791862,
+"dispatch": 0.036130546616683065,
+"drain": 0.004771256170258719,
+"lg_throttle": 0.015237430141885971,
+"long_scoreboard": 0.03029118339788017,
+"math_pipe_throttle": 0.06499038004787518,
+"selected": 0.07407619888653577,
+"short_scoreboard": 0.03037929703685427,
+"tensor_throttle": 0.045499887628717685,
+"tensor_wait": 0.04306836045407376,
+"tma_wait": 0.09531106497248679,
+"wait": 0.006220948448649736
+},
+"mfu": 0.07869993645124769,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b64_hq16_hkv1_sq1_skv16384_d128",
+"us": 11793.572226349743,
+"count": 126.0,
+"tflops": 734.1841727471203,
+"gbps": 5825.435940986673,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_64x13312x16384_tile128x128",
+"us": 8777.837367092534,
+"count": 126.0,
+"tflops": 801.4680765472237,
+"gbps": 6419.511242626783,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x16384x6656_tile128x128",
+"us": 4441.862204356441,
+"count": 126.0,
+"tflops": 791.9152043874905,
+"gbps": 6473.1274922937055,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x2304x16384_tile128x128_splitk8",
+"us": 1972.9830793680765,
+"count": 126.0,
+"tflops": 617.1483380414952,
+"gbps": 6294.698760405876,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_64x16384x2048_tile128x128",
+"us": 1629.532136408168,
+"count": 126.0,
+"tflops": 664.1978604838608,
+"gbps": 5878.215928354482,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 1254.6493606175413,
+"count": 253.0,
+"tflops": 0.0,
+"gbps": 846.6072142077888,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 125.01599969036589,
+"n_collectives": 252,
+"sim_wall_s": 19.037890672683716,
+"replicas": 9,
+"tok_s_gpu": 205.69911427502592,
+"tok_s_user": 25.71238928437824,
+"tpot_ms": 38.891757158000004
+},
+{
+"model": "llama3-405b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 65536,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa16",
+"total_params_b": 405.849243648,
+"active_params_b": 403.747897344,
+"layers": 126,
+"hidden": 16384,
+"kv_bytes_per_token": 516096.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 101.462310912,
+"kv_cache": 67.645734912
+},
+"memory_total_gb": 169.108045824,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 35272.057586,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 27811.209734160588,
+"latency": 1748.385430248511,
+"comm": 4943.425868999998,
+"launch": 769.036552590901
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 10907.853160994517,
+"gemm": 16822.214787225108,
+"norm_elementwise": 1748.385430248511,
+"lm_head": 81.14178594096668,
+"communication": 4943.425868999998,
+"launch_idle": 769.036552590901
+},
+"sched": {
+"async_wait": 0.5643173337597603,
+"barrier": 9.223886180406733e-05,
+"branch_resolving": 0.003324567328289779,
+"dispatch": 0.03741968669457333,
+"drain": 0.003877297599554783,
+"lg_throttle": 0.015046769271100735,
+"long_scoreboard": 0.012684662595748294,
+"math_pipe_throttle": 0.0673519172203652,
+"selected": 0.07498898488790312,
+"short_scoreboard": 0.030705181883471398,
+"tensor_throttle": 0.04611498270870411,
+"tensor_wait": 0.04378264390047771,
+"tma_wait": 0.09760385973493559,
+"wait": 0.0026898735533115044
+},
+"mfu": 0.031033736431456,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b16_hq16_hkv1_sq1_skv65536_d128",
+"us": 10907.853160994588,
+"count": 126.0,
+"tflops": 809.3039277044206,
+"gbps": 6415.5646475185185,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x13312x16384_tile128x128",
+"us": 8777.837367092534,
+"count": 126.0,
+"tflops": 801.4680765472237,
+"gbps": 6419.511242626783,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x16384x6656_tile128x128",
+"us": 4441.862204356441,
+"count": 126.0,
+"tflops": 791.9152043874905,
+"gbps": 6473.1274922937055,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x2304x16384_tile128x128_splitk8",
+"us": 1972.9830793680765,
+"count": 126.0,
+"tflops": 617.1483380414952,
+"gbps": 6294.698760405876,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x16384x2048_tile128x128",
+"us": 1629.532136408168,
+"count": 126.0,
+"tflops": 664.1978604838608,
+"gbps": 5878.215928354482,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 1241.4543182298846,
+"count": 253.0,
+"tflops": 0.0,
+"gbps": 214.52743938233533,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 47.001706786368395,
+"n_collectives": 252,
+"sim_wall_s": 14.512155055999756,
+"replicas": 9,
+"tok_s_gpu": 56.70210747200156,
+"tok_s_user": 28.35105373600078,
+"tpot_ms": 35.272057586
+},
+{
+"model": "llama3-405b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 65536,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa16",
+"total_params_b": 405.849243648,
+"active_params_b": 403.747897344,
+"layers": 126,
+"hidden": 16384,
+"kv_bytes_per_token": 516096.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 101.462310912,
+"kv_cache": 270.582939648
+},
+"memory_total_gb": 372.04525056,
+"hbm_gb": 288.0,
+"fits": false
+},
+{
+"model": "llama3-405b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 16,
+"context": 131072,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa16",
+"total_params_b": 405.849243648,
+"active_params_b": 403.747897344,
+"layers": 126,
+"hidden": 16384,
+"kv_bytes_per_token": 516096.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 101.462310912,
+"kv_cache": 135.291469824
+},
+"memory_total_gb": 236.753780736,
+"hbm_gb": 288.0,
+"fits": true,
+"step_us": 45068.093366,
+"breakdown_us": {
+"compute": 0.0,
+"hbm": 37604.70717318679,
+"latency": 1748.3854302485054,
+"comm": 4945.964338000002,
+"launch": 769.0364245647033
+},
+"dominant": "hbm",
+"classes_us": {
+"attention": 20701.350600020767,
+"gemm": 16822.214787225057,
+"norm_elementwise": 1748.3854302485054,
+"lm_head": 81.14178594096641,
+"communication": 4945.964338000002,
+"launch_idle": 769.0364245647033
+},
+"sched": {
+"async_wait": 0.5253553497919217,
+"barrier": 6.560323431149257e-05,
+"branch_resolving": 0.003131843172155748,
+"dispatch": 0.05230040545209972,
+"drain": 0.0027584353741673695,
+"lg_throttle": 0.010701744479672887,
+"long_scoreboard": 0.009021738518399698,
+"math_pipe_throttle": 0.09415302512172859,
+"selected": 0.10159801284448212,
+"short_scoreboard": 0.038719205057458524,
+"tensor_throttle": 0.051460302650145784,
+"tensor_wait": 0.031139619357846683,
+"tma_wait": 0.07624928921954717,
+"wait": 0.0033454257260625074
+},
+"mfu": 0.034034172913502005,
+"top_kernels": [
+{
+"name": "sm100_fmha_decode_b16_hq16_hkv1_sq1_skv131072_d128",
+"us": 20701.35060002097,
+"count": 126.0,
+"tflops": 838.164201948757,
+"gbps": 6605.597808669618,
+"bound": "hbm",
+"cls": "attention"
+},
+{
+"name": "sm100_gemm_bf16_16x13312x16384_tile128x128",
+"us": 8777.837367092534,
+"count": 126.0,
+"tflops": 801.4680765472237,
+"gbps": 6419.511242626783,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x16384x6656_tile128x128",
+"us": 4441.862204356441,
+"count": 126.0,
+"tflops": 791.9152043874905,
+"gbps": 6473.1274922937055,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x2304x16384_tile128x128_splitk8",
+"us": 1972.9830793680765,
+"count": 126.0,
+"tflops": 617.1483380414952,
+"gbps": 6294.698760405876,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "sm100_gemm_bf16_16x16384x2048_tile128x128",
+"us": 1629.532136408168,
+"count": 126.0,
+"tflops": 664.1978604838608,
+"gbps": 5878.215928354482,
+"bound": "hbm",
+"cls": "gemm"
+},
+{
+"name": "row_norm",
+"us": 1241.4543182298846,
+"count": 253.0,
+"tflops": 0.0,
+"gbps": 214.52743938233533,
+"bound": "latency",
+"cls": "norm_elementwise"
+}
+],
+"busbw_gbps": 46.97849680121708,
+"n_collectives": 252,
+"sim_wall_s": 21.192124843597412,
+"replicas": 9,
+"tok_s_gpu": 44.37729334937493,
+"tok_s_user": 22.188646674687465,
+"tpot_ms": 45.068093366
+},
+{
+"model": "llama3-405b",
+"system": "gb300",
+"phase": "decode",
+"plan": {
+"tp": 8,
+"ep": 1,
+"pp": 1,
+"dp": 1
+},
+"batch": 64,
+"context": 131072,
+"seqlen": 0,
+"chunk": 0,
+"micro_batches": 1,
+"schedule": "1f1b",
+"launch": "graph",
+"overlap": false,
+"dtype": "bf16",
+"study": "context",
+"tag": "",
+"system_label": "GB300 NVL72",
+"gpu": "GB300 (NVIDIA B300 SXM6 AC)",
+"arch": {
+"kind": "dense",
+"attention": "gqa16",
+"total_params_b": 405.849243648,
+"active_params_b": 403.747897344,
+"layers": 126,
+"hidden": 16384,
+"kv_bytes_per_token": 516096.0
+},
+"world": 8,
+"memory_gb": {
+"weights": 101.462310912,
+"kv_cache": 541.165879296
+},
+"memory_total_gb": 642.628190208,
+"hbm_gb": 288.0,
+"fits": false
+}
+]
+}

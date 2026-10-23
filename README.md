@@ -447,6 +447,20 @@ rep = rs.simulate("configs/mixed_rl_h100_b200.yaml", wl, fast=True)
 
 See [`examples/async_rl_mixed.py`](examples/async_rl_mixed.py).
 
+### 9. Find the best layout, and what bounds it
+
+```bash
+rackscale plan llama3-70b --system gb300 --context 8192 --min-tps-user 30
+rackscale plan qwen3-235b-a22b --system gb300 --context 8192 --json      # for scripts and agents
+rackscale sweep --models llama3-8b,llama3-8b-mla --systems b300,a100 --contexts 8192,131072 --batches 1,64
+```
+
+`plan` simulates every TP (and, for MoE, EP) layout and batch size that fits in HBM, picks the one
+with the most tokens/s per GPU that meets the per-user speed, and splits each step into compute,
+HBM, latency, NVLink communication and launch gaps. Systems are `a100`, `h100`, `b300` and `gb300`.
+The model-size and architecture study built on it is in
+[research/model_sweep/](research/model_sweep/README.md); from Python, use `rackscale.sweep`.
+
 ### Drive it from an agent (MCP) or a script (JSON API)
 
 The simulator is also a tool. `rackscale.api` takes and returns JSON, and `rackscale-mcp` serves
@@ -615,6 +629,10 @@ decode-efficient attention, async RL) side by side at cycle level, validate both
 kernels on the single GPUs we have (B300 and A100), then carry the comparison to NVL72 and
 other systems with the simulator alone. The prioritized list of studies, the method, and the
 simulator work each one needs are in [RESEARCH.md](RESEARCH.md).
+
+A cross-cutting study of what model size, MoE, the attention design, Mamba-2 and context length do
+to GPUs and racks, and how much the serving stack changes it, is in
+[research/model_sweep/](research/model_sweep/README.md).
 
 ---
 
