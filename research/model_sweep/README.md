@@ -62,3 +62,6 @@ at batch 1 (608 µs per token). The page shows both next to the simulator.
   KV paging are not modelled.
 - "No launch gaps" removes gaps between kernels; it does not model the cross-op fusion and overlap a
   real megakernel also does.
+- Rack-scale training points (70B and 405B on GB300 NVL72, 72 ranks) take hours each, because the
+  NCCL-faithful network model simulates every chunk of the gradient all-reduce. The page lists any
+  point still simulating; `run.py` resumes from `results/<study>.jsonl`.

@@ -93,8 +93,7 @@ def findings(data: Dict[str, List[dict]], systems: dict, archs: dict) -> dict:
                  f"{100 * cb:.0f}% of prefills",
                  "are compute-bound (8k-token prompts). Training MFU on HGX B300 at the best layout: " +
                  ", ".join(f"{m} {100 * f:.0f}% ({pl})" for _, m, f, pl in mfus) +
-                 ". Below 8B, attention, norms and elementwise kernels take a larger share; at 405B, pipeline "
-                 "bubbles and TP all-reduces do.")
+                 ".")
         # Generations.
         gen = []
         for m in ("llama3-8b", "llama3-70b"):
@@ -151,23 +150,27 @@ def findings(data: Dict[str, List[dict]], systems: dict, archs: dict) -> dict:
         if ep:
             nums["deepseek_gb300_b128"] = dict(ep=dict(plan=ep["plan"], tok_s_gpu=ep["tok_s_gpu"]),
                                                tp=tp and dict(plan=tp["plan"], tok_s_gpu=tp["tok_s_gpu"]))
-            card("DeepSeek-V3 wants the whole rack", ep["plan"].upper(),
+            big = max((p for p in _sim(ds) if p["plan"].startswith("ep")), key=lambda p: int(p["plan"][2:]))
+            card("DeepSeek-V3 wants expert parallelism", ep["plan"].upper(),
                  f"is the best DeepSeek-V3 layout on GB300 NVL72 at batch 128 per rank: {_k(ep['tok_s_gpu'])} "
-                 "tokens/s per GPU" + (f", against {_k(tp['tok_s_gpu'])} for the best TP layout ({tp['plan']})" if tp else
-                                       " (no TP layout fits: 671B of weights need EP to spread)") +
-                 f". Expert weights are the HBM stream, so spreading 256 experts thinner per GPU is what pays; "
-                 f"all-to-all is {100 * _share(ep, 'comm'):.0f}% of the step.")
+                 "tokens/s per GPU" + (f", {ep['tok_s_gpu'] / tp['tok_s_gpu']:.0f}x the best tensor-parallel layout "
+                                       f"({tp['plan']}, {_k(tp['tok_s_gpu'])})" if tp else "")
+                 + f". Under EP each GPU keeps a few whole experts and serves its own batch, so the expert weights "
+                 f"it streams are shared by many more tokens. Past {ep['plan']} the gain is flat "
+                 f"({big['plan']}: {_k(big['tok_s_gpu'])}); all-to-all is {100 * _share(ep, 'comm'):.0f}% of the step.")
         ov = [(p, _find(moe, model=p["model"], system=p["system"], plan=p["plan"], batch=p["batch"], phase="decode", overlap=None))
               for p in _sim(moe) if p.get("overlap")]
         ov = [(o, b) for o, b in ov if b and b.get("step_us")]
         if ov:
             wins = [(o, b) for o, b in ov if o["step_us"] < b["step_us"]]
             nums["overlap_wins"] = f"{len(wins)}/{len(ov)}"
+            comm = max(100 * _share(b, "comm") for _, b in ov)
             card("Two-micro-batch overlap rarely pays on NVLink", f"wins {len(wins)} of {len(ov)}",
                  "EP layouts at batch 128. Each half-batch re-reads every weight, which costs more than the all-to-all "
-                 "it hides when the fabric is NVLink5. It pays where communication is a large share of the step"
-                 + (": " + ", ".join(f"{o['model']} {o['plan']} ({100 * (1 - o['step_us'] / b['step_us']):.0f}% faster)" for o, b in wins[:3])
-                    if wins else ".") )
+                 f"it hides: on NVLink5 the all-to-all is at most {comm:.0f}% of these steps"
+                 + (". It pays only where communication is a larger share: "
+                    + ", ".join(f"{o['model']} {o['plan']} ({100 * (1 - o['step_us'] / b['step_us']):.0f}% faster)" for o, b in wins[:3])
+                    + "." if wins else ", so there is little to hide. Across racks over InfiniBand, with a slower all-to-all, the balance may differ (not simulated here)."))
 
     ctx = data.get("context", [])
     if ctx:

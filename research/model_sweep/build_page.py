@@ -39,8 +39,14 @@ def slim(r: dict) -> dict:
     return o
 
 
+def _key(r: dict) -> str:
+    import dataclasses
+    import rackscale.sweep as sw
+    return sw.Point(**{f.name: r[f.name] for f in dataclasses.fields(sw.Point) if f.name in r}).key()
+
+
 def main() -> None:
-    data, systems, archs = {}, {}, {}
+    data, systems, archs, pending = {}, {}, {}, {}
     import rackscale.sweep as sw
     from rackscale import models
     for st in sw.STUDIES:
@@ -50,9 +56,13 @@ def main() -> None:
             systems = d["systems"]
         elif os.path.exists(p + "l"):
             # A sweep still running: preview from its checkpoint.
-            d = dict(points=[json.loads(line) for line in open(p + "l") if line.strip()])
+            d = dict(points=list({r["_key"]: r for r in map(json.loads, filter(str.strip, open(p + "l")))}.values()))
         else:
             continue
+        done = {_key(r) for r in d["points"]}
+        left = [pt for pt in sw.study_points(st) if pt.key() not in done]
+        if left:
+            pending[st] = sorted({f"{pt.model} {pt.system} {pt.phase}" for pt in left})
         data[st] = [slim(r) for r in d["points"]]
         for r in d["points"]:
             if "arch" in r:
@@ -62,7 +72,8 @@ def main() -> None:
     sysinfo = {k: dict(label=v["label"], gpus=v["gpus"], provenance=v["provenance"], caveat=v["caveat"],
                        hbm=v["peaks"]["hbm_gb"], bf16=round(v["peaks"]["tflops"]["bf16"]),
                        hbm_tbps=round(v["peaks"]["hbm_gbps"] / 1000, 2)) for k, v in systems.items()}
-    blob = dict(points=data, systems=sysinfo, archs=archs, measured=sw.MEASURED_B300, bound=sw.BOUND)
+    blob = dict(points=data, systems=sysinfo, archs=archs, measured=sw.MEASURED_B300, bound=sw.BOUND,
+                pending=pending)
     fnd = findings(data, sysinfo, archs)
     tpl = open(os.path.join(HERE, "page_template.html")).read()
     html = (tpl.replace("/*__DATA__*/null", json.dumps(blob, separators=(",", ":")))

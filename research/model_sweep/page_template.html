@@ -165,7 +165,7 @@ pre { background: var(--surface); border: 1px solid var(--line); border-radius: 
     <div class="card"><h3>Decode: tokens/s per GPU vs context</h3><div class="legend" id="at-legend"></div><div id="at-dec"></div></div>
     <div class="card"><h3>Decode: attention share of the step</h3><div id="at-share"></div></div>
   </div>
-  <div class="card"><h3>Prefill time (TTFT) vs prompt length, B300</h3><div id="at-pre"></div></div>
+  <div class="card"><h3>Prefill time (TTFT) vs prompt length, one prompt</h3><div id="at-pre" style="max-width: 640px"></div></div>
 </section>
 
 <section id="moe">
@@ -220,7 +220,9 @@ rackscale sweep --study moe --jobs 8 -o moe.json
 python research/model_sweep/run.py && python research/model_sweep/build_page.py
 </pre>
   <p class="sub">The same is available from Python as <code>rackscale.sweep</code> (<code>best_plan</code>, <code>run</code>,
-  <code>study_points</code>, <code>pareto</code>).</p>
+  <code>study_points</code>, <code>pareto</code>), and to agents as the <code>best_layout</code> tool of the rackscale MCP
+  server (<code>claude mcp add rackscale -- rackscale-mcp</code>), next to <code>simulate</code>, <code>find_bottlenecks</code>
+  and <code>what_if</code>.</p>
 </section>
 
 <section id="method">
@@ -512,6 +514,8 @@ function initInfra() {
 function initCaveats() { const ul = $("caveats");
   for (const s of SYS) { const i = D.systems[s]; ul.append(el("li", {text: `${i.label}: ${i.provenance}.` + (i.caveat ? ` ${i.caveat}` : "")})); }
   ul.append(el("li", {text: "Synthetic kernels stand in for the engines' own (FlashAttention-4 / FA2-style attention, CUTLASS-style GEMMs). The measured table above shows how far that is from vLLM, SGLang and a megakernel on the same GPU."}));
+  for (const [st, what] of Object.entries(D.pending || {}))
+    ul.append(el("li", {text: `Still being simulated (${st} study): ${what.join(", ")}. These cells are empty for now.`}));
   ul.append(el("li", {text: "Not modelled: request scheduling over time (each point is one steady-state step), expert-load imbalance, KV-cache paging overheads, and host-side overheads beyond the launch gap."})); }
 
 initMatrix(); renderMatrix(); initExplorer(); initAttention(); initMoE(); initContext(); initInfra(); initCaveats();

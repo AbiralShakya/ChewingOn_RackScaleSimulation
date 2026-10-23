@@ -1,0 +1,150 @@
+{
+ "decode_hbm_bound_fraction": 0.7945205479452054,
+ "gb300_decode_best_20tps": {
+  "llama3.2-1b": {
+   "plan": "1gpu",
+   "batch": 256,
+   "tok_s_gpu": 14519.0
+  },
+  "llama3-8b": {
+   "plan": "tp2",
+   "batch": 256,
+   "tok_s_gpu": 5226.4
+  },
+  "llama3-70b": {
+   "plan": "tp4",
+   "batch": 256,
+   "tok_s_gpu": 1459.3
+  },
+  "llama3-405b": {
+   "plan": "tp8",
+   "batch": 64,
+   "tok_s_gpu": 239.8
+  }
+ },
+ "1b_b1_launch_latency_share": 0.3511737089201878,
+ "prefill_compute_bound_fraction": 0.7121212121212122,
+ "train_mfu_b300": {
+  "llama3.2-1b": {
+   "mfu": 0.4817,
+   "plan": "dp8"
+  },
+  "llama3.2-3b": {
+   "mfu": 0.5009,
+   "plan": "dp8"
+  },
+  "llama3-8b": {
+   "mfu": 0.5124,
+   "plan": "dp8"
+  },
+  "qwen2.5-32b": {
+   "mfu": 0.4865,
+   "plan": "dp8"
+  },
+  "llama3-70b": {
+   "mfu": 0.4673,
+   "plan": "tp2xdp4"
+  }
+ },
+ "b300_over_a100": {
+  "llama3-8b": {
+   "prefill": 7.4373776058498375,
+   "decode": 5.412854481473814
+  },
+  "llama3-70b": {
+   "prefill": 9.649391568883093,
+   "decode": 8.151027207107163
+  }
+ },
+ "kv_bytes_per_token": {
+  "llama3-8b-mha": 524288.0,
+  "llama3-8b": 131072.0,
+  "llama3-8b-mqa": 16384.0,
+  "llama3-8b-mla": 36864.0
+ },
+ "best_decode_128k": {
+  "llama3-8b-mha": {
+   "batch": 1,
+   "tok_s_gpu": 72.7
+  },
+  "llama3-8b": {
+   "batch": 1,
+   "tok_s_gpu": 168.0
+  },
+  "llama3-8b-mqa": {
+   "batch": 64,
+   "tok_s_gpu": 2475.8
+  },
+  "llama3-8b-mla": {
+   "batch": 16,
+   "tok_s_gpu": 661.7
+  },
+  "mamba2-8b": {
+   "batch": 256,
+   "tok_s_gpu": 6878.2
+  },
+  "mamba2-hybrid-8b": {
+   "batch": 64,
+   "tok_s_gpu": 2173.0
+  }
+ },
+ "best_decode_8k": {
+  "llama3-8b-mha": {
+   "batch": 16,
+   "tok_s_gpu": 1053.2
+  },
+  "llama3-8b": {
+   "batch": 64,
+   "tok_s_gpu": 4270.3
+  },
+  "llama3-8b-mqa": {
+   "batch": 256,
+   "tok_s_gpu": 25194.1
+  },
+  "llama3-8b-mla": {
+   "batch": 256,
+   "tok_s_gpu": 9217.8
+  },
+  "mamba2-8b": {
+   "batch": 256,
+   "tok_s_gpu": 6878.2
+  },
+  "mamba2-hybrid-8b": {
+   "batch": 256,
+   "tok_s_gpu": 11652.7
+  }
+ },
+ "deepseek_gb300_b128": {
+  "ep": {
+   "plan": "ep32",
+   "tok_s_gpu": 4731.6
+  },
+  "tp": {
+   "plan": "tp8",
+   "tok_s_gpu": 487.8
+  }
+ },
+ "overlap_wins": "0/30",
+ "70b_4k_to_128k": 2.343949044585987,
+ "1b_b1_launch": {
+  "eager": 1225.9,
+  "graph": 861.6,
+  "megakernel": 763.0
+ },
+ "chunk2048_tpot_increase": 3.2784737671987387,
+ "fp8_speedup": {
+  "decode": [
+   1.455559159841051,
+   1.0810629503797797,
+   1.198307895464177,
+   1.1188187129122775,
+   1.4790565729850504,
+   1.3223989092064978
+  ],
+  "prefill": [
+   2.185943314907352,
+   1.6511153715983768,
+   2.0203775044943346
+  ]
+ }
+}
