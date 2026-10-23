@@ -88,3 +88,13 @@ def test_moe_tp_shards_experts():
     gg = [o["kernel"] for o in ops if o["op"] == "kernel" and o["kernel"]["type"] == "grouped_gemm"]
     assert gg[1]["k"] == m.moe.expert_ffn // 8
     assert sum(1 for o in ops if o.get("kind") == "all_reduce") == 2
+
+
+def test_train_layer_extrapolation_matches_full_run(monkeypatch):
+    pt = sw.Point("llama3.2-1b", "gb300", "train", sw.plan(tp=2, dp=8), batch=1, seqlen=256, micro_batches=2)
+    full = sw.run_point(pt)
+    monkeypatch.setattr(sw, "EXTRAPOLATE_LAYERS", (2, 4))
+    ext = sw.run_point(pt)
+    assert "extrapolated_from_layers" in ext and "extrapolated_from_layers" not in full
+    assert abs(ext["step_us"] / full["step_us"] - 1) < 0.01
+    assert abs(ext["mfu"] / full["mfu"] - 1) < 0.02

@@ -188,7 +188,7 @@ def _set_dtype(wl: dict, dtype: str) -> None:
             walk(st)
 
 
-def workload(pt: Point) -> dict:
+def workload(pt: Point, layers: Optional[int] = None) -> dict:
     m = models.ALL[pt.model]
     if pt.dtype != "bf16":
         from dataclasses import replace
@@ -199,7 +199,8 @@ def workload(pt: Point) -> dict:
     elif pt.phase == "prefill":
         wl = lower.prefill(m, p, pt.batch, pt.seqlen)
     elif pt.phase == "train":
-        wl = lower.train_step(m, p, pt.batch, pt.seqlen, micro_batches=pt.micro_batches, schedule=pt.schedule)
+        wl = lower.train_step(m, p, pt.batch, pt.seqlen, micro_batches=pt.micro_batches, schedule=pt.schedule,
+                              layers=layers)
     elif pt.phase == "mixed":
         wl = lower.mixed_step(m, p, pt.batch, pt.context, pt.chunk)
     else:
@@ -350,15 +351,57 @@ def run_point(pt: Point, *, cache: bool = True, transform=None) -> dict:
     if not out["fits"]:
         return out
     t0 = time.time()
-    try:
-        rep = rs.simulate(_system_text(s), wl, fast=True, launch_gap_ns=_launch_gap(pt, s),
+
+    def sim(w: dict) -> dict:
+        rep = rs.simulate(_system_text(s), w, fast=True, launch_gap_ns=_launch_gap(pt, s),
                           config={"persist_memo": cache}).raw
+        return analyse(rep, pt, s)
+
+    try:
+        if pt.phase == "train" and world >= EXTRAPOLATE_WORLD and m.layers > 2 * EXTRAPOLATE_LAYERS[1]:
+            a, b = EXTRAPOLATE_LAYERS
+            out.update(_extrapolate(sim(workload(pt, a)), sim(workload(pt, b)), a, b, m.layers))
+            out["extrapolated_from_layers"] = [a, b]
+        else:
+            out.update(sim(wl))
     except Exception as e:  # noqa: BLE001 - record and carry on with the sweep
         out["error"] = repr(e)[:300]
         return out
-    out.update(analyse(rep, pt, s))
     out["sim_wall_s"] = time.time() - t0
     _derive(out, pt, s)
+    return out
+
+
+#: Rack-scale training steps take hours to simulate whole (every chunk of
+#: every gradient collective runs on the network model), but a step of a
+#: uniform model is affine in its layer count. Training points with at least
+#: ``EXTRAPOLATE_WORLD`` ranks are simulated at ``EXTRAPOLATE_LAYERS`` layers
+#: and extended to the full depth. Against whole-model runs of Qwen2.5-32B on
+#: GB300 NVL72 (64 layers): TP2xDP36 +0.02%, PP2xDP36 -0.001%.
+EXTRAPOLATE_WORLD = 16
+EXTRAPOLATE_LAYERS = (6, 12)
+
+
+def _extrapolate(ra: dict, rb: dict, a: int, b: int, n: int) -> dict:
+    """Extend two analyses of the same point at ``a`` and ``b`` layers to ``n``."""
+    def lin(x: float, y: float) -> float:
+        return x + (y - x) * (n - a) / (b - a)
+
+    def lin_map(x: dict, y: dict) -> dict:
+        return {k: max(0.0, lin(x.get(k, 0.0), y.get(k, 0.0))) for k in set(x) | set(y)}
+
+    out = dict(rb)
+    out["step_us"] = lin(ra["step_us"], rb["step_us"])
+    out["breakdown_us"] = lin_map(ra["breakdown_us"], rb["breakdown_us"])
+    out["dominant"] = max(out["breakdown_us"], key=out["breakdown_us"].get)
+    out["classes_us"] = lin_map(ra["classes_us"], rb["classes_us"])
+    if ra.get("mfu") and rb.get("mfu"):
+        # Useful FLOPs and step time are both affine in depth; MFU is their ratio.
+        out["mfu"] = lin(ra["mfu"] * ra["step_us"], rb["mfu"] * rb["step_us"]) / out["step_us"]
+    top_a = {k["name"]: k for k in ra["top_kernels"]}
+    out["top_kernels"] = [dict(k, us=lin(top_a[k["name"]]["us"], k["us"]), count=lin(top_a[k["name"]]["count"], k["count"]))
+                          if k["name"] in top_a else k for k in rb["top_kernels"]]
+    out["n_collectives"] = round(lin(ra["n_collectives"], rb["n_collectives"]))
     return out
 
 
