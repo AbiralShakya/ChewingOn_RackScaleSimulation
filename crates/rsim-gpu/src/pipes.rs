@@ -37,6 +37,9 @@ pub struct Timing {
     /// Fractional part of a measured issue interval (e.g. 0.033 for an
     /// FFMA measured at 1.033 cycles); accumulated per SMSP pipe.
     pub ii_frac: f32,
+    /// The unit is shared by the SM's sub-partitions (`OpTiming::sm_shared`):
+    /// `ii`/`ii_frac` are then the SM-wide interval.
+    pub sm_shared: bool,
 }
 
 pub fn mma_shape(inst: &Inst) -> Option<(u64, u64, u64)> {
@@ -108,6 +111,7 @@ pub fn timing(g: &GpuSpec, inst: &Inst) -> Timing {
         lat,
         sb,
         ii_frac: 0.0,
+        sm_shared: false,
     };
     let mut out = class_timing(g, inst, l, p, ii, t);
     // Measured per-opcode timing (calibration.json) for fixed/short-latency ops.
@@ -125,9 +129,19 @@ pub fn timing(g: &GpuSpec, inst: &Inst) -> Timing {
         if let Some(m) = m {
             out.lat = m.latency;
             out.ii = m.issue_interval;
-            if m.issue_interval_exact >= 1.0 {
-                out.ii = m.issue_interval_exact.floor() as u32;
-                out.ii_frac = (m.issue_interval_exact - m.issue_interval_exact.floor()) as f32;
+            let exact = if m.issue_interval_exact >= 1.0 {
+                m.issue_interval_exact
+            } else {
+                m.issue_interval as f64
+            };
+            if m.sm_shared {
+                let sm = exact / g.sub_partitions.max(1) as f64;
+                out.sm_shared = true;
+                out.ii = sm.floor() as u32;
+                out.ii_frac = (sm - sm.floor()) as f32;
+            } else if m.issue_interval_exact >= 1.0 {
+                out.ii = exact.floor() as u32;
+                out.ii_frac = (exact - exact.floor()) as f32;
             }
         }
     }

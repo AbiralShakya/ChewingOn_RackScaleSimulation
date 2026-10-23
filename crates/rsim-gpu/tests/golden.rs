@@ -53,13 +53,13 @@ fn hopper_gemm_and_attention() {
         GpuConfig::default(),
         synth::gemm(&g, 1024, 1024, 1024, "bf16"),
     );
-    check("h100 gemm 1024^3", &d, 19767, 0xc081_bcd8_390e_6380);
+    check("h100 gemm 1024^3", &d, 19767, 0x2e09_7673_23d0_954a);
     let d = run(
         g.clone(),
         GpuConfig::default(),
         synth::attention(&g, 1, 16, 16, 1024, 1024, 128, true),
     );
-    check("h100 attention", &d, 19112, 0x40c5_e561_08a0_cc65);
+    check("h100 attention", &d, 19112, 0x1575_a50e_339b_b7bf);
 }
 
 #[test]
@@ -70,13 +70,13 @@ fn blackwell_gemm_and_elementwise() {
         GpuConfig::default(),
         synth::gemm(&g, 2048, 2048, 1024, "bf16"),
     );
-    check("b300 gemm", &d, 18318, 0x71c2_fb43_7c4b_08cc);
+    check("b300 gemm", &d, 18145, 0x4ee7_78dd_98ed_9e7b);
     let d = run(
         g.clone(),
         GpuConfig::default(),
         synth::elementwise("add", 1 << 24, 2, 2.0, 1),
     );
-    check("b300 elementwise", &d, 21900, 0x0656_5ed7_75dc_50c8);
+    check("b300 elementwise", &d, 21847, 0x691a_3c78_9a4d_c563);
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn ampere_gemm_round_robin() {
         ..Default::default()
     };
     let d = run(g.clone(), cfg, synth::gemm(&g, 1024, 1024, 2048, "bf16"));
-    check("a100 gemm lrr", &d, 45174, 0x706d_8e8f_3c6f_3a67);
+    check("a100 gemm lrr", &d, 45429, 0xefa1_2a87_cc0d_f905);
 }
 
 /// FA4 replayed from its NVBit recording on the calibrated B300: exact
@@ -109,5 +109,5 @@ fn fa4_recording_on_calibrated_b300() {
     .unwrap();
     let d = run(g, GpuConfig::default(), KernelLaunch::from_path(p));
     assert!(d.stats.warp_by_index.len() > 1, "per-role stalls recorded");
-    check("b300 fa4 c1024 kv8", &d, 49759, 0x2cdb_dfa6_08cd_d4b9);
+    check("b300 fa4 c1024 kv8", &d, 49398, 0x464f_c757_c6d3_d921);
 }
