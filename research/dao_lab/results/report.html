@@ -1,0 +1,307 @@
+<title>Mixers on the Rack</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a lab notebook. One reading column of prose; each study gets a full-width figure band
+   with its chart, a one-line takeaway and a table toggle. Mixers keep one colour everywhere. */
+:root {
+  --plane: #f4f6f6; --surface: #fdfefe; --ink: #0e1414; --ink-2: #47524f; --muted: #7b8683;
+  --grid: #e0e5e4; --axis: #bcc5c3; --line: rgba(14,20,20,.11); --accent: #0f6e6a; --accent-wash: #e2f0ee;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif;
+  --f-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --plane: #0b0f0f; --surface: #141a1a; --ink: #edf2f1; --ink-2: #b6c1be; --muted: #869290;
+  --grid: #243030; --axis: #3a4847; --line: rgba(255,255,255,.10); --accent: #5cc4bc; --accent-wash: #15302d;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --plane: #0b0f0f; --surface: #141a1a; --ink: #edf2f1; --ink-2: #b6c1be; --muted: #869290;
+  --grid: #243030; --axis: #3a4847; --line: rgba(255,255,255,.10); --accent: #5cc4bc; --accent-wash: #15302d;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--plane); color: var(--ink); font: 17px/1.6 var(--f-body); margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 1120px; margin: 0 auto; padding-block: 44px 88px; display: grid; gap: 64px }
+.prose { max-width: 68ch }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: .005em; line-height: 1.1 }
+h1 { font-size: clamp(34px, 5.4vw, 58px); font-weight: 700 }
+h2 { font-size: 30px; font-weight: 700; margin-bottom: 10px }
+h3 { font-size: 19px; font-weight: 600; margin-bottom: 6px }
+p { margin: 0 0 14px }
+.kicker { font: 600 13px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 14px }
+.lede { font-size: 20px; color: var(--ink-2); max-width: 62ch; margin-top: 16px }
+code, .mono { font-family: var(--f-mono); font-size: .86em }
+a { color: var(--accent) }
+section { display: grid; gap: 20px }
+.fig { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 20px 14px; display: grid; gap: 12px; min-width: 0 }
+.fig-head { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: baseline; justify-content: space-between }
+.fig-title { font: 600 17px/1.3 var(--f-display) }
+.fig-note { font-size: 14px; color: var(--ink-2) }
+.controls { display: flex; flex-wrap: wrap; gap: 6px }
+.controls button { font: 500 13px/1 var(--f-display); letter-spacing: .03em; padding: 7px 11px; border-radius: 6px;
+  border: 1px solid var(--line); background: transparent; color: var(--ink-2); cursor: pointer }
+.controls button[aria-pressed="true"] { background: var(--accent-wash); color: var(--ink); border-color: var(--accent) }
+.controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.chart { position: relative; width: 100%; min-width: 0 }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font: 500 14px/1.2 var(--f-display); color: var(--ink-2) }
+.legend span { display: inline-flex; align-items: center; gap: 6px }
+.legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block }
+.legend i.dash { background: none !important; border-top: 2px dashed currentColor; height: 0 }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font: 13px/1.4 var(--f-mono); color: var(--ink); box-shadow: 0 6px 20px rgba(0,0,0,.12); white-space: nowrap; z-index: 5 }
+.tip b { font-family: var(--f-display); font-size: 14px }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px }
+.take { border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; color: var(--ink); max-width: 72ch }
+details { font-size: 14px }
+details summary { cursor: pointer; color: var(--accent); font-family: var(--f-display); font-weight: 600 }
+.tbl { overflow-x: auto; margin-top: 8px }
+table { border-collapse: collapse; font: 13px/1.4 var(--f-mono); font-variant-numeric: tabular-nums; min-width: 100% }
+th, td { text-align: right; padding: 5px 9px; border-bottom: 1px solid var(--line); white-space: nowrap }
+th:first-child, td:first-child { text-align: left }
+th { font-family: var(--f-display); font-size: 13px; color: var(--ink-2); font-weight: 600 }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px }
+.fact { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px }
+.fact .n { font: 700 30px/1 var(--f-display); font-variant-numeric: tabular-nums }
+.fact .l { font-size: 14px; color: var(--ink-2); margin-top: 6px }
+ul { margin: 0 0 14px; padding-left: 22px }
+li { margin-bottom: 6px }
+footer { font-size: 14px; color: var(--muted); max-width: 72ch }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+
+<main>
+<header class="prose" style="max-width:none">
+  <div class="kicker">rackscale · Dao Lab studies</div>
+  <h1>Mixers on the rack</h1>
+  <p class="lede" id="lede">How FlashAttention-style attention, MLA, Mamba-2, linear attention and Gated DeltaNet, and
+    the decode-time attention variants GTA and GLA, behave on one B300, an 8-GPU node and a 72-GPU NVL72 rack.
+    Every kernel runs on the cycle-level B300 model and every transfer on the simulated NVLink fabric.</p>
+</header>
+
+<section id="summary"><!--SUMMARY--></section>
+
+<section id="prefill">
+  <div class="prose"><div class="kicker">Study A · one GPU</div><h2>Prefill: what one mixer block costs, 1k to 1M tokens</h2>
+  <!--PREFILL_PROSE--></div>
+  <div class="fig"><div class="fig-head"><div class="fig-title">Time for one mixer block, batch 1, one B300</div>
+    <div class="controls" id="pf-ctl"></div></div>
+    <div class="legend" id="pf-leg"></div><div class="chart" id="pf-chart"></div>
+    <div class="fig-note">Blocks at d_model 4096 (the 8B-class models in <code>rackscale.models</code>): projections, conv, the scan or attention kernel, norm and output projection. Hollow markers use the long-context fast path.</div>
+    <details><summary>Table</summary><div class="tbl" id="pf-tbl"></div></details></div>
+</section>
+
+<section id="decode">
+  <div class="prose"><div class="kicker">Study B · kernel and rack</div><h2>Decode attention: GQA, MQA, GTA, MLA and GLA</h2>
+  <!--DECODE_PROSE--></div>
+  <div class="grid2">
+    <div class="fig"><div class="fig-head"><div class="fig-title">Decode attention per layer and rank vs tensor parallelism</div></div>
+      <div class="controls" id="dk-ctl"></div>
+      <div class="legend" id="dk-leg"></div><div class="chart" id="dk-chart"></div>
+      <div class="fig-note">Llama-3-70B body (64 query heads). 256k cached tokens per rank (16 sequences x 16k). Solid: split-block schedule; dashed: single-warpgroup FA4 chain.</div></div>
+    <div class="fig"><div class="fig-head"><div class="fig-title">KV-cache bandwidth the kernel reaches</div></div>
+      <div class="legend" id="dk2-leg"></div><div class="chart" id="dk2-chart"></div>
+      <div class="fig-note">Bytes of KV cache read per second, same points, split-block schedule. B300 HBM peak 8 TB/s.</div></div>
+  </div>
+  <div class="fig"><div class="fig-head"><div class="fig-title">Whole decode step on GB300 NVL72: tokens per second per GPU at the largest batch that fits</div>
+    <div class="controls" id="dr-ctl"></div></div>
+    <div class="legend" id="dr-leg"></div><div class="chart" id="dr-chart"></div>
+    <div class="fig-note">All 80 layers and the LM head; batch per replica is the largest power of two up to 512 that fits in 288 GB with weights. 9 TP8 or 18 TP4 replicas share the rack.</div>
+    <details><summary>Table</summary><div class="tbl" id="dr-tbl"></div></details></div>
+</section>
+
+<section id="cp">
+  <div class="prose"><div class="kicker">Study C · GPU, node, rack</div><h2>One long prompt over 72 GPUs: ring attention vs state passing</h2>
+  <!--CP_PROSE--></div>
+  <div class="fig"><div class="fig-head"><div class="fig-title">Time to first token for one prompt, context parallel</div>
+    <div class="controls" id="cp-ctl"></div></div>
+    <div class="legend" id="cp-leg"></div><div class="chart" id="cp-chart"></div>
+    <div class="fig-note">Whole 8B-class models, no TP. 1 GPU and 8 GPUs: HGX B300; 72 GPUs: GB300 NVL72.</div>
+    <details><summary>Table</summary><div class="tbl" id="cp-tbl"></div></details></div>
+</section>
+
+<section id="method">
+  <div class="prose"><div class="kicker">Method</div><h2>How these numbers were made</h2>
+  <!--METHOD_PROSE--></div>
+  <div class="fig"><div class="fig-head"><div class="fig-title">Long-context fast path vs full cycle-level runs</div></div>
+    <div class="tbl" id="ex-tbl"></div></div>
+</section>
+
+<footer id="foot"></footer>
+</main>
+
+<script>
+const D = {"extrap":[],"prefill":[{"mixer":"GQA-8 (FA4)","s":1024,"ms":0.0738,"fast":[],"parts":{"qkv_proj":36.0,"o_proj":21.6,"attention":9.5,"residual":3.4}},{"mixer":"MLA","s":1024,"ms":0.0863,"fast":[],"parts":{"o_proj":21.6,"q_b_proj":14.3,"q_a_proj":13.4,"mla_prefill":13.0}},{"mixer":"Mamba-2 (SSD)","s":1024,"ms":0.257,"fast":[],"parts":{"in_proj":92.5,"ssd_chunk_scan":59.6,"out_proj":40.7,"ssd_chunk_state":16.6}},{"mixer":"Linear attn (scalar gate)","s":1024,"ms":0.1789,"fast":[],"parts":{"in_proj":81.4,"lin_chunk_scan":27.3,"out_proj":21.6,"lin_chunk_state":12.6}},{"mixer":"Gated DeltaNet","s":1024,"ms":0.211,"fast":[],"parts":{"in_proj":81.4,"delta_wy":27.3,"lin_chunk_scan":27.3,"out_proj":21.6}},{"mixer":"GQA-8 (FA4)","s":2048,"ms":0.1569,"fast":[],"parts":{"qkv_proj":74.4,"o_proj":38.7,"attention":33.0,"residual":5.8}},{"mixer":"MLA","s":2048,"ms":0.1722,"fast":[],"parts":{"mla_prefill":45.5,"o_proj":38.7,"q_b_proj":29.6,"q_a_proj":21.1}},{"mixer":"Mamba-2 (SSD)","s":2048,"ms":0.507,"fast":[],"parts":{"in_proj":208.5,"ssd_chunk_scan":115.6,"out_proj":84.0,"ssd_chunk_state":30.8}},{"mixer":"Linear attn (scalar gate)","s":2048,"ms":0.313,"fast":[],"parts":{"in_proj":141.9,"lin_chunk_scan":48.5,"out_proj":38.7,"lin_chunk_state":25.1}},{"mixer":"Gated DeltaNet","s":2048,"ms":0.3708,"fast":[],"parts":{"in_proj":142.0,"delta_wy":48.5,"lin_chunk_scan":48.5,"out_proj":38.7}},{"mixer":"GQA-8 (FA4)","s":4096,"ms":0.3703,"fast":[],"parts":{"qkv_proj":141.6,"attention":121.5,"o_proj":87.8,"residual":10.7}}],"dec_k":[{"label":"GQA-8","tp":1,"batch":64,"context":4096,"wg":1,"us":187.79,"gbps":5718,"ai":8.0,"kv_mb":1073.7,"d":128,"hq":64,"hkv":8},{"label":"GQA-8","tp":1,"batch":16,"context":16384,"wg":1,"us":181.46,"gbps":5917,"ai":8.0,"kv_mb":1073.7,"d":128,"hq":64,"hkv":8},{"label":"GQA-8","tp":1,"batch":4,"context":65536,"wg":1,"us":164.19,"gbps":6539,"ai":8.0,"kv_mb":1073.7,"d":128,"hq":64,"hkv":8},{"label":"GQA-8","tp":1,"batch":1,"context":262144,"wg":1,"us":165.53,"gbps":6487,"ai":8.0,"kv_mb":1073.7,"d":128,"hq":64,"hkv":8},{"label":"GQA-8","tp":1,"batch":1,"context":1048576,"wg":1,"us":637.82,"gbps":6734,"ai":8.0,"kv_mb":4295.0,"d":128,"hq":64,"hkv":8},{"label":"GQA-8","tp":2,"batch":64,"context":4096,"wg":1,"us":93.54,"gbps":5739,"ai":8.0,"kv_mb":536.9,"d":128,"hq":32,"hkv":4},{"label":"GQA-8","tp":2,"batch":16,"context":16384,"wg":1,"us":93.54,"gbps":5739,"ai":8.0,"kv_mb":536.9,"d":128,"hq":32,"hkv":4},{"label":"GQA-8","tp":2,"batch":4,"context":65536,"wg":1,"us":86.48,"gbps":6208,"ai":8.0,"kv_mb":536.9,"d":128,"hq":32,"hkv":4},{"label":"GQA-8","tp":2,"batch":1,"context":262144,"wg":1,"us":85.82,"gbps":6255,"ai":8.0,"kv_mb":536.9,"d":128,"hq":32,"hkv":4},{"label":"GQA-8","tp":2,"batch":1,"context":1048576,"wg":1,"us":322.0,"gbps":6669,"ai":8.0,"kv_mb":2147.5,"d":128,"hq":32,"hkv":4},{"label":"GQA-8","tp":4,"batch":64,"context":4096,"wg":1,"us":49.64,"gbps":5408,"ai":8.0,"kv_mb":268.4,"d":128,"hq":16,"hkv":2},{"label":"GQA-8","tp":4,"batch":16,"context":16384,"wg":1,"us":47.33,"gbps":5671,"ai":8.0,"kv_mb":268.4,"d":128,"hq":16,"hkv":2},{"label":"GQA-8","tp":4,"batch":4,"context":65536,"wg":1,"us":45.76,"gbps":5866,"ai":8.0,"kv_mb":268.4,"d":128,"hq":16,"hkv":2},{"label":"GQA-8","tp":4,"batch":1,"context":262144,"wg":1,"us":45.76,"gbps":5866,"ai":8.0,"kv_mb":268.4,"d":128,"hq":16,"hkv":2},{"label":"GQA-8","tp":4,"batch":1,"context":1048576,"wg":1,"us":165.53,"gbps":6487,"ai":8.0,"kv_mb":1073.7,"d":128,"hq":16,"hkv":2},{"label":"GQA-8","tp":8,"batch":64,"context":4096,"wg":1,"us":27.63,"gbps":4858,"ai":8.0,"kv_mb":134.2,"d":128,"hq":8,"hkv":1},{"label":"GQA-8","tp":8,"batch":16,"context":16384,"wg":1,"us":27.87,"gbps":4816,"ai":8.0,"kv_mb":134.2,"d":128,"hq":8,"hkv":1},{"label":"GQA-8","tp":8,"batch":4,"context":65536,"wg":1,"us":25.89,"gbps":5184,"ai":8.0,"kv_mb":134.2,"d":128,"hq":8,"hkv":1},{"label":"GQA-8","tp":8,"batch":1,"context":262144,"wg":1,"us":25.89,"gbps":5184,"ai":8.0,"kv_mb":134.2,"d":128,"hq":8,"hkv":1}],"dec_r":[],"cp":[],"commit":"d8f2d9e"};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const NS = "http://www.w3.org/2000/svg";
+const el = (t, a = {}, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+const fmt = (v, d = 1) => v >= 1e6 ? (v / 1e6).toFixed(d) + "M" : v >= 1e3 ? (v / 1e3).toFixed(v >= 1e4 ? 0 : d) + "k" : (+v).toFixed(d);
+const tok = s => s >= 1048576 ? (s / 1048576).toFixed(s % 1048576 ? 2 : 0) + "M" : s >= 1024 ? Math.round(s / 1024) + "k" : "" + s;
+
+function legend(id, items) {
+  const L = document.getElementById(id); L.innerHTML = "";
+  for (const it of items) { const s = document.createElement("span"); const i = document.createElement("i");
+    i.style.background = it.color; if (it.dash) { i.className = "dash"; i.style.color = it.color; } s.append(i, it.label); L.append(s); }
+}
+
+// Line chart: series [{label,color,dash,pts:[{x,y,hollow,tip}]}], log or linear axes.
+function lineChart(id, series, o) {
+  const host = document.getElementById(id); host.innerHTML = "";
+  const W = 760, H = o.h || 340, m = {l: 62, r: 18, t: 12, b: 42};
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": o.aria || ""}, host);
+  const xs = series.flatMap(s => s.pts.map(p => p.x)), ys = series.flatMap(s => s.pts.map(p => p.y)).filter(v => v > 0);
+  const lx = o.logx, ly = o.logy;
+  const x0 = o.xmin ?? Math.min(...xs), x1 = Math.max(o.xmax ?? Math.max(...xs), x0 * 1.0001 + 1e-9);
+  let y0 = o.ymin ?? (ly ? Math.min(...ys) / 1.3 : 0), y1 = o.ymax ?? Math.max(...ys) * 1.08;
+  const f = (v, a, b, lg) => lg ? (Math.log(v) - Math.log(a)) / (Math.log(b) - Math.log(a)) : (v - a) / (b - a);
+  const X = v => m.l + f(v, x0, x1, lx) * (W - m.l - m.r), Y = v => H - m.b - f(v, y0, y1, ly) * (H - m.t - m.b);
+  const g = el("g", {}, svg);
+  const yt = o.yticks || (ly ? (() => { const t = []; for (let e = Math.floor(Math.log10(y0)); e <= Math.ceil(Math.log10(y1)); e++) for (const k of [1, 3]) { const v = k * 10 ** e; if (v >= y0 && v <= y1) t.push(v); } return t; })()
+    : (() => { const t = [], st = niceStep((y1 - y0) / 5); for (let v = Math.ceil(y0 / st) * st; v <= y1 + 1e-9; v += st) t.push(+v.toFixed(6)); return t; })());
+  for (const v of yt) { el("line", {x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), stroke: css("--grid"), "stroke-width": 1}, g);
+    el("text", {x: m.l - 8, y: Y(v) + 4, "text-anchor": "end", "font-size": 12, fill: css("--muted"), "font-family": css("--f-mono")}, g).textContent = (o.yfmt || fmt)(v); }
+  const xt = o.xticks || [...new Set(xs)].sort((a, b) => a - b);
+  for (const v of xt) el("text", {x: X(v), y: H - m.b + 18, "text-anchor": "middle", "font-size": 12, fill: css("--muted"), "font-family": css("--f-mono")}, g).textContent = (o.xfmt || fmt)(v);
+  el("line", {x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: css("--axis")}, g);
+  if (o.xlabel) el("text", {x: (m.l + W - m.r) / 2, y: H - 6, "text-anchor": "middle", "font-size": 13, fill: css("--ink-2"), "font-family": css("--f-display")}, g).textContent = o.xlabel;
+  if (o.ylabel) el("text", {x: 14, y: (m.t + H - m.b) / 2, transform: `rotate(-90 14 ${(m.t + H - m.b) / 2})`, "text-anchor": "middle", "font-size": 13, fill: css("--ink-2"), "font-family": css("--f-display")}, g).textContent = o.ylabel;
+  if (o.ref != null) el("line", {x1: m.l, x2: W - m.r, y1: Y(o.ref), y2: Y(o.ref), stroke: css("--ink-2"), "stroke-dasharray": "4 4", "stroke-width": 1}, g);
+  const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; host.appendChild(tip);
+  const all = [];
+  for (const s of series) {
+    const pts = s.pts.filter(p => p.y > 0).sort((a, b) => a.x - b.x);
+    el("path", {d: pts.map((p, i) => (i ? "L" : "M") + X(p.x).toFixed(1) + "," + Y(p.y).toFixed(1)).join(""), fill: "none", stroke: s.color, "stroke-width": 2,
+      "stroke-dasharray": s.dash ? "6 5" : "none", "stroke-linejoin": "round"}, svg);
+    for (const p of pts) { el("circle", {cx: X(p.x), cy: Y(p.y), r: 4, fill: p.hollow ? css("--surface") : s.color, stroke: p.hollow ? s.color : css("--surface"), "stroke-width": 2}, svg);
+      all.push({sx: X(p.x), sy: Y(p.y), s, p}); }
+    if (o.endLabels && pts.length) { const p = pts[pts.length - 1];
+      el("text", {x: X(p.x) + 6, y: Y(p.y) + 4, "font-size": 12, fill: css("--ink-2"), "font-family": css("--f-display")}, svg).textContent = s.short || s.label; }
+  }
+  const hit = el("rect", {x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent"}, svg);
+  hit.addEventListener("mousemove", ev => {
+    const r = svg.getBoundingClientRect(), k = W / r.width, mx = (ev.clientX - r.left) * k, my = (ev.clientY - r.top) * k;
+    let best = null, bd = 1e9; for (const a of all) { const d = Math.hypot(a.sx - mx, (a.sy - my) * 0.6); if (d < bd) { bd = d; best = a; } }
+    if (!best || bd > 60) { tip.hidden = true; return; }
+    tip.innerHTML = `<b style="color:${best.s.color}">●</b> <b>${best.s.label}</b><br>${best.p.tip}`; tip.hidden = false;
+    const tx = best.sx / k, ty = best.sy / k; tip.style.left = Math.min(tx + 12, r.width - tip.offsetWidth - 4) + "px"; tip.style.top = Math.max(0, ty - tip.offsetHeight - 10) + "px";
+  });
+  hit.addEventListener("mouseleave", () => tip.hidden = true);
+}
+function niceStep(r) { const e = 10 ** Math.floor(Math.log10(r)), f = r / e; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * e; }
+
+// Grouped bar chart: groups [{label, bars:[{label,color,v,tip}]}]
+function barChart(id, groups, o) {
+  const host = document.getElementById(id); host.innerHTML = "";
+  const W = 760, H = o.h || 320, m = {l: 62, r: 12, t: 12, b: 46};
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": o.aria || ""}, host);
+  const vmax = Math.max(...groups.flatMap(g => g.bars.map(b => b.v))) * 1.1 || 1, st = niceStep(vmax / 5);
+  const Y = v => H - m.b - v / vmax * (H - m.t - m.b);
+  for (let v = 0; v <= vmax; v += st) { el("line", {x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), stroke: css("--grid")}, svg);
+    el("text", {x: m.l - 8, y: Y(v) + 4, "text-anchor": "end", "font-size": 12, fill: css("--muted"), "font-family": css("--f-mono")}, svg).textContent = fmt(v, 0); }
+  if (o.ylabel) el("text", {x: 14, y: (m.t + H - m.b) / 2, transform: `rotate(-90 14 ${(m.t + H - m.b) / 2})`, "text-anchor": "middle", "font-size": 13, fill: css("--ink-2"), "font-family": css("--f-display")}, svg).textContent = o.ylabel;
+  const gw = (W - m.l - m.r) / groups.length, tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; host.appendChild(tip);
+  groups.forEach((g, gi) => {
+    const n = g.bars.length, bw = Math.min(30, (gw - 18) / n - 2), x0 = m.l + gi * gw + (gw - n * (bw + 2)) / 2;
+    g.bars.forEach((b, bi) => {
+      const x = x0 + bi * (bw + 2), y = Y(b.v), h = Math.max(0, H - m.b - y);
+      const r = el("path", {d: `M${x},${H - m.b}V${y + 3}q0,-3 3,-3h${bw - 6}q3,0 3,3V${H - m.b}Z`, fill: b.color}, svg);
+      const hit = el("rect", {x: x - 1, y: m.t, width: bw + 2, height: H - m.t - m.b, fill: "transparent"}, svg);
+      hit.addEventListener("mousemove", () => { const rr = svg.getBoundingClientRect(), k = W / rr.width;
+        tip.innerHTML = `<b>${b.label}</b> · ${g.label}<br>${b.tip}`; tip.hidden = false; r.setAttribute("opacity", .8);
+        tip.style.left = Math.min(x / k + 8, rr.width - tip.offsetWidth - 4) + "px"; tip.style.top = Math.max(0, y / k - tip.offsetHeight - 8) + "px"; });
+      hit.addEventListener("mouseleave", () => { tip.hidden = true; r.setAttribute("opacity", 1); });
+    });
+    el("text", {x: m.l + gi * gw + gw / 2, y: H - m.b + 18, "text-anchor": "middle", "font-size": 13, fill: css("--ink-2"), "font-family": css("--f-display")}, svg).textContent = g.label;
+  });
+  el("line", {x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: css("--axis")}, svg);
+}
+
+function table(id, cols, rows) {
+  const t = document.createElement("table"), h = t.createTHead().insertRow();
+  for (const c of cols) { const th = document.createElement("th"); th.textContent = c[0]; h.append(th); }
+  const b = t.createTBody(); for (const r of rows) { const tr = b.insertRow(); for (const c of cols) tr.insertCell().textContent = c[1](r); }
+  const host = document.getElementById(id); host.innerHTML = ""; host.append(t);
+}
+function toggle(id, opts, cb) {
+  const c = document.getElementById(id);
+  if (opts) c.innerHTML = opts.map((o, i) => `<button data-v="${o[0]}" aria-pressed="${i === 0}">${o[1]}</button>`).join("");
+  c.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { c.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); cb(b.dataset.v); }));
+  cb(c.querySelector("button").dataset.v);
+}
+
+const MIX = ["GQA-8 (FA4)", "MLA", "Mamba-2 (SSD)", "Linear attn (scalar gate)", "Gated DeltaNet"];
+const MCOL = ["--s1", "--s2", "--s3", "--s4", "--s5"];
+const DEC = ["GQA-8", "MQA", "GTA-8", "MLA", "GLA-2"];
+const DCOL = ["--s1", "--s7", "--s3", "--s2", "--s5"];
+const CPM = {"llama3-8b": "GQA-8 attention", "llama3-8b-gta8": "GTA-8 attention", "mamba2-8b": "Mamba-2", "gla-8b": "Linear attn", "gdn-8b": "Gated DeltaNet", "gdn-hybrid-8b": "GDN 3:1 hybrid"};
+const CCOL = {"llama3-8b": "--s1", "llama3-8b-gta8": "--s7", "mamba2-8b": "--s3", "gla-8b": "--s4", "gdn-8b": "--s5", "gdn-hybrid-8b": "--s8"};
+
+function drawPrefill(mode) {
+  const rows = D.prefill; if (!rows.length) return;
+  const gqa = Object.fromEntries(rows.filter(r => r.mixer === MIX[0]).map(r => [r.s, r.ms]));
+  const ser = MIX.map((mx, i) => ({label: mx, color: css(MCOL[i]), pts: rows.filter(r => r.mixer === mx).map(r => ({x: r.s,
+    y: mode === "rel" ? r.ms / gqa[r.s] : r.ms, hollow: r.fast.length > 0,
+    tip: `${tok(r.s)} tokens: ${r.ms < 1 ? (r.ms * 1e3).toFixed(0) + " µs" : r.ms.toFixed(r.ms < 10 ? 2 : 1) + " ms"} · ${(r.ms / gqa[r.s]).toFixed(2)}× GQA<br>${(r.ms * 1e6 / r.s).toFixed(1)} ns/token`}))}));
+  legend("pf-leg", ser);
+  lineChart("pf-chart", ser, {logx: true, logy: mode === "abs", xfmt: tok, xlabel: "prompt tokens", ylabel: mode === "rel" ? "time / GQA attention block" : "ms per block",
+    yfmt: mode === "rel" ? v => v.toFixed(v < 1 ? 2 : 1) + "×" : v => v < 1 ? v.toFixed(v < 0.1 ? 2 : 1) : fmt(v, 0), ref: mode === "rel" ? 1 : null, ymin: mode === "rel" ? 0 : undefined});
+}
+
+function drawDecodeK(shape) {
+  const [b, ctx] = shape.split("x").map(Number);
+  const rows = D.dec_k.filter(r => r.batch === b && r.context === ctx); if (!rows.length) return;
+  const ser = [];
+  DEC.forEach((lb, i) => { for (const wg of [2, 1]) ser.push({label: lb + (wg === 1 ? " (FA4 chain)" : ""), short: lb, dash: wg === 1, color: css(DCOL[i]),
+    pts: rows.filter(r => r.label === lb && r.wg === wg).map(r => ({x: r.tp, y: r.us, tip: `TP${r.tp}: ${r.us.toFixed(1)} µs · ${(r.gbps / 1e3).toFixed(2)} TB/s<br>${r.kv_mb} MB KV per rank · ${r.hq} q heads on ${r.hkv} KV head(s), d=${r.d}`}))}); });
+  legend("dk-leg", ser.filter(s => !s.dash).map(s => ({label: s.short, color: s.color})).concat([{label: "FA4 single-warpgroup chain", color: css("--ink-2"), dash: true}]));
+  lineChart("dk-chart", ser, {logx: true, logy: true, xticks: [1, 2, 4, 8], xmin: 1, xmax: 8, xfmt: v => "TP" + v, xlabel: "tensor-parallel degree", ylabel: "µs per layer per rank", h: 320});
+  const s2 = DEC.map((lb, i) => ({label: lb, color: css(DCOL[i]), pts: rows.filter(r => r.label === lb && r.wg === 2).map(r => ({x: r.tp, y: r.gbps / 1e3, tip: `TP${r.tp}: ${(r.gbps / 1e3).toFixed(2)} TB/s · ${r.ai} FLOP/byte`}))}));
+  legend("dk2-leg", s2);
+  lineChart("dk2-chart", s2, {logx: true, xticks: [1, 2, 4, 8], xmin: 1, xmax: 8, xfmt: v => "TP" + v, xlabel: "tensor-parallel degree", ylabel: "TB/s of KV cache", ymin: 0, ymax: 8, h: 320, yfmt: v => v.toFixed(0)});
+}
+
+function drawDecodeR(ctx) {
+  const c = +ctx, rows = D.dec_r.filter(r => r.ctx === c && r.batch === r.max_batch && r.tok_s_gpu); if (!D.dec_r.length) return;
+  const groups = [8, 4].map(tp => ({label: "TP" + tp + " × " + 72 / tp, bars: DEC.map((lb, i) => { const r = rows.find(x => x.label === lb && x.tp === tp);
+    return {label: lb, color: css(DCOL[i]), v: r ? r.tok_s_gpu : 0, tip: r ? `batch ${r.batch} per replica · ${fmt(r.tok_s_gpu, 0)} tok/s/GPU<br>${r.tok_s_user.toFixed(1)} tok/s per user · step ${(r.step_us / 1e3).toFixed(1)} ms` : "does not fit"}; })}));
+  legend("dr-leg", DEC.map((lb, i) => ({label: lb, color: css(DCOL[i])})));
+  barChart("dr-chart", groups, {ylabel: "tokens/s per GPU", h: 300});
+}
+
+function drawCP(s) {
+  const S = +s, rows = D.cp.filter(r => r.s === S); if (!D.cp.length) return;
+  const models = Object.keys(CPM);
+  const groups = [1, 8, 72].map(cp => ({label: cp === 1 ? "1 GPU" : cp === 8 ? "8 GPUs (HGX)" : "72 GPUs (NVL72)", bars: models.map(m => { const r = rows.find(x => x.model === m && x.cp === cp);
+    return {label: CPM[m], color: css(CCOL[m]), v: r ? r.ttft_ms / 1e3 : 0, tip: r ? `TTFT ${(r.ttft_ms / 1e3).toFixed(2)} s · MFU ${(100 * r.mfu).toFixed(1)}%<br>rank 0 busy ${(100 * r.busy).toFixed(0)}% of the time` : "not run"}; })}));
+  legend("cp-leg", models.map(m => ({label: CPM[m], color: css(CCOL[m])})));
+  barChart("cp-chart", groups, {ylabel: "seconds to first token", h: 320});
+}
+
+function render() {
+  toggle("pf-ctl", [["abs", "Milliseconds"], ["rel", "Relative to GQA attention"]], drawPrefill);
+  table("pf-tbl", [["tokens", r => tok(r.s)], ...MIX.map(mx => [mx, r => { const q = D.prefill.find(x => x.s === r.s && x.mixer === mx); return q ? q.ms.toFixed(3) + " ms" : ""; }])],
+    [...new Set(D.prefill.map(r => r.s))].sort((a, b) => a - b).map(s => ({s})));
+  const shapes = [...new Set(D.dec_k.map(r => r.batch + "x" + r.context))];
+  toggle("dk-ctl", shapes.map(s => [s, s.split("x")[0] + " × " + tok(+s.split("x")[1])]), drawDecodeK);
+  const ctxs = [...new Set(D.dec_r.map(r => r.ctx))].sort((a, b) => a - b);
+  if (ctxs.length) toggle("dr-ctl", ctxs.map(c => [c, tok(c) + " context"]), drawDecodeR);
+  table("dr-tbl", [["variant", r => r.label], ["TP", r => r.tp], ["context", r => tok(r.ctx)], ["batch", r => r.batch], ["fits up to", r => r.max_batch],
+    ["step ms", r => r.step_us ? (r.step_us / 1e3).toFixed(2) : ""], ["tok/s/GPU", r => r.tok_s_gpu ? fmt(r.tok_s_gpu, 0) : ""], ["tok/s/user", r => r.tok_s_user ? r.tok_s_user.toFixed(1) : ""],
+    ["attention ms", r => r.cls && r.cls.attention ? (r.cls.attention / 1e3).toFixed(2) : ""], ["dominant", r => r.dominant || r.error || ""]], D.dec_r);
+  const ss = [...new Set(D.cp.map(r => r.s))].sort((a, b) => a - b);
+  if (ss.length) toggle("cp-ctl", ss.map(s => [s, tok(s) + " tokens"]), drawCP);
+  table("cp-tbl", [["model", r => CPM[r.model]], ["GPUs", r => r.cp], ["prompt", r => tok(r.s)], ["TTFT s", r => (r.ttft_ms / 1e3).toFixed(3)], ["MFU", r => (100 * r.mfu).toFixed(1) + "%"],
+    ["rank 0 busy", r => (100 * r.busy).toFixed(0) + "%"], ["last rank busy", r => (100 * r.last_busy).toFixed(0) + "%"]], D.cp);
+  table("ex-tbl", [["kernel", r => r.type + (r.type === "attention" ? ` hq${r.spec.heads_q}/hkv${r.spec.heads_kv} ${tok(r.spec.sq)}×${tok(r.spec.skv)}${r.spec.causal ? " causal" : ""}` : r.type === "gemm" ? ` ${r.spec.m}×${r.spec.n}×${r.spec.k}` : r.type === "ssd" ? ` ${r.spec.stage} ${tok(r.spec.seqlen)} h${r.spec.heads} p${r.spec.headdim} n${r.spec.d_state}` : ` ${r.spec.rows || ""}×${r.spec.cols || ""}`)],
+    ["full run µs", r => r.sim.toFixed(1)], ["fast path µs", r => r.est.toFixed(1)], ["error", r => (r.err >= 0 ? "+" : "") + (100 * r.err).toFixed(2) + "%"]], D.extrap);
+  document.getElementById("foot").innerHTML = `Simulated at commit <span class="mono">${D.commit}</span> of rackscale. Data and scripts: <span class="mono">research/dao_lab/</span>.`;
+}
+render();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+new MutationObserver(render).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+</script>

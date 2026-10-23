@@ -68,9 +68,18 @@ def _save_cache() -> None:
         os.replace(tmp, _CACHE_PATH)
 
 
+_BUILD: Optional[str] = None
+
+
 def _system_key(system: str) -> str:
-    from . import _system_yaml
-    return hashlib.sha256(_system_yaml(system).encode()).hexdigest()[:16]
+    """System YAML plus the simulator build, so a cache never outlives the
+    model that filled it."""
+    global _BUILD
+    from . import _native, _system_yaml
+    if _BUILD is None:
+        with open(_native.__file__, "rb") as f:
+            _BUILD = hashlib.sha256(f.read()).hexdigest()[:12]
+    return _BUILD + hashlib.sha256(_system_yaml(system).encode()).hexdigest()[:16]
 
 
 def simulate_us(system: str, spec: dict) -> float:
