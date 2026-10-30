@@ -6,6 +6,15 @@ until 1.0, a minor version may change simulated timings, and the release notes s
 ## [Unreleased]
 
 ### Added
+- Run reports (`rackscale.report`): a self-contained HTML page per run, or several runs side by
+  side, with KPI tiles, where the GPU time goes, every kernel on the roofline (with the FP8/FP4
+  roofs when kernels use them), the top kernels, the scheduler-stall anatomy and the collectives;
+  hover tooltips; light and dark. Each figure is also written as a standalone SVG for articles.
+  `--html` and `--figures` on every simulate command, `rackscale report *.json`, and
+  `examples/report_gallery.py` (published in the examples gallery).
+- `--system a,b,c` simulates the same workload on several systems and prints a comparison
+  (step, speedup, MFU, GPU idle); `--report` then writes a list. `rackscale demo` writes the
+  comparison report.
 - Every data-parallel sharding in the lowering: `Parallel(zero=0|1|2|3)` (DDP, ZeRO-1/2, FSDP with
   one-layer prefetch), `shard=` for HSDP, `sp=True` for Megatron sequence parallelism, and
   `prefill_cp(kind="ulysses")`. Default layouts lower exactly as before.

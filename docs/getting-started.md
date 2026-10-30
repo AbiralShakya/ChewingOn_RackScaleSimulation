@@ -80,8 +80,10 @@ hgx_h100_8     703.2 us     22.4%        82.0%   sm90_gemm_bf16_32x7168x8192_til
 hgx_b200_8     323.9 us     30.1%        78.7%   sm100_gemm_bf16_32x16032x8192_tile128x128
 ```
 
-then the full anatomy of the B200 run and a viewer page (`rackscale_demo.html`) that zooms from
-the rack down to SASS. `--open` opens it in your browser.
+then the full anatomy of the B200 run, a run report comparing the two (`rackscale_demo.html`:
+roofline, time split, stall anatomy, every kernel) and a viewer page
+(`rackscale_demo_viewer.html`) that zooms from the rack down to SASS. `--open` opens the report
+in your browser.
 
 ### 2. Any model on any rack
 
@@ -110,8 +112,15 @@ sm100_gemm_bf16_64x129280x7168_tile128x256                  72    18909.9    903
 the whole model. `--fast` simulates each distinct kernel once and reuses it across ranks and
 layers (within about 1% of exact on these runs); drop it to co-simulate every rank.
 
-Add `--viz ds.html --open` for the viewer, `--trace ds.json` for a Perfetto timeline, and
+Add `--html ds.html --open` for the run report, `--figures figs/` for its figures as SVG files,
+`--viz ds_viewer.html` for the viewer, `--trace ds.json` for a Perfetto timeline, and
 `--report ds.json` for the full JSON report.
+
+Give several systems to compare them on the same workload, in one table and one report:
+
+```bash
+rackscale decode deepseek-v3 --system gb200_nvl72,gb300_nvl72 --ep 72 --batch 64 --layers 4 --fast --html ds.html
+```
 
 ### 3. From Python
 
