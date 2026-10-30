@@ -60,6 +60,79 @@ pub struct NetConfig {
     pub link_bin_ns: f64,
     pub nccl: NcclParams,
     pub packet: PacketConfig,
+    /// Links that go down or run degraded during the run.
+    pub faults: Vec<LinkFault>,
+}
+
+/// A link that flaps or degrades (chapter 16 of the book). The trunk
+/// between `a` and `b` (both directions) runs at `rate_scale` of its rate
+/// from `start_us` for `duration_us`, `repeat` times every `period_us`.
+/// `rate_scale: 0` is a link down: frames wait for it to retrain (or reroute,
+/// where the routing is adaptive). Down from the start for the whole run
+/// (`start_us` and `duration_us` 0) is a link that never trained: routing
+/// leaves it out. A fraction is a link retrained at lower
+/// width or speed, or a lane lost.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct LinkFault {
+    /// Endpoints: `gpu<rank>` or a switch label (`nvsw0.3`, `leaf2`, `spine1`, `sw0`).
+    pub a: String,
+    pub b: String,
+    pub start_us: f64,
+    /// 0 = until the end of the run.
+    pub duration_us: f64,
+    pub rate_scale: f64,
+    pub repeat: u32,
+    pub period_us: f64,
+}
+
+impl Default for LinkFault {
+    fn default() -> Self {
+        Self {
+            a: String::new(),
+            b: String::new(),
+            start_us: 0.0,
+            duration_us: 0.0,
+            rate_scale: 0.0,
+            repeat: 1,
+            period_us: 0.0,
+        }
+    }
+}
+
+/// Install `faults` on the fabric's channels; node names as in `LinkFault`.
+pub(crate) fn apply_faults(fabric: &mut Fabric, sys: &System, faults: &[LinkFault]) {
+    let name = |i: usize| match &sys.topology.nodes[i] {
+        rsim_hw::NodeKind::Gpu { rank } => format!("gpu{rank}"),
+        rsim_hw::NodeKind::Switch { label, .. } => label.clone(),
+    };
+    for f in faults {
+        let mut hit = false;
+        for c in &mut fabric.channels {
+            let (x, y) = (name(c.from), name(c.to));
+            if (x == f.a && y == f.b) || (x == f.b && y == f.a) {
+                hit = true;
+                if f.duration_us <= 0.0 && f.rate_scale <= 0.0 && f.start_us <= 0.0 {
+                    c.dead = true;
+                    continue;
+                }
+                for k in 0..f.repeat.max(1) {
+                    let start = (f.start_us + k as f64 * f.period_us) * 1e6;
+                    let end = if f.duration_us > 0.0 {
+                        start + f.duration_us * 1e6
+                    } else {
+                        f64::INFINITY
+                    };
+                    c.faults.push(crate::fabric::FaultWindow {
+                        start,
+                        end,
+                        scale: f.rate_scale.max(0.0),
+                    });
+                }
+            }
+        }
+        assert!(hit, "link fault: no link between `{}` and `{}`", f.a, f.b);
+    }
 }
 
 impl Default for NetConfig {
@@ -75,6 +148,7 @@ impl Default for NetConfig {
             link_bin_ns: 0.0,
             nccl: NcclParams::default(),
             packet: PacketConfig::default(),
+            faults: Vec::new(),
         }
     }
 }
@@ -190,6 +264,7 @@ pub struct NetEngine {
 impl NetEngine {
     pub fn new(sys: &System, cfg: NetConfig, trace: bool) -> Self {
         let mut fabric = Fabric::new(sys, cfg.link_efficiency);
+        apply_faults(&mut fabric, sys, &cfg.faults);
         for c in &mut fabric.channels {
             c.bin_ps = cfg.link_bin_ns * 1000.0;
         }
@@ -239,7 +314,7 @@ impl NetEngine {
             }
             for &c in &fabric.adj[members[0]] {
                 let sw = fabric.channels[c].to;
-                if !fabric.sharp[sw] || fabric.is_scale_out[sw] {
+                if !fabric.sharp[sw] || fabric.is_scale_out[sw] || fabric.channels[c].dead {
                     continue;
                 }
                 if members
@@ -869,8 +944,8 @@ impl NetEngine {
             c.framing
                 .wire_bytes((bytes as f64 / eff).ceil() as u64, c.framing.sm_payload)
         };
-        let dur = (wire / c.rate).ceil() as Time;
         let finish = c.serve(t, wire, bytes);
+        let dur = (c.slot(t as f64, wire).1).ceil() as Time;
         let lat = c.latency;
         if last {
             self.deliver(coll, tid, t, finish + lat, out);

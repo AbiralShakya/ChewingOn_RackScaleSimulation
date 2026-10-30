@@ -394,6 +394,21 @@ impl NetEngine {
         if n == 0 {
             return;
         }
+        // A link that is down holds its queue until it retrains; adaptive
+        // switches see it as busy and route new packets elsewhere.
+        let up = self.fabric.channels[port].slot(now as f64, 0.0).0;
+        if up > now as f64 {
+            let pt = &mut self.pk.ports[port];
+            pt.busy_until = if up.is_finite() {
+                up.ceil() as Time
+            } else {
+                Time::MAX / 4
+            };
+            pt.tx_pending = true;
+            let at = pt.busy_until;
+            self.q.push(at, Ev::Pk(PEv::TxEnd { port: port as u32 }));
+            return;
+        }
         let start = self.pk.ports[port].rr % n;
         let mut pick = None;
         for j in 0..n {
@@ -422,8 +437,8 @@ impl NetEngine {
             }
         }
         let ch = &self.fabric.channels[port];
-        let (rate, lat) = (ch.rate, ch.latency);
-        let dur = wire / rate;
+        let lat = ch.latency;
+        let dur = ch.slot(now as f64, wire).1;
         let (via, via_wire, tail_in, logical, payload) = {
             let k = &self.pk.pkts[p as usize];
             (k.via, k.via_wire, k.tail, k.logical, k.payload)
