@@ -1,0 +1,839 @@
+<title>NVL72 Scaling Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  The learning page of rackscale. Source: research/learn/page.html; build.py
+  inlines rsmath.js (the closed forms, checked against rackscale.scaling by
+  verify.py) and data/learn.json (export.py) into dist/scaling-lab.html.
+-->
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f3ef; --surface: #fcfcfb; --surface-2: #efeee9; --line: #dcdbd5; --grid: #e8e7e2;
+  --text: #0b0b0b; --text-2: #52514e; --text-3: #75746e; --accent: #2a78d6; --accent-ink: #ffffff;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --good: #0ca30c; --bad: #d03b3b; --idle: #e4e3de; --axis: #c3c2b7;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --line: #353532; --grid: #2a2a28;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #8e8d86; --accent: #3987e5; --accent-ink: #0b0b0b;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good: #0ca30c; --bad: #e66767; --idle: #33332f; --axis: #383835;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --line: #353532; --grid: #2a2a28;
+  --text: #f0efec; --text-2: #c3c2b7; --text-3: #8e8d86; --accent: #3987e5; --accent-ink: #0b0b0b;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good: #0ca30c; --bad: #e66767; --idle: #33332f; --axis: #383835;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+a { color: var(--accent); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding-block: 10px; }
+.brand { font-weight: 650; letter-spacing: -0.01em; font-size: 15px; }
+.brand small { font-weight: 400; color: var(--text-3); margin-left: 6px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; }
+.tabs a { text-decoration: none; color: var(--text-2); padding: 4px 9px; border-radius: 6px; font-size: 13px; }
+.tabs a:hover { background: var(--surface-2); color: var(--text); }
+.tabs a[aria-current="page"] { background: var(--text); color: var(--bg); }
+main { padding-block: 18px 48px; }
+.intro { max-width: 76ch; color: var(--text-2); margin: 0 0 14px; }
+.intro b { color: var(--text); font-weight: 600; }
+h1 { font-size: 22px; letter-spacing: -0.015em; margin: 4px 0 6px; text-wrap: balance; }
+h2 { font-size: 15px; margin: 0 0 4px; font-weight: 650; text-wrap: balance; }
+h3 { font-size: 13px; margin: 14px 0 6px; font-weight: 650; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; }
+p { margin: 0 0 10px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.card > .sub { color: var(--text-3); font-size: 12.5px; margin: 0 0 10px; }
+.grid { display: grid; gap: 14px; }
+.cols-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.cols-side { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 860px) { .cols-side { grid-template-columns: minmax(0, 1fr); } }
+.kinds { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--text-2); margin: 0 0 14px; }
+.tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--text-2); white-space: nowrap; }
+.tag.kf { border-color: var(--s1); color: var(--text); }
+.tag.kr { border-color: var(--s3); color: var(--text); }
+.tag.ks { border-color: var(--s2); color: var(--text); }
+.tag::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 0; background: var(--text-3); }
+.tag.kf::before { background: var(--s1); } .tag.kr::before { background: var(--s3); } .tag.ks::before { background: var(--s2); }
+.controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
+.controls .full { grid-column: 1 / -1; }
+label.f { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-2); min-width: 0; }
+select, input[type=number], button.b { font: inherit; font-size: 13px; color: var(--text); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-width: 0; width: 100%; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+button.b { width: auto; cursor: pointer; padding: 4px 10px; }
+button.b:hover { border-color: var(--text-3); }
+button.b.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; }
+label.f.check { flex-direction: row; align-items: center; gap: 6px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.tile .k { font-size: 12px; color: var(--text-3); }
+.tile .v { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.tile .d { font-size: 12px; color: var(--text-2); }
+.tile .v small { font-size: 13px; font-weight: 500; color: var(--text-2); margin-left: 4px; letter-spacing: 0; }
+@media (max-width: 560px) { .terms { grid-template-columns: minmax(0, 1fr) auto; } .terms .nm { grid-column: 1 / -1; } }
+td.nw { white-space: nowrap; }
+.note { font-size: 12.5px; color: var(--text-2); }
+.warn { color: var(--bad); font-weight: 600; }
+.ok { color: var(--good); font-weight: 600; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.scroll { overflow-x: auto; }
+table.t { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+table.t th, table.t td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+table.t th { color: var(--text-3); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+table.t th .nt { text-transform: none; letter-spacing: 0; } /* µ would uppercase to a Greek capital M */
+table.t td.n, table.t th.n { text-align: right; white-space: nowrap; }
+.terms { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto; gap: 4px 10px; align-items: center; font-size: 12.5px; }
+.terms .nm { min-width: 0; }
+.terms .nm small { display: block; color: var(--text-3); font-family: var(--mono); font-size: 11px; overflow-wrap: anywhere; }
+.terms .track { height: 12px; background: var(--surface-2); border-radius: 3px; position: relative; overflow: hidden; }
+.terms .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 3px 3px 0; }
+.terms .fill.hidden { opacity: 0.35; }
+.terms .us { font-family: var(--mono); font-size: 12px; text-align: right; white-space: nowrap; }
+.terms .track .seg { position: absolute; top: 0; bottom: 0; border-right: 2px solid var(--surface); box-sizing: border-box; }
+.terms .track .tick { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--text); z-index: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--text-2); margin: 6px 0 0; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend i.dash { width: 14px; height: 0; border-radius: 0; border-top: 2px dashed; background: none !important; vertical-align: 3px; }
+.chart { position: relative; width: 100%; min-width: 0; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { fill: var(--text-3); font-size: 11px; font-family: var(--sans); }
+.chart .lbl { fill: var(--text-2); }
+.chart .ax { stroke: var(--axis); stroke-width: 1; }
+.chart .gr { stroke: var(--grid); stroke-width: 1; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); max-width: 280px; z-index: 3; }
+.tip b { font-weight: 600; }
+.rack { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; max-width: 360px; }
+.rackwrap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; max-width: 760px; }
+@media (max-width: 560px) { .rackwrap { grid-template-columns: minmax(0, 1fr); } }
+.tray { display: contents; }
+.gpu { height: 22px; border-radius: 4px; background: var(--idle); font-size: 10px; color: var(--accent-ink); display: flex; align-items: center; justify-content: center; font-family: var(--mono); }
+.gapbar { position: relative; height: 14px; background: none; }
+.gapbar .zero { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--text-3); }
+.gapbar .seg { position: absolute; top: 0; bottom: 0; }
+.view[hidden] { display: none !important; }
+.foot { color: var(--text-3); font-size: 12px; margin-top: 26px; max-width: 80ch; }
+.formula { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2); border-radius: 6px; padding: 6px 8px; overflow-x: auto; white-space: pre; }
+.anim svg text { font-family: var(--mono); }
+</style>
+
+<header class="top">
+  <div class="wrap bar">
+    <div class="brand">NVL72 Scaling Lab<small>rackscale</small></div>
+    <nav class="tabs" aria-label="Views">
+      <a href="#plan">Plan</a><a href="#ladder">1 GPU to rack</a><a href="#collectives">Collectives</a><a href="#roofline">Roofline</a><a href="#pipelines">Pipelines</a><a href="#check">Formula vs sim</a><a href="#rack">Many models</a><a href="#bytes">Tokens vs bytes</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="kinds" aria-label="Kinds of number">
+    <span class="tag kf">formula, computed live</span>
+    <span class="tag kr">ideal replay of the exact program</span>
+    <span class="tag ks">cycle-level simulation</span>
+    <span>Rack: GB300 NVL72 preset (72 calibrated B300 dies, NVLink 5 switch fabric). No multi-GPU number here was measured.</span>
+  </div>
+
+  <!-- PLAN -->
+  <section class="view" id="v-plan">
+    <h1>Any parallel plan, as formulas</h1>
+    <p class="intro">Pick a model and a way to split it over GPUs. Every number below is recomputed in your browser from the closed forms of <b>chapter 11</b> (<span class="mono">rackscale.scaling</span>, ported line for line and checked on 600 random plans). The formulas assume an ideal machine: the <a href="#check">Formula vs sim</a> view shows how far the cycle-level simulator departs and why.</p>
+    <div class="presets" id="presets"></div>
+    <div class="grid cols-side">
+      <div class="card"><div class="controls" id="plan-controls"></div></div>
+      <div class="grid" style="min-width:0">
+        <div class="tiles" id="plan-tiles"></div>
+        <div class="card"><h2 id="plan-dom">Where the time goes</h2><p class="sub" id="plan-dom-sub"></p><div class="terms" id="plan-terms"></div>
+          <div class="legend"><span><i style="background:var(--s1)"></i>compute</span><span><i style="background:var(--s3)"></i>HBM traffic</span><span><i style="background:var(--s2)"></i>communication on the critical path</span><span><i style="background:var(--s7)"></i>communication that overlaps (faded: hidden part)</span></div></div>
+        <div class="grid cols-2">
+          <div class="card"><h2>Critical numbers</h2><div id="plan-crit" class="note"></div></div>
+          <div class="card"><h2>Memory per GPU</h2><div id="plan-mem"></div></div>
+        </div>
+        <div class="card"><h2 id="sweep-title">Sweep</h2><p class="sub" id="sweep-sub"></p><div class="grid cols-2"><div class="chart" id="sweep-a"></div><div class="chart" id="sweep-b"></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LADDER -->
+  <section class="view" id="v-ladder" hidden>
+    <h1>From one GPU to the whole rack</h1>
+    <p class="intro">For each GPU count, the best plan the closed forms find (training: global batch 256 sequences of 8k tokens; decode: the fastest plan that still gives each user 30 tokens/s at 8k context). Watch where the plan changes: a model that does not fit needs tensor or pipeline parallelism before data parallelism helps, and decode buys per-user speed with tensor parallelism until the all-reduces cost as much as the matmuls.</p>
+    <div class="presets" id="ladder-pick"></div>
+    <div class="grid cols-2">
+      <div class="card"><h2>Tokens/s per GPU</h2><p class="sub">Flat means perfect scaling; the label is the plan chosen at that size.</p><div class="chart" id="ladder-a"></div></div>
+      <div class="card"><h2>Tokens/s for the whole group</h2><p class="sub">Against the dotted line of perfect scaling from the smallest size that fits.</p><div class="chart" id="ladder-b"></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="scroll"><table class="t" id="ladder-table"></table></div><p class="note" style="margin-top:8px" id="ladder-mfu"></p></div>
+  </section>
+
+  <!-- COLLECTIVES -->
+  <section class="view" id="v-collectives" hidden>
+    <h1>Communication primitives</h1>
+    <p class="intro">An all-reduce leaves every GPU with the sum of everyone's buffer. A <b>ring</b> does it in 2(n−1) steps, each GPU sending 1/n of its buffer to its neighbour per step: 2(n−1)/n · B bytes per GPU in total. <b>NVLS</b> (NVLink SHARP) lets the switch do the adding: each GPU writes its buffer into the switch once and reads the sum back once, B bytes each way, at the same time. That is why the formula for an all-reduce halves on NVL72.</p>
+    <div class="grid cols-2">
+      <div class="card anim"><h2>All-reduce, step by step</h2><p class="sub" id="anim-sub"></p>
+        <div class="seg" style="margin-bottom:8px"><button class="b on" data-algo="ring">Ring</button><button class="b" data-algo="nvls">NVLS</button><span style="flex:1"></span><button class="b" id="anim-back">◀</button><button class="b" id="anim-play">Play</button><button class="b" id="anim-fwd">▶</button></div>
+        <div id="anim"></div><div class="note" id="anim-note"></div></div>
+      <div class="card"><h2>Time vs message size</h2><p class="sub">Simulated with the NCCL-faithful network model against the α–β closed form. Below a few MB the fixed cost α dominates; above it, bandwidth does.</p>
+        <div class="controls" style="margin-bottom:8px"><label class="f">collective<select id="coll-kind"></select></label><label class="f">GPUs<select id="coll-ranks"></select></label></div>
+        <div class="chart" id="coll-time"></div>
+        <h3>Bus bandwidth</h3><div class="chart" id="coll-bw"></div></div>
+    </div>
+  </section>
+
+  <!-- ROOFLINE -->
+  <section class="view" id="v-roofline" hidden>
+    <h1>The roofline, and why it moves</h1>
+    <p class="intro">A kernel can go no faster than its FLOPs at peak or its bytes at HBM bandwidth. Arithmetic intensity (FLOPs per byte) says which: below the ridge at <b>C/β ≈ 361 FLOP/byte</b> a kernel is memory bound. A decode GEMM's intensity is about its batch, so decode is weight-bandwidth bound until roughly 361 sequences. The lower roof is the B300's measured clock under its power cap (1455 vs 2032 MHz): long training GEMMs run there.</p>
+    <div class="grid cols-side">
+      <div class="card"><h2>Decode GEMM</h2><p class="sub">One projection of Llama-3-70B (8192 × 8192) at batch b.</p>
+        <label class="f"><span>batch b = <span id="roof-b-v" class="mono"></span></span><input type="range" id="roof-b" min="0" max="12" step="1" value="6"></label>
+        <div id="roof-read" class="note" style="margin-top:10px"></div></div>
+      <div class="card"><div class="chart" id="roof-chart"></div>
+        <div class="legend"><span><i style="background:var(--s1)"></i>GEMM (simulated)</span><span><i style="background:var(--s2)"></i>attention (simulated)</span><span><i style="background:var(--s3)"></i>norms, elementwise (simulated)</span><span><i style="background:var(--s7)"></i>decode GEMM at b (formula)</span></div></div>
+    </div>
+  </section>
+
+  <!-- PIPELINES -->
+  <section class="view" id="v-pipelines" hidden>
+    <h1>Pipeline bubbles</h1>
+    <p class="intro">With pipeline parallelism each GPU holds a few layers and micro-batches flow through. A stage waits at the start for the first micro-batch to reach it and at the end for the last gradient to come back: the bubble, (p−1)/(m+p−1) of the step for GPipe and 1F1B. Zero-bubble scheduling (ZB-H1) splits the backward pass into input gradients (B) and weight gradients (W) and moves the W work into the gaps. These timelines are the ideal replay of the lowered program: Llama-3-8B cut to 8 layers, 4 stages, 8 micro-batches of 4k tokens.</p>
+    <div class="card" style="margin-bottom:14px"><h2>Bubble calculator</h2>
+      <div class="controls" style="max-width:640px"><label class="f"><span>stages p = <span class="mono" id="bub-p-v"></span></span><input type="range" id="bub-p" min="2" max="16" value="4"></label><label class="f"><span>micro-batches m = <span class="mono" id="bub-m-v"></span></span><input type="range" id="bub-m" min="1" max="64" value="8"></label><label class="f"><span>virtual chunks v = <span class="mono" id="bub-v-v"></span></span><input type="range" id="bub-v" min="1" max="4" value="2"></label></div>
+      <div id="bub-out" class="note" style="margin-top:8px"></div></div>
+    <div class="grid" id="pipe-charts"></div>
+    <div class="legend"><span><i style="background:var(--s1)"></i>F forward</span><span><i style="background:var(--s2)"></i>B input gradients</span><span><i style="background:var(--s3)"></i>W weight gradients</span><span><i style="background:var(--text-3)"></i>activation send/recv</span></div>
+  </section>
+
+  <!-- CHECK -->
+  <section class="view" id="v-check" hidden>
+    <h1>Formula vs ideal replay vs cycle level</h1>
+    <p class="intro">Each plan was run three ways: the <b>textbook</b> closed form, a <b>replay</b> of the exact lowered program on an ideal machine (every kernel at its roofline, every collective at its formula), and the <b>cycle-level simulator</b>. The bars split each simulated step's excess over the replay into its causes. The formulas rank the plans correctly; the absolute step differs by up to 2×, mostly from the power-capped clock and kernels below peak.</p>
+    <div class="card"><div class="legend" style="margin:0 0 10px"><span><i style="background:var(--s1)"></i>kernels below their roofline</span><span><i style="background:var(--s2)"></i>power-capped clock</span><span><i style="background:var(--s7)"></i>collectives slower than formula</span><span><i style="background:var(--s3)"></i>overlap and idle (negative: hidden)</span></div>
+      <div class="scroll"><table class="t" id="check-table"></table></div></div>
+  </section>
+
+  <!-- RACK -->
+  <section class="view" id="v-rack" hidden>
+    <h1>Several models on one rack</h1>
+    <p class="intro">Each tenant is a model with its own plan and GPUs, lowered on its own and placed on the shared NVLink fabric. On an NVL72 each GPU has its own link to each of the 18 switch chips, so tenants on different GPUs do not slow each other. Traffic between them (KV caches into a decode pool) costs what it occupies, and tenants sharing a GPU pay for every SM, cache line and byte of HBM bandwidth they share. Book chapter 12 has the formulas.</p>
+    <div class="presets" id="rack-pick"></div>
+    <div class="grid cols-2">
+      <div class="card"><h2 id="rack-title">Rack</h2><p class="sub">18 compute trays × 4 GPUs. Colour = tenant.</p><div id="rack-map"></div><div class="legend" id="rack-legend"></div></div>
+      <div class="card"><h2>Each tenant together vs alone</h2><p class="sub" id="rack-sub"></p><div class="scroll"><table class="t" id="rack-table"></table></div><div class="note" id="rack-note" style="margin-top:8px"></div></div>
+    </div>
+    <div class="grid cols-2" style="margin-top:14px">
+      <div class="card"><h2>KV stream into a decode pool</h2><p class="sub">Llama-3-70B TP8 decode (batch 64, 8k context) while KV caches arrive in 4 MiB chunks over NCCL send/recv on 4 SMs. A 1:1 prefill:decode pool produces about 2–4 GB/s per GPU.</p><div class="chart" id="kv-chart"></div></div>
+      <div class="card"><h2>Two models on the same 4 GPUs</h2><p class="sub">Llama-3-8B and Llama-3.2-1B, both TP4 decode. Fast mode time-slices kernels; exact mode runs both tenants' warps on the same SMs cycle by cycle.</p><div id="shared-bars"></div></div>
+    </div>
+  </section>
+
+  <!-- BYTES -->
+  <section class="view" id="v-bytes" hidden>
+    <h1>Tokens vs bytes</h1>
+    <p class="intro">A byte-level model reads raw bytes instead of BPE tokens (about 4.45 bytes each in English), so a naive one does 4.45× the steps. <b>H-Net</b> (Hwang, Wang, Gu, 2025) learns where to cut: small Mamba-2 encoders read every byte, a router marks chunk boundaries (about one per 4.7 bytes), and only the chunks reach the large main network. Per byte of text, the FLOPs come out close to a BPE Transformer's. Decode is where it gets interesting: the main network runs only on the steps where a sequence's router fires, so the batch it sees changes every step.</p>
+    <div class="grid cols-2">
+      <div class="card"><h2>FLOPs per byte</h2><p class="sub">XL scale, 8 KiB sequences, against the H-Net paper's Table 2.</p><div id="bytes-flops"></div></div>
+      <div class="card"><h2>Prefill on one B300</h2><p class="sub">8 prompts of 8 KiB of text.</p><div id="bytes-prefill"></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>Decode on one B300</h2><p class="sub">Batch 64, 8 KiB of context. "Sampled" draws each sequence's router every step; "sampled, evened" spreads the same draw evenly over the steps (its mean without its step-to-step swings); "mean field" runs the expected batch, as an analytic model would.</p><div class="scroll"><table class="t" id="bytes-decode"></table></div></div>
+    <div class="grid cols-2" style="margin-top:14px">
+      <div class="card"><h2>Where a decoded byte's time goes</h2><p class="sub">Batch 64, µs per byte of every sequence (a BPE step makes 4.45 bytes); H-Net at its expected main-network batch. From the simulator's per-op trace. The tick marks the closed form: the bytes a step moves, at full HBM bandwidth.</p><div id="bytes-anatomy"></div></div>
+      <div class="card"><h2>Decode cost by batch</h2><p class="sub">µs per byte of every sequence; H-Net at its expected batch. A larger batch spreads each weight read over more bytes. Solid: simulated. Dashed: the closed form, which gets the slope and misses the level.</p><div class="chart" id="bytes-batch"></div></div>
+    </div>
+  </section>
+
+  <p class="foot">Built from <span class="mono">research/learn/</span> in the rackscale repository: the formulas are <span class="mono">rackscale.scaling</span>; the replay and simulator numbers come from <span class="mono">research/parallelism</span>, <span class="mono">research/colocation</span>, <span class="mono">research/bytes</span> and <span class="mono">rsim net sweep</span>. Simulated multi-GPU numbers use preset fabric parameters checked against published NCCL and TensorRT-LLM figures, not our own measurements.</p>
+</main>
+
+<script>
+/*RSMATH*/
+</script>
+<script>
+const D = /*DATA*/;
+(function () {
+"use strict";
+const $ = (s, el) => (el || document).querySelector(s);
+const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const SERIES = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
+const color = (i) => `var(${SERIES[i % SERIES.length]})`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function h(tag, attrs, html) { const e = document.createElement(tag); for (const k in attrs || {}) e.setAttribute(k, attrs[k]); if (html != null) e.innerHTML = html; return e; }
+const SVGNS = "http://www.w3.org/2000/svg";
+function s(tag, attrs, parent) { const e = document.createElementNS(SVGNS, tag); for (const k in attrs || {}) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+
+function sig(x, n) { if (!isFinite(x)) return "–"; if (x === 0) return "0"; const d = Math.max(0, n - 1 - Math.floor(Math.log10(Math.abs(x)))); return x.toFixed(Math.min(d, 6)); }
+function ftime(us) { if (!isFinite(us)) return "–"; if (us < 1000) return sig(us, 3) + " µs"; if (us < 1e6) return sig(us / 1e3, 3) + " ms"; return sig(us / 1e6, 3) + " s"; }
+function fbytes(b) { const u = ["B", "KiB", "MiB", "GiB", "TiB"]; let i = 0; while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; } return (b >= 100 || i === 0 ? b.toFixed(0) : sig(b, 3)) + " " + u[i]; }
+function fnum(x) { if (!isFinite(x)) return "–"; const a = Math.abs(x); if (a >= 1e9) return sig(x / 1e9, 3) + "G"; if (a >= 1e6) return sig(x / 1e6, 3) + "M"; if (a >= 1e4) return sig(x / 1e3, 3) + "k"; return sig(x, 3); }
+function fpct(x, d) { return (x >= 0 ? "+" : "−") + Math.abs(100 * x).toFixed(d == null ? 1 : d) + "%"; }
+
+/* ---------- a small XY chart: lines and dots, linear or log axes, one y axis, hover tooltip ---------- */
+function niceTicks(lo, hi, n) {
+  const span = hi - lo, step0 = Math.pow(10, Math.floor(Math.log10(span / n))), err = n / span * step0;
+  const step = step0 * (err <= 0.15 ? 10 : err <= 0.35 ? 5 : err <= 0.75 ? 2 : 1);
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(+v.toPrecision(12)); return out;
+}
+function logTicks(lo, hi, base) {
+  const out = []; const b = base || 10;
+  for (let e = Math.floor(Math.log(lo) / Math.log(b)); Math.pow(b, e) <= hi * 1.0001; e++) { const v = Math.pow(b, e); if (v >= lo * 0.9999) out.push(v); }
+  if (b === 10 && out.length < 3) {
+    const more = [];
+    for (let e = Math.floor(Math.log10(lo)); Math.pow(10, e) <= hi; e++) for (const k of [1, 2, 5]) { const v = k * Math.pow(10, e); if (v >= lo * 0.9999 && v <= hi * 1.0001) more.push(v); }
+    return more;
+  }
+  return out;
+}
+function ftick(v) { const a = Math.abs(v); const t = (x) => String(parseFloat(x.toPrecision(3))); if (a >= 1e9) return t(v / 1e9) + "G"; if (a >= 1e6) return t(v / 1e6) + "M"; if (a >= 1e4) return t(v / 1e3) + "k"; return t(v); }
+function XY(host, opt) {
+  host.innerHTML = "";
+  const W = Math.max(260, host.clientWidth || 400), H = opt.height || 240;
+  const m = { l: opt.ml || 52, r: opt.mr || 14, t: 10, b: 36 };
+  const pts = opt.series.flatMap((sr) => sr.pts);
+  const xs = pts.map((p) => p.x).concat(opt.xextra || []), ys = pts.map((p) => p.y).concat(opt.yextra || []);
+  let x0 = opt.xmin != null ? opt.xmin : Math.min(...xs), x1 = opt.xmax != null ? opt.xmax : Math.max(...xs);
+  let y0 = opt.ymin != null ? opt.ymin : Math.min(...ys), y1 = opt.ymax != null ? opt.ymax : Math.max(...ys);
+  if (!opt.ylog && opt.ymin == null) y0 = Math.min(0, y0);
+  if (y1 === y0) y1 = y0 + 1; if (x1 === x0) x1 = x0 + 1;
+  if (opt.ylog) { y0 /= 1.25; y1 *= 1.25; } else if (opt.ymax == null) y1 += (y1 - y0) * 0.08;
+  const fx = opt.xlog ? (v) => m.l + (Math.log(v) - Math.log(x0)) / (Math.log(x1) - Math.log(x0)) * (W - m.l - m.r)
+                      : (v) => m.l + (v - x0) / (x1 - x0) * (W - m.l - m.r);
+  const fy = opt.ylog ? (v) => H - m.b - (Math.log(v) - Math.log(y0)) / (Math.log(y1) - Math.log(y0)) * (H - m.t - m.b)
+                      : (v) => H - m.b - (v - y0) / (y1 - y0) * (H - m.t - m.b);
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": opt.aria || "" }, host);
+  const xt = opt.xticks || (opt.xlog ? logTicks(x0, x1, opt.xbase) : niceTicks(x0, x1, Math.max(3, Math.floor(W / 90))));
+  const yt = opt.yticks || (opt.ylog ? logTicks(y0, y1) : niceTicks(y0, y1, 5));
+  for (const v of yt) { const y = fy(v); if (y < m.t - 1 || y > H - m.b + 1) continue; s("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, class: "gr" }, svg); s("text", { x: m.l - 6, y: y + 3.5, "text-anchor": "end" }, svg).textContent = (opt.yfmt || ftick)(v); }
+  for (const v of xt) { const x = fx(v); if (x < m.l - 1 || x > W - m.r + 1) continue; s("line", { x1: x, x2: x, y1: H - m.b, y2: H - m.b + 4, class: "ax" }, svg); s("text", { x, y: H - m.b + 16, "text-anchor": "middle" }, svg).textContent = (opt.xfmt || ftick)(v); }
+  s("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, class: "ax" }, svg);
+  if (opt.xlabel) s("text", { x: (m.l + W - m.r) / 2, y: H - 4, "text-anchor": "middle", class: "lbl" }, svg).textContent = opt.xlabel;
+  if (opt.ylabel) s("text", { x: m.l, y: m.t - 2 + 0, "text-anchor": "start", class: "lbl", dy: "-0.1em" }, svg).textContent = "";
+  (opt.refs || []).forEach((r, i) => {
+    if (r.y != null) { const y = fy(r.y); s("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: r.color || "var(--text-3)", "stroke-width": 1, "stroke-dasharray": "3 3" }, svg); if (r.label) s("text", { x: W - m.r, y: y - 4, "text-anchor": "end" }, svg).textContent = r.label; }
+    if (r.x != null) { const x = fx(r.x); s("line", { x1: x, x2: x, y1: m.t, y2: H - m.b, stroke: r.color || "var(--text-3)", "stroke-width": 1, "stroke-dasharray": "3 3" }, svg);
+      if (r.label) { const right = x > (m.l + W - m.r) * 0.7; s("text", { x: right ? x - 4 : x + 4, y: H - m.b - 6 - 13 * i, "text-anchor": right ? "end" : "start", class: "lbl" }, svg).textContent = r.label; } }
+  });
+  for (const r of opt.polys || []) { s("path", { d: r.pts.map((p, i) => (i ? "L" : "M") + fx(p.x).toFixed(1) + "," + fy(p.y).toFixed(1)).join(""), fill: "none", stroke: r.color, "stroke-width": r.width || 2, "stroke-dasharray": r.dash || "" }, svg); }
+  const drawn = [];
+  opt.series.forEach((sr) => {
+    const P = sr.pts.filter((p) => isFinite(p.x) && isFinite(p.y) && (!opt.ylog || p.y > 0) && (!opt.xlog || p.x > 0));
+    if (sr.line !== false && P.length > 1) s("path", { d: P.map((p, i) => (i ? "L" : "M") + fx(p.x).toFixed(1) + "," + fy(p.y).toFixed(1)).join(""), fill: "none", stroke: sr.color, "stroke-width": 2, "stroke-dasharray": sr.dash || "", "stroke-linejoin": "round" }, svg);
+    for (const p of P) {
+      const cx = fx(p.x), cy = fy(p.y);
+      if (sr.marker !== false) s("circle", { cx, cy, r: sr.r || 4, fill: sr.color, stroke: "var(--surface)", "stroke-width": 2 }, svg);
+      if (p.label) s("text", { x: cx + (p.dx || 0), y: cy - 9 + (p.dy || 0), "text-anchor": p.anchor || "middle", class: "lbl" }, svg).textContent = p.label;
+      drawn.push({ cx, cy, p, sr });
+    }
+  });
+  if (opt.ylabelTop) { s("text", { x: 4, y: m.t + 2, "text-anchor": "start", class: "lbl" }, svg).textContent = ""; }
+  const tip = h("div", { class: "tip", hidden: "" }); host.appendChild(tip);
+  const hit = s("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent" }, svg);
+  const ring = s("circle", { r: 7, fill: "none", stroke: "var(--text)", "stroke-width": 1.5, visibility: "hidden" }, svg);
+  function move(ev) {
+    const bb = svg.getBoundingClientRect(), k = W / bb.width;
+    const x = (ev.clientX - bb.left) * k, y = (ev.clientY - bb.top) * k;
+    let best = null, bd = 1e9;
+    for (const d of drawn) { const dd = Math.hypot(d.cx - x, (d.cy - y) * (opt.nearestX ? 0.15 : 1)); if (dd < bd) { bd = dd; best = d; } }
+    if (!best || bd > 60) { tip.hidden = true; ring.setAttribute("visibility", "hidden"); return; }
+    ring.setAttribute("cx", best.cx); ring.setAttribute("cy", best.cy); ring.setAttribute("visibility", "visible");
+    tip.innerHTML = (best.p.tip || `<b>${esc(best.sr.name)}</b><br>${(opt.xfmt || fnum)(best.p.x)}: ${(opt.yfmt || fnum)(best.p.y)}`);
+    tip.hidden = false;
+    const left = Math.min(best.cx / k + 12, bb.width - tip.offsetWidth - 4);
+    tip.style.left = Math.max(0, left) + "px"; tip.style.top = Math.max(0, best.cy / k - tip.offsetHeight - 10) + "px";
+  }
+  hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move);
+  hit.addEventListener("pointerleave", () => { tip.hidden = true; ring.setAttribute("visibility", "hidden"); });
+  if (opt.legend !== false && opt.series.length > 1) {
+    const lg = h("div", { class: "legend" });
+    for (const sr of opt.series) if (sr.legend !== false) lg.appendChild(h("span", {}, sr.dash ? `<i class="dash" style="border-color:${sr.color}"></i>${esc(sr.name)}` : `<i style="background:${sr.color}"></i>${esc(sr.name)}`));
+    host.appendChild(lg);
+  }
+  if (opt.ylabel) { const yl = h("div", { class: "note", style: "margin:-2px 0 4px" }, esc(opt.ylabel)); host.insertBefore(yl, svg); }
+  return { fx, fy, svg };
+}
+const charts = [];
+function chart(host, build) { charts.push([host, build]); build(); }
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => charts.forEach(([host, b]) => { if (host.offsetParent) b(); }), 120); });
+
+/* ---------- routing ---------- */
+const VIEWS = ["plan", "ladder", "collectives", "roofline", "pipelines", "check", "rack", "bytes"];
+const inited = {};
+function route() {
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "plan";
+  for (const n of VIEWS) $("#v-" + n).hidden = n !== v;
+  for (const a of $$(".tabs a")) a.setAttribute("aria-current", a.getAttribute("href") === "#" + v ? "page" : "false");
+  if (!inited[v]) { inited[v] = true; INIT[v](); } else charts.forEach(([host, b]) => { if (host.offsetParent) b(); });
+}
+window.addEventListener("hashchange", route);
+
+/* ---------- PLAN ---------- */
+const HW = D.hardware, MODELS = D.models;
+const S = { model: "llama3-70b", hw: "gb300", phase: "decode", dtype: "bf16", tp: 8, pp: 1, dp: 1, ep: 1, cp: 1, cp_kind: "ring", zero: 3, shard: 0, sp: false, schedule: "1f1b", virtual: 1, micro_batch: 1, seqlen: 8192, micro_batches: 16, batch: 64, context: 8192 };
+const PRESETS = [
+  ["70B decode, TP8", { model: "llama3-70b", phase: "decode", tp: 8, pp: 1, dp: 1, ep: 1, batch: 64, context: 8192 }],
+  ["70B decode, batch 1", { model: "llama3-70b", phase: "decode", tp: 8, pp: 1, dp: 1, ep: 1, batch: 1, context: 8192 }],
+  ["DeepSeek-V3 decode, EP64", { model: "deepseek-v3", phase: "decode", tp: 1, pp: 1, dp: 1, ep: 64, batch: 64, context: 4096 }],
+  ["405B training, TP8 PP4 DP2", { model: "llama3-405b", phase: "train", tp: 8, pp: 4, dp: 2, ep: 1, cp: 1, zero: 1, schedule: "1f1b", micro_batch: 1, seqlen: 8192, micro_batches: 16 }],
+  ["8B training, FSDP on 72", { model: "llama3-8b", phase: "train", tp: 1, pp: 1, dp: 72, ep: 1, cp: 1, zero: 3, micro_batch: 1, seqlen: 8192, micro_batches: 1 }],
+  ["70B prefill 128k, ring CP8", { model: "llama3-70b", phase: "prefill", tp: 8, pp: 1, dp: 1, ep: 1, cp: 8, cp_kind: "ring", batch: 1, seqlen: 131072 }],
+];
+const OPTS = {
+  phase: [["train", "Train"], ["prefill", "Prefill"], ["decode", "Decode"]],
+  dtype: [["bf16", "BF16"], ["fp8", "FP8"]],
+  pp: [1, 2, 4, 8], dp: [1, 2, 3, 4, 6, 8, 9, 12, 16, 18, 24, 36, 72], cp: [1, 2, 4, 8, 16], ep: [1, 2, 4, 8, 16, 32, 64],
+  zero: [[0, "DDP"], [1, "ZeRO-1"], [2, "ZeRO-2"], [3, "FSDP (ZeRO-3)"]],
+  schedule: [["gpipe", "GPipe"], ["1f1b", "1F1B"], ["interleaved", "Interleaved"], ["zb", "ZB-H1"]],
+  cp_kind: [["ring", "ring attention"], ["ulysses", "Ulysses"]],
+  micro_batch: [1, 2, 4, 8], seqlen: [2048, 4096, 8192, 16384, 32768, 65536, 131072], micro_batches: [1, 2, 4, 8, 16, 32, 64],
+  batch: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024], context: [1024, 2048, 4096, 8192, 16384, 32768, 131072],
+  virtual: [1, 2, 4], shard: [0, 2, 4, 8, 9, 18, 36],
+};
+function sel(key, opts, labelFn) {
+  const e = h("select", { "data-k": key });
+  for (const o of opts) { const [v, l] = Array.isArray(o) ? o : [o, labelFn ? labelFn(o) : String(o)]; e.appendChild(h("option", { value: v }, esc(l))); }
+  return e;
+}
+function field(label, ctrl, cls) { const f = h("label", { class: "f" + (cls ? " " + cls : "") }); f.appendChild(document.createTextNode(label)); f.appendChild(ctrl); return f; }
+function planInit() {
+  const pr = $("#presets");
+  PRESETS.forEach(([name, p]) => { const b = h("button", { class: "b" }, esc(name)); b.onclick = () => { Object.assign(S, { cp: 1, sp: false, shard: 0 }, p); syncControls(); planRender(); }; pr.appendChild(b); });
+  const c = $("#plan-controls");
+  const modelSel = sel("model", Object.keys(MODELS).map((k) => [k, MODELS[k].name]));
+  const hwSel = sel("hw", Object.keys(HW).map((k) => [k, HW[k].name]));
+  c.appendChild(field("model", modelSel, "full"));
+  c.appendChild(field("hardware", hwSel, "full"));
+  const ph = h("div", { class: "seg full", "data-seg": "phase" });
+  OPTS.phase.forEach(([v, l]) => { const b = h("button", { class: "b", "data-v": v }, l); b.onclick = () => { S.phase = v; syncControls(); planRender(); }; ph.appendChild(b); });
+  c.appendChild(ph);
+  const tp = h("select", { "data-k": "tp" }); c.appendChild(field("tensor parallel (TP)", tp));
+  c.appendChild(field("pipeline (PP)", sel("pp", OPTS.pp)));
+  c.appendChild(field("data parallel (DP)", sel("dp", OPTS.dp)));
+  c.appendChild(field("expert parallel (EP)", sel("ep", OPTS.ep), "ep-only"));
+  c.appendChild(field("context parallel (CP)", sel("cp", OPTS.cp), "seq-only"));
+  c.appendChild(field("CP kind", sel("cp_kind", OPTS.cp_kind), "seq-only"));
+  c.appendChild(field("DP sharding", sel("zero", OPTS.zero), "train-only"));
+  c.appendChild(field("HSDP shard group", sel("shard", OPTS.shard, (v) => v ? String(v) : "off"), "train-only"));
+  c.appendChild(field("PP schedule", sel("schedule", OPTS.schedule), "train-only"));
+  c.appendChild(field("virtual chunks", sel("virtual", OPTS.virtual), "train-only"));
+  c.appendChild(field("micro-batch (seqs)", sel("micro_batch", OPTS.micro_batch), "train-only"));
+  c.appendChild(field("micro-batches / step", sel("micro_batches", OPTS.micro_batches), "train-only"));
+  c.appendChild(field("sequence length", sel("seqlen", OPTS.seqlen, fnum), "seq-only"));
+  c.appendChild(field("batch (seqs)", sel("batch", OPTS.batch), "inf-only"));
+  c.appendChild(field("context", sel("context", OPTS.context, fnum), "dec-only"));
+  c.appendChild(field("precision", sel("dtype", OPTS.dtype)));
+  const sp = h("label", { class: "f check" }, `<input type="checkbox" data-k="sp"> sequence parallel (SP)`); c.appendChild(sp);
+  c.addEventListener("change", (ev) => {
+    const k = ev.target.getAttribute("data-k"); if (!k) return;
+    if (ev.target.type === "checkbox") S[k] = ev.target.checked;
+    else S[k] = ["model", "hw", "phase", "dtype", "cp_kind", "schedule"].includes(k) ? ev.target.value : +ev.target.value;
+    if (k === "model") { const m = MODELS[S.model]; if (!m.valid_tp.includes(S.tp)) S.tp = Math.max(...m.valid_tp.filter((t) => t <= 8)); if (!m.moe) S.ep = 1; }
+    syncControls(); planRender();
+  });
+  syncControls(); planRender();
+}
+function syncControls() {
+  const c = $("#plan-controls"), m = MODELS[S.model];
+  const tp = $('select[data-k="tp"]', c); tp.innerHTML = "";
+  m.valid_tp.filter((t) => t <= 72).forEach((t) => tp.appendChild(h("option", { value: t }, String(t))));
+  if (!m.valid_tp.includes(S.tp)) S.tp = 1;
+  for (const e of $$("select[data-k]", c)) e.value = String(S[e.getAttribute("data-k")]);
+  $('input[data-k="sp"]', c).checked = !!S.sp;
+  for (const b of $$('[data-seg="phase"] button', c)) b.classList.toggle("on", b.getAttribute("data-v") === S.phase);
+  const show = (cls, on) => $$("." + cls, c).forEach((e) => (e.hidden = !on));
+  show("train-only", S.phase === "train"); show("inf-only", S.phase !== "train"); show("dec-only", S.phase === "decode");
+  show("seq-only", S.phase !== "decode"); show("ep-only", !!m.moe);
+}
+function planObj() {
+  const p = { tp: S.tp, pp: S.pp, dp: S.dp, ep: MODELS[S.model].moe ? S.ep : 1, cp: S.phase === "decode" ? 1 : S.cp, cp_kind: S.cp_kind, sp: S.sp && S.tp > 1 };
+  if (S.phase === "train") Object.assign(p, { zero: S.zero, shard: S.zero === 3 && S.shard && S.shard < S.dp && S.dp % S.shard === 0 ? S.shard : 0, schedule: S.schedule, virtual: S.schedule === "interleaved" ? S.virtual : 1 });
+  return p;
+}
+function est(over) {
+  const st = Object.assign({}, S, over || {});
+  const p = planObj.call(null);
+  if (over) { for (const k of ["tp", "pp", "dp", "ep", "cp"]) if (k in over) p[k] = over[k]; }
+  const o = st.phase === "train" ? { micro_batch: st.micro_batch, seqlen: st.seqlen, micro_batches: st.micro_batches, dtype: st.dtype, optimizer: true }
+                                 : { batch: st.batch, context: st.context, seqlen: st.seqlen, dtype: st.dtype };
+  return rsmath.estimate(MODELS[st.model], HW[st.hw], st.phase, p, o);
+}
+const KIND = { compute: ["var(--s1)", "compute"], memory: ["var(--s3)", "HBM"], exposed: ["var(--s2)", "on the critical path"], overlapped: ["var(--s7)", "overlaps compute"] };
+function planRender() {
+  let e;
+  try { e = est(); } catch (err) { $("#plan-tiles").innerHTML = `<div class="tile warn">${esc(err.message)}</div>`; return; }
+  const hw = HW[S.hw], m = MODELS[S.model];
+  const world = e.world, tiles = [];
+  const memCap = hw.hbm_bytes / 1e9;
+  if (S.phase === "decode") {
+    tiles.push(["time per token (TPOT)", ftime(e.step_us), `${sig(e.tok_s_user, 3)} tok/s per user`]);
+    tiles.push(["throughput", fnum(e.tok_s_gpu) + "<small>tok/s/GPU</small>", `${fnum(e.tok_s_rack)} tok/s for ${e.replicas} replica${e.replicas > 1 ? "s" : ""}`]);
+  } else if (S.phase === "prefill") {
+    tiles.push(["time to first token", ftime(e.step_us), `${fnum(e.tokens_per_step)} tokens`]);
+    tiles.push(["throughput", fnum(e.tok_s_gpu) + "<small>tok/s/GPU</small>", `${e.replicas} replica${e.replicas > 1 ? "s" : ""} on the system`]);
+  } else {
+    tiles.push(["step", ftime(e.step_us), `${fnum(e.tokens_per_step)} tokens per step`]);
+    tiles.push(["throughput", fnum(e.tok_s_gpu) + "<small>tok/s/GPU</small>", `${fnum(e.tok_s)} tok/s for the job`]);
+  }
+  tiles.push(["MFU (ideal machine)", (100 * e.mfu).toFixed(1) + "%", `kernels at peak; see <a href="#check">Formula vs sim</a> for real ${S.phase === "train" ? "training" : "inference"} steps`]);
+  tiles.push(["memory per GPU", sig(e.memory_total_gb, 3) + " GB", e.fits ? `<span class="ok">fits</span> in ${memCap.toFixed(0)} GB` : `<span class="warn">does not fit</span> in ${memCap.toFixed(0)} GB`]);
+  let gpuNote = `${world} GPU${world > 1 ? "s" : ""}: ${esc(e.label)}`;
+  if (world > hw.gpus) gpuNote = `<span class="warn">${world} GPUs: more than the ${hw.gpus} in ${esc(hw.name)}</span>`;
+  $("#plan-tiles").innerHTML = tiles.map(([k, v, d]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("") +
+    `<div class="tile" style="grid-column:1/-1"><div class="d">${gpuNote}${S.phase !== "train" && world < hw.gpus ? `, ${e.replicas} copies fill the system` : ""}</div></div>`;
+  const dom = e.terms.find((t) => t.name === e.dominant);
+  $("#plan-dom").textContent = "Bound by " + e.dominant;
+  $("#plan-dom-sub").textContent = domExplain(e, dom);
+  const mx = Math.max(...e.terms.map((t) => t.us), 1e-9);
+  $("#plan-terms").innerHTML = e.terms.map((t) => {
+    const [c, k] = KIND[t.kind] || ["var(--text-3)", t.kind];
+    let fill = `<div class="fill" style="width:${(100 * t.us / mx).toFixed(2)}%;background:${c}"></div>`, extra = "";
+    if (t.kind === "overlapped") {
+      const win = t.window != null ? t.window * 1e6 : 0, exp = Math.max(0, t.us - win);
+      fill = `<div class="fill hidden" style="width:${(100 * t.us / mx).toFixed(2)}%;background:${c}"></div><div class="fill" style="width:${(100 * exp / mx).toFixed(2)}%;background:${c}"></div>`;
+      extra = exp > 0 ? `, ${ftime(exp)} exposed` : ", hidden";
+    }
+    return `<div class="nm">${esc(t.name)}<small>${esc(t.formula)}</small></div><div class="track" title="${esc(k)}">${fill}</div><div class="us">${ftime(t.us)}${extra}</div>`;
+  }).join("");
+  $("#plan-crit").innerHTML = critHtml(e);
+  const mem = Object.entries(e.memory_gb).filter(([, v]) => v > 1e-3).sort((a, b) => b[1] - a[1]);
+  const mm = Math.max(memCap, e.memory_total_gb);
+  $("#plan-mem").innerHTML = `<div class="terms">` + mem.map(([k, v], i) => `<div class="nm">${esc(k.replace(/_/g, " "))}</div><div class="track"><div class="fill" style="width:${(100 * v / mm).toFixed(2)}%;background:${color(i)}"></div></div><div class="us">${sig(v, 3)} GB</div>`).join("") +
+    `<div class="nm"><b>total</b></div><div class="track"><div class="fill" style="width:${(100 * e.memory_total_gb / mm).toFixed(2)}%;background:${e.fits ? "var(--text-3)" : "var(--bad)"}"></div><div style="position:absolute;top:-2px;bottom:-2px;left:${(100 * memCap * 0.92 / mm).toFixed(2)}%;width:2px;background:var(--text)"></div></div><div class="us">${sig(e.memory_total_gb, 3)} / ${memCap.toFixed(0)} GB</div></div>` +
+    `<p class="note" style="margin-top:6px">The tick marks 92% of HBM, the usable limit the formulas assume.</p>`;
+  sweepRender();
+}
+function domExplain(e, t) {
+  const n = t ? t.name : "";
+  if (/weight/.test(n)) return "Every step streams the weights from HBM; more sequences per step share that read, so throughput rises with batch until the matmuls become compute bound.";
+  if (/KV/.test(n)) return "Attention reads every cached key and value each step; this grows with batch × context, and only fewer bytes per token (GQA, MLA, FP8 KV) or more GPUs reduce it.";
+  if (/FLOPs/.test(n)) return "Compute bound: the GPUs do useful matmul work most of the time. From here, only more GPUs or lower precision make the step faster.";
+  if (/bubble/.test(n)) return "Pipeline stages wait for each other at the start and end of the step; more micro-batches or interleaving shrink the bubble.";
+  if (/TP/.test(n)) return "Tensor-parallel all-reduces sit on the critical path after every attention and MLP block; fewer TP ranks or sequence parallelism change this.";
+  if (/EP/.test(n)) return "Token dispatch and combine all-to-alls between experts dominate; they do not shrink with more GPUs.";
+  if (/FSDP|gradient|DP/.test(n)) return "Data-parallel traffic cannot hide behind the backward pass at this many tokens per GPU.";
+  return "";
+}
+function critHtml(e) {
+  const hw = HW[S.hw], C = rsmath.peak(hw, S.dtype), out = [];
+  if (S.phase === "decode") {
+    const b = e.critical.batch, have = e.critical.batch_per_gpu;
+    out.push(`<p><b>Critical batch ${Math.round(b)}</b> = C · bytes per weight / (2β): below it each weight byte read from HBM is used for too few FLOPs, and decode is bandwidth bound. This plan runs <b>${have}</b> sequences per step per model copy${have < b ? ", so it is weight-read bound" : ", so the matmuls are compute bound"}.</p>`);
+  }
+  if (S.phase === "train") {
+    const c = e.critical;
+    out.push(`<p><b>DP traffic hides</b> when tokens per GPU per step ≥ ${fnum(c.dp_tokens_per_gpu)} (C/W or C/2W for this sharding). This plan gives each GPU <b>${fnum(c.tokens_per_gpu)}</b>.</p>`);
+    out.push(`<p><b>TP pays</b> until about ${c.tp_max.toFixed(1)} ranks for this model: past that, each layer's all-reduces cost more than its matmuls.</p>`);
+    if (S.pp > 1) { const p = S.pp, mb = S.micro_batches, v = S.schedule === "interleaved" ? S.virtual : 1; const bub = S.schedule === "interleaved" ? (p - 1) / (v * mb + p - 1) : (p - 1) / (mb + p - 1); out.push(`<p><b>Bubble</b> ${(100 * bub * (S.schedule === "zb" ? 1 / 3 : 1)).toFixed(1)}% of the step: (p−1)/(${S.schedule === "interleaved" ? "v·m" : "m"}+p−1)${S.schedule === "zb" ? " ÷ ~3 for ZB-H1" : ""}.</p>`); }
+  }
+  if (S.phase === "prefill" && S.cp > 1 && S.cp_kind === "ring") {
+    const m = MODELS[S.model], cmin = 2 * (m.kv_heads / m.heads) * C / hw.nvlink_bw, c = S.seqlen / S.cp;
+    out.push(`<p><b>Ring attention hides</b> its K/V transfer when each GPU's chunk c ≥ 2(H<sub>kv</sub>/H)·C/W = ${Math.round(cmin)} tokens. Here c = ${fnum(c)}.</p>`);
+  }
+  out.push(`<p class="note">C = ${fnum(C / 1e12)} TFLOP/s, β = ${sig(hw.hbm_bw / 1e12, 3)} TB/s, W = ${sig(hw.nvlink_bw / 1e9, 3)} GB/s per GPU per direction${hw.nvls ? ", NVLS" : ""}.</p>`);
+  return out.join("");
+}
+function sweepRender() {
+  const train = S.phase === "train";
+  const knob = train ? "micro_batches" : "batch", vals = train ? [1, 2, 4, 8, 16, 32, 64] : [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024];
+  const rows = vals.map((v) => { try { const e = est({ [knob]: v }); return { v, e }; } catch (err) { return null; } }).filter(Boolean);
+  $("#sweep-title").textContent = train ? "Sweep: micro-batches per step" : "Sweep: batch";
+  $("#sweep-sub").textContent = train ? "More micro-batches amortise the pipeline bubble and the data-parallel traffic over more tokens; memory for activations grows under GPipe." : "Throughput per GPU rises with batch while the weight read is shared; per-user speed falls once the step stops being a fixed weight read. The dashed line is the critical batch.";
+  const cur = train ? S.micro_batches : S.batch;
+  const P = (f) => rows.map((r) => ({ x: r.v, y: f(r.e), tip: `<b>${knob.replace("_", " ")} ${r.v}</b><br>step ${ftime(r.e.step_us)}<br>${fnum(r.e.tok_s_gpu)} tok/s/GPU<br>MFU ${(100 * r.e.mfu).toFixed(1)}%${r.e.fits ? "" : '<br><span class="warn">does not fit</span>'}` }));
+  const crit = !train && S.phase === "decode" ? [{ x: rows[0].e.critical.batch, label: "critical batch" }] : [];
+  chart($("#sweep-a"), () => XY($("#sweep-a"), { xlog: true, xbase: 2, xticks: vals, ylog: true, series: [{ name: "tok/s per GPU", color: "var(--s1)", pts: P((e) => e.tok_s_gpu) }], refs: crit.concat([{ x: cur, label: "now", color: "var(--text)" }]), ylabel: "tokens/s per GPU", xfmt: String, height: 220 }));
+  chart($("#sweep-b"), () => XY($("#sweep-b"), { xlog: true, xbase: 2, xticks: vals, ylog: true, series: [{ name: train ? "step" : "time per step", color: "var(--s2)", pts: P((e) => e.step_us) }], refs: crit.concat([{ x: cur, color: "var(--text)" }]), ylabel: train ? "step time" : "time per step (per token for decode)", yfmt: ftime, xfmt: String, height: 220 }));
+}
+
+/* ---------- LADDER ---------- */
+let LAD = { model: "llama3-70b", phase: "train" };
+function ladderInit() {
+  const pick = $("#ladder-pick");
+  for (const m of Object.keys(D.ladders)) { const b = h("button", { class: "b", "data-m": m }, esc(MODELS[m] ? MODELS[m].name : m)); b.onclick = () => { LAD.model = m; ladderRender(); }; pick.appendChild(b); }
+  pick.appendChild(h("span", { style: "width:12px" }));
+  for (const [p, l] of [["train", "Training"], ["decode", "Decode"]]) { const b = h("button", { class: "b", "data-p": p }, l); b.onclick = () => { LAD.phase = p; ladderRender(); }; pick.appendChild(b); }
+  ladderRender();
+}
+function ladderRender() {
+  for (const b of $$("#ladder-pick button")) b.classList.toggle("on", b.getAttribute("data-m") === LAD.model || b.getAttribute("data-p") === LAD.phase);
+  const L = D.ladders[LAD.model][LAD.phase], rows = L.rows.filter((r) => r.fits);
+  const pts = rows.map((r, i) => ({ x: r.gpus, y: r.tok_s_gpu, label: r.plan, anchor: i === rows.length - 1 ? "end" : "middle", dy: i % 2 ? 22 : 0,
+    tip: `<b>${r.gpus} GPUs: ${esc(r.plan)}</b><br>${fnum(r.tok_s_gpu)} tok/s/GPU<br>${r.step_ms != null ? "step " + ftime(r.step_ms * 1e3) : ""}${r.tok_s_user != null ? "<br>" + sig(r.tok_s_user, 3) + " tok/s per user" : ""}<br>MFU ${(100 * (r.mfu || 0)).toFixed(1)}%<br>bound by ${esc(r.dominant || "")}` }));
+  const xt = L.rows.map((r) => r.gpus);
+  chart($("#ladder-a"), () => XY($("#ladder-a"), { xlog: true, xbase: 2, xticks: xt, xmin: xt[0] * 0.8, xmax: xt[xt.length - 1] * 1.25, ymin: 0, series: [{ name: "tok/s per GPU", color: "var(--s1)", pts }], xfmt: String, ylabel: "tokens/s per GPU", height: 260, nearestX: true }));
+  const tot = rows.map((r) => ({ x: r.gpus, y: r.tok_s_gpu * r.gpus, tip: `<b>${r.gpus} GPUs</b><br>${fnum(r.tok_s_gpu * r.gpus)} tok/s` }));
+  const base = rows[0], ideal = rows.map((r) => ({ x: r.gpus, y: base.tok_s_gpu * r.gpus }));
+  chart($("#ladder-b"), () => XY($("#ladder-b"), { xlog: true, xbase: 2, ylog: true, xticks: xt, xmin: xt[0] * 0.8, xmax: xt[xt.length - 1] * 1.25, series: [{ name: "tok/s", color: "var(--s2)", pts: tot }], polys: [{ pts: ideal, color: "var(--text-3)", width: 1.5, dash: "2 4" }], xfmt: String, ylabel: "tokens/s, all GPUs", height: 260 }));
+  const dec = LAD.phase === "decode";
+  const sm = (D.check || []).filter((r) => r.phase === "train" && r.sim_mfu).map((r) => r.sim_mfu);
+  $("#ladder-mfu").innerHTML = "MFU here is the ideal machine's: matmuls at peak, so a compute-bound plan reads near 100%." +
+    (sm.length ? ` The cycle-level simulator puts the training steps it checked at ${(100 * Math.min(...sm)).toFixed(0)}–${(100 * Math.max(...sm)).toFixed(0)}% MFU (power-capped clock, kernels below peak; see <a href="#check">Formula vs sim</a>).` : "");
+  $("#ladder-table").innerHTML = `<tr><th class="n">GPUs</th><th>plan</th><th class="n">tok/s/GPU</th>${dec ? '<th class="n">tok/s per user</th>' : '<th class="n">step</th>'}<th class="n">MFU (ideal)</th><th class="n">memory/GPU</th><th>bound by</th></tr>` +
+    L.rows.map((r) => r.fits ? `<tr><td class="n">${r.gpus}</td><td>${esc(r.plan)}</td><td class="n">${fnum(r.tok_s_gpu)}</td>${dec ? `<td class="n">${sig(r.tok_s_user, 3)}</td>` : `<td class="n">${ftime(r.step_ms * 1e3)}</td>`}<td class="n">${(100 * r.mfu).toFixed(1)}%</td><td class="n">${sig(r.memory_gb, 3)} GB</td><td>${esc(r.dominant)}</td></tr>`
+      : `<tr><td class="n">${r.gpus}</td><td colspan="6" class="note">${esc(r.reason || "no plan fits in memory")}</td></tr>`).join("");
+}
+
+/* ---------- COLLECTIVES ---------- */
+let AN = { algo: "ring", step: 0, timer: null };
+const NG = 8;
+function animInit() {
+  for (const b of $$("[data-algo]")) b.onclick = () => { AN.algo = b.getAttribute("data-algo"); AN.step = 0; stopPlay(); for (const x of $$("[data-algo]")) x.classList.toggle("on", x === b); animRender(); };
+  $("#anim-fwd").onclick = () => { stopPlay(); AN.step = Math.min(AN.step + 1, animSteps()); animRender(); };
+  $("#anim-back").onclick = () => { stopPlay(); AN.step = Math.max(AN.step - 1, 0); animRender(); };
+  $("#anim-play").onclick = () => { if (AN.timer) return stopPlay(); if (AN.step >= animSteps()) AN.step = 0; $("#anim-play").textContent = "Pause"; AN.timer = setInterval(() => { AN.step++; animRender(); if (AN.step >= animSteps()) stopPlay(); }, 900); };
+  animRender();
+}
+function stopPlay() { clearInterval(AN.timer); AN.timer = null; $("#anim-play").textContent = "Play"; }
+function animSteps() { return AN.algo === "ring" ? 2 * (NG - 1) : 2; }
+function animRender() {
+  const host = $("#anim"); host.innerHTML = "";
+  const W = 360, H = 300, cx = W / 2, cy = H / 2 + 4, R = 112;
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", style: "max-width:460px;display:block;margin:0 auto", role: "img", "aria-label": "all-reduce animation" }, host);
+  const pos = (g) => [cx + R * Math.sin(2 * Math.PI * g / NG), cy - R * Math.cos(2 * Math.PI * g / NG)];
+  // contributions[g][c]: how many GPUs' copies of chunk c GPU g holds summed; 8 = fully reduced.
+  const contrib = Array.from({ length: NG }, () => Array(NG).fill(1));
+  const steps = AN.step, ring = AN.algo === "ring";
+  const sends = [];
+  if (ring) {
+    for (let st = 0; st < Math.min(steps, NG - 1); st++) {
+      const snap = contrib.map((r) => r.slice());
+      for (let g = 0; g < NG; g++) { const c = ((g - st) % NG + NG) % NG, dst = (g + 1) % NG; contrib[dst][c] = snap[dst][c] + snap[g][c]; if (st === steps - 1) sends.push([g, dst, c]); }
+    }
+    for (let st = 0; st < steps - (NG - 1); st++) {
+      const snap = contrib.map((r) => r.slice());
+      for (let g = 0; g < NG; g++) { const c = ((g + 1 - st) % NG + NG) % NG, dst = (g + 1) % NG; contrib[dst][c] = snap[g][c]; if (st === steps - NG) sends.push([g, dst, c]); }
+    }
+  } else if (steps >= 2) { for (const r of contrib) r.fill(NG); }
+  const sw = !ring;
+  if (sw) { s("rect", { x: cx - 46, y: cy - 22, width: 92, height: 44, rx: 8, fill: "var(--surface-2)", stroke: steps === 1 ? "var(--s2)" : "var(--line)", "stroke-width": steps === 1 ? 2 : 1 }, svg); s("text", { x: cx, y: cy - 4, "text-anchor": "middle", fill: "var(--text)", "font-size": 11 }, svg).textContent = "NVSwitch";
+    s("text", { x: cx, y: cy + 11, "text-anchor": "middle", fill: "var(--text-3)", "font-size": 10 }, svg).textContent = steps >= 1 ? "Σ in the switch" : "SHARP ALU"; }
+  for (let g = 0; g < NG; g++) {
+    const [x, y] = pos(g);
+    if (sw && steps >= 1) { const up = steps === 1; s("line", { x1: x, y1: y, x2: cx + (x - cx) * 0.36, y2: cy + (y - cy) * 0.36, stroke: up ? "var(--s2)" : "var(--s1)", "stroke-width": 2.5, "marker-end": "" }, svg); }
+  }
+  for (const [a, b] of sends) { const [x1, y1] = pos(a), [x2, y2] = pos(b); const mx = (x1 + x2) / 2 + (cx - (x1 + x2) / 2) * -0.18, my = (y1 + y2) / 2 + (cy - (y1 + y2) / 2) * -0.18; s("path", { d: `M${x1},${y1} Q${mx},${my} ${x2},${y2}`, fill: "none", stroke: steps <= NG - 1 ? "var(--s2)" : "var(--s1)", "stroke-width": 2.5 }, svg); }
+  for (let g = 0; g < NG; g++) {
+    const [x, y] = pos(g);
+    s("rect", { x: x - 30, y: y - 20, width: 60, height: 40, rx: 7, fill: "var(--surface)", stroke: "var(--line)" }, svg);
+    s("text", { x, y: y - 8, "text-anchor": "middle", fill: "var(--text-2)", "font-size": 10 }, svg).textContent = "GPU " + g;
+    for (let c = 0; c < NG; c++) { const v = contrib[g][c]; s("rect", { x: x - 26 + c * 6.6, y: y - 2, width: 5.6, height: 14, rx: 1, fill: v >= NG ? "var(--s1)" : "var(--s2)", "fill-opacity": v >= NG ? 1 : 0.15 + 0.7 * (v - 1) / (NG - 1) }, svg); }
+  }
+  const B = 1; let sent, phase;
+  if (ring) { sent = steps / NG; phase = steps === 0 ? "start: every GPU holds its own 8 chunks" : steps <= NG - 1 ? `reduce-scatter step ${steps} of ${NG - 1}: each GPU passes one chunk to its neighbour, which adds it in` : `all-gather step ${steps - NG + 1} of ${NG - 1}: the fully summed chunks travel round`; }
+  else { sent = Math.min(steps, 1); phase = steps === 0 ? "start: every GPU holds its own buffer" : steps === 1 ? "every GPU writes its whole buffer into the switch, which adds them (B up, all GPUs at once)" : "the switch multicasts the sum back (B down, on the other direction of the same links)"; }
+  $("#anim-sub").textContent = phase;
+  const total = ring ? 2 * (NG - 1) / NG : 1;
+  $("#anim-note").innerHTML = `Bytes sent per GPU so far: <b>${sig(sent * B, 3)} B</b> of ${ring ? "2(n−1)/n · B = " + sig(total, 3) + " B" : "B (and B received, in parallel)"}. Chunk shading: how many GPUs' contributions a chunk holds; blue = fully reduced.<br>Time ≈ α + ${ring ? "2(n−1)/n · B/W" : "B/W"} on ${NG} GPUs: for a 64 MiB buffer at W = 900 GB/s that is <b>${ftime(5 + (ring ? 2 * 7 / 8 : 1) * 64 * 1048576 / 900e3)}</b>.`;
+}
+function collInit() {
+  animInit();
+  const kinds = [...new Set(D.net.map((r) => r.coll))];
+  const ks = $("#coll-kind"); kinds.forEach((k) => ks.appendChild(h("option", { value: k }, k.replace("_", "-"))));
+  const rs = $("#coll-ranks");
+  const sync = () => { const avail = [...new Set(D.net.filter((r) => r.coll === ks.value).map((r) => r.ranks))]; const cur = +rs.value; rs.innerHTML = ""; avail.forEach((n) => rs.appendChild(h("option", { value: n }, String(n)))); rs.value = avail.includes(cur) ? cur : avail.includes(8) ? 8 : avail[0]; };
+  ks.value = "all_reduce"; sync(); rs.value = 8;
+  ks.onchange = () => { sync(); collRender(); }; rs.onchange = collRender;
+  collRender();
+}
+function collRender() {
+  const kind = $("#coll-kind").value, n = +$("#coll-ranks").value, hw = HW.gb300;
+  const rows = D.net.filter((r) => r.coll === kind && r.ranks === n);
+  const algos = [...new Set(rows.map((r) => r.algo_req))];
+  algos.sort((a, b) => (a === "auto") - (b === "auto"));
+  const ser = algos.map((a, i) => ({ name: "simulated, " + (a === "auto" ? "NCCL's choice" : a), color: a === "auto" ? "var(--s2)" : a === "ring" ? "var(--s3)" : "var(--s5)", marker: a === "auto", dash: a === "auto" ? "" : "1 0",
+    pts: rows.filter((r) => r.algo_req === a).map((r) => ({ x: r.bytes, y: r.us, tip: `<b>${fbytes(r.bytes)}</b> ${esc(a)}<br>${ftime(r.us)} · ${r.algo}/${r.proto}, ${r.channels} channels<br>bus bw ${sig(r.busbw, 3)} GB/s<br>NCCL's own model: ${ftime(r.nccl_model_us)}` })) }));
+  const cf = (B, algo) => { if (kind === "send_recv") return rsmath.p2p(B, hw) * 1e6; return rsmath.collective(kind, B, n, hw, algo === "ring" ? "ring" : null)[0] * 1e6; };
+  const sizes = [...new Set(rows.map((r) => r.bytes))].sort((a, b) => a - b);
+  const form = [{ name: "formula α + β·bytes" + (kind === "all_reduce" && hw.nvls ? " (NVLS)" : ""), color: "var(--s1)", dash: "5 4", marker: false, pts: sizes.map((B) => ({ x: B, y: cf(B), tip: `<b>formula</b> ${fbytes(B)}: ${ftime(cf(B))}` })) }];
+  if (kind === "all_reduce") form.push({ name: "formula, ring", color: "var(--s7)", dash: "2 4", marker: false, pts: sizes.map((B) => ({ x: B, y: cf(B, "ring"), tip: `<b>ring formula</b> ${fbytes(B)}: ${ftime(cf(B, "ring"))}` })) });
+  const BT = [1024, 16384, 262144, 4194304, 67108864, 1073741824];
+  chart($("#coll-time"), () => XY($("#coll-time"), { xlog: true, ylog: true, xticks: BT, series: form.concat(ser), xfmt: fbytes, yfmt: ftime, ylabel: "time", height: 250 }));
+  const bw = ser.map((sr) => ({ name: sr.name, color: sr.color, pts: sr.pts.map((p, i) => ({ x: p.x, y: rows.filter((r) => r.bytes === p.x)[0] ? (rows.find((r) => r.bytes === p.x && sr.name.endsWith(r.algo_req === "auto" ? "NCCL's choice" : r.algo_req)) || {}).busbw : 0, tip: p.tip })) }));
+  chart($("#coll-bw"), () => XY($("#coll-bw"), { xlog: true, ymin: 0, xticks: BT, series: bw, refs: kind === "send_recv" ? [] : [{ y: hw.nvlink_bw / 1e9, label: "ring limit: bus bw = W" }], xfmt: fbytes, yfmt: (v) => ftick(v) + " GB/s", ylabel: "bus bandwidth (nccl-tests convention); NVLS can exceed W because the switch does the adding", height: 200, legend: false }));
+}
+
+/* ---------- ROOFLINE ---------- */
+function roofInit() { $("#roof-b").oninput = roofRender; roofRender(); }
+function roofRender() {
+  const hw = HW.gb300, C = hw.flops.bf16 / 1e12, beta = hw.hbm_bw / 1e12, capped = C * 1455 / 2032;
+  const b = Math.pow(2, +$("#roof-b").value); $("#roof-b-v").textContent = b;
+  const n = 8192, k = 8192, fl = 2 * b * n * k, by = 2 * (b * k + k * n + b * n), I = fl / by, perf = Math.min(C, I * beta);
+  $("#roof-read").innerHTML = `Intensity = 2bnk / 2(bk + kn + bn) = <b>${sig(I, 3)}</b> FLOP/byte<br>Roofline: min(C, I·β) = <b>${fnum(perf)}</b> TFLOP/s, ${perf < C ? '<span class="warn">memory bound</span>: the weight read takes ' + ftime(by / (beta * 1e12) * 1e6) + ', the math ' + ftime(fl / (C * 1e12) * 1e6) : '<span class="ok">compute bound</span>'}.<br><span class="note">Ridge at C/β = ${Math.round(C / beta)} FLOP/byte.</span>`;
+  const seen = new Map();
+  for (const r of D.check || []) for (const kk of r.sim_kernels || []) { if (!kk.gbps || !kk.tflops || seen.has(kk.name)) continue; seen.set(kk.name, kk); }
+  const cls = (nm) => /gemm/.test(nm) ? 0 : /fmha|attn|attention|flash/.test(nm) ? 1 : 2;
+  const groups = [[], [], []];
+  for (const kk of seen.values()) { const II = kk.tflops * 1e12 / (kk.gbps * 1e9); groups[cls(kk.name)].push({ x: II, y: kk.tflops, tip: `<b>${esc(kk.name)}</b><br>${sig(II, 3)} FLOP/byte<br>${fnum(kk.tflops)} TFLOP/s, ${fnum(kk.gbps)} GB/s<br>${ftime(kk.us)}` }); }
+  const xs = [0.05, 4000], roof = [], roofC = [];
+  for (let x = xs[0]; x <= xs[1]; x *= 1.15) { roof.push({ x, y: Math.min(C, x * beta) }); roofC.push({ x, y: Math.min(capped, x * beta) }); }
+  chart($("#roof-chart"), () => XY($("#roof-chart"), { xlog: true, ylog: true, xmin: xs[0], xmax: xs[1], ymin: 0.2, ymax: C * 1.6,
+    polys: [{ pts: roof, color: "var(--text)", width: 1.5 }, { pts: roofC, color: "var(--text-3)", width: 1.5, dash: "4 4" }],
+    series: [{ name: "GEMM", color: "var(--s1)", line: false, pts: groups[0] }, { name: "attention", color: "var(--s2)", line: false, pts: groups[1] }, { name: "other", color: "var(--s3)", line: false, pts: groups[2], r: 3 },
+      { name: "decode GEMM at b", color: "var(--s7)", line: false, r: 6, pts: [{ x: I, y: perf, label: "b = " + b, tip: `<b>decode GEMM, b = ${b}</b><br>${sig(I, 3)} FLOP/byte, ${fnum(perf)} TFLOP/s` }] }],
+    refs: [{ x: C / beta, label: "ridge" }], xfmt: (v) => fnum(v), yfmt: (v) => fnum(v), ylabel: "TFLOP/s (BF16) vs FLOPs per byte of HBM traffic; solid roof at 2032 MHz, dashed at the power-capped 1455 MHz", height: 340, legend: false }));
+}
+
+/* ---------- PIPELINES ---------- */
+function pipeInit() {
+  for (const id of ["p", "m", "v"]) $("#bub-" + id).oninput = bubRender;
+  bubRender();
+  const P = D.pipelines, host = $("#pipe-charts"), names = { gpipe: "GPipe", "1f1b": "1F1B", zb: "ZB-H1" };
+  const tmax = Math.max(...Object.values(P.schedules).map((x) => x.step_us));
+  const med = (k) => { const v = P.schedules.zb.ranks.flat().filter((b) => b[0] === k).map((b) => b[3] - b[2]).sort((a, b) => a - b); return v[v.length >> 1]; };
+  const tF = med("F"), tB = med("B"), tW = med("W"), pp = P.pp, mm = P.micro_batches;
+  const ideal = mm * (tF + tB + tW) + (pp - 1) * (tF + tB - tW), z = P.schedules.zb.step_us, o = P.schedules["1f1b"].step_us;
+  host.appendChild(h("p", { class: "note" }, `From the replay's own blocks, t<sub>F</sub> = ${ftime(tF)}, t<sub>B</sub> = ${ftime(tB)}, t<sub>W</sub> = ${ftime(tW)}: a perfect ZB-H1 would take m(t<sub>F</sub>+t<sub>B</sub>+t<sub>W</sub>) + (p−1)(t<sub>F</sub>+t<sub>B</sub>−t<sub>W</sub>) = <b>${ftime(ideal)}</b>. The lowering defers weight gradients only in the drain, so it reaches ${ftime(z)}, ${fpct(z / o - 1)} against 1F1B: a tighter zero-bubble schedule is open work in <span class="mono">lower._pp_order</span>.`));
+  for (const [k, sc] of Object.entries(P.schedules)) {
+    const card = h("div", { class: "card" });
+    const busy = sc.ranks.map((r) => r.reduce((a, b) => a + (b[3] - b[2]), 0));
+    const idle = 1 - busy.reduce((a, b) => a + b, 0) / (busy.length * sc.step_us);
+    const p = P.pp, m = P.micro_batches, form = (p - 1) / (m + p - 1);
+    card.appendChild(h("h2", {}, `${names[k]}: ${ftime(sc.step_us)} per step`));
+    card.appendChild(h("p", { class: "sub" }, `Idle ${(100 * idle).toFixed(1)}% of stage time in the replay; formula ${k === "zb" ? "≈ (p−1)/(m+p−1)/3 = " + (100 * form / 3).toFixed(1) : "(p−1)/(m+p−1) = " + (100 * form).toFixed(1)}%.`));
+    const ch = h("div", { class: "chart" }); card.appendChild(ch); host.appendChild(card);
+    chart(ch, () => gantt(ch, sc, tmax, p));
+  }
+}
+function gantt(host, sc, tmax, p) {
+  host.innerHTML = "";
+  const W = Math.max(300, host.clientWidth), rowH = 26, m = { l: 58, r: 8, t: 4, b: 24 }, H = m.t + m.b + p * rowH;
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "pipeline timeline" }, host);
+  const fx = (t) => m.l + t / tmax * (W - m.l - m.r);
+  const col = { F: "var(--s1)", B: "var(--s2)", W: "var(--s3)" };
+  const tip = h("div", { class: "tip", hidden: "" }); host.appendChild(tip);
+  for (let r = 0; r < p; r++) {
+    const y = m.t + r * rowH;
+    s("text", { x: m.l - 8, y: y + rowH / 2 + 4, "text-anchor": "end" }, svg).textContent = "stage " + r;
+    s("rect", { x: m.l, y: y + 3, width: fx(sc.step_us) - m.l, height: rowH - 6, fill: "var(--idle)", rx: 2 }, svg);
+    for (const [kind, mb, t0, t1] of sc.ranks[r]) {
+      const x0 = fx(t0), x1 = fx(t1), wd = Math.max(1, x1 - x0 - 1);
+      const rect = s("rect", { x: x0, y: y + 3, width: wd, height: rowH - 6, fill: col[kind], rx: 2 }, svg);
+      if (wd > 16) { const tx = s("text", { x: x0 + wd / 2, y: y + rowH / 2 + 4, "text-anchor": "middle", fill: kind === "W" ? "var(--text)" : "var(--accent-ink)", "font-size": 10 }, svg); tx.textContent = kind + mb; tx.style.fill = "#fff"; }
+      rect.addEventListener("pointermove", (ev) => { const bb = host.getBoundingClientRect(); tip.innerHTML = `<b>stage ${r}: ${kind}${mb}</b><br>${{ F: "forward", B: "input gradients", W: "weight gradients" }[kind]} of micro-batch ${mb}<br>${ftime(t0)} → ${ftime(t1)}`; tip.hidden = false; tip.style.left = Math.min(ev.clientX - bb.left + 10, bb.width - tip.offsetWidth - 4) + "px"; tip.style.top = (ev.clientY - bb.top - tip.offsetHeight - 8) + "px"; });
+      rect.addEventListener("pointerleave", () => (tip.hidden = true));
+    }
+  }
+  for (const v of niceTicks(0, tmax, Math.max(3, Math.floor(W / 110)))) { const x = fx(v); s("line", { x1: x, x2: x, y1: H - m.b, y2: H - m.b + 4, class: "ax" }, svg); s("text", { x, y: H - m.b + 16, "text-anchor": "middle" }, svg).textContent = ftime(v); }
+}
+function bubRender() {
+  const p = +$("#bub-p").value, m = +$("#bub-m").value, v = +$("#bub-v").value;
+  $("#bub-p-v").textContent = p; $("#bub-m-v").textContent = m; $("#bub-v-v").textContent = v;
+  const g = (p - 1) / (m + p - 1), il = (p - 1) / (v * m + p - 1);
+  $("#bub-out").innerHTML = `GPipe / 1F1B: <b>${(100 * g).toFixed(1)}%</b> of the step idle · interleaved (v = ${v}): <b>${(100 * il).toFixed(1)}%</b> · ZB-H1: about <b>${(100 * g / 3).toFixed(1)}%</b>. 1F1B keeps only p micro-batches of activations alive instead of GPipe's m; interleaving pays v× more point-to-point hops for the smaller bubble.`;
+}
+
+/* ---------- CHECK ---------- */
+function checkInit() {
+  const rows = D.check || [];
+  const keys = [["kernel_efficiency_us", "var(--s1)", "kernels below roofline"], ["power_clock_us", "var(--s2)", "power-capped clock"], ["collectives_us", "var(--s7)", "collectives"], ["overlap_and_idle_us", "var(--s3)", "overlap and idle"]];
+  const span = Math.max(...rows.map((r) => Math.max(Math.abs(Math.min(0, r.gap_us.overlap_and_idle_us)), keys.reduce((a, [k]) => a + Math.max(0, r.gap_us[k]), 0)) / r.replay_us));
+  const neg = Math.max(...rows.map((r) => Math.max(0, -r.gap_us.overlap_and_idle_us) / r.replay_us), 0.0001);
+  const zero = 100 * neg / (span + neg);
+  $("#check-table").innerHTML = `<tr><th>case</th><th class="n">GPUs</th><th class="n">textbook</th><th class="n">replay</th><th class="n">simulated</th><th class="n">sim vs replay</th><th style="min-width:220px">what the extra time is (share of replay)</th></tr>` +
+    rows.map((r) => {
+      let pos = zero, segs = "";
+      for (const [k, c, l] of keys) { const v = r.gap_us[k] / r.replay_us; if (v > 0) { const w = 100 * v / (span + neg); segs += `<div class="seg" title="${l}: ${ftime(r.gap_us[k])}" style="left:${pos}%;width:${w}%;background:${c}"></div>`; pos += w; } }
+      const ov = r.gap_us.overlap_and_idle_us / r.replay_us;
+      if (ov < 0) { const w = 100 * -ov / (span + neg); segs += `<div class="seg" title="hidden by overlap: ${ftime(-r.gap_us.overlap_and_idle_us)}" style="left:${zero - w}%;width:${w}%;background:var(--s3);opacity:0.55"></div>`; }
+      return `<tr><td>${esc(r.case)}<div class="note">${esc(r.model)} ${r.phase}, ${r.layers} layers</div></td><td class="n">${r.world}</td><td class="n">${ftime(r.textbook_us)}</td><td class="n">${ftime(r.replay_us)}</td><td class="n">${ftime(r.sim_us)}</td><td class="n"><b>${fpct(r.err_vs_replay)}</b></td><td><div class="gapbar"><div class="zero" style="left:${zero}%"></div>${segs}</div></td></tr>`;
+    }).join("");
+}
+
+/* ---------- RACK ---------- */
+const SCEN = () => Object.keys(D.colocation || {});
+let RK = null;
+function rackInit() {
+  const pick = $("#rack-pick"), names = SCEN().filter((n) => !/^disagg (2|10|25|100) /.test(n));
+  RK = names[0];
+  for (const n of names) { const b = h("button", { class: "b", "data-s": n }, esc(n)); b.onclick = () => { RK = n; rackRender(); }; pick.appendChild(b); }
+  rackRender(); kvRender(); sharedRender();
+}
+function rackRender() {
+  for (const b of $$("#rack-pick button")) b.classList.toggle("on", b.getAttribute("data-s") === RK);
+  const sc = D.colocation[RK], ts = sc.tenants, own = Array(72).fill(null);
+  ts.forEach((t, i) => (t.gpu_ids || []).forEach((g) => { own[g] = own[g] == null ? [i] : own[g].concat(i); }));
+  const map = $("#rack-map"); map.innerHTML = "";
+  const wrap = h("div", { class: "rackwrap" });
+  for (const half of [0, 1]) {
+    const rk = h("div", { class: "rack" });
+    for (let tray = half * 9; tray < half * 9 + 9; tray++) for (let j = 0; j < 4; j++) {
+      const g = tray * 4 + j, o = own[g];
+      const bg = o == null ? "var(--idle)" : o.length > 1 ? `repeating-linear-gradient(135deg, ${color(o[0])} 0 5px, ${color(o[1])} 5px 10px)` : color(o[0]);
+      const flowIn = (sc.flows || []).some((f) => (f.dst_ids || []).includes(g)), flowOut = (sc.flows || []).some((f) => (f.src_ids || []).includes(g));
+      rk.appendChild(h("div", { class: "gpu", style: `background:${bg}${o == null && (flowIn || flowOut) ? ";outline:2px solid var(--s4);outline-offset:-2px" : ""}`, title: `GPU ${g}${o ? ": " + o.map((i) => ts[i].name).join(" + ") : flowOut ? ": KV source (prefill pool)" : ""}` }, o == null ? (flowOut ? "kv" : "") : String(g)));
+    }
+    wrap.appendChild(rk);
+  }
+  map.appendChild(wrap);
+  $("#rack-legend").innerHTML = ts.map((t, i) => `<span><i style="background:${color(i)}"></i>${esc(t.name)}: ${esc(t.model)} ${esc(t.plan)}</span>`).join("") + ((sc.flows || []).length ? `<span><i style="background:var(--idle);outline:2px solid var(--s4);outline-offset:-2px"></i>KV source</span>` : "");
+  $("#rack-title").textContent = RK;
+  $("#rack-sub").textContent = `${sc.layers} layers per model, fast mode unless the scenario says exact. Simulated.`;
+  $("#rack-table").innerHTML = `<tr><th>tenant</th><th>model</th><th>plan</th><th class="n">GPUs</th><th class="n">step together</th><th class="n">alone</th><th class="n">slowdown</th></tr>` +
+    ts.map((t, i) => `<tr><td class="nw"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${color(i)};margin-right:6px"></i>${esc(t.name)}</td><td>${esc(t.model)} <span class="note">${t.phase}</span></td><td>${esc(t.plan)}</td><td class="n">${t.gpus}</td><td class="n">${ftime(t.step_us)}</td><td class="n">${ftime(t.alone_step_us)}</td><td class="n"><b>${fpct(t.slowdown, 2)}</b></td></tr>`).join("");
+  const fl = (sc.flows || []).map((f) => `Flow ${esc(f.name)}: ${f.pairs} GPU pairs, ${fbytes(f.bytes)} chunks on ${f.sms} SMs, ${sig(f.offered_gbps, 3)} GB/s offered, ${sig(f.delivered_gbps, 3)} GB/s delivered per pair.`).join(" ");
+  $("#rack-note").innerHTML = fl;
+}
+function kvRender() {
+  const pts = SCEN().filter((n) => n.startsWith("disagg")).map((n) => { const sc = D.colocation[n], t = sc.tenants[0], f = sc.flows[0]; return { x: f.offered_gbps, y: 100 * t.slowdown, tip: `<b>${sig(f.offered_gbps, 3)} GB/s per decode GPU</b><br>decode step ${ftime(t.step_us)} vs ${ftime(t.alone_step_us)} alone: ${fpct(t.slowdown, 2)}` }; }).sort((a, b) => a.x - b.x);
+  chart($("#kv-chart"), () => XY($("#kv-chart"), { xlog: true, xmin: 1.5, xmax: 140, xticks: [2, 5, 10, 25, 50, 100], ymin: 0, series: [{ name: "decode slowdown", color: "var(--s2)", pts }], xfmt: (v) => v + " GB/s", yfmt: (v) => sig(v, 2) + "%", ylabel: "decode step slowdown vs KV rate per decode GPU", height: 230 }));
+}
+function sharedRender() {
+  const rows = [];
+  for (const n of SCEN().filter((n) => n.startsWith("shared"))) for (const t of D.colocation[n].tenants) rows.push({ mode: /exact/.test(n) ? "exact" : "fast", t });
+  const mx = Math.max(...rows.map((r) => r.t.slowdown), 0.01);
+  $("#shared-bars").innerHTML = `<div class="terms">` + rows.map((r) => `<div class="nm">${esc(r.t.model)}<small>${r.mode} mode: ${ftime(r.t.step_us)} vs ${ftime(r.t.alone_step_us)}</small></div><div class="track"><div class="fill" style="width:${(100 * r.t.slowdown / mx).toFixed(1)}%;background:${r.mode === "exact" ? "var(--s1)" : "var(--s4)"}"></div></div><div class="us">${fpct(r.t.slowdown)}</div>`).join("") + `</div>` +
+    `<div class="legend"><span><i style="background:var(--s4)"></i>fast mode (time-sliced)</span><span><i style="background:var(--s1)"></i>exact mode (cycle-level co-run)</span></div><p class="note" style="margin-top:8px">The gap between the two bars is interference that only a cycle-level model sees: one tenant's memory stalls hidden under the other's issue, and the L2 and HBM contention that remains.</p>`;
+}
+
+/* ---------- BYTES ---------- */
+function bytesInit() {
+  const B = D.bytes || {}, missing = '<p class="note">Not in this build: run research/bytes/run.py, then export.py and build.py.</p>';
+  if (!B.flops) { $("#bytes-flops").innerHTML = missing; } else {
+  const mx = Math.max(...B.flops.map((r) => Math.max(r.gflops_per_byte, r.paper || 0)));
+  $("#bytes-flops").innerHTML = `<div class="terms">` + B.flops.map((r, i) => `<div class="nm">${esc(r.model)}<small>${sig(r.params_b, 3)} B params${r.paper ? ", paper " + r.paper : ""}</small></div><div class="track"><div class="fill" style="width:${(100 * r.gflops_per_byte / mx).toFixed(1)}%;background:${color(i)}"></div>${r.paper ? `<div style="position:absolute;top:-2px;bottom:-2px;left:${(100 * r.paper / mx).toFixed(1)}%;width:2px;background:var(--text)"></div>` : ""}</div><div class="us">${sig(r.gflops_per_byte, 3)} GFLOP/B${r.err != null ? " (" + fpct(r.err) + ")" : ""}</div>`).join("") + `</div><p class="note" style="margin-top:6px">The tick marks the paper's value. A byte-level Transformer of the same size does 4.6× the FLOPs per byte: every byte is a full-model step.</p>`;
+  }
+  if (!B.prefill) $("#bytes-prefill").innerHTML = missing; else {
+  const pm = Math.max(...B.prefill.map((r) => r.bytes_per_s));
+  $("#bytes-prefill").innerHTML = `<div class="terms">` + B.prefill.map((r, i) => `<div class="nm">${esc(r.model)}<small>${ftime(r.us)} for 64 KiB</small></div><div class="track"><div class="fill" style="width:${(100 * r.bytes_per_s / pm).toFixed(1)}%;background:${color(i)}"></div></div><div class="us">${sig(r.bytes_per_s / 1e6, 3)} MB/s</div>`).join("") + `</div><p class="note" style="margin-top:6px">Simulated, calibrated B300, fast mode.</p>`;
+  }
+  if (!B.decode) { $("#bytes-decode").outerHTML = missing; return; }
+  const CF = (m, b) => (B.closed || []).find((r) => r.model === m && r.batch === b), expected = /^(mean field|token|byte)$/;
+  $("#bytes-decode").innerHTML = `<tr><th>model</th><th>routing</th><th class="n"><span class="nt">µs</span> per byte</th><th class="n">KB/s of text</th><th class="n">main-network batch, mean (min–max)</th><th class="n">closed form, <span class="nt">µs</span> per byte</th></tr>` +
+    B.decode.map((r) => `<tr><td>${esc(r.model)}</td><td>${esc(r.routing)}</td><td class="n">${sig(r.us_per_byte, 3)}</td><td class="n">${fnum(r.bytes_per_s / 1e3)}</td><td class="n">${r.main_batch_mean != null ? sig(r.main_batch_mean, 3) + " (" + r.main_batch_min + "–" + r.main_batch_max + ")" : ""}</td><td class="n">${expected.test(r.routing) && CF(r.model, 64) ? sig(CF(r.model, 64).us_per_byte, 3) : ""}</td></tr>`).join("");
+  const parts = [["outer stages", "var(--s1)"], ["main attention", "var(--s2)"], ["main matmuls", "var(--s3)"], ["main norms and elementwise", "var(--s4)"], ["LM head", "var(--s5)"], ["launch gaps", "var(--s6)"]];
+  const an = B.decode.filter((r) => r.parts_us && /^(mean field|token|byte)$/.test(r.routing) && r.us_per_byte < 1e4);
+  if (!an.length) $("#bytes-anatomy").innerHTML = missing; else {
+    const mx = Math.max(...an.map((r) => r.us_per_byte));
+    $("#bytes-anatomy").innerHTML = `<div class="terms">` + an.map((r) => {
+      const per = r.us / r.us_per_byte; let pos = 0, segs = "";
+      for (const [k, c] of parts) { const v = (r.parts_us[k] || 0) / per, w = 100 * Math.max(0, v) / mx; if (w > 0.05) segs += `<div class="seg" title="${k}: ${sig(v, 3)} µs per byte" style="left:${pos.toFixed(2)}%;width:${w.toFixed(2)}%;background:${c}"></div>`; pos += w; }
+      const cf = CF(r.model, 64);
+      if (cf) segs += `<div class="tick" title="closed form: ${sig(cf.us_per_byte, 3)} µs per byte" style="left:${(100 * cf.us_per_byte / mx).toFixed(2)}%"></div>`;
+      return `<div class="nm">${esc(r.model)}<small>${sig(r.ops / per, 3)} kernels per byte${cf ? ", closed form " + sig(cf.us_per_byte, 3) + " µs" : ""}</small></div><div class="track">${segs}</div><div class="us">${sig(r.us_per_byte, 3)} µs</div>`;
+    }).join("") + `</div><div class="legend">` + parts.map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join("") + `</div>` +
+      `<p class="note" style="margin-top:6px">The byte-level Transformer (${sig(B.decode.find((r) => r.routing === "byte")?.us_per_byte || NaN, 3)} µs per byte) is left out of scale. Hover a segment for its time.</p>`;
+  }
+  if (!B.batch) { $("#bytes-batch").innerHTML = missing; return; }
+  const models = [...new Set(B.batch.map((r) => r.model))], bs = [...new Set(B.batch.map((r) => r.batch))].sort((a, b) => a - b);
+  const beta = D.hardware.b300.hbm_bw / 1e12;
+  const closed = models.map((m, i) => ({ name: m + ", closed form", color: color(i), dash: "5 4", marker: false, legend: false,
+    pts: bs.map((b) => CF(m, b)).filter(Boolean).map((r) => ({ x: r.batch, y: r.us_per_byte, tip: `<b>${esc(m)}, closed form</b><br>batch ${r.batch}: ${sig(r.gb_per_byte, 3)} GB moved per byte of text, ${sig(r.us_per_byte, 3)} µs at ${sig(beta, 3)} TB/s` })) }));
+  chart($("#bytes-batch"), () => XY($("#bytes-batch"), { xlog: true, xbase: 2, ylog: true, xticks: bs,
+    series: models.map((m, i) => ({ name: m, color: color(i), pts: B.batch.filter((r) => r.model === m).map((r) => ({ x: r.batch, y: r.us_per_byte, tip: `<b>${esc(m)}</b><br>batch ${r.batch}: ${sig(r.us_per_byte, 3)} µs per byte, ${fnum(r.bytes_per_s / 1e3)} KB/s${CF(m, r.batch) ? "<br>closed form: " + sig(CF(m, r.batch).us_per_byte, 3) + " µs" : ""}` })) })).concat(closed),
+    xfmt: (v) => "batch " + v, yfmt: (v) => ftick(v) + " µs", ylabel: "µs per byte of every sequence", height: 240 }));
+}
+
+const INIT = { plan: planInit, ladder: ladderInit, collectives: collInit, roofline: roofInit, pipelines: pipeInit, check: checkInit, rack: rackInit, bytes: bytesInit };
+route();
+})();
+</script>

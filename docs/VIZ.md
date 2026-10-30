@@ -58,6 +58,12 @@ The example pages in [`docs/viz/`](viz/) are rebuilt with `python examples/viz_g
 | [`mamba_vs_attention_b300.html`](viz/mamba_vs_attention_b300.html) | Llama-3-8B vs Mamba-2-8B decode (2 layers, batch 64, 16k context) on a calibrated B300, plus the attention decode kernel alone. Mamba-2's `selective_state_update` runs the real Triton SASS. |
 | [`flash_attention_b300.html`](viz/flash_attention_b300.html) | FlashAttention-2 vs FlashAttention-4 forward (b4 h16 s4096 d128) replayed from NVBit recordings of the real kernels on a calibrated B300 |
 
+[`scaling-lab.html`](viz/scaling-lab.html), the NVL72 Scaling Lab, is a different kind of page: the
+closed forms of book chapters 11 to 13 recomputed live for any model and plan, next to the replay
+and simulator numbers they are checked against. It is built from
+[`research/learn/`](https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation/tree/main/research/learn),
+not by `viz_gallery.py`.
+
 ## What is captured, and what it costs
 
 Capture lives in `rsim_gpu::detail` and is off unless asked for (`GpuConfig::detail`). Off, it
