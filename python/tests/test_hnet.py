@@ -58,3 +58,22 @@ def test_mean_field_and_even_counts_keep_the_mean():
 def test_tp_lowering():
     wl = hnet.prefill(hnet.HNET_1STAGE_XL, Parallel(tp=2), 1, 4096, layers=2)
     assert any(o["op"] == "collective" for o in wl["spmd"]["program"]["streams"][0])
+
+
+def test_decode_traffic_closed_form():
+    # Book chapter 13.2: bytes one decode step moves at batch 64, 8 KiB of context.
+    bpe = hnet.decode_traffic(hnet.BPE_XL, 64, 8192)
+    assert bpe["weights"] / 1e9 == pytest.approx(2.39, abs=0.01)
+    assert bpe["KV"] / 1e9 == pytest.approx(23.16, abs=0.01)
+    assert bpe["per_byte"] == pytest.approx(bpe["step"] / hnet.BYTES_PER_BPE_TOKEN)
+    one = hnet.decode_traffic(hnet.HNET_1STAGE_XL, 64, 8192)
+    two = hnet.decode_traffic(hnet.HNET_2STAGE_XL, 64, 8192)
+    assert one["per_byte"] / bpe["per_byte"] == pytest.approx(1.32, abs=0.005)
+    assert two["per_byte"] / bpe["per_byte"] == pytest.approx(1.22, abs=0.005)
+    assert one["outer attention KV"] == 0 and two["outer attention KV"] > 0
+    # S/R^2 positions per byte against S/4.45^2: about 0.90x BPE's KV per byte.
+    assert one["main KV"] / (bpe["KV"] / hnet.BYTES_PER_BPE_TOKEN) == pytest.approx((4.45 / 4.7) ** 2)
+    # The re-read weights amortise over the batch, so the ratio falls with it.
+    ratios = [hnet.decode_traffic(hnet.HNET_1STAGE_XL, b, 8192)["per_byte"]
+              / hnet.decode_traffic(hnet.BPE_XL, b, 8192)["per_byte"] for b in (16, 64, 256)]
+    assert ratios == sorted(ratios, reverse=True)

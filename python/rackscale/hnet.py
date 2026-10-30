@@ -295,3 +295,51 @@ def decode_steps(h: HNet, p: Parallel, batch: int, context: int, steps: int = 16
 def decode_baseline(m: Model, p: Parallel, batch: int, context: int, *, layers: Optional[int] = None) -> dict:
     """One token-level decode step of a baseline model (BPE or bytes)."""
     return lower.decode_step(m, p, batch, context, layers=layers)
+
+
+# ---------------------------------------------------------------------------
+# closed form
+
+
+def text_bytes_per_step(m) -> float:
+    """Bytes of text one decode step adds to each sequence: 1 for H-Net and
+    the byte Transformer, ``BYTES_PER_BPE_TOKEN`` for a BPE model."""
+    return 1.0 if isinstance(m, HNet) or m.vocab <= 256 else BYTES_PER_BPE_TOKEN
+
+
+def decode_traffic(m, batch: int, context: int) -> Dict[str, float]:
+    """HBM bytes of one decode step of ``batch`` sequences at ``context``
+    bytes of text, in closed form: every weight once, the cached keys and
+    values of the sequences that run each attention layer, and every
+    Mamba-2 state (SSM and conv, read and written). Activations are left
+    out. ``m`` is an :class:`HNet`, taken at each stage's expected batch
+    (the main network runs every step), or a baseline Transformer.
+
+    Returns bytes per step by part, their sum ``step`` and ``per_byte``:
+    bytes moved per byte of every sequence's text (``step`` over
+    :func:`text_bytes_per_step`). Divide ``per_byte`` by HBM bandwidth for
+    the memory-bound time per byte."""
+    if not isinstance(m, HNet):
+        b, positions = m.bytes_per_param(), context / text_bytes_per_step(m)
+        out = {"weights": m.active_params(lm_head=False) * b, "LM head": m.vocab * m.hidden * b,
+               "KV": batch * positions * m.attn_layers() * m.kv_elems_per_token_layer() * b}
+    else:
+        out = dict.fromkeys(("main weights", "outer weights", "main KV", "outer attention KV", "Mamba state"), 0.0)
+        params = m.params()
+        rows, ctx = float(batch), float(context)
+        for i, s in enumerate(m.stages):
+            sm = m.stage_model(i, s.enc + s.dec)
+            b = sm.bytes_per_param()
+            out["outer weights"] += params[f"stage{i}"] * b
+            out["outer attention KV"] += rows * min(ctx, s.window or ctx) * sm.attn_layers() * sm.kv_elems_per_token_layer() * b
+            mb = sm.mamba
+            state = mb.nheads * mb.headdim * mb.d_state + mb.conv_dim * (mb.d_conv - 1)
+            out["Mamba state"] += 2 * rows * sm.block_list().count("M") * state * b
+            rows, ctx = rows / s.ratio, ctx / s.ratio
+        b = m.main.bytes_per_param()
+        out["outer weights"] += m.vocab * m.stages[0].width * b  # the byte-level LM head
+        out["main weights"] = m.main.active_params(lm_head=False) * b
+        out["main KV"] = rows * ctx * m.main.attn_layers() * m.main.kv_elems_per_token_layer() * b
+    out["step"] = sum(out.values())
+    out["per_byte"] = out["step"] / text_bytes_per_step(m)
+    return out

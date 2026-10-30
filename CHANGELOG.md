@@ -29,7 +29,8 @@ until 1.0, a minor version may change simulated timings, and the release notes s
 - `rackscale.hnet`: H-Net (byte-level, dynamic chunking) 1-stage and 2-stage XL with the BPE and
   byte-level Transformer baselines: parameters and FLOPs per byte (within 7% of the paper),
   prefill, and byte-by-byte decode whose main-network batch is drawn from the routers
-  (`step_counts`, `even_counts`, `decode_steps(counts=...)`). Book chapter 13 and
+  (`step_counts`, `even_counts`, `decode_steps(counts=...)`), and `decode_traffic`, the bytes a
+  decode step moves in closed form. Book chapter 13 and
   `research/bytes/run.py`, which also splits every simulated step by part of the network from
   the per-op trace.
 - Book chapter 14, "Why cycle level, and how far to trust a simulated rack": what only the

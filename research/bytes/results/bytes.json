@@ -970,5 +970,151 @@
     ]
    ]
   }
+ ],
+ "closed": [
+  {
+   "model": "hnet-1stage-xl",
+   "batch": 16,
+   "gb_per_step": {
+    "main weights": 2.39075328,
+    "outer weights": 0.120768,
+    "main KV": 1.166582334812132,
+    "outer attention KV": 0.0,
+    "Mamba state": 0.137756672
+   },
+   "gb_per_byte": 3.815860286812132,
+   "us_per_byte": 559.6801795870787
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "batch": 16,
+   "gb_per_step": {
+    "main weights": 2.68959744,
+    "outer weights": 0.492883712,
+    "main KV": 0.6089273103969756,
+    "outer attention KV": 0.17895697066666666,
+    "Mamba state": 0.206569472
+   },
+   "gb_per_byte": 4.176934905063642,
+   "us_per_byte": 612.6397462372952
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "batch": 16,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.525336576,
+    "KV": 5.790967140674157
+   },
+   "gb_per_byte": 1.9566420217245295,
+   "us_per_byte": 286.98476249015897
+  },
+  {
+   "model": "byte-transformer-xl",
+   "batch": 16,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.001048576,
+    "KV": 25.769803776
+   },
+   "gb_per_byte": 28.161605632,
+   "us_per_byte": 4130.521379949633
+  },
+  {
+   "model": "hnet-1stage-xl",
+   "batch": 64,
+   "gb_per_step": {
+    "main weights": 2.39075328,
+    "outer weights": 0.120768,
+    "main KV": 4.666329339248528,
+    "outer attention KV": 0.0,
+    "Mamba state": 0.551026688
+   },
+   "gb_per_byte": 7.728877307248529,
+   "us_per_byte": 1133.6105397457188
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "batch": 64,
+   "gb_per_step": {
+    "main weights": 2.68959744,
+    "outer weights": 0.492883712,
+    "main KV": 2.4357092415879023,
+    "outer attention KV": 0.7158278826666666,
+    "Mamba state": 0.826277888
+   },
+   "gb_per_byte": 7.160296164254569,
+   "us_per_byte": 1050.2155587186387
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "batch": 64,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.525336576,
+    "KV": 23.163868562696628
+   },
+   "gb_per_byte": 5.860664813190254,
+   "us_per_byte": 859.5959203438952
+  },
+  {
+   "model": "byte-transformer-xl",
+   "batch": 64,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.001048576,
+    "KV": 103.079215104
+   },
+   "gb_per_byte": 105.47101696,
+   "us_per_byte": 15469.653833348244
+  },
+  {
+   "model": "hnet-1stage-xl",
+   "batch": 256,
+   "gb_per_step": {
+    "main weights": 2.39075328,
+    "outer weights": 0.120768,
+    "main KV": 18.665317356994112,
+    "outer attention KV": 0.0,
+    "Mamba state": 2.204106752
+   },
+   "gb_per_byte": 23.380945388994114,
+   "us_per_byte": 3429.3319803802788
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "batch": 256,
+   "gb_per_step": {
+    "main weights": 2.68959744,
+    "outer weights": 0.492883712,
+    "main KV": 9.742836966351609,
+    "outer attention KV": 2.8633115306666665,
+    "Mamba state": 3.305111552
+   },
+   "gb_per_byte": 19.093741201018275,
+   "us_per_byte": 2800.518808644013
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "batch": 256,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.525336576,
+    "KV": 92.65547425078651
+   },
+   "gb_per_byte": 21.47675597905315,
+   "us_per_byte": 3150.04055175884
+  },
+  {
+   "model": "byte-transformer-xl",
+   "batch": 256,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.001048576,
+    "KV": 412.316860416
+   },
+   "gb_per_byte": 414.708662272,
+   "us_per_byte": 60826.18364694269
+  }
  ]
 }

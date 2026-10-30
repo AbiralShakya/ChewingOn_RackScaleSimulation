@@ -36,6 +36,27 @@
 | hnet-1stage-xl | 1597 (10) | 2467 (26) | 5354 (48) |
 | hnet-2stage-xl | 2016 (8) | 2676 (24) | 5320 (48) |
 | bpe-transformer-xl | 500 (32) | 1137 (56) | 3807 (67) |
+| hnet-1stage-xl ÷ BPE, simulated | 3.19x | 2.17x | 1.41x |
+| hnet-1stage-xl ÷ BPE, closed form | 1.95x | 1.32x | 1.09x |
+| hnet-2stage-xl ÷ BPE, simulated | 4.03x | 2.35x | 1.40x |
+| hnet-2stage-xl ÷ BPE, closed form | 2.13x | 1.22x | 0.89x |
+
+## Decode in closed form (bytes moved; µs at 6.82 TB/s)
+
+| model | batch | GB per step | GB per byte | µs per byte |
+|---|---|---|---|---|
+| hnet-1stage-xl | 16 | 2.39 main weights + 0.12 outer weights + 1.17 main KV + 0.14 Mamba state | 3.82 | 560 |
+| hnet-2stage-xl | 16 | 2.69 main weights + 0.49 outer weights + 0.61 main KV + 0.18 outer attention KV + 0.21 Mamba state | 4.18 | 613 |
+| bpe-transformer-xl | 16 | 2.39 weights + 0.53 LM head + 5.79 KV | 1.96 | 287 |
+| byte-transformer-xl | 16 | 2.39 weights + 25.77 KV | 28.16 | 4131 |
+| hnet-1stage-xl | 64 | 2.39 main weights + 0.12 outer weights + 4.67 main KV + 0.55 Mamba state | 7.73 | 1134 |
+| hnet-2stage-xl | 64 | 2.69 main weights + 0.49 outer weights + 2.44 main KV + 0.72 outer attention KV + 0.83 Mamba state | 7.16 | 1050 |
+| bpe-transformer-xl | 64 | 2.39 weights + 0.53 LM head + 23.16 KV | 5.86 | 860 |
+| byte-transformer-xl | 64 | 2.39 weights + 103.08 KV | 105.47 | 15470 |
+| hnet-1stage-xl | 256 | 2.39 main weights + 0.12 outer weights + 18.67 main KV + 2.20 Mamba state | 23.38 | 3429 |
+| hnet-2stage-xl | 256 | 2.69 main weights + 0.49 outer weights + 9.74 main KV + 2.86 outer attention KV + 3.31 Mamba state | 19.09 | 2801 |
+| bpe-transformer-xl | 256 | 2.39 weights + 0.53 LM head + 92.66 KV | 21.48 | 3150 |
+| byte-transformer-xl | 256 | 2.39 weights + 412.32 KV | 414.71 | 60826 |
 
 ## Where the time goes
 

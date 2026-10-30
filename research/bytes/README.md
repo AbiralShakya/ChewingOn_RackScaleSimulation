@@ -7,7 +7,9 @@ Transformer and a byte-level Transformer of the same main-network shape, per byt
 - **prefill**: 8 prompts of 8 KiB on one B300;
 - **decode**: batch 64 at 8 KiB of context, H-Net with its routers sampled per step, the same
   draw spread evenly over the steps, and the expected (mean-field) batch;
-- **batch**: decode cost per byte at batch 16, 64 and 256.
+- **batch**: decode cost per byte at batch 16, 64 and 256;
+- **closed**: the bytes each decode step moves, in closed form (`hnet.decode_traffic`), and the
+  time per byte at HBM bandwidth, at the same batches. No simulation; it runs in a second.
 
 Every simulated run is also split by part of the network (outer stages, main-network
 attention, matmuls and elementwise ops, LM head, launch gaps) from the simulator's per-op trace.
@@ -17,6 +19,7 @@ Results are in [`results/bytes.md`](results/bytes.md); the write-up is
 ```bash
 python research/bytes/run.py                 # all studies, ~40 min on 4 cores
 python research/bytes/run.py --only decode   # one study, keeping the others' results
+python research/bytes/run.py --only closed   # the closed form only, and rewrite results/bytes.md
 ```
 
 Simulated on the calibrated B300 preset in fast mode. No GPU was used, and no H-Net was run on

@@ -16,6 +16,8 @@ Studies:
            (its mean without its variability), and with the expected batch (the
            mean-field assumption an analytic model makes)
   batch    per-byte decode time at batch 16, 64 and 256 (H-Net at the expected batch)
+  closed   the bytes each decode step moves, in closed form (hnet.decode_traffic), and
+           the time per byte at HBM bandwidth, at the same batches (no simulation)
 
 Every simulated run also records where its time goes (outer stages, main-network
 attention, matmuls and elementwise ops, LM head, launch gaps) from the per-op trace.
@@ -29,7 +31,7 @@ import os
 import tempfile
 
 import rackscale as rs
-from rackscale import hnet, lower
+from rackscale import hnet, lower, scaling
 from rackscale.lower import Parallel, _model_flops
 from rackscale.sweep import SYSTEMS, _system_text
 
@@ -37,6 +39,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SYS = _system_text(SYSTEMS["b300"])
 GAP = SYSTEMS["b300"].graph_gap_ns
 BPT = hnet.BYTES_PER_BPE_TOKEN
+BETA = scaling.hardware("b300").hbm_bw
 #: H-Net paper Table 2, GFLOPs per byte (XL scale).
 PAPER = {"hnet-1stage-xl": 0.72, "hnet-2stage-xl": 0.69, "bpe-transformer-xl": 0.69}
 
@@ -139,6 +142,17 @@ def batch_sweep(batches=(16, 64, 256), context: int = 8192, steps: int = 4) -> l
     return rows
 
 
+def closed(batches=(16, 64, 256), context: int = 8192) -> list:
+    rows = []
+    for b in batches:
+        for m in (*hnet.ALL.values(), hnet.BPE_XL, hnet.BYTE_XL):
+            t = hnet.decode_traffic(m, b, context)
+            parts = {k: v / 1e9 for k, v in t.items() if k not in ("step", "per_byte")}
+            rows.append(dict(model=m.name, batch=b, gb_per_step=parts, gb_per_byte=t["per_byte"] / 1e9,
+                             us_per_byte=t["per_byte"] / BETA * 1e6))
+    return rows
+
+
 def table(res: dict) -> str:
     out = ["## FLOPs per byte (8 KiB sequences)", "", "| model | params | GFLOP/byte | paper | error |", "|---|---|---|---|---|"]
     for r in res["flops"]:
@@ -162,6 +176,19 @@ def table(res: dict) -> str:
                 r = next(x for x in res["batch"] if x["model"] == m and x["batch"] == b)
                 cells.append(f"{r['us_per_byte']:.0f} ({r['bytes_per_s'] / 1e3:.0f})")
             out.append(f"| {m} | " + " | ".join(cells) + " |")
+        if "closed" in res:
+            def ratio(rows, m, b):
+                pick = lambda name: next(x for x in rows if x["model"] == name and x["batch"] == b)["us_per_byte"]
+                return pick(m) / pick(hnet.BPE_XL.name)
+            for m in hnet.ALL:
+                out.append(f"| {m} ÷ BPE, simulated | " + " | ".join(f"{ratio(res['batch'], m, b):.2f}x" for b in bs) + " |")
+                out.append(f"| {m} ÷ BPE, closed form | " + " | ".join(f"{ratio(res['closed'], m, b):.2f}x" for b in bs) + " |")
+    if "closed" in res:
+        out += ["", f"## Decode in closed form (bytes moved; µs at {BETA / 1e12:.2f} TB/s)", "",
+                "| model | batch | GB per step | GB per byte | µs per byte |", "|---|---|---|---|---|"]
+        for r in res["closed"]:
+            parts = " + ".join(f"{v:.2f} {k}" for k, v in r["gb_per_step"].items() if v > 0.005)
+            out.append(f"| {r['model']} | {r['batch']} | {parts} | {r['gb_per_byte']:.2f} | {r['us_per_byte']:.0f} |")
     out += ["", "## Where the time goes", "", "Prefill: ms per step of 8 prompts. Decode: µs per byte of every "
             "sequence (a BPE step makes 4.45 bytes; H-Net rows are the mean-field run).", "",
             "| run | model | ops | " + " | ".join(PARTS) + " |", "|---" * (len(PARTS) + 3) + "|"]
@@ -184,7 +211,8 @@ def main() -> None:
     a = ap.parse_args()
     path = os.path.join(HERE, "results", "bytes.json")
     res = json.load(open(path)) if os.path.exists(path) else {}
-    studies = dict(flops=flops, prefill=prefill, decode=lambda: decode(steps=8 if a.quick else 32), batch=batch_sweep)
+    studies = dict(flops=flops, prefill=prefill, decode=lambda: decode(steps=8 if a.quick else 32), batch=batch_sweep,
+                   closed=closed)
     for name, fn in studies.items():
         if a.only and name not in a.only.split(","):
             continue

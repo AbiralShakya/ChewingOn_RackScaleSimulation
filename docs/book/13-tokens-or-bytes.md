@@ -62,15 +62,16 @@ context:
 | | what one step reads | bytes per sequence per step |
 |---|---|---|
 | BPE | all weights *W*, plus *B* · (*S*/4.45) KV positions | 4.45 |
-| H-Net | the outer weights, every sequence's Mamba state (read and written, BF16) and any outer attention KV, plus the main weights *W*_main and the KV of the *B*/*R* sequences whose router fired, over *S*/*R* positions each | 1 |
+| H-Net | the outer weights, every sequence's Mamba state (SSM and conv state, read and written, BF16) and any outer attention KV, plus the main weights *W*_main and the KV of the *B*/*R* sequences whose router fired, over *S*/*R* positions each | 1 |
 
-At *B* = 64 and 8 KiB of context, with 192 KiB of KV per position:
+At *B* = 64 and 8 KiB of context, with 192 KiB of KV per position
+(`hnet.decode_traffic(model, 64, 8192)`):
 
 | | GB per step | GB per byte | µs per byte at *β* = 6.82 TB/s |
 |---|---|---|---|
-| BPE | 2.39 weights + 0.53 LM head + 23.16 KV = 26.08 | 5.86 | 859 |
-| H-Net 1-stage | 2.39 main weights + 0.12 outer weights + 4.67 main KV + 0.54 Mamba state = 7.71 | 7.71 | 1131 |
-| H-Net 2-stage | 2.69 + 0.49 + 2.44 main KV + 0.72 outer attention KV + 0.81 Mamba state = 7.14 | 7.14 | 1047 |
+| BPE | 2.39 weights + 0.53 LM head + 23.16 KV = 26.08 | 5.86 | 860 |
+| H-Net 1-stage | 2.39 main weights + 0.12 outer weights + 4.67 main KV + 0.55 Mamba state = 7.73 | 7.73 | 1134 |
+| H-Net 2-stage | 2.69 + 0.49 + 2.44 main KV + 0.72 outer attention KV + 0.83 Mamba state = 7.16 | 7.16 | 1050 |
 
 H-Net reads about the same KV per byte as BPE (the chunks are about as long as tokens), but it
 reads the main network's weights on every byte step where BPE reads them once per 4.45 bytes.
@@ -92,7 +93,7 @@ Where the time goes, in ms per step, from the simulator's per-op trace:
 
 | model | outer stages | main attention | main matmuls | main norms and elementwise | launch gaps |
 |---|---|---|---|---|---|
-| H-Net 1-stage | 18.1 | 2.4 | 24.0 | 3.3 | 0.2 |
+| H-Net 1-stage | 18.1 | 2.4 | 24.0 | 3.2 | 0.2 |
 | H-Net 2-stage | 31.2 | 1.5 | 19.3 | 2.4 | 0.3 |
 | BPE | | 2.8 | 27.1 | 3.4 | 0.1 |
 | byte Transformer | | 39.6 | 118.9 | 17.1 | 0.1 |
@@ -114,18 +115,18 @@ Batch 64, 8 KiB of context, 32 byte steps:
 | model | µs per byte | KB/s of text per GPU | vs BPE | closed form (13.2) |
 |---|---|---|---|---|
 | H-Net 1-stage, routers sampled | 2413 | 27 | 2.12× | |
-| H-Net 1-stage, expected batch | 2468 | 26 | 2.17× | 1131 µs, 1.32× |
+| H-Net 1-stage, expected batch | 2468 | 26 | 2.17× | 1134 µs, 1.32× |
 | H-Net 2-stage, routers sampled | 2703 | 24 | 2.38× | |
-| H-Net 2-stage, expected batch | 2676 | 24 | 2.35× | 1047 µs, 1.22× |
-| BPE (a 5062 µs step per 4.45 bytes) | 1137 | 56 | | 859 µs |
-| byte Transformer | 16584 | 4 | 14.6× | 15465 µs |
+| H-Net 2-stage, expected batch | 2676 | 24 | 2.35× | 1050 µs, 1.22× |
+| BPE (a 5062 µs step per 4.45 bytes) | 1137 | 56 | | 860 µs |
+| byte Transformer | 16584 | 4 | 14.6× | 15470 µs |
 
 Where a decoded byte's time goes (µs per byte, H-Net at its expected batch):
 
 | model | outer stages | main attention | main matmuls | main norms and elementwise | LM head | launch gaps | kernels per byte |
 |---|---|---|---|---|---|---|---|
-| H-Net 1-stage | 367 | 1062 | 744 | 111 | 4 | 182 | 328 |
-| H-Net 2-stage | 834 | 631 | 837 | 124 | 4 | 247 | 446 |
+| H-Net 1-stage | 367 | 1061 | 744 | 111 | 4 | 182 | 328 |
+| H-Net 2-stage | 834 | 631 | 836 | 124 | 4 | 247 | 446 |
 | BPE | | 892 | 167 | 27 | 18 | 33 | 60 |
 | byte Transformer | | 15569 | 744 | 119 | 4 | 147 | 266 |
 
@@ -138,7 +139,7 @@ anatomy splits its extra 1331 µs per byte:
   across the step), because each kernel pays a few microseconds of launch, fill and drain
   that an 8-44 MB read cannot hide.
 - **Outer stages, +367 µs (28%).** Eight Mamba-2 layers and a router over all 64 sequences
-  every byte, as 63 small kernels: 3.8× the time their weight and state bytes take at full
+  every byte, as 63 small kernels: 3.7× the time their weight and state bytes take at full
   bandwidth.
 - **Attention, +169 µs (13%).** H-Net reads 10% *less* KV per byte than BPE, but at a main
   batch of 14 the decode attention kernel streams the KV cache at 64% of HBM bandwidth,
@@ -221,8 +222,8 @@ and showed up as a 2-7% "variability" effect that was not there.
 - **The result depends on attention's shape.** We gave every main network full multi-head
   attention, so KV reads dominate decode and the models' similar KV per byte keeps them close.
   With grouped-query attention (4 KV heads, as most served models use) KV reads fall for both,
-  weights become the larger share, and the closed form at batch 64 goes from 1.32× to about
-  2.1×.
+  weights become the larger share, and the closed form at batch 64 goes from 1.32× to 2.1×
+  for the 1-stage model (1.22× to 2.6× for the 2-stage).
 
 Two serving ideas follow, neither simulated here: fuse each outer stage into one persistent
 kernel, which removes most of its 63 launches per byte and their fill and drain, and let
@@ -262,7 +263,8 @@ Answers:
 | what | command |
 |---|---|
 | all of this chapter | `python research/bytes/run.py` (about 40 minutes on 4 cores) |
-| one study | `python research/bytes/run.py --only decode` (or `flops`, `prefill`, `batch`) |
+| one study | `python research/bytes/run.py --only decode` (or `flops`, `prefill`, `batch`, `closed`) |
+| the closed form of 13.2 | `hnet.decode_traffic(hnet.HNET_1STAGE_XL, 64, 8192)`, bytes per step by part |
 | one model in Python | `rackscale.hnet.prefill(hnet.HNET_1STAGE_XL, Parallel(), 8, 8192)`, `hnet.decode_steps(..., counts=hnet.step_counts(...))` |
 
 Next: [14. Why cycle level, and how far to trust a simulated rack](14-why-cycle-level.md).
