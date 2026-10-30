@@ -436,3 +436,39 @@ fn blackwell_gemm_tiling_and_waves() {
         256
     );
 }
+
+/// Board power per kernel (chapter 17): a GEMM the cap slows draws the cap;
+/// a memory-bound kernel draws idle plus its HBM traffic, well under it.
+#[test]
+fn kernel_power_follows_the_power_model() {
+    let spec = presets::b300();
+    let p = spec.power.clone().unwrap();
+    let g = synth::gemm(&spec, 4096, 4096, 4096, "bf16");
+    let (d, _) = run(spec.clone(), g.clone());
+    assert_eq!(rsim_gpu::kernel_power_w(&spec, &g, &d), Some(p.cap_w));
+    let e = synth::elementwise("add", 64 << 20, 2, 2.0, 1);
+    let (d, ns) = run(spec.clone(), e.clone());
+    let w = rsim_gpu::kernel_power_w(&spec, &e, &d).unwrap();
+    let bytes = (d.stats.dram_read_bytes + d.stats.dram_write_bytes) as f64;
+    let hbm_w = bytes * 8.0 * p.hbm_pj_per_bit * 1e-12 / (ns * 1e-9);
+    assert!(w > p.idle_w && w < p.cap_w, "elementwise at {w} W");
+    assert!(
+        (w - p.idle_w - hbm_w).abs() < 0.1 * hbm_w + 1.0,
+        "{w} vs idle + {hbm_w}"
+    );
+    // A decode GEMM keeps the tensor cores busy part of the time: a lower
+    // cap slows it part of the way and it draws less, never the cap itself.
+    let k = synth::gemm(&spec, 64, 3584, 4096, "bf16");
+    let (d, _) = run(spec.clone(), k.clone());
+    let mut low = spec.clone();
+    low.power.as_mut().unwrap().cap_w = 800.0;
+    assert!(rsim_gpu::dvfs_clock_mhz(&low, &k, &d).is_some());
+    let (hi_w, lo_w) = (
+        rsim_gpu::kernel_power_w(&spec, &k, &d).unwrap(),
+        rsim_gpu::kernel_power_w(&low, &k, &d).unwrap(),
+    );
+    assert!(
+        lo_w <= hi_w && lo_w < 800.0,
+        "{hi_w} W at 1100, {lo_w} W at 800"
+    );
+}

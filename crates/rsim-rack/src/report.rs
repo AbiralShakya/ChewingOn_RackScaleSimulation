@@ -26,6 +26,71 @@ pub struct RankReport {
     /// belong to different jobs (colocated models, a background transfer),
     /// and each job's time is its own streams' finish.
     pub stream_finish_us: Vec<f64>,
+    /// GPU board energy over the run and its average power (when the GPU
+    /// has a power model; see [`PowerReport`]).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub energy_j: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avg_power_w: Option<f64>,
+}
+
+/// Board power of the GPUs over time, summed over ranks (chapter 17 of the
+/// book). A kernel draws what [`rsim_gpu::kernel_power_w`] gives it; a
+/// collective draws idle plus [`COLLECTIVE_DYNAMIC_FRACTION`] of the
+/// dynamic range (an estimate: copy engines, NVLink SerDes and HBM traffic);
+/// a GPU with nothing resident draws idle. Overlapping work on one GPU adds,
+/// up to its cap. GPU boards only: no CPUs, switches, fans or conversion.
+#[derive(Clone, Debug, Serialize)]
+pub struct PowerReport {
+    pub bin_us: f64,
+    /// Sum over ranks of the average board power in each bin.
+    pub gpus_w: Vec<f64>,
+    pub avg_w: f64,
+    pub peak_w: f64,
+    pub min_w: f64,
+    pub energy_j: f64,
+    /// Largest change between adjacent bins, W per µs.
+    pub max_step_w_per_us: f64,
+}
+
+/// Dynamic power of a GPU running only a collective, as a fraction of
+/// `cap - idle` (estimate).
+pub const COLLECTIVE_DYNAMIC_FRACTION: f64 = 0.15;
+
+/// Per-bin average board power of one rank (W) over `nbins` bins.
+fn rank_power(
+    spans: &[Span],
+    kernel_w: &[f64],
+    idle: f64,
+    cap: f64,
+    bin_ps: f64,
+    nbins: usize,
+) -> Vec<f64> {
+    let mut dynamic = vec![0.0; nbins];
+    for s in spans {
+        let w = match (s.kind, s.kernel) {
+            ("kernel", Some(i)) => kernel_w.get(i).copied().unwrap_or(f64::NAN) - idle,
+            ("collective", _) => COLLECTIVE_DYNAMIC_FRACTION * (cap - idle),
+            _ => continue,
+        };
+        if !w.is_finite() || w <= 0.0 {
+            continue;
+        }
+        let (a, b) = (s.start as f64, s.end as f64);
+        let first = (a / bin_ps) as usize;
+        let last = ((b / bin_ps).ceil() as usize).min(nbins);
+        for (i, d) in dynamic.iter_mut().enumerate().take(last).skip(first) {
+            let lo = a.max(i as f64 * bin_ps);
+            let hi = b.min((i + 1) as f64 * bin_ps);
+            if hi > lo {
+                *d += w * (hi - lo) / bin_ps;
+            }
+        }
+    }
+    dynamic
+        .into_iter()
+        .map(|d| idle + d.min(cap - idle))
+        .collect()
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -76,6 +141,9 @@ pub struct Report {
     /// Device memory of the fullest GPU, when the workload states it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memory: Option<MemoryReport>,
+    /// GPU board power over time, when the GPUs have a power model.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub power: Option<PowerReport>,
     /// Things that make the result suspect (e.g. a rank that cannot fit in
     /// its GPU's HBM). The simulation still runs.
     pub warnings: Vec<String>,
@@ -213,6 +281,10 @@ pub fn build_report(
         makespan = makespan.max(r.finish);
     }
     let makespan = makespan.max(1).min(end.max(1));
+    let bin_ps = (makespan as f64 / 1000.0).max(1e6);
+    let nbins = (makespan as f64 / bin_ps).ceil() as usize;
+    let mut gpus_w = vec![0.0; nbins];
+    let mut any_power = false;
     for mut r in rank_lps {
         let spec = r.gpu.spec.clone();
         let ghz = spec.sm_clock_mhz / 1000.0;
@@ -230,6 +302,18 @@ pub fn build_report(
             .map(|s| (s.end - s.start) as f64 / 1e6)
             .sum();
         idle_sum += 1.0 - (busy_us * 1e6 / makespan as f64).min(1.0);
+        let (energy_j, avg_power_w) = match &spec.power {
+            Some(p) => {
+                any_power = true;
+                let w = rank_power(&r.spans, &r.kernel_w, p.idle_w, p.cap_w, bin_ps, nbins);
+                for (g, x) in gpus_w.iter_mut().zip(&w) {
+                    *g += x;
+                }
+                let e: f64 = w.iter().sum::<f64>() * bin_ps * 1e-12;
+                (Some(e), Some(e / (nbins as f64 * bin_ps * 1e-12)))
+            }
+            None => (None, None),
+        };
         peak_flops += spec.peak_tensor_tflops("bf16") * 1e12;
         ranks.push(RankReport {
             rank: r.rank,
@@ -240,6 +324,8 @@ pub fn build_report(
             collective_us: coll_us,
             kernels: r.kernels.len(),
             stream_finish_us: r.stream_finish().iter().map(|&t| t as f64 / 1e6).collect(),
+            energy_j,
+            avg_power_w,
         });
         let slots_per_cycle = (spec.sm_count * spec.sub_partitions) as u64;
         for k in &r.kernels {
@@ -358,6 +444,25 @@ pub fn build_report(
         (wl.model_flops > 0.0).then(|| wl.model_flops / (peak_flops * makespan as f64 * 1e-12));
     let _ = ALL_STALLS;
     let (memory, warnings) = memory_check(sys, wl);
+    let power = any_power.then(|| {
+        let bin_us = bin_ps / 1e6;
+        let peak = gpus_w.iter().cloned().fold(0.0, f64::max);
+        let min = gpus_w.iter().cloned().fold(f64::INFINITY, f64::min);
+        let energy_j = gpus_w.iter().sum::<f64>() * bin_ps * 1e-12;
+        let max_step = gpus_w
+            .windows(2)
+            .map(|w| (w[1] - w[0]).abs() / bin_us)
+            .fold(0.0, f64::max);
+        PowerReport {
+            bin_us,
+            avg_w: energy_j / (nbins as f64 * bin_ps * 1e-12),
+            peak_w: peak,
+            min_w: min,
+            energy_j,
+            max_step_w_per_us: max_step,
+            gpus_w,
+        }
+    });
     let report = Report {
         system: sys.name.clone(),
         workload: wl.name.clone(),
@@ -374,6 +479,7 @@ pub fn build_report(
             top_bubble_kernels: top,
         },
         memory,
+        power,
         warnings,
         sim: SimMeta {
             wallclock_s: wall_s,

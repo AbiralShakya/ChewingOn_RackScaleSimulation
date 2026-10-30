@@ -47,9 +47,19 @@ The built-in GPU, switch and system presets with their resolved specs.
 | `bubbles` | `gpu_idle_fraction`, `tensor_idle_fraction`, and `sched`, the scheduler-cycle anatomy (fractions by stall reason) |
 | `kernels(top=20)` | per-kernel rows: `name`, `count`, `total_us`, `tflops`, `gbps`, `tensor_util`, ... |
 | `memory` | the fullest GPU's `total_gb`, `capacity_gb` and `by_category_gb` (weights, KV cache, activations, optimizer) |
+| `rep["power"]` | GPUs with a power model (B300, GB300) only: summed board power over time, `bin_us` and `gpus_w` (W per bin), with `avg_w`, `peak_w`, `min_w`, `energy_j` and `max_step_w_per_us`; each rank in `rep["ranks"]` has `energy_j` and `avg_power_w`. GPU boards only (book chapter 17) |
 | `warnings` | reasons the result may not be meaningful, e.g. the model does not fit |
 | `summary()` | the text report the CLI prints |
 | `raw`, `rep["key"]` | the full JSON report, including per-rank stats in `rep["ranks"]` and every collective in `rep["collectives"]` |
+
+## Closed forms
+
+The book's closed forms are importable, so a simulated number can sit next to its formula.
+
+| module | what |
+|---|---|
+| `rackscale.tail` | stragglers and faults (chapter 16): `expected_max_half_normal(n)`, `straggler_overhead(n, sigma, sync_every=1)`, `mean_overhead`, `dead_plane_slowdown(planes)`, `degraded_plane_slowdown(planes, scale)`, `ecmp_max_load(flows, links, groups)` |
+| `rackscale.power` | power and cooling (chapter 17): `with_power_cap(system, cap_w)` (system text for `simulate`), `cap_tradeoff`, `rack_trace(rep)`, `smoothing(watts, bin_us, floor_fraction)`, `square_wave_buffer_j`, `thermal_power_limit`, `junction_temp_c`, `distribution(rack_w, volts)`, `coolant_flow(heat_w, rise_k)`, `racks_per_cdu`, `tokens_per_joule` |
 
 ## Run reports and figures
 

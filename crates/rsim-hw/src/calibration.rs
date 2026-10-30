@@ -399,6 +399,7 @@ pub fn apply(spec: &mut GpuSpec, doc: &Value) -> Result<Vec<String>, CalError> {
                 max_mhz: f(m, &["power", "max_sm_mhz"]).unwrap_or(spec.sm_clock_mhz),
                 runs,
                 tcgen05_mhz: f(m, &["power", "tcgen05_sm_mhz"]).unwrap_or(0.0),
+                hbm_pj_per_bit: f(m, &["power", "hbm_pj_per_bit"]).unwrap_or(4.0),
             });
             set("power", &mut took);
         }

@@ -754,6 +754,44 @@ pub fn dvfs_clock_mhz(spec: &GpuSpec, launch: &KernelLaunch, d: &KernelDone) -> 
     (f < 0.995 * spec.sm_clock_mhz).then_some(f)
 }
 
+/// Board power while `launch` runs (W), from the power model; `None` when
+/// the GPU has none. `d` is the kernel simulated at the nominal clock.
+///
+/// The board draws idle power, plus the tensor term of the power model
+/// scaled by tensor-core utilisation (as [`dvfs_clock_mhz`] does) at the
+/// clock the kernel ran at, plus HBM traffic at `hbm_pj_per_bit`, capped at
+/// the board limit. A fully tensor-bound kernel the cap slows therefore
+/// draws the cap (that is how its clock was found); one that keeps the
+/// tensor cores busy part of the time sits part of the way down in clock
+/// and draws less.
+pub fn kernel_power_w(spec: &GpuSpec, launch: &KernelLaunch, d: &KernelDone) -> Option<f64> {
+    let p = spec.power.as_ref()?;
+    let cycles = (d.end_cycle - d.start_cycle).max(1) as f64;
+    let mut w = p.idle_w;
+    let name = launch.name.to_ascii_lowercase();
+    let flops = if launch.flops > 0.0 {
+        launch.flops
+    } else {
+        d.stats.tensor_flops
+    };
+    if let Some(dyn_w) = ["fp4", "fp8", "bf16", "fp16", "tf32"]
+        .into_iter()
+        .find(|t| name.contains(t))
+        .and_then(|dt| p.dynamic_w(dt, flops))
+    {
+        let slots = cycles * spec.sm_count as f64 * spec.sub_partitions as f64;
+        let u = (d.stats.tensor_busy_cycles as f64 / slots / 0.7).min(1.0);
+        let f = dvfs_clock_mhz(spec, launch, d)
+            .unwrap_or(spec.sm_clock_mhz)
+            .min(spec.sm_clock_mhz / tcgen05_stretch(spec, d));
+        w += u * dyn_w * (f / p.max_mhz).powi(3);
+    }
+    let secs = cycles / (spec.sm_clock_mhz * 1e6);
+    let bytes = (d.stats.dram_read_bytes + d.stats.dram_write_bytes) as f64;
+    w += bytes * 8.0 * p.hbm_pj_per_bit * 1e-12 / secs;
+    Some(w.min(p.cap_w))
+}
+
 /// Cheap test before any extra simulation: could the power cap lower this
 /// kernel's clock at all (a measured run of its dtype sustains less than
 /// `sm_clock_mhz` at its size)?
