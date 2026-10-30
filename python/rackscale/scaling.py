@@ -93,14 +93,17 @@ class Hardware:
         return self.nvlink_bw if n <= self.domain or not self.ib_bw else self.ib_bw
 
 
-def hardware(system: str = "gb300", *, launch: Optional[float] = None) -> Hardware:
+def hardware(system: str = "gb300", *, launch: Optional[float] = None,
+             overrides: Optional[dict] = None) -> Hardware:
     """:class:`Hardware` for a sweep system key (``gb300``, ``b300``, ``h100``,
-    ``a100``) or any simulator system preset (``gb200_nvl72``, ``hgx_b200_8``, ...)."""
+    ``a100``) or any simulator system preset (``gb200_nvl72``, ``hgx_b200_8``, ...).
+    ``overrides`` are agent-API hardware knobs (``rackscale.api.KNOBS``), so the
+    closed forms see the same hypothetical machine the simulator does."""
     from . import api, presets
     from .sweep import SYSTEMS
     sd = SYSTEMS.get(system)
     sys_name = sd.system if sd else system
-    r = api.resolve(sd and api._repo_path(sys_name) if sd and sys_name.endswith(".yaml") else sys_name)
+    r = api.resolve(sd and api._repo_path(sys_name) if sd and sys_name.endswith(".yaml") else sys_name, overrides)
     g = r["gpus"][0]
     clk = g["sm_clock_mhz"] * 1e6
     flops = {k: v * g["sm_count"] * clk for k, v in g["tensor"]["flops_per_cycle_per_sm"].items()}

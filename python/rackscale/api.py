@@ -500,6 +500,22 @@ def _summarize(rec: dict) -> dict:
         out["tokens_per_s"] = accuracy.band(tok / step * 1e6, acc["typical_pct"])
         if rec["spec"].get("phase", "decode") == "decode":
             out["us_per_output_token_per_seq"] = round(step, 2)
+    from . import analysis
+    split = analysis.bottlenecks(rec, 1)["time_split"]
+    out["time_split"] = {"kernels_by_bound": split["kernels_by_bound"], "collectives": split["collectives"],
+                         "idle_without_collectives": split["idle_without_collectives"],
+                         "note": "shares of GPU time that partition the step: kernels by what bounds them, time "
+                                 "inside collectives, and gaps with neither (launch overhead, waits). "
+                                 "gpu_idle_fraction above counts every moment without a compute kernel, collectives "
+                                 "included."}
+    if "answer" not in rec:
+        from . import toolkit
+        try:
+            rec["answer"] = toolkit.run_answer(out, rec)
+        except (KeyError, ValueError, ZeroDivisionError) as e:
+            rec["answer"] = {"error": f"{type(e).__name__}: {e}"}
+    out["answer"] = rec["answer"]
+    out["bottleneck"] = {k: rec["answer"].get(k) for k in ("bottleneck", "why", "share_of_gpu_time")}
     return out
 
 
@@ -533,12 +549,20 @@ def _run_id(sys_yaml: str, wl_text: str, cfg: dict) -> str:
 
 def run(system: Union[str, dict], workload: Union[dict, str], *, mode: str = "fast",
         overrides: Optional[dict] = None, calibrated: Union[bool, str] = "auto",
-        launch_gap_ns: Optional[float] = None, label: Optional[str] = None, trace: Optional[str] = None) -> dict:
+        launch_gap_ns: Optional[float] = None, label: Optional[str] = None, trace: Optional[str] = None,
+        variability: Optional[dict] = None, net: Optional[dict] = None) -> dict:
     """Simulate ``workload`` (a spec, see ``build_workload``) on ``system`` and keep the result.
 
     ``mode``: ``fast`` (each distinct kernel simulated once, reused; ~1% from exact) or
     ``exact`` (full co-simulation of every rank). Returns the summary; the full
     report stays in the session (``report(run_id)``).
+
+    ``variability`` makes ranks differ (chapter 16): ``{"kernel_sigma": 0.05, "seed": 1}``
+    slows every kernel by ``1 + sigma |Z|``, ``{"gpu_sigma": 0.02}`` fixes a spread per GPU,
+    ``{"slow_ranks": [[5, 1.1]]}`` makes rank 5 10% slow. ``net`` configures the fabric:
+    ``{"faults": [{"a": "gpu0", "b": "nvsw0.0", "rate_scale": 0.5}]}`` (a link at half rate;
+    no ``rate_scale`` = dead; ``start_us`` / ``duration_us`` = a flap), ``{"fidelity": "packet",
+    "packet": {"routing": "ecmp"}}``.
     """
     from . import simulate
     if mode not in ("fast", "exact"):
@@ -550,6 +574,10 @@ def run(system: Union[str, dict], workload: Union[dict, str], *, mode: str = "fa
                         else {"workload": workload})
     wl_text = wl.pop("_text", None) or json.dumps(wl)
     cfg = {"memoize_kernels": mode == "fast", "launch_gap_ns": launch_gap_ns}
+    if variability:
+        cfg["variability"] = variability
+    if net:
+        cfg["net"] = net
     rid = _run_id(sysr["yaml"], wl_text, cfg)
     if rid in _runs and not trace:
         rec = _runs[rid]
@@ -560,13 +588,15 @@ def run(system: Union[str, dict], workload: Union[dict, str], *, mode: str = "fa
     cwd = os.getcwd()
     try:
         os.chdir(REPO)  # workload paths (recordings, SASS) are repository-relative
-        rep = simulate(sysr["yaml"], wl_text, fast=mode == "fast", launch_gap_ns=launch_gap_ns, trace=trace)
+        rep = simulate(sysr["yaml"], wl_text, fast=mode == "fast", launch_gap_ns=launch_gap_ns, trace=trace,
+                       config={k: cfg[k] for k in ("variability", "net") if k in cfg})
     finally:
         os.chdir(cwd)
     from . import _native as nat
     rec = {
         "run_id": rid, "label": label, "spec": spec, "system_input": system,
         "overrides": dict(overrides or {}), "calibrated": calibrated, "mode": mode, "launch_gap_ns": launch_gap_ns,
+        "variability": variability, "net": net,
         "system": sysr, "workload": wl if wl_text.lstrip().startswith("{") else None, "report": rep.raw,
         "kernels": _kernel_index(sysr["yaml"], wl) if wl.get("spmd") or wl.get("ranks") else {},
         "provenance": {
@@ -648,8 +678,12 @@ def kernel(run_id: Optional[str] = None, name: Optional[str] = None, *, system: 
     g = sysr["gpus"][rank]
     cal = bool(_group_calibration(sysr)[0]) or bool(g.get("opcode_timing"))
     cls = accuracy.kernel_class(spec.get("type"), cal)
-    d["time_us"] = accuracy.band(d["time_us"], accuracy.CLASSES[cls]["typical_pct"])
+    pct = accuracy.CLASSES[cls]["typical_pct"]
     d["accuracy_class"] = {"class": cls[0], "calibrated_gpu": cls[1], **accuracy.CLASSES[cls]}
+    if cls == ("synthetic", True) and spec.get("type") == "gemm":
+        pct, ev = accuracy.gemm_typical_pct(2.0 * spec["m"] * spec["n"] * spec["k"])
+        d["accuracy_class"].update(typical_pct=pct, evidence=ev)
+    d["time_us"] = accuracy.band(d["time_us"], pct)
     d["spec"] = spec
     d.update(analysis.kernel_diagnosis(d, g, spec))
     return _out(**d)
@@ -688,7 +722,7 @@ def what_if(run_id: str, change: dict, *, label: Optional[str] = None) -> dict:
       ``{"parallel": {"ep": 16}}``, ``{"dtype": "fp8"}``, ``{"overlap": true}``)
     * ``"hardware"``: knob overrides added to the run's (``{"hbm_bw_gbps": "x1.5"}``)
     * ``"system"``: another system (preset, YAML or dict)
-    * ``"mode"`` / ``"launch_gap_ns"``: run settings
+    * ``"mode"`` / ``"launch_gap_ns"`` / ``"variability"`` / ``"net"``: run settings (see ``run``)
     """
     base = _rec(run_id)
     spec = base["spec"]
@@ -699,6 +733,7 @@ def what_if(run_id: str, change: dict, *, label: Optional[str] = None) -> dict:
     new = run(change.get("system", base["system_input"]), spec if spec is not None else base["workload"],
               mode=change.get("mode", base["mode"]), overrides={**base["overrides"], **change.get("hardware", {})},
               calibrated=base["calibrated"], launch_gap_ns=change.get("launch_gap_ns", base["launch_gap_ns"]),
+              variability=change.get("variability", base.get("variability")), net=change.get("net", base.get("net")),
               label=label or json.dumps(change, sort_keys=True))
     cmp = compare(run_id, new["run_id"], change=_change_kind(change))
     return _out(change=change, base=_summarize(base)["step_time_us"], result=new, comparison=cmp)
@@ -781,7 +816,7 @@ def sweep(run_id: str, key: str, values: List[Any], *, objective: str = "step_ti
             change = {"workload": ch}
         elif head == "hardware":
             change = {"hardware": {rest: v}}
-        elif head in ("system", "mode", "launch_gap_ns"):
+        elif head in ("system", "mode", "launch_gap_ns", "variability", "net"):
             change = {head: v}
         else:
             raise ValueError("key must start with workload., hardware., or be system/mode/launch_gap_ns")

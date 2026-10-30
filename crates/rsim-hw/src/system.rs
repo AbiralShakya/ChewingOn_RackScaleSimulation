@@ -368,7 +368,11 @@ impl Builder<'_> {
                     }
                 }
                 if per > 1 && *spines == 0 {
-                    let spine = self.add_switch(spine.as_ref().unwrap_or(leaf), "spine".into());
+                    // The ideal spine is one non-blocking switch standing for
+                    // a whole spine layer, so it has as many ports as it needs.
+                    let mut ideal = spine.as_ref().unwrap_or(leaf).clone();
+                    ideal.ports = ideal.ports.max((n * per) as u32);
+                    let spine = self.add_switch(&ideal, "spine".into());
                     for &lf in &leaves {
                         self.links.push(Link {
                             a: lf,

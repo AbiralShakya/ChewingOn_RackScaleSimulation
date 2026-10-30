@@ -1,0 +1,107 @@
+{
+ "commit": "8ec1a47",
+ "refs": {
+  "gemm_m1": {
+   "time_us": 41.249778535630966,
+   "source": "measured, CUDA-graph timing",
+   "truth": "measured"
+  },
+  "gemm_m256": {
+   "time_us": 34.143999218940735,
+   "source": "measured, CUDA-graph timing",
+   "truth": "measured"
+  },
+  "gemm_m1024": {
+   "time_us": 93.89999881386757,
+   "source": "measured, CUDA-graph timing",
+   "truth": "measured"
+  },
+  "attn_decode": {
+   "time_us": 619.9007987976074,
+   "source": "measured, CUDA-graph timing",
+   "truth": "measured"
+  },
+  "splitk": {
+   "best_split": 4,
+   "time_us": 25.262862681617566,
+   "source": "gemm_tiling, split_k 1 / 2 / 4 / 8",
+   "truth": "simulated"
+  },
+  "waves": {
+   "waves": 5,
+   "efficiency": 0.8216216216216216,
+   "source": "ceil(M/128) ceil(N/256) / 148 SMs",
+   "truth": "closed_form"
+  },
+  "plan_llama70b": {
+   "tp": 4,
+   "batch": 128,
+   "tokens_per_s_per_gpu": 1256.8701460416562,
+   "source": "best_layout (cycle-level, fast mode): every TP and batch that fits",
+   "truth": "simulated"
+  },
+  "explain_idle": {
+   "dominant": "communication",
+   "idle_fraction": 0.1918,
+   "source": "simulate on hgx_b300_8, default (eager) launch gaps; idle = neither kernels nor collectives",
+   "truth": "simulated"
+  },
+  "explain_gap_train": {
+   "ratio": 1.9511205976520811,
+   "largest_cause": "power_capped_clock",
+   "source": "docs/book/11-every-parallelism.md 11.5, '1 GPU' row: textbook 4685 us, sim 9141 us; power clock +2620 us of the 4456 us gap",
+   "truth": "simulated"
+  },
+  "predict_hbm": {
+   "speedup": 1.0469,
+   "source": "predict_gpu: simulate base and hbm_bw_gbps x1.5",
+   "truth": "simulated"
+  },
+  "predict_tensor": {
+   "speedup": 1.0336,
+   "source": "predict_gpu: simulate base and 2x tensor rate",
+   "truth": "simulated"
+  },
+  "power_cap": {
+   "slowdown_pct": 9.24,
+   "source": "power_thermal: re-simulated at an 800 W board cap",
+   "truth": "simulated"
+  },
+  "hnet": {
+   "ratio": 0.433,
+   "source": "tokens_or_bytes(simulate=True)",
+   "truth": "simulated"
+  },
+  "allreduce_nvl72": {
+   "time_us": 174.4,
+   "source": "docs/book/16 NVLink table, healthy NVLS, simulated",
+   "truth": "simulated"
+  },
+  "nvls_fault": {
+   "nvls_slowdown": 1.5,
+   "ring_slowdown": 1.0008824567596188,
+   "source": "docs/book/16 NVLink table, simulated (closed form: 2x on the bandwidth term for NVLS)",
+   "truth": "simulated"
+  },
+  "stragglers": {
+   "overhead_pct": 11.2,
+   "source": "docs/book/16 stragglers table, N = 72, simulated (closed form 13.2%)",
+   "truth": "simulated"
+  },
+  "ecmp": {
+   "busiest_over_mean": 1.3384812499999998,
+   "source": "tail.ecmp_max_load Monte Carlo",
+   "truth": "closed_form"
+  },
+  "bubble": {
+   "bubble_fraction": 0.1794871794871795,
+   "source": "(p - 1) / (m + p - 1)",
+   "truth": "closed_form"
+  },
+  "kv_bytes": {
+   "kv_bytes_per_token": 327680,
+   "source": "layers x 2 x kv_heads x head_dim x 2 bytes",
+   "truth": "closed_form"
+  }
+ }
+}

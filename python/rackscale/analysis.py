@@ -230,7 +230,11 @@ def bottlenecks(rec: dict, top: int = 8) -> dict:
                           "dominant_stalls": dom, "diagnosis": _diagnosis(row["name"], c, dom),
                           "levers": kernel_levers(rec, c["bound"], c["flags"], spec, c["dtype"])})
     coll = sum(r["collective_us"] for r in rep["ranks"]) / span
+    # gpu_idle_fraction counts every moment no compute kernel runs, so it includes time
+    # spent inside collectives; idle_only is what is left with neither (collectives
+    # taken as not overlapping kernels, so it is a lower bound when they overlap).
     idle = rep["bubbles"]["gpu_idle_fraction"]
+    idle_only = max(0.0, idle - coll)
     step_levers = []
     s = rec.get("spec") or {}
     if idle > 0.05:
@@ -248,7 +252,8 @@ def bottlenecks(rec: dict, top: int = 8) -> dict:
     text = [f"Step {rep['makespan_us']:.0f} us on {rep['system']} ({world} GPUs)."]
     for b, sh in order[:3]:
         text.append(f"{100 * sh:.0f}% of GPU time is in {b.replace('_', ' ')}-bound kernels.")
-    text.append(f"Collectives {100 * coll:.0f}%, idle between kernels {100 * idle:.0f}%.")
+    text.append(f"Collectives {100 * coll:.0f}%; no kernel running {100 * idle:.0f}% (of which "
+                f"{100 * idle_only:.0f}% is neither kernels nor collectives: launch gaps and waits).")
     if items:
         text.append(f"Biggest single cost: {items[0]['kernel']} ({100 * items[0]['share_of_gpu_time']:.0f}%), "
                     f"{items[0]['diagnosis']}.")
@@ -267,7 +272,8 @@ def bottlenecks(rec: dict, top: int = 8) -> dict:
             ranked.append({**lv, "targets": "step", "target_share": max(idle, coll)})
     ranked.sort(key=lambda lv: -lv["target_share"])
     return {"summary": " ".join(text), "time_split": {"kernels_by_bound": {k: round(v, 4) for k, v in order},
-                                                      "collectives": round(coll, 4), "idle": round(idle, 4)},
+                                                      "collectives": round(coll, 4), "idle": round(idle, 4),
+                                                      "idle_without_collectives": round(idle_only, 4)},
             "items": items, "step_levers": step_levers, "suggested_what_ifs": ranked[:10],
             "rules": "hbm-bound at >=70% of achievable HBM, tensor-bound at >=60% of dense peak, otherwise the "
                      "dominant non-async scheduler stall; see rackscale.analysis"}

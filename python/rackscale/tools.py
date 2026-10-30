@@ -37,6 +37,14 @@ A typical performance-engineering loop:
    scaling_ladder(model, system, phase) -> the best plan at every GPU count from 1 GPU to the rack.
 8. simulate_colocated(tenants) -> several models on one rack at once (partitioned or sharing GPUs),
    each tenant's slowdown from the others.
+9. gemm_tiling (inside one GPU: tiles, pipeline depth, split-K, waves), tail_latency (stragglers, link
+   faults, ECMP), power_thermal (power caps, coolant, tokens per joule), tokens_or_bytes (H-Net vs BPE),
+   predict_gpu (a GPU that does not exist yet, against a first-order prediction), html_report.
+10. learn(topic) -> the mechanism behind a number: idea, formula, worked example, book chapter.
+Every simulated answer carries an `answer` block: the value with its error band, the closed form
+beside it (sim_over_closed_form says how far reality departs), and the bottleneck with why.
+Closed forms are lower bounds for training and prefill (the simulator is typically ~2x the textbook
+there, mostly the power-capped clock) and close for decode; use them to rank, the simulator to size.
 Bands come from measured validation (accuracy tool). Differences between runs are more
 reliable than absolute times, especially on GPUs without measured calibration.
 Runs are cached by content, so repeating a call is free. Fast mode takes seconds to a minute;
@@ -80,17 +88,28 @@ TOOLS: List[dict] = [
           "Build a workload from a spec without simulating it: kernel and collective counts, world size, tokens "
           "per step.", {"spec": _WORKLOAD}, ["spec"]),
     _tool("simulate",
-          lambda system, workload, mode="fast", overrides=None, launch_gap_ns=None, label=None: api.run(
-              system, workload, mode=mode, overrides=overrides, launch_gap_ns=launch_gap_ns, label=label),
+          lambda system, workload, mode="fast", overrides=None, launch_gap_ns=None, label=None, variability=None,
+          net=None: api.run(system, workload, mode=mode, overrides=overrides, launch_gap_ns=launch_gap_ns,
+                            label=label, variability=variability, net=net),
           "Simulate a workload on a system. Returns run_id, step time with an error band, tokens/s (model specs), "
-          "MFU, idle fraction, scheduler-stall anatomy, top kernels, collectives, warnings and provenance.",
+          "MFU, idle fraction, scheduler-stall anatomy, top kernels, collectives, warnings and provenance, plus an "
+          "`answer` block: the roofline replay of the same program beside the simulated step (and how far apart "
+          "they are) and the bottleneck (kernels by bound, collectives or idle) with why it costs time.",
           {"system": _SYSTEM, "workload": _WORKLOAD,
            "mode": {"type": "string", "enum": ["fast", "exact"],
                     "description": "fast: each distinct kernel simulated once and reused (~1% from exact); exact: "
                                    "full co-simulation"},
            "overrides": _OVERRIDES,
-           "launch_gap_ns": {"type": "number", "description": "kernel launch gap; ~300 models CUDA-graph replay"},
-           "label": {"type": "string"}},
+           "launch_gap_ns": {"type": "number", "description": "gap between back-to-back kernels. Default: the "
+                                                            "preset's eager launch overhead (1.7 us on B300, 1.5 us "
+                                                            "on B200 / H100); ~300 models CUDA-graph replay"},
+           "label": {"type": "string"},
+           "variability": {"type": "object", "description": "make ranks differ: {kernel_sigma: 0.05, seed: 1} (every "
+                                                            "kernel x 1 + sigma |Z|), {gpu_sigma: 0.02}, {slow_ranks: "
+                                                            "[[rank, factor]]}"},
+           "net": {"type": "object", "description": "fabric settings: {faults: [{a: 'gpu0', b: 'nvsw0.0', rate_scale: "
+                                                    "0.5, start_us, duration_us}]} (no rate_scale = dead link), "
+                                                    "{fidelity: packet, packet: {routing: ecmp|adaptive}}"}},
           ["system", "workload"]),
     _tool("find_bottlenecks", lambda run_id, top=8: api.bottlenecks(run_id, top),
           "Where a run's time goes: every kernel classed as hbm-, tensor-, memory-latency-, tensor-pipeline-, "
@@ -202,10 +221,94 @@ TOOLS: List[dict] = [
            "alone": {"type": "boolean", "description": "also simulate each tenant alone to measure interference"},
            "mode": {"type": "string", "enum": ["fast", "exact"]}},
           ["tenants"]),
+    _tool("gemm_tiling",
+          lambda system="hgx_b300_8", m=4096, n=4096, k=4096, dtype="bf16", vary=None, base=None: _toolkit(
+              "gemm_tiling", system=system, m=m, n=n, k=k, dtype=dtype, vary=vary, base=base),
+          "Parallelism inside one GPU (book ch. 15): simulate one GEMM under different tiling choices and set each "
+          "beside its closed form. Knobs: tile_n (64/128/256), stages (shared-memory pipeline depth: bytes in flight), "
+          "cluster (1/2, B multicast), split_k, reserve_sms (SMs held back for communication). Each row: time with "
+          "band, time at the full clock vs the power-capped one, % of peak, CTAs, waves, bound, diagnosis, the "
+          "wave-quantised roofline and Little's-law bytes in flight. Blackwell GPUs take every knob.",
+          {"system": _SYSTEM, "m": {"type": "integer"}, "n": {"type": "integer"}, "k": {"type": "integer"},
+           "dtype": {"type": "string", "enum": ["bf16", "fp8", "fp4"]},
+           "vary": {"type": "object", "description": "knob -> values to try, e.g. {split_k: [1, 2, 4]}"},
+           "base": {"type": "object", "description": "knobs fixed for every row, e.g. {tile_n: 256}"}}, []),
+    _tool("tail_latency",
+          lambda ranks=72, sigma=0.05, sync_every=1, phases=16, planes=18, plane_scale=None, flows=None, links=None,
+          groups=1, simulate=False, system="gb300_nvl72", allreduce_mib=64: _toolkit(
+              "tail_latency", ranks=ranks, sigma=sigma, sync_every=sync_every, phases=phases, planes=planes,
+              plane_scale=plane_scale, flows=flows, links=links, groups=groups, simulate=simulate, system=system,
+              allreduce_mib=allreduce_mib),
+          "The tail at scale (book ch. 16), closed form and optionally simulated: stragglers (each kernel 1 + sigma "
+          "|Z| slow, a synchronous step pays sigma E[max_N |Z|]), one NVLink plane dead or slow (plane_scale; 0 = "
+          "dead) for NVLS vs ring all-reduce, and ECMP hash collisions (flows on links in groups). The closed forms "
+          "bound the bandwidth term only; a whole collective also pays fixed costs, so its slowdown is smaller. For "
+          "the slowdown of a real collective use simulate=true: it runs the straggler loop and an allreduce_mib "
+          "all-reduce with GPU 0's first NVLink faulted, NVLS and ring, on the rack (a minute or two).",
+          {"ranks": {"type": "integer"}, "sigma": {"type": "number"}, "sync_every": {"type": "integer"},
+           "phases": {"type": "integer"}, "planes": {"type": "integer"}, "plane_scale": {"type": "number"},
+           "flows": {"type": "integer"}, "links": {"type": "integer"}, "groups": {"type": "integer"},
+           "simulate": {"type": "boolean"}, "system": {"type": "string"},
+           "allreduce_mib": {"type": "number", "description": "size of the simulated faulted all-reduce (default 64)"}},
+          []),
+    _tool("power_thermal",
+          lambda run_id, caps_w=None, coolant_c=None, r_th_k_per_w=0.04, t_max_c=90.0: _toolkit(
+              "power_thermal", run_id=run_id, caps_w=caps_w, coolant_c=coolant_c, r_th_k_per_w=r_th_k_per_w,
+              t_max_c=t_max_c),
+          "Power, cooling and the clock (book ch. 17) for a simulated run: board power per GPU (mean, peak), energy "
+          "and tokens per joule, the swing and buffer a supply sees; re-simulate at lower power caps (the clock "
+          "follows the measured power model) beside the cube-root closed form; and the thermal limit a coolant "
+          "temperature sets. Needs GPUs with a power model (B300, GB300).",
+          {"run_id": _RUN_ID, "caps_w": {"type": "array", "items": {"type": "number"}},
+           "coolant_c": {"type": "number", "description": "cold-plate coolant temperature, C"},
+           "r_th_k_per_w": {"type": "number", "description": "junction-to-coolant thermal resistance (est. 0.03-0.05)"},
+           "t_max_c": {"type": "number"}}, ["run_id"]),
+    _tool("tokens_or_bytes",
+          lambda model="hnet-1stage-xl", baseline="bpe-transformer-xl", batch=64, context=8192, system="hgx_b300_8",
+          simulate=False: _toolkit("tokens_or_bytes", model=model, baseline=baseline, batch=batch, context=context,
+                                   system=system, simulate=simulate),
+          "Byte-level H-Net vs a BPE (or byte) Transformer per byte of text (book ch. 13): prefill FLOPs per byte, "
+          "decode HBM bytes per byte of text by part (weights, KV, Mamba state) and the memory-bound text bytes/s; "
+          "simulate=true runs both decodes (about a minute).",
+          {"model": {"type": "string", "enum": ["hnet-1stage-xl", "hnet-2stage-xl"]},
+           "baseline": {"type": "string", "enum": ["bpe-transformer-xl", "byte-transformer-xl"]},
+           "batch": {"type": "integer"}, "context": {"type": "integer", "description": "bytes of text"},
+           "system": _SYSTEM, "simulate": {"type": "boolean"}}, []),
+    _tool("predict_gpu",
+          lambda system, workload, changes, name=None, mode="fast": _toolkit(
+              "predict_gpu", system=system, workload=workload, changes=changes, name=name, mode=mode),
+          "Predict a GPU that does not exist (or that we have not measured): simulate the workload on `system` and on "
+          "the same system with hardware `changes` (knobs from list_hardware, e.g. {hbm_bw_gbps: 'x1.5', "
+          "tensor_fp4_flops_per_cycle_per_sm: 'x2', nvlink_gbps_per_dir: 'x2'}), set the result beside a "
+          "first-order roofline prediction, and say whether the bottleneck moved. The gap between simulation and "
+          "prediction is what a roofline misses (L2 ceilings, latency-bound kernels, the power cap, waves).",
+          {"system": _SYSTEM, "workload": _WORKLOAD, "changes": _OVERRIDES, "name": {"type": "string"},
+           "mode": {"type": "string", "enum": ["fast", "exact"]}}, ["system", "workload", "changes"]),
+    _tool("html_report",
+          lambda run_ids, path, labels=None, title=None: _toolkit("html_report", run_ids=run_ids, path=path,
+                                                                  labels=labels, title=title),
+          "Write a self-contained HTML report (time split, kernels by bound, stalls, roofline, collectives) for one "
+          "run or several side by side, for a person to read.",
+          {"run_ids": {"type": "array", "items": {"type": "string"}}, "path": {"type": "string"},
+           "labels": {"type": "array", "items": {"type": "string"}}, "title": {"type": "string"}},
+          ["run_ids", "path"]),
+    _tool("learn",
+          lambda topic=None, params=None: _learn(topic, params),
+          "Explain a rack-scale concept: the idea, the formula, a worked example computed now on a real preset, the "
+          "book chapter that derives it, and the tool call that shows it in the simulator. No topic lists them "
+          "(roofline, decode_batch, waves, littles_law, split_k, warp_specialization, power_cap, all_reduce, "
+          "all_to_all, expert_parallel, tensor_parallel, pipeline_bubble, data_parallel, kv_cache, stragglers, "
+          "link_faults, ecmp, tokens_vs_bytes, colocation, ...). Use it to explain *why* a number is what it is.",
+          {"topic": {"type": "string"},
+           "params": {"type": "object", "description": "change the worked example, e.g. {stages: 8, micro_batches: "
+                                                       "32} for pipeline_bubble, {model: 'llama3-8b'} for kv_cache"}},
+          []),
     _tool("compare_runs", lambda run_a, run_b: api.compare(run_a, run_b),
           "Compare two runs: step time and throughput with a significance verdict, per-op and stall deltas.",
           {"run_a": _RUN_ID, "run_b": _RUN_ID}, ["run_a", "run_b"]),
-    _tool("list_runs", lambda: api.runs(), "Runs simulated in this session.", {}, []),
+    _tool("list_runs", lambda: api.runs(),
+          "Runs simulated in this session (run_id, label, system, workload, mode, step time, overrides), to pass to "
+          "what_if, compare_runs, power_thermal or html_report.", {}, []),
     _tool("accuracy", lambda: api.accuracy_table(),
           "How the error bands are derived: per kernel class, typical and worst measured error with sources.", {}, []),
 ]
@@ -221,6 +324,16 @@ def _best_layout(model, system, phase, context, seqlen, batches, min_tps_user, m
     return dict(sweep.plan_report(out, system), schema="rackscale-api/v1")
 
 
+def _toolkit(fn: str, **kw) -> dict:
+    from . import toolkit
+    return dict(getattr(toolkit, fn)(**kw), schema="rackscale-api/v1")
+
+
+def _learn(topic, params) -> dict:
+    from .learn import learn
+    return dict(learn(topic, **(params or {})), schema="rackscale-api/v1")
+
+
 def _plan(plan) -> "Any":
     from .scaling import Plan
     return Plan(**(plan or {}))
@@ -228,8 +341,20 @@ def _plan(plan) -> "Any":
 
 def _scaling_math(model, system, phase, plan, kw) -> dict:
     from . import scaling
+    from . import toolkit
+    from .accuracy import CLOSED_FORM
     est = scaling.estimate(model, scaling.hardware(system), phase, _plan(plan), **kw)
     est["explain"] = scaling.explain(est)
+    r = CLOSED_FORM.get(phase, CLOSED_FORM["train"])
+    dom = next((t for t in est["terms"] if t["name"] == est["dominant"]), None)
+    est["answer"] = toolkit.answer(
+        "step time (closed form)", est["step_us"], "us", closed_form=est["step_us"],
+        formula="sum of exposed terms (see terms)",
+        expected_simulated_us={"lo": round(est["step_us"] * r["lo"]), "median": round(est["step_us"] * r["median"]),
+                               "hi": round(est["step_us"] * r["hi"]),
+                               "basis": f"sim / textbook over {r['cases']} {phase} plans, book ch. 11.5"},
+        bottleneck=est["dominant"],
+        why=(f"the largest term: {dom['formula']} ({dom['kind']})" if dom else ""))
     return dict(est, schema="rackscale-api/v1")
 
 
@@ -284,7 +409,7 @@ def call(name: str, args: Dict[str, Any]) -> dict:
         return {"error": f"unknown tool {name!r}"}
     try:
         return _BY_NAME[name]["fn"](**(args or {}))
-    except (ValueError, KeyError, TypeError, OSError) as e:
+    except (ValueError, KeyError, TypeError, OSError, RuntimeError) as e:
         return {"error": f"{type(e).__name__}: {e}"}
 
 
