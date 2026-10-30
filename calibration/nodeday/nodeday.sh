@@ -5,6 +5,7 @@
 #   ./nodeday.sh smoke        # ~5 min: is every block ready? what will be skipped?
 #   ./nodeday.sh run          # every block in priority order; finished blocks are skipped
 #   ./nodeday.sh run decode   # just the named blocks
+#   ./nodeday.sh single       # the one-GPU subset (CUDA_VISIBLE_DEVICES=3 on della-tridao)
 #   ./nodeday.sh status       # done / failed / time used per block
 #   ./nodeday.sh pack         # results tarball to copy off the node
 #
@@ -28,12 +29,21 @@ mkdir -p "$ND_EXT"
 [ -d "$ND_VENV" ] && . "$ND_VENV/bin/activate"
 export CUDA_HOME=${CUDA_HOME:-/usr/local/cuda}
 export PATH="$CUDA_HOME/bin:$PATH"
-NGPU=$(nvidia-smi -L 2>/dev/null | grep -c "^GPU" || echo 0)
-GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader -i 0 2>/dev/null | head -1)
+# On a shared machine (della-tridao: CUDA_VISIBLE_DEVICES=3) only the visible GPUs count.
+if [ -n "${CUDA_VISIBLE_DEVICES:-}" ]; then
+  NGPU=$(echo "$CUDA_VISIBLE_DEVICES" | tr ',' '\n' | grep -c .)
+  GPU0=${CUDA_VISIBLE_DEVICES%%,*}
+  [[ $GPU0 == MIG-* ]] && GPU0=0
+else
+  NGPU=$(nvidia-smi -L 2>/dev/null | grep -c "^GPU" || echo 0)
+  GPU0=0
+fi
+GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader -i "$GPU0" 2>/dev/null | head -1)
 case "$GPU_NAME" in
   *B300*|*"GB300"*) GPU_KEY=b300 ;;
   *B200*|*"GB200"*) GPU_KEY=b200 ;;
   *H100*|*H200*|*H800*) GPU_KEY=h100 ;;
+  *A100*) GPU_KEY=a100 ;;
   *) GPU_KEY=other ;;
 esac
 SLUG=$(echo "$GPU_NAME" | sed 's/NVIDIA //; s/[^A-Za-z0-9]\+/-/g; s/-$//' | tr 'A-Z' 'a-z')
@@ -46,6 +56,8 @@ NCCL_TESTS=$ND_EXT/nccl-tests/build
 nccl_lib() { python -c "import nvidia.nccl, os; print(os.path.join(list(nvidia.nccl.__path__)[0], 'lib'))" 2>/dev/null; }
 
 log() { echo "[$(date +%H:%M:%S)] $*"; }
+# A block that needs more GPUs than are visible marks itself skipped (not failed).
+need() { [ "$NGPU" -ge "$1" ] && return 0; echo "skipped: needs $1 GPUs, $NGPU visible"; touch SKIPPED; return 1; }
 
 # ---------------------------------------------------------------------------
 # setup
@@ -169,41 +181,45 @@ nccl_run() {  # nccl_run <tag> <ngpus> <binary> [ENV=val ...]
 }
 
 block_nccl() {
+  need 2 || return 0
   [ -x "$NCCL_TESTS/all_reduce_perf" ] || { echo "nccl-tests not built"; return 1; }
   # The algorithm NCCL picks per size, for the record (one run with tuning logged).
-  nccl_run tuning_all_reduce_n8 8 all_reduce_perf NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,GRAPH,TUNING
+  nccl_run "tuning_all_reduce_n$NGPU" "$NGPU" all_reduce_perf NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,GRAPH,TUNING
   for coll in all_reduce all_gather reduce_scatter alltoall broadcast sendrecv; do
     for n in 8 4 2; do
       [ "$n" -le "$NGPU" ] && nccl_run "${coll}_n${n}" "$n" "${coll}_perf"
     done
   done
-  for algo in Ring Tree NVLS; do nccl_run "all_reduce_n8_${algo}" 8 all_reduce_perf NCCL_ALGO=$algo; done
-  for coll in all_gather reduce_scatter; do
-    for algo in Ring NVLS; do nccl_run "${coll}_n8_${algo}" 8 "${coll}_perf" NCCL_ALGO=$algo; done
-  done
+  # Forced algorithms are predicted at 8 ranks only.
+  if [ "$NGPU" -ge 8 ]; then
+    for algo in Ring Tree NVLS; do nccl_run "all_reduce_n8_${algo}" 8 all_reduce_perf NCCL_ALGO=$algo; done
+    for coll in all_gather reduce_scatter; do
+      for algo in Ring NVLS; do nccl_run "${coll}_n8_${algo}" 8 "${coll}_perf" NCCL_ALGO=$algo; done
+    done
+  fi
 }
 
 block_variance() {
   python "$B/variance.py" --mode isolated --out isolated.json
-  python "$B/variance.py" --mode concurrent --out concurrent.json
+  if [ "$NGPU" -gt 1 ]; then python "$B/variance.py" --mode concurrent --out concurrent.json; fi
 }
 
 block_straggler() {
+  need 2 || return 0
   torchrun --nproc-per-node "$NGPU" "$B/straggler.py" --out straggler.json
 }
 
 block_train() {
   python - "$HERE" <<'EOF' > plans.txt
 import sys; sys.path.insert(0, sys.argv[1])
-from cases import TRAIN
+from cases import TRAIN, train_gpus, train_out
 for c in TRAIN:
     for l in c["layers"]:
-        n = 1 if c["script"] == "single" else 2 if c["script"].startswith("pp_") else 8
-        print(c["script"], l, n)
+        print(c["script"], l, train_gpus(c), train_out(c, l))
 EOF
-  while read -r plan layers n; do
-    local out="${plan}_L${layers}"
+  while read -r plan layers n out; do
     [ -f "$out.json" ] && continue
+    [ "$n" -gt "$NGPU" ] && { echo "skip $out: needs $n GPUs"; continue; }
     if [ "$n" = 1 ]; then
       python "$B/train_step.py" --plan "$plan" --layers "$layers" --out "$out.json" --trace "$out.trace.json"
     else
@@ -220,6 +236,7 @@ block_decode() {
 }
 
 block_overlap() {
+  need 2 || return 0
   torchrun --nproc-per-node "$NGPU" "$B/overlap.py" --alone --out R0.json
   for r in 2 4 8 16 24 32; do
     NCCL_MIN_CTAS=$r NCCL_MAX_CTAS=$r torchrun --nproc-per-node "$NGPU" "$B/overlap.py" --out "R$r.json"
@@ -228,10 +245,11 @@ block_overlap() {
 
 block_power() {
   python "$B/power.py" --gpus 0 --out gpu0.json
-  python "$B/power.py" --gpus "$ALL_GPUS" --out all.json
+  if [ "$NGPU" -gt 1 ]; then python "$B/power.py" --gpus "$ALL_GPUS" --out all.json; fi
 }
 
 block_links() {
+  need 2 || return 0
   # Every GPU pair at 1 GiB (send/recv), so one slow link or plane shows up.
   for i in $(seq 0 $((NGPU - 1))); do
     for j in $(seq $((i + 1)) $((NGPU - 1))); do
@@ -246,6 +264,7 @@ block_links() {
 }
 
 block_deepep() {
+  need 8 || return 0
   wait_extras
   python -c "import deep_ep" 2>/dev/null || { echo "DeepEP not installed"; return 1; }
   (cd "$ND_EXT/DeepEP" && timeout 1200 python tests/test_intranode.py) > intranode.txt 2>&1
@@ -258,6 +277,13 @@ block_deepep() {
 # microbenchmarks and FA2 per-PC stalls (GPU 3).
 block_fanout() {
   wait_extras
+  if [ "$NGPU" -lt 4 ]; then  # one GPU (della-tridao, a Della A100): the four jobs in turn
+    python "$B/hnet_bench.py" --hnet-repo "$ND_EXT/hnet" --out hnet.json > hnet.log 2>&1; echo "hnet rc=$?"
+    bash "$B/micro.sh" "$PWD/micro" > micro.log 2>&1; echo "micro rc=$?"
+    bash "$B/capture.sh" "$PWD/capture" > capture.log 2>&1; echo "capture rc=$?"
+    (cd "$REPO/calibration" && CAL_OUT="$ND_OUT/fanout/calibration" ./run.sh > "$ND_OUT/fanout/calibration.log" 2>&1; echo "calibration rc=$?")
+    return 0
+  fi
   (CUDA_VISIBLE_DEVICES=0 python "$B/hnet_bench.py" --hnet-repo "$ND_EXT/hnet" --out hnet.json > hnet.log 2>&1; echo "hnet rc=$?") &
   (CUDA_VISIBLE_DEVICES=1 bash "$B/capture.sh" "$PWD/capture" > capture.log 2>&1; echo "capture rc=$?") &
   (cd "$REPO/calibration" && CUDA_VISIBLE_DEVICES=2 CAL_OUT="$ND_OUT/fanout/calibration" ./run.sh > "$ND_OUT/fanout/calibration.log" 2>&1; echo "calibration rc=$?") &
@@ -269,6 +295,9 @@ block_variance_end() {
   python "$B/variance.py" --mode isolated --reps 30 --out isolated_end.json
   nvidia-smi nvlink -e > nvlink-errors-end.txt 2>&1
 }
+
+# One GPU (the B300 on della-tridao, a Della A100): what a single GPU can settle.
+SINGLE="env variance train decode power fanout variance_end"
 
 # name priority minutes, in run order. P0 is the article's rung-4 and rung-5
 # evidence; P1 fills rungs 2 and 3; P2 is the kernel-level and drift work.
@@ -356,6 +385,7 @@ case "${1:-}" in
   extras) setup_extras ;;
   smoke) cmd_smoke ;;
   run) shift; cmd_run "$@" ;;
+  single) cmd_run $SINGLE ;;
   status) cmd_status ;;
   pack) cmd_pack ;;
   *) sed -n '2,12p' "$0"; exit 1 ;;

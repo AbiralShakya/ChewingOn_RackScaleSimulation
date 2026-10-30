@@ -1,15 +1,53 @@
-# One day on an 8-GPU node
+# Validating rackscale without an 8-GPU node
 
-Everything the article ("How to Understand a Rack") still needs from hardware, packed into
-one rented day on an HGX node (B300, B200 or H100), ordered by how much each measurement is
-worth to the article, so the day is still useful if it is cut short.
+We do not have an 8-GPU node and are not getting one. This directory is how the simulator is
+validated anyway, rung by rung:
 
-The rule for the day: **every number is predicted before it is measured.**
+| rung | evidence |
+|---|---|
+| R0-R1 instruction, kernel | our B300 (della-tridao GPU 3) and A100 microbenchmarks and Nsight Compute |
+| R2-R3 one GPU, one model on one GPU | `nodeday.sh single` on the B300 and Della A100s |
+| R4 node | public measurements we never fit to (nccl-tests, MLPerf, DGX Cloud recipes, TorchTitan, TRT-LLM tables); optional 4×A100 Della allocation |
+| R5-R6 rack, multi-rack | public measurements (InferenceX, NVL72 blogs, DeepEP); otherwise labelled predictions with error bars |
+
+The rule: **every number is predicted before it is measured or compared.**
 [`predict.py`](predict.py) ran the simulator on every case below and its output,
 [`predictions/`](predictions/) and [`PREDICTIONS.md`](PREDICTIONS.md), is committed with the
-commit it came from. [`compare.py`](compare.py) scores the measurements against those files
-as committed and never re-runs the simulator. Errors are signed, (predicted − measured) /
-measured; negative means the simulator is optimistic.
+commit it came from (marked `-dirty` if `python/`, `crates/` or `configs/` differed).
+[`compare.py`](compare.py) scores measurements against those files as committed and never
+re-runs the simulator. Errors are signed, (predicted − measured) / measured; negative means the
+simulator is optimistic. If a comparison leads to a model fix, both errors are reported.
+
+Each article claim carries one label: **Measured** (we ran it on that hardware), **Checked**
+(against a public number we did not fit to) or **Prediction ± x%** (bar from chapter 14.5's
+composition rule over the measured rungs below it).
+
+## One GPU (B300 or A100)
+
+```bash
+# B300 on della-tridao: GPU 3, shared through the lock
+CUDA_VISIBLE_DEVICES=3 flock /home/as0714/.gpu3.lock calibration/nodeday/nodeday.sh single
+# A100 on Della, inside a 1-GPU Slurm job
+calibration/nodeday/nodeday.sh single
+# afterwards, anywhere
+python calibration/nodeday/compare.py ~/nodeday/results/<host>-<gpu>
+```
+
+`single` runs env, variance, train (the 1-GPU case), decode (8B, batch 64), power (GEMM and
+attention clocks from NVML), fanout (H-Net, ncu, captures, `bench_open`) and a closing variance
+run. Multi-GPU blocks and cases write `SKIPPED`. FP8 and FA4 are recorded as unsupported on
+A100. A Slurm array of `variance` jobs over many A100s gives the GPU-to-GPU σ the straggler term
+needs. Della compute nodes may be offline: run `setup` and download the H-Net checkpoints on the
+login node first, into `/scratch` (home is near quota).
+
+With 4 GPUs (`--gres=gpu:4`), `run` also does the 4-GPU cases (DDP x4, FSDP x4, TP4) and
+nccl-tests at 2 and 4 ranks.
+
+## If an 8-GPU node ever turns up
+
+
+Everything below was written for one rented day on an HGX node (B300, B200 or H100), ordered
+by how much each measurement is worth, so the day is still useful if it is cut short.
 
 ```bash
 # on the node
@@ -28,7 +66,7 @@ Run it inside `tmux`: a block that finishes writes `DONE`, so `run` after a disc
 where it stopped. A failing block writes `FAILED` and the run moves on; rerun it at the end with
 `run <block>`. Results go to `~/nodeday/results/<host>-<gpu>/<block>/` (`ND_OUT` overrides).
 
-## Before the day
+### Before the day
 
 Ask the provider, because each one decides whether a block can run at all:
 
@@ -45,7 +83,7 @@ Ask the provider, because each one decides whether a block can run at all:
 Then tell the thread which GPU it is. The predictions exist for all three; `compare.py` picks the
 file from the GPU the node reports.
 
-## The day, in priority order
+### The day, in priority order
 
 Budgets are GPU minutes on a healthy node. P0 is the article's largest gap: no network number in
 it is our own measurement yet. Cut from the bottom if time runs short; never cut P0.
@@ -71,14 +109,14 @@ NVBit, FlashAttention 2 and 4, H-Net's kernels, DeepEP, nvbandwidth) build in th
 the lowest CPU priority from the moment `run` starts, and are paused while the host-sensitive
 blocks (`train`, `decode`, `overlap`) measure. `fanout` and `deepep` wait for them.
 
-### If time runs short
+#### If time runs short
 
 Drop, in this order: `variance_end`, `deepep`, the calibration suite inside `fanout`
 (`run fanout` still does the other three), `links`, the truncated-depth decode cases. Keep `nccl`,
 `variance`, `straggler`, `train` and the full-depth `decode`: they are the article's rung 4 and 5,
 and the node is the only place we can get them.
 
-## What gets compared to what
+### What gets compared to what
 
 The cases come from one list, [`cases.py`](cases.py), that both `predict.py` and the node scripts
 read, so a measurement and its prediction have the same model, depth, batch, sequence length and
@@ -103,7 +141,7 @@ plan by construction.
 - **Stragglers**: the measured tax, the closed form σ·E[max_N]/√k with the measured σ, and a
   bootstrap from the measured per-kernel samples (no normality assumption).
 
-## Known gaps, stated before the day
+### Known gaps, stated before the day
 
 These predictions are expected to miss, and the misses are part of the result:
 
@@ -122,7 +160,7 @@ These predictions are expected to miss, and the misses are part of the result:
 - vLLM's FP8 block quantisation for DeepSeek-V3 with dummy weights runs FP8 GEMMs; the
   simulator's DeepSeek-V3 decode lowers BF16 GEMMs.
 
-## The open microbenchmarks (CALIBRATION.md)
+### The open microbenchmarks (CALIBRATION.md)
 
 | # | what | where on the node |
 |---|---|---|
@@ -138,7 +176,7 @@ These predictions are expected to miss, and the misses are part of the result:
 | 10 | HMMA operand reads vs register banks | `bench_overlap`, in the suite run |
 | 11 | clock under attention | `power` block |
 
-## Files
+### Files
 
 | file | what |
 |---|---|

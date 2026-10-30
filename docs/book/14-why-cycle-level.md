@@ -137,9 +137,13 @@ Four steps, in order of what they buy:
 2. **Run the 11 microbenchmarks** in [CALIBRATION.md](../CALIBRATION.md), which settle the
    open single-GPU misses (TMA from HBM, per-SM clocks under FA4, register-bank dispatch under
    HMMA, the clock under attention).
-3. **Measure one 8-GPU B300 node:** nccl-tests for every collective and size, and the
-   chapter 11 cases run for real. That checks the fabric and, for the first time, the
-   composition of kernels, collectives and streams into a step.
+3. **Check the node and the rack against measurements we never fit to.** Without our own
+   8-GPU node, that means public numbers (nccl-tests results, MLPerf, NVIDIA's DGX Cloud
+   recipes, TorchTitan, TRT-LLM and InferenceX tables) at matching configs, with the
+   simulator's predictions committed before the comparison
+   ([calibration/nodeday](../../calibration/nodeday/README.md)). That checks the fabric and
+   the composition of kernels, collectives and streams into a step; a node of our own, if
+   one turns up, runs the same scripts.
 4. **Report distributions, not single numbers:** per-SM and per-GPU spread and run-to-run
    variance, so the straggler term of 14.5 is measured, not assumed.
 

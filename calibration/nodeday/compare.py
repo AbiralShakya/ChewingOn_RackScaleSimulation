@@ -28,7 +28,7 @@ from typing import Dict, List, Optional
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from cases import DECODE, NCCL_HEADLINE_SIZES, NCCL_TESTS_BIN, TRAIN  # noqa: E402
+from cases import DECODE, NCCL_HEADLINE_SIZES, NCCL_TESTS_BIN, TRAIN, train_out  # noqa: E402
 
 E_MAX = {2: 0.5642, 4: 1.0294, 8: 1.4236}  # E[max of N standard normals]
 
@@ -122,7 +122,7 @@ def train(res: str, pred: dict) -> List[dict]:
     rows = []
     for c in TRAIN:
         for layers in c["layers"]:
-            m = load(os.path.join(res, "train", f"{c['script']}_L{layers}.json"))
+            m = load(os.path.join(res, "train", train_out(c, layers) + ".json"))
             p = _pred_step(pred, "train", c["name"], layers)
             if not m or not p:
                 continue

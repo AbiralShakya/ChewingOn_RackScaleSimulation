@@ -21,7 +21,22 @@ TRAIN = [
          script="pp_1f1b"),
     dict(name="PP2 ZB-H1 m8", spec={**T8, "micro_batches": 8}, plan=dict(pp=2, schedule="zb"), layers=[2],
          script="pp_zb"),
+    # Four GPUs: what a 4x A100 NVLink allocation on Della can measure for itself.
+    dict(name="DDP x4", spec=T8, plan=dict(dp=4, zero=0), layers=[2], script="ddp", gpus=4),
+    dict(name="FSDP x4", spec=T8, plan=dict(dp=4, zero=3), layers=[2], script="fsdp", gpus=4),
+    dict(name="TP4", spec=T8, plan=dict(tp=4), layers=[2], script="tp", gpus=4),
 ]
+
+
+def train_gpus(c: dict) -> int:
+    """GPUs a training case runs on."""
+    return c.get("gpus") or (1 if c["script"] == "single" else 2 if c["script"].startswith("pp_") else 8)
+
+
+def train_out(c: dict, layers) -> str:
+    """Result file stem of a training case (the 8-GPU plans keep their short names)."""
+    n = train_gpus(c)
+    return f"{c['script']}_L{layers}" if n in (1, 2, 8) else f"{c['script']}_n{n}_L{layers}"
 
 # Decode: one token for every sequence. "full" is the whole model (served by
 # vLLM with dummy weights, where engine overhead is small next to the step);
@@ -38,7 +53,7 @@ DECODE = [
     # 671B in FP8 needs ~690 GB: it fits 8x B200/B300 (1.4-2.3 TB), not 8x H100 (640 GB).
     dict(name="decode EP8 (DeepSeek-V3)", spec=dict(model="deepseek-v3", phase="decode", batch=64, context=4096),
          plan=dict(ep=8), layers=["full", 4], hf="deepseek-ai/DeepSeek-V3", tp=1, dp=8, ep=True, concurrency=512,
-         skip=("h100",)),
+         skip=("h100", "a100")),
 ]
 
 # nccl-tests binaries and the simulator's names for them.

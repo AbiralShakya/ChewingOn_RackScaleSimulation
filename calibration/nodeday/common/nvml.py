@@ -13,6 +13,7 @@ max: SW power cap, HW slowdown, thermal, or idle.
 
 from __future__ import annotations
 
+import os
 import statistics
 import threading
 import time
@@ -27,6 +28,16 @@ REASONS = {
     0x1: "gpu_idle", 0x2: "app_clock", 0x4: "sw_power_cap", 0x8: "hw_slowdown", 0x10: "sync_boost",
     0x20: "sw_thermal", 0x40: "hw_thermal", 0x80: "hw_power_brake", 0x100: "display_clock",
 }
+
+
+def physical(gpu: int) -> int:
+    """NVML index of CUDA device ``gpu``: NVML ignores CUDA_VISIBLE_DEVICES, so on a shared
+    machine (della-tridao's GPU 3) CUDA device 0 is NVML device 3."""
+    vis = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+    ids = [v.strip() for v in vis.split(",") if v.strip()]
+    if ids and all(v.isdigit() for v in ids) and gpu < len(ids):
+        return int(ids[gpu])
+    return gpu
 
 
 def reasons(mask: int) -> List[str]:
@@ -45,7 +56,7 @@ class Sampler:
         if N is None:
             return self
         N.nvmlInit()
-        self.h = [N.nvmlDeviceGetHandleByIndex(g) for g in self.gpus]
+        self.h = [N.nvmlDeviceGetHandleByIndex(physical(g)) for g in self.gpus]
         self._t = threading.Thread(target=self._run, daemon=True)
         self._t.start()
         return self
@@ -102,7 +113,7 @@ def limits(gpu: int) -> Dict:
     if N is None:
         return {}
     N.nvmlInit()
-    h = N.nvmlDeviceGetHandleByIndex(gpu)
+    h = N.nvmlDeviceGetHandleByIndex(physical(gpu))
     out = dict(power_limit_w=N.nvmlDeviceGetEnforcedPowerLimit(h) / 1000.0,
                max_sm_mhz=N.nvmlDeviceGetMaxClockInfo(h, N.NVML_CLOCK_SM),
                max_mem_mhz=N.nvmlDeviceGetMaxClockInfo(h, N.NVML_CLOCK_MEM))

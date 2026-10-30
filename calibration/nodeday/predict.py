@@ -9,8 +9,9 @@ tuned after the fact. Each file records the git commit it came from.
     python calibration/nodeday/predict.py --system b300 --only nccl,gemm
     python calibration/nodeday/predict.py --table               # rebuild PREDICTIONS.md
 
-Systems are the three nodes we might rent: HGX B300 (calibrated die), HGX
-B200 and HGX H100 (presets, not calibrated). Output goes to
+Systems: HGX B300 (calibrated die; della-tridao's B300 is one of these GPUs),
+HGX A100 (calibrated A100; Della), and HGX B200 and HGX H100 (presets, not
+calibrated), whose node-level numbers are scored against public results. Output goes to
 ``predictions/<system>.json`` and a readable summary to ``PREDICTIONS.md``.
 """
 
@@ -37,7 +38,12 @@ SYSTEMS = {
     "b300": ("b300", "hgx_b300_8", "b300", 148),
     "b200": ("b200", "hgx_b200_8", "b200", 148),
     "h100": ("h100", "hgx_h100_8", "h100_sxm", 132),
+    # Della's A100 80GB nodes: one GPU now, and a 4-GPU NVLink allocation if one is granted.
+    "a100": ("a100", os.path.join(ROOT, "configs", "hgx_a100_8.yaml"), "a100_sxm", 108),
 }
+
+# GPU presets whose measured calibration is not built into the preset.
+CALIBRATION = {"a100_sxm": "calibration/results/a100-sxm4-80gb-sm80/calibration.json"}
 
 # --------------------------------------------------------------------------
 # cases; the node-day scripts read the same lists (cases.py), so a measured
@@ -111,7 +117,8 @@ def steps(key: str, which: str, jobs: int) -> List[dict]:
 
 
 def rsim_json(args: List[str]) -> list:
-    out = subprocess.run([RSIM] + args + ["--json"], capture_output=True, text=True, check=True).stdout
+    # System YAMLs name their calibration relative to the repository root.
+    out = subprocess.run([RSIM] + args + ["--json"], capture_output=True, text=True, check=True, cwd=ROOT).stdout
     return json.loads(out)
 
 
@@ -148,7 +155,9 @@ def rsim_kernel(gpu: str, dims: List[int], dtype: str = "bf16", reserve: int = 0
     args = [RSIM, "kernel", "--gpu", gpu, "--dtype", dtype, "gemm"] + [str(d) for d in dims]
     if reserve:
         args += ["--reserve-sms", str(reserve)]
-    p = subprocess.run(args, capture_output=True, text=True)
+    if gpu in CALIBRATION:
+        args += ["--calibration", CALIBRATION[gpu]]
+    p = subprocess.run(args, capture_output=True, text=True, cwd=ROOT)
     text = p.stdout + p.stderr
     t = _TIME.search(text)
     if p.returncode or not t:
