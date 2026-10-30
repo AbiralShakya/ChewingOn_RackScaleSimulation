@@ -472,3 +472,30 @@ fn kernel_power_follows_the_power_model() {
         "{hi_w} W at 1100, {lo_w} W at 800"
     );
 }
+
+/// Embedding-bag gathers (chapter 18): a table far larger than L2 streams
+/// from HBM near its bandwidth and misses L2; a hot set that fits in L2 hits
+/// and runs faster; the fused backward reads and writes every row.
+#[test]
+fn embedding_bag_is_bound_by_hbm_unless_the_rows_are_hot() {
+    let spec = presets::b300();
+    let hbm = spec.hbm.bw_gbps * spec.hbm.efficiency;
+    let cold = synth::embedding_bag("eb", 16384, 32, 128, 4.0, 50_000_000, false);
+    let (d, ns) = run(spec.clone(), cold.clone());
+    let bytes = (d.stats.dram_read_bytes + d.stats.dram_write_bytes) as f64;
+    let gathered = 16384.0 * 32.0 * 512.0;
+    assert!(
+        (bytes / gathered - 1.0).abs() < 0.1,
+        "{bytes} B from HBM for {gathered} B gathered"
+    );
+    let gbps = bytes / ns;
+    assert!(gbps > 0.6 * hbm && gbps < 1.05 * hbm, "{gbps:.0} GB/s");
+    let hot = synth::embedding_bag("eb", 16384, 32, 128, 4.0, 20_000, false);
+    let (dh, nsh) = run(spec.clone(), hot);
+    assert!(dh.stats.dram_read_bytes < d.stats.dram_read_bytes / 4);
+    assert!(nsh < ns, "hot {nsh:.0} ns vs cold {ns:.0} ns");
+    let bwd = synth::embedding_bag("eb", 16384, 32, 128, 4.0, 50_000_000, true);
+    let (db, nsb) = run(spec.clone(), bwd);
+    assert!(db.stats.dram_write_bytes as f64 > 0.8 * gathered);
+    assert!(nsb > 1.3 * ns, "backward {nsb:.0} ns vs forward {ns:.0} ns");
+}

@@ -32,8 +32,9 @@ pub struct BranchProfile {
 }
 
 /// Affine address generator: `base + cta*cta_stride + warp*warp_stride +
-/// lane*lane_stride + iter*iter_stride`, wrapped into `footprint` bytes when
-/// non-zero (models re-use / cache-resident working sets).
+/// lane*lane_stride + iter*iter_stride + offset`, wrapped (all but `base`)
+/// into `footprint` bytes when non-zero (models re-use / cache-resident
+/// working sets).
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct AddrGen {
     pub base: u64,
@@ -49,6 +50,9 @@ pub struct AddrGen {
     pub cta_div: u64,
     #[serde(default)]
     pub cta_mod: u64,
+    /// Constant added before the wrap: distinct streams over one footprint.
+    #[serde(default)]
+    pub offset: i64,
 }
 
 impl AddrGen {
@@ -66,7 +70,8 @@ impl AddrGen {
         let off = cta as i64 * self.cta_stride
             + warp as i64 * self.warp_stride
             + lane as i64 * self.lane_stride
-            + iter as i64 * self.iter_stride;
+            + iter as i64 * self.iter_stride
+            + self.offset;
         let off = if self.footprint > 0 {
             off.rem_euclid(self.footprint as i64)
         } else {

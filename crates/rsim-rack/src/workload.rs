@@ -175,6 +175,19 @@ pub enum KernelSpec {
         #[serde(default = "two_f")]
         elem_bytes: f64,
     },
+    /// Embedding-bag gather with sum pooling (recommenders): `bags` outputs,
+    /// each the sum of `pooling` random rows of a `table_rows` x `dim` table;
+    /// `update` = backward with the optimizer fused (read-modify-write rows).
+    EmbeddingBag {
+        bags: u64,
+        pooling: u64,
+        dim: u64,
+        #[serde(default = "four_f")]
+        elem_bytes: f64,
+        table_rows: u64,
+        #[serde(default)]
+        update: bool,
+    },
     /// Causal depthwise conv1d + SiLU (Dao-AILab/causal-conv1d): the decode
     /// update kernel when `seqlen == 1`, the channel-last forward otherwise.
     Conv1d {
@@ -258,6 +271,9 @@ fn two() -> u32 {
 }
 fn one() -> u32 {
     1
+}
+fn four_f() -> f64 {
+    4.0
 }
 fn two_f() -> f64 {
     2.0

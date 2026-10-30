@@ -15,7 +15,8 @@ included) and extrapolates:
   ``waves * t_wave``. A causal kernel is the non-causal one with half the
   keys per CTA, which is how the synthetic FA4 kernel balances it.
 * **token-linear kernels** (GEMM ``m``, ``row_norm`` rows, ``elementwise``
-  ``n``, ``conv1d`` / SSD ``seqlen``): ``t = t(x1) + slope * (x - x1)`` from
+  ``n``, ``conv1d`` / SSD ``seqlen``, ``embedding_bag`` bags):
+  ``t = t(x1) + slope * (x - x1)`` from
   two sizes that already fill the GPU many times over.
 
 :func:`check` compares each rule with a full simulation at a size where both
@@ -162,7 +163,8 @@ def _attention_us(system: str, spec: dict, reserved: int = 0) -> Tuple[float, di
 # ---------------------------------------------------------------------------
 # token-linear kernels
 
-_AXIS = {"gemm": "m", "row_norm": "rows", "elementwise": "n", "conv1d": "seqlen", "ssd": "seqlen"}
+_AXIS = {"gemm": "m", "row_norm": "rows", "elementwise": "n", "conv1d": "seqlen", "ssd": "seqlen",
+         "embedding_bag": "bags"}
 
 
 def _tokens(spec: dict) -> Optional[int]:

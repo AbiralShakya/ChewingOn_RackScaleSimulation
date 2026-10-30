@@ -34,6 +34,7 @@ reproduce its numbers. The scripts live in [`scripts/`](scripts/).
 | 15 | [Parallelism inside one GPU](15-parallelism-inside-one-gpu.md) | climb the ladder inside one chip (lanes, warps, warp roles, pipeline stages, tiles, clusters, waves, split-K, SMs taken by NCCL) with a closed form and a simulator run at each rung |
 | 16 | [Stragglers, flaps and tail latency](16-stragglers-flaps-tail-latency.md) | say what jitter, one slow GPU, a dead or degraded link, a flap and ECMP hash collisions cost a synchronous step, from closed forms checked against the simulator |
 | 17 | [Power, cooling and the clock](17-power-cooling-and-the-clock.md) | follow the watts from one kernel to a rack's power trace, size the energy storage it needs, trade the board limit against work per joule, and say what the coolant temperature, 800 V feeds and CDUs do to the clock |
+| 18 | [Beyond language models: vision, diffusion, VLMs and recommenders](18-beyond-language-models.md) | say what bounds a ViT encoder, a diffusion transformer, a video DiT sharded with Ulysses, a VLM's prefill and a DLRM-style recommender, and which rung of the ladder each one stresses |
 
 ## The ladder
 
@@ -53,6 +54,10 @@ a warp to a building full of racks. This is where each rung is treated.
 | nodes and racks | many NVLink domains on InfiniBand / RoCE | NIC bandwidth, oversubscribed spines | tens of µs, plus tail latency | [4](04-networks-collectives.md), [8](08-async-rl.md), [11](11-every-parallelism.md), [16](16-stragglers-flaps-tail-latency.md) |
 | every rung above one GPU | ranks in lockstep | the slowest rank, the slowest link | the maximum, not the mean | [16](16-stragglers-flaps-tail-latency.md) |
 | the facility | racks, power shelves, CDUs | megawatts, coolant temperature and flow | the power swing of a synchronous step | [17](17-power-cooling-and-the-clock.md) |
+
+Chapters 1 to 17 climb the ladder mostly with language models. Chapter 18 climbs it again with
+vision encoders, diffusion transformers, VLMs and recommenders, which load different rungs:
+attention on one GPU, all-to-all on the rack, HBM gathers on every GPU.
 
 Still being written: sender-side congestion control (DCQCN, Ultra Ethernet) for lossy fabrics
 (chapter 16.5 says what is missing).

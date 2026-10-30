@@ -101,6 +101,10 @@ impl Asm {
     pub fn single_thread(&mut self, pc: u32) {
         self.ann.active.insert(pc, 1);
     }
+    /// Only the lanes in `mask` execute the instruction at `pc`.
+    pub fn lanes(&mut self, pc: u32, mask: u32) {
+        self.ann.active.insert(pc, mask);
+    }
     pub fn bar(&mut self, pc: u32, b: BarOp) {
         self.bars.insert(pc, b);
     }
@@ -1211,6 +1215,151 @@ pub fn elementwise(
         },
         flops: n as f64 * flops_per_elem as f64,
         bytes: n as f64 * elem_bytes * (n_in as f64 + 1.0),
+    }
+}
+
+/// Embedding-bag lookup with sum pooling (FBGEMM table-batched embeddings,
+/// `torch.nn.EmbeddingBag`): each of `bags` outputs sums `pooling` rows of
+/// `dim` elements gathered from a table of `table_rows` rows. One warp per
+/// bag; a warp reads 512 B per load, so rows under 512 B are read several
+/// per load (a group of lanes each), and longer rows take several loads.
+/// Each warp keeps up to four loads in flight, as FBGEMM's kernels do
+/// (the largest of 4, 3, 2 or 1 that divides the loads a bag needs).
+/// Rows are spread over the whole table, so a table larger than L2 misses
+/// on nearly every row; a smaller `table_rows` stands for a hot set.
+///
+/// `update` is the backward pass with the optimizer fused in (FBGEMM's
+/// `backward_..._exact` kernels): each bag's gradient row is read once and
+/// every gathered row is read, updated and written back. Duplicate indices
+/// are not merged, and HBM page locality is not modelled.
+pub fn embedding_bag(
+    name: &str,
+    bags: u64,
+    pooling: u64,
+    dim: u64,
+    elem_bytes: f64,
+    table_rows: u64,
+    update: bool,
+) -> KernelLaunch {
+    const WARPS: u64 = 8;
+    let row_bytes = ((dim as f64 * elem_bytes).ceil() as u64)
+        .next_multiple_of(16)
+        .max(16);
+    let lanes_per_row = (row_bytes / 16).min(32);
+    let rows_per_load = (32 / lanes_per_row).max(1);
+    let loads_per_row = row_bytes.div_ceil(512);
+    let groups = pooling.max(1).div_ceil(rows_per_load);
+    let unroll = (1..=4u64)
+        .rev()
+        .find(|u| groups.is_multiple_of(*u))
+        .unwrap_or(1);
+    let trips = groups.div_ceil(unroll);
+    let unit = row_bytes.next_multiple_of(512);
+    let footprint = (table_rows.max(1) * row_bytes)
+        .div_ceil(unit)
+        .clamp(1, (1u64 << 39) / unit)
+        * unit;
+    // Odd prime multiples of the row unit: successive rows land far apart
+    // and cover the table (any power-of-two footprint is coprime to them).
+    let table = |j: u64, u: u64| AddrGen {
+        base: region(90) + j * 512,
+        cta_stride: (1_000_003 * unit) as i64,
+        warp_stride: (7_919 * unit) as i64,
+        lane_stride: 16,
+        iter_stride: (104_729 * unit) as i64,
+        footprint,
+        offset: (u * 15_485_863 * unit) as i64,
+        ..Default::default()
+    };
+    let row_mask = if lanes_per_row >= 32 {
+        u32::MAX
+    } else {
+        (1u32 << lanes_per_row) - 1
+    };
+    let per_bag = |base: u64| AddrGen {
+        base,
+        cta_stride: (WARPS * unit) as i64,
+        warp_stride: unit as i64,
+        lane_stride: 16,
+        ..Default::default()
+    };
+    let vec = (16.0 / elem_bytes).max(1.0) as usize;
+    let mut a = Asm::new();
+    a.op("S2R R0, SR_TID.X");
+    a.op("S2R R1, SR_CTAID.X");
+    a.op("IMAD R2, R1, 0x8, R0");
+    if update {
+        for j in 0..loads_per_row {
+            let pc = a.op("LDG.E.128 R20, desc[UR4][R6.64]");
+            a.addr(pc, per_bag(region(91) + j * 512));
+            a.lanes(pc, row_mask);
+        }
+    }
+    let top = a.here();
+    for u in 0..unroll {
+        for j in 0..loads_per_row {
+            let pc = a.op(&format!("LDG.E.128 R{}, desc[UR4][R2.64]", 40 + 4 * u));
+            a.addr(pc, table(j, u));
+        }
+    }
+    for u in 0..unroll {
+        let r = 40 + 4 * u;
+        if update {
+            a.ops(
+                &format!("FFMA R{r}, R20, R24, R{r}"),
+                vec * loads_per_row as usize,
+            );
+            for j in 0..loads_per_row {
+                let pc = a.op(&format!("STG.E.128 desc[UR4][R2.64], R{r}"));
+                a.addr(pc, table(j, u));
+            }
+        } else {
+            a.ops(
+                &format!("FADD R12, R{r}, R12"),
+                vec * loads_per_row as usize,
+            );
+        }
+    }
+    a.op("IADD3 R2, R2, 0x1, RZ");
+    a.op("ISETP.LT.AND P1, PT, R2, UR6, PT");
+    if trips > 1 {
+        a.loop_to(top, trips - 1);
+    }
+    if !update {
+        // Several rows per load: fold the lane groups' partial sums together.
+        let mut s = rows_per_load;
+        while s > 1 {
+            s /= 2;
+            a.op(&format!(
+                "SHFL.BFLY PT, R13, R12, 0x{:x}, 0x1f",
+                s * lanes_per_row
+            ));
+            a.op("FADD R12, R12, R13");
+        }
+        for j in 0..loads_per_row {
+            let pc = a.op("STG.E.128 desc[UR4][R4.64], R12");
+            a.addr(pc, per_bag(region(92) + j * 512));
+            a.lanes(pc, row_mask);
+        }
+    }
+    let gathered = (bags * pooling) as f64 * row_bytes as f64;
+    KernelLaunch {
+        name: name.into(),
+        grid: [bags.div_ceil(WARPS).max(1) as u32, 1, 1],
+        block: [(WARPS * 32) as u32, 1, 1],
+        regs_per_thread: 64,
+        smem_per_cta: 0,
+        cluster: 1,
+        source: KernelSource::Static {
+            roles: vec![a.role("all", 0..WARPS as u32)],
+            barriers: HashMap::new(),
+        },
+        flops: (bags * pooling * dim) as f64 * if update { 2.0 } else { 1.0 },
+        bytes: if update {
+            2.0 * gathered + (bags * row_bytes) as f64
+        } else {
+            gathered + (bags * row_bytes) as f64
+        },
     }
 }
 

@@ -272,11 +272,7 @@ def _ffn_ops(m: Model, p: Parallel, layer: int, t: int, tag: str) -> List[dict]:
             ops += _tp_exit(t, h, p, tag, "moe")
     else:
         ffn = (moe.dense_ffn if moe and moe.dense_ffn else m.ffn) // p.tp
-        ops += [
-            _gemm(f"{tag}gate_up_proj", t, 2 * ffn, h),
-            _k(f"{tag}act_mul", type="elementwise", n=t * ffn, inputs=2, flops_per_elem=4),
-            _gemm(f"{tag}down_proj", t, h, ffn),
-        ]
+        ops += _dense_mlp(m, t, ffn, tag)
         ops += _tp_exit(t, h, p, tag, "mlp")
     ops.append(_k(f"{tag}residual2", type="elementwise", n=_rows(t, p) * h, inputs=2, flops_per_elem=1))
     return ops
@@ -352,14 +348,25 @@ def _linear_ops(m: Model, p: Parallel, batch: int, sq: int, tag: str) -> List[di
     return ops
 
 
+def _dense_mlp(m: Model, t: int, ffn: int, tag: str) -> List[dict]:
+    """The GEMMs of a dense MLP with ``ffn`` columns on this rank: SwiGLU
+    (gate and up in one GEMM, then act * mul) or fc1, GELU, fc2."""
+    h = m.hidden
+    if m.gated:
+        return [_gemm(f"{tag}gate_up_proj", t, 2 * ffn, h),
+                _k(f"{tag}act_mul", type="elementwise", n=t * ffn, inputs=2, flops_per_elem=4),
+                _gemm(f"{tag}down_proj", t, h, ffn)]
+    return [_gemm(f"{tag}fc1", t, ffn, h),
+            _k(f"{tag}gelu", type="elementwise", n=t * ffn, inputs=1, flops_per_elem=8),
+            _gemm(f"{tag}fc2", t, h, ffn)]
+
+
 def _mlp_ops(m: Model, p: Parallel, t: int, tag: str) -> List[dict]:
     """Standalone MLP block (hybrid stacks): pre-norm, gate/up, act, down, residual."""
     h = m.hidden
     ffn = m.ffn // p.tp
     ops = [_k(f"{tag}mlp_norm", type="row_norm", rows=_rows(t, p), cols=h), *_tp_enter(t, h, p, tag, "mlp"),
-           _gemm(f"{tag}gate_up_proj", t, 2 * ffn, h),
-           _k(f"{tag}act_mul", type="elementwise", n=t * ffn, inputs=2, flops_per_elem=4),
-           _gemm(f"{tag}down_proj", t, h, ffn)]
+           *_dense_mlp(m, t, ffn, tag)]
     ops += _tp_exit(t, h, p, tag, "mlp")
     ops.append(_k(f"{tag}mlp_residual", type="elementwise", n=_rows(t, p) * h, inputs=2, flops_per_elem=1))
     return ops

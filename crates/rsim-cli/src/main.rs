@@ -46,7 +46,8 @@ enum Cmd {
         #[arg(long, default_value = "h100_sxm")]
         gpu: String,
         /// gemm M N K | attention B HQ HKV SQ SKV D | elementwise N | rownorm ROWS COLS |
-        /// ssm_update B H P N G | conv1d B DIM L [W] | ssd_<stage> B L H P N G [CHUNK]
+        /// ssm_update B H P N G | conv1d B DIM L [W] | ssd_<stage> B L H P N G [CHUNK] |
+        /// embedding_bag BAGS POOLING DIM TABLE_ROWS [UPDATE=1] (row bytes from --dtype)
         kind: String,
         dims: Vec<u64>,
         #[arg(long, default_value = "bf16")]
@@ -283,6 +284,18 @@ pub(crate) fn synth_kernel(
         "rownorm" => {
             need(2)?;
             synth::row_norm("rmsnorm", dims[0], dims[1], 2.0)
+        }
+        "embedding_bag" => {
+            need(4)?;
+            synth::embedding_bag(
+                "embedding_bag",
+                dims[0],
+                dims[1],
+                dims[2],
+                synth::dtype(dtype).bytes,
+                dims[3],
+                dims.get(4).copied().unwrap_or(0) == 1,
+            )
         }
         "ssm_update" => {
             need(5)?;

@@ -61,6 +61,20 @@ The book's closed forms are importable, so a simulated number can sit next to it
 | `rackscale.tail` | stragglers and faults (chapter 16): `expected_max_half_normal(n)`, `straggler_overhead(n, sigma, sync_every=1)`, `mean_overhead`, `dead_plane_slowdown(planes)`, `degraded_plane_slowdown(planes, scale)`, `ecmp_max_load(flows, links, groups)` |
 | `rackscale.power` | power and cooling (chapter 17): `with_power_cap(system, cap_w)` (system text for `simulate`), `cap_tradeoff`, `rack_trace(rep)`, `smoothing(watts, bin_us, floor_fraction)`, `square_wave_buffer_j`, `thermal_power_limit`, `junction_temp_c`, `distribution(rack_w, volts)`, `coolant_flow(heat_w, rise_k)`, `racks_per_cdu`, `tokens_per_joule` |
 
+## Vision, diffusion, multimodal and recommender workloads
+
+Book chapter 18. Models: `models.VIT_L_14`, `VIT_H_14`, `VIT_22B`, `DIT_XL_2`, `VIDEO_DIT_14B`
+(`models.VISION`), and `recsys.DLRM_2TB`.
+
+| function | what |
+|---|---|
+| `vision.vit_forward(m, p, batch, *, image=224, patch=14, cls_token=True)` | encode `batch` images: patch embedding, non-causal blocks with a GELU MLP |
+| `vision.dit_sample(m, p, batch, *, latent=32, patch=2, frames=1, steps=50, cfg=True, text_tokens=0, cp=1)` | `steps` denoising steps (a loop); `latent` may be `(h, w)`; `cp` shards a long sequence with Ulysses |
+| `vision.vlm_prefill(llm, vit, p, batch, *, images=1, image=336, text=256)` | ViT, projector and causal LLM prefill over image and text tokens; `flops_split` gives the closed-form split |
+| `vision.encoder_flops`, `vision.dit_flops`, `vision.patches` | the closed forms |
+| `recsys.step(m, world, batch, *, train=True, hot_rows=None)` | a DLRM step: table-wise sharded `embedding_bag` gathers, all-to-all, data-parallel MLPs; backward updates the rows in place |
+| `recsys.balance(m, world, batch, hbm_gbps, net_gbps, domain=1)` | the gather and all-to-all bytes and times per rank, and their ratio |
+
 ## Run reports and figures
 
 ```python

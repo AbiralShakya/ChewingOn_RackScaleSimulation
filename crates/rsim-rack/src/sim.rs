@@ -911,6 +911,26 @@ impl KernelCache {
                 cols,
                 elem_bytes,
             } => synth::row_norm("row_norm", *rows, *cols, *elem_bytes),
+            KernelSpec::EmbeddingBag {
+                bags,
+                pooling,
+                dim,
+                elem_bytes,
+                table_rows,
+                update,
+            } => synth::embedding_bag(
+                if *update {
+                    "embedding_bag_backward"
+                } else {
+                    "embedding_bag"
+                },
+                *bags,
+                *pooling,
+                *dim,
+                *elem_bytes,
+                *table_rows,
+                *update,
+            ),
             KernelSpec::Conv1d {
                 batch,
                 dim,
