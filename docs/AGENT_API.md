@@ -77,6 +77,8 @@ api.kernel(r["run_id"], "lm_head")["role_anatomy"]   # producer / MMA / epilogue
 | `inspect_kernel` | `api.kernel(run_id, name)` or `api.kernel(system=, spec=)` | time ± band, role anatomy, top SASS PCs, mbarrier waits, waves, padding, diagnosis |
 | `what_if` | `api.what_if(run_id, change)` | the new run plus a comparison with the significance verdict |
 | `sweep` | `api.sweep(run_id, key, values, objective)` | one row per value and the best value |
+| `scaling_math` | `scaling.estimate(model, hardware(system), phase, Plan(...))` | closed-form step, MFU, throughput, memory, critical batches; every term with its formula |
+| `check_scaling_math` | `scaling.check(model, system, phase, Plan(...), layers)` | textbook vs roofline replay vs simulator, signed errors, the gap split into kernel efficiency, clock, collectives and overlap |
 | `compare_runs` | `api.compare(a, b)` | step and throughput deltas, per-op deltas, stall-anatomy deltas |
 | `list_runs` | `api.runs()` | runs kept in this session |
 | `accuracy` | `api.accuracy_table()` | the evidence behind every band |

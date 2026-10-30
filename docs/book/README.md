@@ -27,6 +27,7 @@ reproduce its numbers. The scripts live in [`scripts/`](scripts/).
 | 8 | [Asynchronous RL across mixed hardware](08-async-rl.md) | find the bottleneck when rollout and training run on different GPUs |
 | 9 | [How far to trust the numbers](09-validation.md) | know which results are measured, which are calibrated simulation, and which rest on presets |
 | 10 | [Bring your own workload](10-bring-your-own-workload.md) | capture any engine or kernel library on one GPU and replay it on a rack |
+| 11 | [Every parallelism, in closed form, checked cycle by cycle](11-every-parallelism.md) | write the step time of any DP / ZeRO / FSDP / HSDP / TP / SP / CP / PP / EP plan as formulas, and know how far and why the simulator departs from them |
 
 ## Seeing it
 

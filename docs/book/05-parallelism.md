@@ -285,4 +285,7 @@ the 18× drop to InfiniBand outside it.
 | EP all-to-all in a real step | `python examples/deepseek_v3_nvl72.py --layers 4` |
 | ring attention | `research/flash_attention/results/scale_rows.json`; rerun with `python research/flash_attention/run_study.py scale` (recordings in `research/flash_attention/rpath/`) |
 
+Chapter 11 writes every axis above, plus ZeRO stages, FSDP, HSDP, sequence parallelism and
+Ulysses, as closed forms and checks them against the simulator case by case.
+
 Next: [6. Inference](06-inference.md).
