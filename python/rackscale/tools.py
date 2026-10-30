@@ -49,9 +49,11 @@ _WORKLOAD = {
     "type": "object",
     "description": "workload spec. Model: {model, phase: decode|prefill|train, batch, context (decode), seqlen "
                    "(prefill/train), micro_batch (train), parallel: {tp, ep, dp, comm_sms}, layers, overlap, dtype: "
-                   "bf16|fp8|fp4}. One kernel: {kernel: {type: gemm, m, n, k, dtype} | {type: attention, batch, "
-                   "heads_q, heads_kv, sq, skv, d, causal} | {type: path, path: <.rpath>}}. Capture: {capture: <dir>, "
-                   "plan: {tp, ep, pp, dp}}. Raw: {workload: {...}}.",
+                   "bf16|fp8|fp4}. Byte-level H-Net (hnet-1stage-xl, hnet-2stage-xl; baselines bpe-transformer-xl, "
+                   "byte-transformer-xl): {model, phase: prefill|decode, batch, seqlen or context in bytes, steps "
+                   "(decode byte steps), routing: sampled|mean_field}. One kernel: {kernel: {type: gemm, m, n, k, "
+                   "dtype} | {type: attention, batch, heads_q, heads_kv, sq, skv, d, causal} | {type: path, path: "
+                   "<.rpath>}}. Capture: {capture: <dir>, plan: {tp, ep, pp, dp}}. Raw: {workload: {...}}.",
 }
 _OVERRIDES = {"type": "object", "description": "hardware knobs {name or path: value}; 'x1.5' scales the current value. "
                                                "See list_hardware().knobs"}
@@ -73,7 +75,7 @@ TOOLS: List[dict] = [
           {"name": {"type": "string", "description": "optional GPU or system preset"}}, []),
     _tool("list_models", lambda: api.models_list(),
           "Model architectures the simulator can lower (Llama 3, DeepSeek-V3, Qwen3 MoE, Mixtral, Mamba-2 and "
-          "hybrids), with sizes and phases.", {}, []),
+          "hybrids, and byte-level H-Net with its BPE and byte Transformer baselines), with sizes and phases.", {}, []),
     _tool("describe_workload", lambda spec: api.workload(spec),
           "Build a workload from a spec without simulating it: kernel and collective counts, world size, tokens "
           "per step.", {"spec": _WORKLOAD}, ["spec"]),

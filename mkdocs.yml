@@ -93,6 +93,8 @@ nav:
       - 10. Bring your own workload: book/10-bring-your-own-workload.md
       - 11. Every parallelism, checked: book/11-every-parallelism.md
       - 12. Many models, one rack: book/12-many-models-one-rack.md
+      - 13. Tokens or bytes: book/13-tokens-or-bytes.md
+      - 14. Why cycle level: book/14-why-cycle-level.md
   - Reference:
       - Command line: reference/cli.md
       - Python API: reference/python.md

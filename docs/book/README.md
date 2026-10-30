@@ -29,6 +29,8 @@ reproduce its numbers. The scripts live in [`scripts/`](scripts/).
 | 10 | [Bring your own workload](10-bring-your-own-workload.md) | capture any engine or kernel library on one GPU and replay it on a rack |
 | 11 | [Every parallelism, in closed form, checked cycle by cycle](11-every-parallelism.md) | write the step time of any DP / ZeRO / FSDP / HSDP / TP / SP / CP / PP / EP plan as formulas, and know how far and why the simulator departs from them |
 | 12 | [Many models, one rack](12-many-models-one-rack.md) | say what jobs sharing an NVL72 cost each other: partitioned GPUs, KV streams between prefill and decode pools, and models sharing a GPU |
+| 13 | [Tokens or bytes: H-Net on one Blackwell GPU](13-tokens-or-bytes.md) | count FLOPs and bytes moved per byte of text for a byte-level hierarchical model, and see why equal FLOPs do not mean equal decode cost |
+| 14 | [Why cycle level, and how far to trust a simulated rack](14-why-cycle-level.md) | say which effects only a cycle-level model sees, what in it is real SASS, and how per-kernel error carries to a node and a rack |
 
 ## Seeing it
 

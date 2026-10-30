@@ -253,6 +253,19 @@ def models_list() -> dict:
                   "active_params_b": round(m.active_params() / 1e9, 2),
                   "moe": None if not m.moe else {"experts": m.moe.experts, "top_k": m.moe.topk},
                   "mla": bool(m.mla), "mamba": bool(m.mamba), "blocks": m.block_list()[:64]}
+    from . import hnet
+    for k, m in hnet.BASELINES.items():
+        out[k] = {"layers": m.layers, "hidden": m.hidden, "heads": m.heads, "kv_heads": m.kv_heads,
+                  "active_params_b": round(m.active_params() / 1e9, 2), "moe": None, "mla": False, "mamba": False,
+                  "blocks": m.block_list()[:64],
+                  "reads": "BPE tokens (4.45 bytes each)" if m.vocab > 256 else "raw bytes"}
+    for k, h in hnet.ALL.items():
+        out[k] = {"byte_level": True, "params_b": round(h.total_params() / 1e9, 2), "main_layers": h.main.layers,
+                  "stages": [{"width": st.width, "encoder": st.enc, "decoder": st.dec, "bytes_per_chunk": st.ratio}
+                             for st in h.stages],
+                  "bytes_per_main_position": round(h.compression, 2), "phases": ["prefill", "decode"],
+                  "note": "H-Net: seqlen and context are in bytes; decode runs `steps` byte steps with the "
+                          "main network's batch drawn from the routers (routing: sampled | mean_field)"}
     return _out(models=out, phases=list(PHASES))
 
 
@@ -321,9 +334,13 @@ def build_workload(spec: Union[dict, str]) -> dict:
                                   steps=steps)
     if "model" not in spec:
         raise ValueError("workload spec needs one of: model, kernel, capture, workload")
-    if spec["model"] not in models.ALL:
-        raise ValueError(f"unknown model {spec['model']!r}; known: {sorted(models.ALL)}")
-    m = models.ALL[spec["model"]]
+    from . import hnet
+    if spec["model"] in hnet.ALL:
+        return _hnet_workload(hnet.ALL[spec["model"]], spec)
+    known = {**models.ALL, **hnet.BASELINES}
+    if spec["model"] not in known:
+        raise ValueError(f"unknown model {spec['model']!r}; known: {sorted(known) + sorted(hnet.ALL)}")
+    m = known[spec["model"]]
     par = lower.Parallel(**{k: int(v) for k, v in (spec.get("parallel") or {}).items()})
     phase = spec.get("phase", "decode")
     layers = spec.get("layers")
@@ -342,13 +359,36 @@ def build_workload(spec: Union[dict, str]) -> dict:
     return wl
 
 
+def _hnet_workload(h, spec: dict) -> dict:
+    from . import hnet
+    par = lower.Parallel(**{k: int(v) for k, v in (spec.get("parallel") or {}).items()})
+    phase = spec.get("phase", "decode")
+    layers = spec.get("layers")
+    if phase == "prefill":
+        return hnet.prefill(h, par, int(spec.get("batch", 1)), int(spec.get("seqlen", 8192)), layers=layers)
+    if phase == "decode":
+        b, steps = int(spec.get("batch", 64)), int(spec.get("steps", 8))
+        routing = spec.get("routing", "sampled")
+        if routing not in ("sampled", "mean_field"):
+            raise ValueError("routing must be sampled or mean_field")
+        counts = hnet.step_counts(h, b, steps, seed=int(spec.get("seed", 0)), mean_field=routing == "mean_field")
+        return hnet.decode_steps(h, par, b, int(spec.get("context", 8192)), counts=counts, layers=layers)
+    raise ValueError("H-Net models have phases prefill and decode")
+
+
 def tokens_per_step(spec: Optional[dict]) -> Optional[int]:
-    """Tokens a model-spec step produces (decode) or processes (prefill/train), rack-wide."""
+    """Tokens a model-spec step produces (decode) or processes (prefill/train), rack-wide; bytes for
+    H-Net, whose decode workload is ``steps`` byte steps."""
     if not spec or "model" not in spec:
         return None
     par = lower.Parallel(**{k: int(v) for k, v in (spec.get("parallel") or {}).items()})
     replicas = max(1, par.world() // max(1, par.tp))
     phase = spec.get("phase", "decode")
+    from . import hnet
+    if spec["model"] in hnet.ALL:
+        if phase == "decode":
+            return int(spec.get("batch", 64)) * int(spec.get("steps", 8)) * replicas
+        return int(spec.get("batch", 1)) * int(spec.get("seqlen", 8192)) * replicas
     if phase == "decode":
         return int(spec.get("batch", 64)) * replicas
     if phase == "prefill":

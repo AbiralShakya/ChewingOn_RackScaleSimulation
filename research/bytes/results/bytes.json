@@ -1,0 +1,1120 @@
+{
+ "flops": [
+  {
+   "model": "hnet-1stage-xl",
+   "params_b": 1.256022784,
+   "gflops_per_byte": 0.6718093062127659,
+   "paper": 0.72,
+   "err": -0.0669315191489362
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "params_b": 1.59150272,
+   "gflops_per_byte": 0.6703481022472826,
+   "paper": 0.69,
+   "err": -0.028481011235822265
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "params_b": 1.19537664,
+   "gflops_per_byte": 0.69560832,
+   "paper": 0.69,
+   "err": 0.008128
+  },
+  {
+   "model": "byte-transformer-xl",
+   "params_b": 1.19537664,
+   "gflops_per_byte": 3.197108224,
+   "paper": null,
+   "err": null
+  }
+ ],
+ "prefill": [
+  {
+   "model": "hnet-1stage-xl",
+   "us": 47994.545938,
+   "busy_us": 47807.288319892934,
+   "kernels": 19,
+   "ops": 338,
+   "parts_us": {
+    "outer stages": 18121.792277,
+    "main attention": 2432.5919270000004,
+    "main matmuls": 24004.205427999972,
+    "main norms and elementwise": 3248.7043060000005,
+    "LM head": 0.0,
+    "launch gaps": 187.2520000000295
+   },
+   "top": [
+    [
+     "sm100_gemm_bf16_13944x10752x2048_tile128x256",
+     7445.1
+    ],
+    [
+     "ssd_chunk_scan_b8_l8192_h32_p64_n128_g1",
+     7174.2
+    ],
+    [
+     "sm100_gemm_bf16_13944x6144x2048_tile128x256",
+     4196.4
+    ],
+    [
+     "sm100_gemm_bf16_13944x2048x5376_tile128x256",
+     3406.2
+    ],
+    [
+     "elementwise",
+     3064.2
+    ],
+    [
+     "sm100_gemm_bf16_65536x4384x1024_tile128x256",
+     2822.1
+    ]
+   ],
+   "bytes_per_s": 1365488.4887266208
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "us": 54704.864128,
+   "busy_us": 54436.16606722002,
+   "kernels": 35,
+   "ops": 485,
+   "parts_us": {
+    "outer stages": 31238.201674000004,
+    "main attention": 1487.4627469999998,
+    "main matmuls": 19302.591306000006,
+    "main norms and elementwise": 2407.918400999997,
+    "LM head": 0.0,
+    "launch gaps": 268.68999999999505
+   },
+   "top": [
+    [
+     "ssd_chunk_scan_b8_l8192_h32_p64_n128_g1",
+     7174.2
+    ],
+    [
+     "sm100_gemm_bf16_9496x10752x2048_tile128x256",
+     5770.5
+    ],
+    [
+     "ssd_chunk_scan_b8_l2731_h48_p64_n128_g1",
+     3717.9
+    ],
+    [
+     "sm100_gemm_bf16_9496x2048x5376_tile128x256",
+     3509.3
+    ],
+    [
+     "sm100_gemm_bf16_9496x6144x2048_tile128x256",
+     3505.7
+    ],
+    [
+     "elementwise",
+     2924.3
+    ]
+   ],
+   "bytes_per_s": 1197992.190359106
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "us": 33464.261008,
+   "busy_us": 33331.29701883952,
+   "kernels": 7,
+   "ops": 240,
+   "parts_us": {
+    "outer stages": 0.0,
+    "main attention": 2804.5250309999997,
+    "main matmuls": 27110.57957800002,
+    "main norms and elementwise": 3416.196398999996,
+    "LM head": 0.0,
+    "launch gaps": 132.95999999998457
+   },
+   "top": [
+    [
+     "sm100_gemm_bf16_14720x10752x2048_tile128x256",
+     7902.7
+    ],
+    [
+     "sm100_gemm_bf16_14720x6144x2048_tile128x256",
+     4633.0
+    ],
+    [
+     "sm100_gemm_bf16_14720x2048x5376_tile128x256",
+     4480.9
+    ],
+    [
+     "sm100_fmha_b8_hq16_hkv16_sq1840_skv1840_d128",
+     2804.5
+    ],
+    [
+     "elementwise",
+     2576.4
+    ],
+    [
+     "sm100_gemm_bf16_14720x2048x2048_tile128x256",
+     1814.5
+    ]
+   ],
+   "bytes_per_s": 1958387.7852355056,
+   "tokens": 1840
+  },
+  {
+   "model": "byte-transformer-xl",
+   "us": 175664.842578,
+   "busy_us": 175531.87858868446,
+   "kernels": 7,
+   "ops": 240,
+   "parts_us": {
+    "outer stages": 0.0,
+    "main attention": 39555.936889,
+    "main matmuls": 118901.32463899993,
+    "main norms and elementwise": 17074.62104999999,
+    "LM head": 0.0,
+    "launch gaps": 132.96000000010827
+   },
+   "top": [
+    [
+     "sm100_fmha_b8_hq16_hkv16_sq8192_skv8192_d128",
+     39555.9
+    ],
+    [
+     "sm100_gemm_bf16_65536x10752x2048_tile128x256",
+     34503.3
+    ],
+    [
+     "sm100_gemm_bf16_65536x6144x2048_tile128x256",
+     19854.6
+    ],
+    [
+     "sm100_gemm_bf16_65536x2048x5376_tile128x256",
+     16047.2
+    ],
+    [
+     "elementwise",
+     13188.5
+    ],
+    [
+     "sm100_gemm_bf16_65536x2048x2048_tile128x256",
+     6580.9
+    ]
+   ],
+   "bytes_per_s": 373074.0826577192
+  }
+ ],
+ "decode": [
+  {
+   "model": "hnet-1stage-xl",
+   "routing": "sampled",
+   "us_per_byte": 2412.98765515625,
+   "bytes_per_s": 26523.13610607998,
+   "main_batch_mean": 13.34375,
+   "main_batch_min": 6,
+   "main_batch_max": 18,
+   "us": 77215.604965,
+   "busy_us": 71400.6465167312,
+   "kernels": 69,
+   "ops": 10496,
+   "parts_us": {
+    "outer stages": 11746.303737000055,
+    "main attention": 32201.28214799998,
+    "main matmuls": 23793.567203000188,
+    "main norms and elementwise": 3535.1110250000834,
+    "LM head": 124.55685200000006,
+    "launch gaps": 5814.783999999694
+   },
+   "top": [
+    [
+     "selective_state_update_b64_h32_p64_n128",
+     7623.5
+    ],
+    [
+     "sm100_fmha_decode_b16_hq16_hkv16_sq1_skv1742_d128",
+     4232.6
+    ],
+    [
+     "sm100_fmha_decode_b13_hq16_hkv16_sq1_skv1742_d128",
+     4135.8
+    ],
+    [
+     "sm100_fmha_decode_b18_hq16_hkv16_sq1_skv1742_d128",
+     3234.7
+    ],
+    [
+     "sm100_fmha_decode_b17_hq16_hkv16_sq1_skv1742_d128",
+     3197.5
+    ],
+    [
+     "elementwise",
+     3166.8
+    ]
+   ]
+  },
+  {
+   "model": "hnet-1stage-xl",
+   "routing": "sampled, evened",
+   "us_per_byte": 2466.103506625,
+   "bytes_per_s": 25951.870968947107,
+   "main_batch_mean": 13.34375,
+   "main_batch_min": 13,
+   "main_batch_max": 14,
+   "us": 78915.312212,
+   "busy_us": 73100.35376372126,
+   "kernels": 19,
+   "ops": 10496,
+   "parts_us": {
+    "outer stages": 11746.303735000067,
+    "main attention": 33900.50524599926,
+    "main matmuls": 23793.567206000203,
+    "main norms and elementwise": 3535.5951730000547,
+    "LM head": 124.55685200000006,
+    "launch gaps": 5814.784000000422
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b13_hq16_hkv16_sq1_skv1742_d128",
+     21713.0
+    ],
+    [
+     "sm100_fmha_decode_b14_hq16_hkv16_sq1_skv1742_d128",
+     11463.5
+    ],
+    [
+     "selective_state_update_b64_h32_p64_n128",
+     7623.5
+    ],
+    [
+     "sm100_gemm_bf16_13x10752x2048_tile128x128",
+     5294.1
+    ],
+    [
+     "sm100_gemm_bf16_13x6144x2048_tile128x128_splitk3",
+     3919.8
+    ],
+    [
+     "sm100_gemm_bf16_13x2048x5376_tile128x128_splitk9",
+     3792.8
+    ]
+   ]
+  },
+  {
+   "model": "hnet-1stage-xl",
+   "routing": "mean field",
+   "us_per_byte": 2468.20247190625,
+   "bytes_per_s": 25929.801435848705,
+   "main_batch_mean": 13.59375,
+   "main_batch_min": 13,
+   "main_batch_max": 14,
+   "us": 78982.479101,
+   "busy_us": 73167.5206526178,
+   "kernels": 19,
+   "ops": 10496,
+   "parts_us": {
+    "outer stages": 11746.30373800007,
+    "main attention": 33967.01087099957,
+    "main matmuls": 23793.567190000216,
+    "main norms and elementwise": 3536.256453000071,
+    "LM head": 124.55684900000007,
+    "launch gaps": 5814.784000000072
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b14_hq16_hkv16_sq1_skv1742_d128",
+     19800.6
+    ],
+    [
+     "sm100_fmha_decode_b13_hq16_hkv16_sq1_skv1742_d128",
+     13441.4
+    ],
+    [
+     "selective_state_update_b64_h32_p64_n128",
+     7623.5
+    ],
+    [
+     "sm100_gemm_bf16_14x10752x2048_tile128x128",
+     4789.9
+    ],
+    [
+     "sm100_gemm_bf16_14x6144x2048_tile128x128_splitk3",
+     3546.5
+    ],
+    [
+     "sm100_gemm_bf16_14x2048x5376_tile128x128_splitk9",
+     3431.6
+    ]
+   ]
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "routing": "sampled",
+   "us_per_byte": 2703.15512096875,
+   "bytes_per_s": 23676.03675554655,
+   "main_batch_mean": 8.8125,
+   "main_batch_min": 3,
+   "main_batch_max": 12,
+   "us": 86500.963871,
+   "busy_us": 78594.03866307817,
+   "kernels": 184,
+   "ops": 14272,
+   "parts_us": {
+    "outer stages": 26779.963883999797,
+    "main attention": 20973.089037999638,
+    "main matmuls": 26767.763116000286,
+    "main norms and elementwise": 3948.902985000068,
+    "LM head": 124.55684800000007,
+    "launch gaps": 7906.688000000213
+   },
+   "top": [
+    [
+     "selective_state_update_b64_h32_p64_n128",
+     7623.5
+    ],
+    [
+     "sm100_fmha_decode_b12_hq16_hkv16_sq1_skv1186_d128",
+     5133.1
+    ],
+    [
+     "sm100_fmha_decode_b10_hq16_hkv16_sq1_skv1186_d128",
+     4101.3
+    ],
+    [
+     "elementwise",
+     4084.1
+    ],
+    [
+     "sm100_fmha_decode_b9_hq16_hkv16_sq1_skv1186_d128",
+     3743.7
+    ],
+    [
+     "sm100_fmha_decode_b8_hq16_hkv16_sq1_skv1186_d128",
+     3109.9
+    ]
+   ]
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "routing": "sampled, evened",
+   "us_per_byte": 2596.84923034375,
+   "bytes_per_s": 24645.25057988376,
+   "main_batch_mean": 8.8125,
+   "main_batch_min": 8,
+   "main_batch_max": 9,
+   "us": 83099.175371,
+   "busy_us": 75192.25016359727,
+   "kernels": 39,
+   "ops": 14272,
+   "parts_us": {
+    "outer stages": 26528.669118000016,
+    "main attention": 17810.75873400003,
+    "main matmuls": 26767.763097000287,
+    "main norms and elementwise": 3960.739570999998,
+    "LM head": 124.55685100000007,
+    "launch gaps": 7906.6879999996745
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b9_hq16_hkv16_sq1_skv1186_d128",
+     13905.1
+    ],
+    [
+     "selective_state_update_b64_h32_p64_n128",
+     7623.5
+    ],
+    [
+     "sm100_gemm_bf16_9x10752x2048_tile128x128",
+     7373.9
+    ],
+    [
+     "sm100_gemm_bf16_9x6144x2048_tile128x128_splitk3",
+     5459.7
+    ],
+    [
+     "sm100_gemm_bf16_9x2048x5376_tile128x128_splitk9",
+     5282.9
+    ],
+    [
+     "elementwise",
+     4082.7
+    ]
+   ]
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "routing": "mean field",
+   "us_per_byte": 2676.44230059375,
+   "bytes_per_s": 23912.340641829658,
+   "main_batch_mean": 9.25,
+   "main_batch_min": 9,
+   "main_batch_max": 10,
+   "us": 85646.153619,
+   "busy_us": 77739.2284113106,
+   "kernels": 39,
+   "ops": 14272,
+   "parts_us": {
+    "outer stages": 26689.602088999884,
+    "main attention": 20195.262995999798,
+    "main matmuls": 26767.763111000284,
+    "main norms and elementwise": 3962.280571000025,
+    "LM head": 124.55685200000006,
+    "launch gaps": 7906.688000000009
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b9_hq16_hkv16_sq1_skv1186_d128",
+     12835.5
+    ],
+    [
+     "selective_state_update_b64_h32_p64_n128",
+     7623.5
+    ],
+    [
+     "sm100_gemm_bf16_9x10752x2048_tile128x128",
+     6806.7
+    ],
+    [
+     "sm100_fmha_decode_b10_hq16_hkv16_sq1_skv1186_d128",
+     6562.1
+    ],
+    [
+     "sm100_gemm_bf16_9x6144x2048_tile128x128_splitk3",
+     5039.7
+    ],
+    [
+     "sm100_gemm_bf16_9x2048x5376_tile128x128_splitk9",
+     4876.5
+    ]
+   ]
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "routing": "token",
+   "us_per_token": 5061.825992,
+   "us_per_byte": 1137.488986966292,
+   "bytes_per_s": 56264.28100256987,
+   "us": 5061.825992,
+   "busy_us": 4914.457570494432,
+   "kernels": 8,
+   "ops": 266,
+   "parts_us": {
+    "outer stages": 0.0,
+    "main attention": 3970.570017999997,
+    "main matmuls": 743.5489760000002,
+    "main norms and elementwise": 119.2853309999999,
+    "LM head": 81.057667,
+    "launch gaps": 147.36400000000322
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b64_hq16_hkv16_sq1_skv1840_d128",
+     3942.1
+    ],
+    [
+     "sm100_gemm_bf16_64x10752x2048_tile128x128",
+     252.1
+    ],
+    [
+     "sm100_gemm_bf16_64x6144x2048_tile128x128_splitk3",
+     186.7
+    ],
+    [
+     "sm100_gemm_bf16_64x2048x5376_tile128x128_splitk9",
+     180.6
+    ],
+    [
+     "sm100_gemm_bf16_64x2048x2048_tile128x128_splitk8",
+     124.2
+    ],
+    [
+     "elementwise",
+     99.5
+    ]
+   ]
+  },
+  {
+   "model": "byte-transformer-xl",
+   "routing": "byte",
+   "us_per_byte": 16583.519236,
+   "bytes_per_s": 3859.253219368956,
+   "us": 16583.519236,
+   "busy_us": 16436.150814542198,
+   "kernels": 8,
+   "ops": 266,
+   "parts_us": {
+    "outer stages": 0.0,
+    "main attention": 15569.292728999988,
+    "main matmuls": 743.5489740000002,
+    "main norms and elementwise": 119.28533299999991,
+    "LM head": 4.0282,
+    "launch gaps": 147.3640000000123
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b64_hq16_hkv16_sq1_skv8192_d128",
+     15540.8
+    ],
+    [
+     "sm100_gemm_bf16_64x10752x2048_tile128x128",
+     252.1
+    ],
+    [
+     "sm100_gemm_bf16_64x6144x2048_tile128x128_splitk3",
+     186.7
+    ],
+    [
+     "sm100_gemm_bf16_64x2048x5376_tile128x128_splitk9",
+     180.6
+    ],
+    [
+     "sm100_gemm_bf16_64x2048x2048_tile128x128_splitk8",
+     124.2
+    ],
+    [
+     "elementwise",
+     99.5
+    ]
+   ]
+  }
+ ],
+ "batch": [
+  {
+   "model": "hnet-1stage-xl",
+   "batch": 16,
+   "us_per_byte": 1597.07837425,
+   "bytes_per_s": 10018.293565282118,
+   "us": 6388.313497,
+   "busy_us": 5661.443690557608,
+   "kernels": 19,
+   "ops": 1312,
+   "parts_us": {
+    "outer stages": 746.6631139999998,
+    "main attention": 1521.6851190000016,
+    "main matmuls": 2974.1958949999957,
+    "main norms and elementwise": 403.3517620000017,
+    "LM head": 15.569607000000001,
+    "launch gaps": 726.8480000000009
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b3_hq16_hkv16_sq1_skv1742_d128",
+     1038.7
+    ],
+    [
+     "sm100_gemm_bf16_3x10752x2048_tile128x128",
+     756.3
+    ],
+    [
+     "sm100_gemm_bf16_3x6144x2048_tile128x128_splitk3",
+     560.0
+    ],
+    [
+     "sm100_gemm_bf16_3x2048x5376_tile128x128_splitk9",
+     541.8
+    ],
+    [
+     "sm100_fmha_decode_b4_hq16_hkv16_sq1_skv1742_d128",
+     397.1
+    ],
+    [
+     "elementwise",
+     387.4
+    ]
+   ]
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "batch": 16,
+   "us_per_byte": 2016.024045,
+   "bytes_per_s": 7936.4132782454,
+   "us": 8064.09618,
+   "busy_us": 7075.730529464729,
+   "kernels": 39,
+   "ops": 1784,
+   "parts_us": {
+    "outer stages": 1895.998876999997,
+    "main attention": 1378.1337090000004,
+    "main matmuls": 3345.9703879999943,
+    "main norms and elementwise": 440.08760100000313,
+    "LM head": 15.569605,
+    "launch gaps": 988.3360000000048
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b2_hq16_hkv16_sq1_skv1186_d128",
+     961.4
+    ],
+    [
+     "sm100_gemm_bf16_2x10752x2048_tile128x128",
+     850.8
+    ],
+    [
+     "sm100_gemm_bf16_2x6144x2048_tile128x128_splitk3",
+     630.0
+    ],
+    [
+     "sm100_gemm_bf16_2x2048x5376_tile128x128_splitk9",
+     609.6
+    ],
+    [
+     "elementwise",
+     503.4
+    ],
+    [
+     "sm100_gemm_bf16_2x2048x2048_tile128x128_splitk8",
+     419.1
+    ]
+   ]
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "batch": 16,
+   "us_per_byte": 500.3409047191011,
+   "bytes_per_s": 31978.196963493603,
+   "us": 2226.517026,
+   "busy_us": 2079.148605364022,
+   "kernels": 8,
+   "ops": 266,
+   "parts_us": {
+    "outer stages": 0.0,
+    "main attention": 1143.0187609999996,
+    "main matmuls": 743.5489790000001,
+    "main norms and elementwise": 111.66046499999997,
+    "LM head": 80.924821,
+    "launch gaps": 147.3640000000005
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b16_hq16_hkv16_sq1_skv1840_d128",
+     1120.1
+    ],
+    [
+     "sm100_gemm_bf16_16x10752x2048_tile128x128",
+     252.1
+    ],
+    [
+     "sm100_gemm_bf16_16x6144x2048_tile128x128_splitk3",
+     186.7
+    ],
+    [
+     "sm100_gemm_bf16_16x2048x5376_tile128x128_splitk9",
+     180.6
+    ],
+    [
+     "sm100_gemm_bf16_16x2048x2048_tile128x128_splitk8",
+     124.2
+    ],
+    [
+     "elementwise",
+     87.9
+    ]
+   ]
+  },
+  {
+   "model": "hnet-1stage-xl",
+   "batch": 64,
+   "us_per_byte": 2467.41536,
+   "bytes_per_s": 25938.07310983101,
+   "us": 9869.66144,
+   "busy_us": 9142.7916336602,
+   "kernels": 19,
+   "ops": 1312,
+   "parts_us": {
+    "outer stages": 1468.2879679999996,
+    "main attention": 4242.758903000005,
+    "main matmuls": 2974.1959069999975,
+    "main norms and elementwise": 442.0010560000012,
+    "LM head": 15.569606,
+    "launch gaps": 726.8479999999963
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b14_hq16_hkv16_sq1_skv1742_d128",
+     2084.3
+    ],
+    [
+     "sm100_fmha_decode_b13_hq16_hkv16_sq1_skv1742_d128",
+     2067.9
+    ],
+    [
+     "selective_state_update_b64_h32_p64_n128",
+     952.9
+    ],
+    [
+     "sm100_gemm_bf16_13x10752x2048_tile128x128",
+     504.2
+    ],
+    [
+     "sm100_gemm_bf16_14x10752x2048_tile128x128",
+     504.2
+    ],
+    [
+     "elementwise",
+     396.0
+    ]
+   ]
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "batch": 64,
+   "us_per_byte": 2676.04972875,
+   "bytes_per_s": 23915.848540637846,
+   "us": 10704.198915,
+   "busy_us": 9715.833263630235,
+   "kernels": 39,
+   "ops": 1784,
+   "parts_us": {
+    "outer stages": 3334.6299740000013,
+    "main attention": 2524.4078740000004,
+    "main matmuls": 3345.970390999993,
+    "main norms and elementwise": 495.28506899999854,
+    "LM head": 15.569607000000001,
+    "launch gaps": 988.3360000000084
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b9_hq16_hkv16_sq1_skv1186_d128",
+     1604.4
+    ],
+    [
+     "selective_state_update_b64_h32_p64_n128",
+     952.9
+    ],
+    [
+     "sm100_gemm_bf16_9x10752x2048_tile128x128",
+     850.8
+    ],
+    [
+     "sm100_fmha_decode_b10_hq16_hkv16_sq1_skv1186_d128",
+     820.3
+    ],
+    [
+     "sm100_gemm_bf16_9x6144x2048_tile128x128_splitk3",
+     630.0
+    ],
+    [
+     "sm100_gemm_bf16_9x2048x5376_tile128x128_splitk9",
+     609.6
+    ]
+   ]
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "batch": 64,
+   "us_per_byte": 1137.488986966292,
+   "bytes_per_s": 56264.28100256987,
+   "us": 5061.825992,
+   "busy_us": 4914.457570494432,
+   "kernels": 8,
+   "ops": 266,
+   "parts_us": {
+    "outer stages": 0.0,
+    "main attention": 3970.570017999997,
+    "main matmuls": 743.5489760000002,
+    "main norms and elementwise": 119.2853309999999,
+    "LM head": 81.057667,
+    "launch gaps": 147.36400000000322
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b64_hq16_hkv16_sq1_skv1840_d128",
+     3942.1
+    ],
+    [
+     "sm100_gemm_bf16_64x10752x2048_tile128x128",
+     252.1
+    ],
+    [
+     "sm100_gemm_bf16_64x6144x2048_tile128x128_splitk3",
+     186.7
+    ],
+    [
+     "sm100_gemm_bf16_64x2048x5376_tile128x128_splitk9",
+     180.6
+    ],
+    [
+     "sm100_gemm_bf16_64x2048x2048_tile128x128_splitk8",
+     124.2
+    ],
+    [
+     "elementwise",
+     99.5
+    ]
+   ]
+  },
+  {
+   "model": "hnet-1stage-xl",
+   "batch": 256,
+   "us_per_byte": 5353.8567135,
+   "bytes_per_s": 47815.997644181254,
+   "us": 21415.426854,
+   "busy_us": 20688.557047475188,
+   "kernels": 19,
+   "ops": 1312,
+   "parts_us": {
+    "outer stages": 4428.637892,
+    "main attention": 12802.156278000008,
+    "main matmuls": 2974.1958969999964,
+    "main norms and elementwise": 467.49567,
+    "LM head": 16.093117,
+    "launch gaps": 726.8479999999981
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b54_hq16_hkv16_sq1_skv1742_d128",
+     9510.6
+    ],
+    [
+     "selective_state_update_b256_h32_p64_n128",
+     3721.7
+    ],
+    [
+     "sm100_fmha_decode_b55_hq16_hkv16_sq1_skv1742_d128",
+     3182.2
+    ],
+    [
+     "sm100_gemm_bf16_54x10752x2048_tile128x128",
+     756.3
+    ],
+    [
+     "sm100_gemm_bf16_54x6144x2048_tile128x128_splitk3",
+     560.0
+    ],
+    [
+     "sm100_gemm_bf16_54x2048x5376_tile128x128_splitk9",
+     541.8
+    ]
+   ]
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "batch": 256,
+   "us_per_byte": 5320.42837875,
+   "bytes_per_s": 48116.42630553473,
+   "us": 21281.713515,
+   "busy_us": 20293.34786437909,
+   "kernels": 34,
+   "ops": 1784,
+   "parts_us": {
+    "outer stages": 9080.746200000007,
+    "main attention": 7337.986206000008,
+    "main matmuls": 3345.970383999992,
+    "main norms and elementwise": 512.5816080000001,
+    "LM head": 16.093116999999996,
+    "launch gaps": 988.335999999992
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b37_hq16_hkv16_sq1_skv1186_d128",
+     7223.9
+    ],
+    [
+     "selective_state_update_b256_h32_p64_n128",
+     3721.7
+    ],
+    [
+     "selective_state_update_b85_h48_p64_n128",
+     1402.7
+    ],
+    [
+     "sm100_fmha_decode_b85_hq12_hkv12_sq1_skv2730_d128",
+     1400.2
+    ],
+    [
+     "sm100_gemm_bf16_37x10752x2048_tile128x128",
+     1134.5
+    ],
+    [
+     "sm100_gemm_bf16_37x6144x2048_tile128x128_splitk3",
+     840.0
+    ]
+   ]
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "batch": 256,
+   "us_per_byte": 3807.2481676404495,
+   "bytes_per_s": 67240.16631641236,
+   "us": 16942.254346,
+   "busy_us": 16794.885924730494,
+   "kernels": 8,
+   "ops": 266,
+   "parts_us": {
+    "outer stages": 0.0,
+    "main attention": 15603.513834000014,
+    "main matmuls": 937.1497370000014,
+    "main norms and elementwise": 154.6498970000002,
+    "LM head": 99.576878,
+    "launch gaps": 147.36399999998685
+   },
+   "top": [
+    [
+     "sm100_fmha_decode_b256_hq16_hkv16_sq1_skv1840_d128",
+     15548.8
+    ],
+    [
+     "sm100_gemm_bf16_256x10752x2048_tile128x256",
+     306.2
+    ],
+    [
+     "sm100_gemm_bf16_256x2048x5376_tile128x128_splitk4",
+     259.9
+    ],
+    [
+     "sm100_gemm_bf16_256x6144x2048_tile128x128",
+     216.2
+    ],
+    [
+     "sm100_gemm_bf16_256x2048x2048_tile128x128_splitk4",
+     154.8
+    ],
+    [
+     "elementwise",
+     151.3
+    ]
+   ]
+  }
+ ],
+ "closed": [
+  {
+   "model": "hnet-1stage-xl",
+   "batch": 16,
+   "gb_per_step": {
+    "main weights": 2.39075328,
+    "outer weights": 0.120768,
+    "main KV": 1.166582334812132,
+    "outer attention KV": 0.0,
+    "Mamba state": 0.137756672
+   },
+   "gb_per_byte": 3.815860286812132,
+   "us_per_byte": 559.6801795870787
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "batch": 16,
+   "gb_per_step": {
+    "main weights": 2.68959744,
+    "outer weights": 0.492883712,
+    "main KV": 0.6089273103969756,
+    "outer attention KV": 0.17895697066666666,
+    "Mamba state": 0.206569472
+   },
+   "gb_per_byte": 4.176934905063642,
+   "us_per_byte": 612.6397462372952
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "batch": 16,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.525336576,
+    "KV": 5.790967140674157
+   },
+   "gb_per_byte": 1.9566420217245295,
+   "us_per_byte": 286.98476249015897
+  },
+  {
+   "model": "byte-transformer-xl",
+   "batch": 16,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.001048576,
+    "KV": 25.769803776
+   },
+   "gb_per_byte": 28.161605632,
+   "us_per_byte": 4130.521379949633
+  },
+  {
+   "model": "hnet-1stage-xl",
+   "batch": 64,
+   "gb_per_step": {
+    "main weights": 2.39075328,
+    "outer weights": 0.120768,
+    "main KV": 4.666329339248528,
+    "outer attention KV": 0.0,
+    "Mamba state": 0.551026688
+   },
+   "gb_per_byte": 7.728877307248529,
+   "us_per_byte": 1133.6105397457188
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "batch": 64,
+   "gb_per_step": {
+    "main weights": 2.68959744,
+    "outer weights": 0.492883712,
+    "main KV": 2.4357092415879023,
+    "outer attention KV": 0.7158278826666666,
+    "Mamba state": 0.826277888
+   },
+   "gb_per_byte": 7.160296164254569,
+   "us_per_byte": 1050.2155587186387
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "batch": 64,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.525336576,
+    "KV": 23.163868562696628
+   },
+   "gb_per_byte": 5.860664813190254,
+   "us_per_byte": 859.5959203438952
+  },
+  {
+   "model": "byte-transformer-xl",
+   "batch": 64,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.001048576,
+    "KV": 103.079215104
+   },
+   "gb_per_byte": 105.47101696,
+   "us_per_byte": 15469.653833348244
+  },
+  {
+   "model": "hnet-1stage-xl",
+   "batch": 256,
+   "gb_per_step": {
+    "main weights": 2.39075328,
+    "outer weights": 0.120768,
+    "main KV": 18.665317356994112,
+    "outer attention KV": 0.0,
+    "Mamba state": 2.204106752
+   },
+   "gb_per_byte": 23.380945388994114,
+   "us_per_byte": 3429.3319803802788
+  },
+  {
+   "model": "hnet-2stage-xl",
+   "batch": 256,
+   "gb_per_step": {
+    "main weights": 2.68959744,
+    "outer weights": 0.492883712,
+    "main KV": 9.742836966351609,
+    "outer attention KV": 2.8633115306666665,
+    "Mamba state": 3.305111552
+   },
+   "gb_per_byte": 19.093741201018275,
+   "us_per_byte": 2800.518808644013
+  },
+  {
+   "model": "bpe-transformer-xl",
+   "batch": 256,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.525336576,
+    "KV": 92.65547425078651
+   },
+   "gb_per_byte": 21.47675597905315,
+   "us_per_byte": 3150.04055175884
+  },
+  {
+   "model": "byte-transformer-xl",
+   "batch": 256,
+   "gb_per_step": {
+    "weights": 2.39075328,
+    "LM head": 0.001048576,
+    "KV": 412.316860416
+   },
+   "gb_per_byte": 414.708662272,
+   "us_per_byte": 60826.18364694269
+  }
+ ]
+}

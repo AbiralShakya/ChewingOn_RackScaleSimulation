@@ -95,6 +95,10 @@ again.
 {"model": "deepseek-v3", "phase": "decode", "batch": 32, "context": 4096,
  "parallel": {"tp": 1, "ep": 8, "dp": 1, "comm_sms": 20}, "layers": 4, "overlap": false, "dtype": "fp8"}
 // prefill: "seqlen"; train: "micro_batch" + "seqlen"
+// byte-level H-Net (book chapter 13): lengths in bytes; decode runs "steps" byte steps whose
+// main-network batch is drawn from the routers ("sampled") or held at its expectation ("mean_field").
+// Baselines: "bpe-transformer-xl", "byte-transformer-xl".
+{"model": "hnet-1stage-xl", "phase": "decode", "batch": 64, "context": 8192, "steps": 8, "routing": "sampled"}
 // one kernel: a synthetic template, a recorded warp path, or SASS
 {"kernel": {"type": "gemm", "m": 8192, "n": 8192, "k": 8192, "dtype": "bf16"}}
 {"kernel": {"type": "path", "path": "research/flash_attention/rpath/b300_fa4_s4096.rpath.gz"}}

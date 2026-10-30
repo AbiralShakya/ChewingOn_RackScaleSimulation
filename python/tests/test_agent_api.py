@@ -125,6 +125,20 @@ def test_scaling_ladder_tool():
     assert "error" in tools.call("scaling_ladder", {"model": "llama3-70b", "phase": "prefill"})
 
 
+
+def test_hnet_through_the_api():
+    spec = {"model": "hnet-1stage-xl", "phase": "decode", "batch": 8, "context": 1024, "steps": 2,
+            "routing": "mean_field"}
+    out = json.loads(tools.call_json("describe_workload", {"spec": spec}))
+    assert out["tokens_per_step"] == 16 and out["kernel_ops"] > 0  # bytes: 8 sequences x 2 byte steps
+    ms = json.loads(tools.call_json("list_models", {}))["models"]
+    assert ms["hnet-2stage-xl"]["byte_level"] and "bpe-transformer-xl" in ms and "byte-transformer-xl" in ms
+    assert "error" in tools.call("describe_workload", {"spec": {"model": "hnet-1stage-xl", "phase": "train"}})
+    base = json.loads(tools.call_json("describe_workload", {"spec": {"model": "bpe-transformer-xl", "phase": "decode",
+                                                                     "batch": 8, "context": 512, "layers": 1}}))
+    assert base["kernel_ops"] > 0
+
+
 def test_mcp_server_builds():
     pytest.importorskip("mcp")
     from rackscale import mcp_server
