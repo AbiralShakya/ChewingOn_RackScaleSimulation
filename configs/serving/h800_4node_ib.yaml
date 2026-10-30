@@ -1,0 +1,19 @@
+# 4x HGX H800, 400G IB
+# 4 HGX H800 nodes (32 GPUs), one 400G InfiniBand NIC per GPU on a
+# rail-optimised fabric with an ideal (non-blocking) spine. Same parts as the `h800_8node_ib` preset.
+name: 4x HGX H800, 400G IB
+gpus:
+  - preset: h800
+    count: 32
+topology:
+  kind: multi_node
+  nodes: 4
+  intra:
+    kind: switched
+    switches: 4
+    switch: {name: NVSwitch3 (NVLink4), ports: 64, gbps_per_port_per_dir: 25.0, latency_ns: 100.0, in_network_reduction: true}
+    links_per_gpu_per_switch: [2, 2, 2, 2]
+    link: {gbps_per_dir: 25.0, latency_ns: 20.0}
+  nic: {gbps_per_dir: 50.0, latency_ns: 600.0}
+  leaf: {name: InfiniBand NDR leaf, ports: 64, gbps_per_port_per_dir: 50.0, latency_ns: 130.0, in_network_reduction: false}
+  spine: {name: ideal spine, ports: 512, gbps_per_port_per_dir: 50.0, latency_ns: 130.0, in_network_reduction: false}
