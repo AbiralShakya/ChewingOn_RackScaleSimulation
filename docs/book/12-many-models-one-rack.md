@@ -217,4 +217,4 @@ to get the number.
 | one scenario | `python research/colocation/run.py --only disagg` |
 | from an agent | MCP tool `simulate_colocated` |
 
-Next: back to the [contents](README.md).
+Next: [13. Tokens or bytes: H-Net on one Blackwell GPU](13-tokens-or-bytes.md).

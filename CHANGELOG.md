@@ -26,6 +26,15 @@ until 1.0, a minor version may change simulated timings, and the release notes s
   `best_train`, `best_decode`, `train_plans` and `decode_plans`. Agent tool `scaling_ladder`;
   table in book chapter 11. `scaling.replay(..., spans=True)` returns every op's span for
   timelines.
+- `rackscale.hnet`: H-Net (byte-level, dynamic chunking) 1-stage and 2-stage XL with the BPE and
+  byte-level Transformer baselines: parameters and FLOPs per byte (within 7% of the paper),
+  prefill, and byte-by-byte decode whose main-network batch is drawn from the routers
+  (`step_counts`, `even_counts`, `decode_steps(counts=...)`). Book chapter 13 and
+  `research/bytes/run.py`, which also splits every simulated step by part of the network from
+  the per-op trace.
+- Book chapter 14, "Why cycle level, and how far to trust a simulated rack": what only the
+  cycle-level model sees, which kernels run as real SASS, and how per-kernel error carries to a
+  node and a rack.
 - Rank reports carry `stream_finish_us`, when each stream finished its last op, so jobs that
   share a GPU are timed by their own streams.
 - `host` ops are documented in the workload format.
