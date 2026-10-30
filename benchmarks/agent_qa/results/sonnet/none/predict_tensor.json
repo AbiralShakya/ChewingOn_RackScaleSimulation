@@ -1,0 +1,15 @@
+{
+ "result": "Doubling tensor-core FLOPs barely helps this step, because decode at this batch size is mostly memory- and communication-bound.\n\n- **MoE experts:** With EP=8 and 128 tokens per GPU, 1024 tokens go through 256 experts at top-8. That is about 32 tokens per expert. At BF16 this is roughly 32 FLOP/byte, far below the B200 ridge of about 280 FLOP/byte (about 2.25 PFLOP/s dense BF16 over about 8 TB/s). Expert GEMMs are therefore limited by weight reads from HBM, and extra FLOPs change nothing there.\n- **Dense and shared layers:** The dense layers, shared expert and projections are also weight-bandwidth-bound at 128 tokens, so they gain nothing either.\n- **MLA attention:** With weight absorption, MLA decode has an arithmetic intensity of about 200\u2013250 FLOP/byte on the latent KV cache. That is near the ridge, so part of attention is compute-limited and gains a bit.\n- **All-to-all:** Dispatch and combine over NVLink are unchanged. That time is a fixed cost, and some of it is exposed.\n- **Estimate:** Only the MLA portion, perhaps 15\u201325% of the step, can speed up, and by well under 2x. The net is roughly a 4\u20136% step speedup. This is a roofline estimate, not a simulated number.\n\n```json\n{\"speedup\": 1.05}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0147657,
+ "duration_ms": 12771,
+ "permission_denials": [],
+ "id": "predict_tensor",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 14.0,
+ "answer": {
+  "speedup": 1.05
+ }
+}

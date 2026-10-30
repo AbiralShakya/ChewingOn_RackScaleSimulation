@@ -1,0 +1,15 @@
+{
+ "result": "Bubble fraction for 1F1B (same as GPipe) = (p\u22121)/(m+p\u22121) of the step time, where p is the number of stages and m the number of micro-batches. Each stage works for m micro-batch slots out of m+p\u22121 total, so it idles for p\u22121 slots.\n\nWith p=8 and m=32: 7/(32+7) = 7/39 \u2248 0.1795.\n\nThe bubble is 7/32 \u2248 0.219 relative to ideal compute time. As a fraction of each stage's step time, it is 7/39.\n\n```json\n{\"bubble_fraction\": 0.1795}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.011377700000000001,
+ "duration_ms": 5144,
+ "permission_denials": [],
+ "id": "bubble",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 7.3,
+ "answer": {
+  "bubble_fraction": 0.1795
+ }
+}

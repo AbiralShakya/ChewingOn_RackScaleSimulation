@@ -1,0 +1,15 @@
+{
+ "result": "Decode attention is memory-bound, so time is roughly the KV cache bytes read divided by the achievable HBM bandwidth.\n\nKV bytes: 64 seqs \u00d7 16384 tokens \u00d7 8 KV heads \u00d7 128 dim \u00d7 2 (K and V) \u00d7 2 bytes (BF16) = 64 \u00d7 16384 \u00d7 4096 B = 4.295 GB (about 4.29e9 bytes).\n\nB300 HBM3e peak is about 8 TB/s. FlashAttention split-KV decode typically reaches about 80\u201385% of peak, so about 6.5\u20136.8 TB/s effective. At about 6.6 TB/s, the KV read takes about 650 \u00b5s.\n\nThe combine kernel is small: it reads partial outputs and LSEs, and adds a few \u00b5s, plus launch overhead. Q and O traffic are negligible.\n\nTotal is roughly 650 + 8 \u2248 660 \u00b5s.\n\n```json\n{\"time_us\": 660}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.025723399999999997,
+ "duration_ms": 9177,
+ "permission_denials": [],
+ "id": "attn_decode",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 11.9,
+ "answer": {
+  "time_us": 660
+ }
+}

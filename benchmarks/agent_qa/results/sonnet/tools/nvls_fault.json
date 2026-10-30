@@ -1,0 +1,16 @@
+{
+ "result": "The background simulation finished and matches my earlier answer. On the simulated GB300 NVL72, a 64 MiB all-reduce with one NVLink at half rate gave:\n\n| Algorithm | Healthy | Faulted | Slowdown |\n|---|---|---|---|\n| NVLS | 174.4 \u00b5s | 261.6 \u00b5s | 1.4998\u00d7 |\n| Ring | 566.6 \u00b5s | 567.1 \u00b5s | 1.0009\u00d7 |\n\nNVLS stripes the data across all 18 links, so the half-rate link sets the finish time. Its bandwidth term would double, but fixed latency and protocol costs dilute that to about 1.5\u00d7. A ring spreads each hop over all of a GPU's links, so the one slow link has almost no effect.\n\n```json\n{\"nvls_slowdown\": 1.4998, \"ring_slowdown\": 1.0009}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0504329,
+ "duration_ms": 6582,
+ "permission_denials": [],
+ "id": "nvls_fault",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 151.1,
+ "answer": {
+  "nvls_slowdown": 1.4998,
+  "ring_slowdown": 1.0009
+ }
+}

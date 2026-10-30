@@ -1,0 +1,15 @@
+{
+ "result": "The GEMM is 2\u00b7M\u00b7N\u00b7K = 2\u00b71024\u00b718560\u00b74096 \u2248 1.557\u00d710\u00b9\u00b9 FLOPs.\n\nI did not run this. The estimate assumes B300 dense BF16 peak of about 2.25\u20132.5 PFLOPS, and cuBLAS typically sustains about 65\u201375% of that on a power-limited part. That gives roughly 1.6\u20131.7 PFLOPS achieved.\n\nThe problem is compute-bound. Operand traffic is small (A is 8 MB, B is 152 MB, C is 38 MB), so HBM at roughly 8 TB/s adds only about 25 \u00b5s, which overlaps with compute.\n\nWith 256\u00d7256 tiles there are about 290 tiles over 148 SMs, which is just under 2 full waves, so wave quantization costs little.\n\nAt about 1.65 PFLOPS achieved, 1.557\u00d710\u00b9\u00b9 / 1.65\u00d710\u00b9\u2075 \u2248 94 \u00b5s. CUDA-graph timing removes launch overhead.\n\n```json\n{\"time_us\": 95}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0285095,
+ "duration_ms": 8815,
+ "permission_denials": [],
+ "id": "gemm_m1024",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 11.4,
+ "answer": {
+  "time_us": 95
+ }
+}

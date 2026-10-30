@@ -1,0 +1,15 @@
+{
+ "result": "The simulator gives about 73.5 \u00b5s for the kernel itself. That is 2.13 PFLOP/s, or 87% tensor utilization, on this 155.9 GFLOP GEMM. The 94 \u00b5s step figure also includes launch and idle gaps, which CUDA-graph timing mostly removes. I'm nudging the estimate up a little because real cuBLAS usually lands a bit below the simulated roofline-like rate at power-capped clocks. The simulator's error band for this kernel is about \u00b112%.\n\n```json\n{\"time_us\": 78}\n```",
+ "is_error": false,
+ "num_turns": 3,
+ "total_cost_usd": 0.1109437,
+ "duration_ms": 15828,
+ "permission_denials": [],
+ "id": "gemm_m1024",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 18.0,
+ "answer": {
+  "time_us": 78
+ }
+}

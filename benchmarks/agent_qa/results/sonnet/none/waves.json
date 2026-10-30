@@ -1,0 +1,16 @@
+{
+ "result": "Tiles: M=4864 / 128 = 38 tile rows; N=4096 / 256 = 16 tile columns. Total tiles = 38 \u00d7 16 = 608.\n\nWaves = 608 / 148 = 4.108, so ceil = 5 waves (4 full waves of 148 = 592 tiles, then 16 tiles in the fifth wave).\n\nEfficiency = 4.108 / 5 \u2248 0.822.\n\nThe last wave runs only 16 of 148 SMs, so about 18% of SM time in the rounded-up schedule is idle.\n\nThe \"waves\" key in the JSON is the number of wave rounds executed, which is 5.\n\n```json\n{\"waves\": 5, \"efficiency\": 0.8216}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0066669,
+ "duration_ms": 5347,
+ "permission_denials": [],
+ "id": "waves",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 6.6,
+ "answer": {
+  "waves": 5,
+  "efficiency": 0.8216
+ }
+}

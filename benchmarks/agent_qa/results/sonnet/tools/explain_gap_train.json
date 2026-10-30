@@ -1,0 +1,16 @@
+{
+ "result": "The real step takes about 1.95 times the roofline estimate T, and the largest single cause is the power-capped clock.\n\nI ran `check_scaling_math` for Llama-3-8B training on one B300 (4096 tokens, batch 1, BF16). The tool modelled a 2-layer cut of the model rather than all 32 layers, so I'm assuming the ratio carries over to the full model.\n\n| Estimate | Time | Ratio to T |\n|---|---|---|\n| Roofline (T) | 4685 \u00b5s | 1.00 |\n| Roofline replay of the lowered program | 5116 \u00b5s | 1.09 |\n| Simulator | 9141 \u00b5s | 1.95 |\n\nThe 4025 \u00b5s gap between the simulator and T breaks down as follows:\n- **Power-capped clock:** about 2620 \u00b5s. The simulated GEMMs run at 1.9\u20132.0 PFLOPs, which is MFU of about 0.51 against the 2032 MHz peak.\n- **Kernel inefficiency:** about 1380 \u00b5s. Attention (FMHA) reaches only about 1.13 PFLOPs, and the elementwise and norm kernels are bandwidth-bound.\n- **Replay vs textbook:** about 430 \u00b5s. This is the roofline replay of the actual lowered kernels coming out 9% slower than the textbook estimate.\n- **Communication:** zero on a single GPU.\n- **Launch overhead and lost overlap:** about 28 \u00b5s, which is negligible.\n\n```json\n{\"ratio\": 1.95, \"largest_cause\": \"power_capped_clock\"}\n```",
+ "is_error": false,
+ "num_turns": 2,
+ "total_cost_usd": 0.0427477,
+ "duration_ms": 62262,
+ "permission_denials": [],
+ "id": "explain_gap_train",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 66.7,
+ "answer": {
+  "ratio": 1.95,
+  "largest_cause": "power_capped_clock"
+ }
+}

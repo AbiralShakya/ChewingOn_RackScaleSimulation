@@ -1,0 +1,15 @@
+{
+ "result": "The expected busiest-link load is about 1.337 times the mean.\n\nThis is a balls-into-bins problem. Each of the 16 leaf switches hashes 448 flows onto 8 links, so the mean load per link is 56. The finish time is set by the maximum over all 128 link loads. A simple normal approximation, mean + \u03c3\u00b7\u221a(2 ln 128), lands in the same range, at about 1.35. I took the number from the `tail_latency` tool's ECMP closed form rather than running a separate Monte Carlo.\n\n```json\n{\"busiest_over_mean\": 1.337}\n```",
+ "is_error": false,
+ "num_turns": 2,
+ "total_cost_usd": 0.019570399999999998,
+ "duration_ms": 13083,
+ "permission_denials": [],
+ "id": "ecmp",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 15.5,
+ "answer": {
+  "busiest_over_mean": 1.337
+ }
+}

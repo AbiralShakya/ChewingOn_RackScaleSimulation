@@ -1,0 +1,15 @@
+{
+ "result": "The simulator predicts about a 1.05x speedup, which is much smaller than the pure-bandwidth estimate of about 1.25x.\n\n- **Baseline:** the decode step is about 13.1 ms. HBM-bound kernels, which read weights and KV cache, take about 60% of GPU time. Collectives take about 23%, idle gaps about 12%, and memory-latency-bound kernels about 6%.\n- **With 1.5x HBM bandwidth:** the step drops to about 12.55 ms, a speedup of 1.047.\n- **Why it's small:** once HBM time shrinks, the remaining kernels are limited by memory latency and ALU work rather than bandwidth. Collectives and launch gaps don't change.\n- **Reliability:** the simulator's error band is about \u00b120%, and the difference between the two runs is inside it. Treat the 1.05 as a lower-end estimate.\n- **Range:** the simulator's own bandwidth-only closed form gives 13.14 / 10.26, about 1.28x. That is the upper bound if every HBM-bound kernel scaled perfectly with bandwidth. I report the simulated value, since the closed form ignores the latency-bound kernels.\n\n```json\n{\"speedup\": 1.05}\n```",
+ "is_error": false,
+ "num_turns": 2,
+ "total_cost_usd": 0.051210099999999995,
+ "duration_ms": 30629,
+ "permission_denials": [],
+ "id": "predict_hbm",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 34.1,
+ "answer": {
+  "speedup": 1.05
+ }
+}
