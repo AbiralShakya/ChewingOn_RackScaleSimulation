@@ -1,0 +1,17 @@
+{
+ "result": "**Mechanism:** Decode is memory-bandwidth-bound. Each step reads all the weights plus every sequence's KV cache.\n\n- **Weights:** 70.6B parameters in BF16 is about 141 GB.\n- **KV cache:** 80 layers \u00d7 8 KV heads \u00d7 128 dim \u00d7 2 (K and V) \u00d7 2 bytes is 320 KB per token. At 8192 tokens that is about 2.7 GB per sequence.\n- **Bandwidth:** B300 has about 8 TB/s HBM, and I assume about 85% is achievable, so roughly 6.8 TB/s.\n- **Step time:** bytes read per GPU divided by effective bandwidth, plus about 160 small all-reduces per step over NVLink at TP>1 (roughly 2\u20133 ms), plus about 1 ms of overhead.\n- **Per-GPU throughput:** batch \u00d7 per-user rate \u00f7 TP.\n\nCandidates, with approximate numbers:\n\n| TP | Batch | Result |\n|---|---|---|\n| 1 | 32 | About 227 GB read per step gives about 28 tok/s per user. Fails the 30 tok/s floor. |\n| 1 | 8 | About 40 tok/s per user, about 320 tok/s per GPU. |\n| 2 | 32 | About 800 tok/s per GPU. |\n| 2 | 128 | About 242 GB per GPU per step, about 26 tok/s per user. Fails. |\n| 4 | 128 | About 121 GB per GPU per step, about 21 ms, about 47 tok/s per user, about 1500 tok/s per GPU. |\n| 4 | 256 | About 207 GB per GPU per step, about 29 tok/s per user. Marginal miss. |\n| 8 | 256 | About 103 GB per GPU per step, about 15 ms of reads plus about 3.5 ms of comms and overhead, about 19 ms, about 53 tok/s per user, about 1700 tok/s per GPU. |\n\nTP8 at batch 256 splits both weights and KV cache eight ways, so it clears the 30 tok/s floor with margin. It also gives the highest per-GPU throughput, about 1,700 tok/s. TP4 at batch 256 would be higher if it passed, but my estimate puts it just under 30 tok/s per user.\n\n```json\n{\"tp\": 8, \"batch\": 256, \"tokens_per_s_per_gpu\": 1700}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.025906400000000003,
+ "duration_ms": 19051,
+ "permission_denials": [],
+ "id": "plan_llama70b",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 20.7,
+ "answer": {
+  "tp": 8,
+  "batch": 256,
+  "tokens_per_s_per_gpu": 1700
+ }
+}

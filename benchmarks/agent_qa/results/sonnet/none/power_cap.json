@@ -1,0 +1,15 @@
+{
+ "result": "Prefill of 8192 tokens on a 70B model under TP=8 is compute-bound. Each GPU does about 2\u00b770e9\u00b78192/8 \u2248 1.4e14 FLOPs, mostly large tensor-core GEMMs with M=8192. These GEMMs are the part that pushes the board toward its power limit.\n\n**Power cap mechanism.** Capping from 1100 W to 800 W is a 27% cut in board power. Part of that power is static (HBM, NVLink, leakage), which I assume is roughly 300 W. The cap therefore removes about 300 W of the roughly 800 W of dynamic power, leaving about 500 W (~62%). Dynamic power scales roughly as f^2.5 once voltage tracks frequency, so the sustained SM clock falls to about 0.62^0.4 \u2248 0.83 of its uncapped value. That would mean a ~20% slowdown for pure tensor-core GEMM time.\n\n**Dilution.** Not all of the step is clock-bound. Attention with a causal mask, norms and elementwise ops, and the NVLink all-reduces draw less power and are bandwidth-bound. Part of the GEMM time may also not hit the 1100 W limit in the first place. Together these dilute the GEMM slowdown to a step-level figure of about 13\u201315%.\n\nThis is a first-principles estimate. I did not run it or calibrate it against B300 power measurements.\n\n```json\n{\"slowdown_pct\": 14}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0151459,
+ "duration_ms": 14528,
+ "permission_denials": [],
+ "id": "power_cap",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 16.0,
+ "answer": {
+  "slowdown_pct": 14
+ }
+}

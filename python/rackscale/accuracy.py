@@ -79,8 +79,39 @@ CLASSES: Dict[tuple, dict] = {
     },
 }
 
+#: Synthetic BF16 GEMMs on the calibrated B300 by size: median |error| against 54 measured
+#: cuBLAS GEMMs (docs/CALIBRATION.md). Mid-sized GEMMs are the weak spot.
+GEMM_SIZE_CLASSES = [
+    (1e10, 3.9, "decode-sized (< 1e10 FLOP): median |error| 3.9% over 27 cuBLAS GEMMs"),
+    (1e11, 19.1, "mid-sized (1e10-1e11 FLOP): median |error| 19.1% over 11 cuBLAS GEMMs; worst -33% "
+                 "(256 x 18560 x 4096)"),
+    (float("inf"), 11.6, "large (>= 1e11 FLOP): median |error| 11.6% over 16 cuBLAS GEMMs"),
+]
+
+
+def gemm_typical_pct(flops: float) -> tuple:
+    """(typical |error| %, evidence) of a synthetic GEMM on a calibrated GPU, by size."""
+    for hi, pct, ev in GEMM_SIZE_CLASSES:
+        if flops < hi:
+            return pct, ev
+    return GEMM_SIZE_CLASSES[-1][1:]
+
+
 #: Fast mode vs exact co-simulation on the DeepSeek-V3 decode demos (docs/RESULTS.md).
 FAST_MODE = {"bias_pct": 1.0, "evidence": "fast vs exact: +0.5% (HGX B200 EP8), +1.0% (GB200 NVL72 EP72), docs/RESULTS.md"}
+
+#: How far the cycle-level simulator sits from the closed forms (``scaling.estimate``), as
+#: sim / textbook over the 22 plans of docs/book/11-every-parallelism.md section 11.5 on B300.
+#: The textbook is a lower bound for training and prefill (power-capped clock, kernels at
+#: 46-81% of peak, collectives at 25-75% of the link) and close for decode.
+CLOSED_FORM = {
+    "train": {"lo": 1.31, "median": 2.03, "hi": 2.23, "cases": 14},
+    "prefill": {"lo": 1.87, "median": 2.11, "hi": 2.12, "cases": 4},
+    "decode": {"lo": 0.96, "median": 1.15, "hi": 1.50, "cases": 4},
+    "evidence": "docs/book/11-every-parallelism.md section 11.5 (scaling.check on B300: textbook, roofline replay "
+                "and cycle-level simulation of the same plans); about two thirds of the training gap is the "
+                "power-capped clock (2032 -> ~1455 MHz)",
+}
 
 #: How strongly the errors of two runs move together, by what changed between them.
 #: Heuristic: the same kernels on the same model err the same way.
@@ -139,6 +170,7 @@ def table() -> dict:
     return {
         "classes": [{"class": k[0], "calibrated_gpu": k[1], **v} for k, v in CLASSES.items()],
         "fast_mode": FAST_MODE,
+        "closed_form_vs_sim": CLOSED_FORM,
         "correlation": CORRELATION,
         "notes": "Errors are simulated vs measured time for the same work at the same clock. Calibrated GPUs: "
                  "B300/GB300 (built in), A100 SXM4/PCIe (calibration files attached automatically). Everything "

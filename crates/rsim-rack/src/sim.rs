@@ -872,7 +872,28 @@ impl KernelCache {
 
     fn build(&self, g: &GpuSpec, spec: &KernelSpec) -> Result<KernelLaunch, SimError> {
         Ok(match spec {
-            KernelSpec::Gemm { m, n, k, dtype } => synth::gemm(g, *m, *n, *k, dtype),
+            KernelSpec::Gemm {
+                m,
+                n,
+                k,
+                dtype,
+                tile_n,
+                stages,
+                cluster,
+                split_k,
+            } => {
+                let o = synth::GemmOpts {
+                    tile_n: *tile_n,
+                    stages: *stages,
+                    cluster: *cluster,
+                    split_k: *split_k,
+                };
+                if o == synth::GemmOpts::default() {
+                    synth::gemm(g, *m, *n, *k, dtype)
+                } else {
+                    synth::gemm_with(g, *m, *n, *k, dtype, &o)
+                }
+            }
             KernelSpec::GroupedGemm { ms, n, k, dtype } => {
                 synth::grouped_gemm(g, ms, *n, *k, dtype)
             }

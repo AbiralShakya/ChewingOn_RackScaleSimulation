@@ -1,0 +1,16 @@
+{
+ "result": "**Roofline T.** One step is about 6 \u00d7 8.03B \u00d7 4096 \u2248 1.97e14 FLOPs for the dense matmuls. Causal attention adds roughly 1.3e13, so the total is about 2.1e14 FLOPs. At the B300 dense BF16 peak of about 2.5 PFLOPS, T \u2248 85 ms.\n\n**Why the real step is slower.** These are my estimates, not measurements:\n- **Kernel inefficiency (largest, about 1.35\u20131.4\u00d7).** Real GEMMs reach about 70\u201375% of peak because of tile and wave quantization, prologue and epilogue costs, and non-ideal shapes. FA4 attention, RMSNorm, RoPE, SwiGLU, cross-entropy and the casts also run below the tensor-core peak.\n- **Power-capped clock (about 1.15\u20131.2\u00d7).** Sustained dense BF16 under the power limit runs at roughly 1.6\u20131.75 GHz instead of 2.03 GHz.\n- **Memory bandwidth (about 1.1\u20131.2\u00d7).** Elementwise ops are bandwidth-bound and not hidden by the matmuls. The Adam step moves about 8B \u00d7 ~30 B \u2248 240 GB, which is roughly 30 ms at ~8 TB/s if it is counted in the step.\n- **Launch overhead (small, about 1.02\u00d7).** Launch gaps are minor at 4096 tokens per step.\n- **Communication (none).** There is a single GPU.\n\nCombined, the step takes roughly 1.9\u00d7 T. Kernel inefficiency is the largest single factor, ahead of the clock cap and memory-bound work.\n\n```json\n{\"ratio\": 1.9, \"largest_cause\": \"kernel_inefficiency\"}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.016849299999999998,
+ "duration_ms": 15032,
+ "permission_denials": [],
+ "id": "explain_gap_train",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 16.3,
+ "answer": {
+  "ratio": 1.9,
+  "largest_cause": "kernel_inefficiency"
+ }
+}

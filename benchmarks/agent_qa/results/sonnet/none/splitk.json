@@ -1,0 +1,16 @@
+{
+ "result": "Split-K = 2 is fastest, at roughly 23 \u00b5s. This is my estimate from a bandwidth model, not a measurement.\n\n**Mechanism:** This GEMM is memory-bound. The BF16 weight matrix is 8192 \u00d7 8192 \u00d7 2 B \u2248 134 MB, and M=16 gives very little arithmetic per byte. The B300's achievable HBM bandwidth is roughly 7 TB/s, so the floor is about 19 \u00b5s. The question is which split-K factor keeps enough SMs streaming weights to approach that floor.\n\n- **Split 1:** There are 64 output tiles (1 \u00d7 64), so only 64 of the 148 SMs are active. Per-SM TMA throughput is about 80 GB/s, which gives about 5 TB/s aggregate and roughly 27 \u00b5s.\n- **Split 2:** There are 128 CTAs on 148 SMs, a single wave with about 86% of SMs busy. This nearly saturates HBM, giving about 19\u201320 \u00b5s of streaming plus about 3 \u00b5s for the partial-sum reduction and launch, so about 23 \u00b5s.\n- **Split 4:** There are 256 CTAs on 148 SMs, which creates wave quantization or co-residency contention, and the reduction cost is higher. Bandwidth is already saturated at split 2, so this gains nothing and is slightly slower.\n- **Split 8:** There are 512 CTAs. Each CTA's K-loop is short, so the pipeline fill/drain overhead is larger, and there are more fp32 partials to reduce. This is slower still.\n\n```json\n{\"best_split\": 2, \"time_us\": 23}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0154075,
+ "duration_ms": 14114,
+ "permission_denials": [],
+ "id": "splitk",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 15.3,
+ "answer": {
+  "best_split": 2,
+  "time_us": 23
+ }
+}

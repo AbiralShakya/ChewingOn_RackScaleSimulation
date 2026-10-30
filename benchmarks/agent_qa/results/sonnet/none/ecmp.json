@@ -1,0 +1,15 @@
+{
+ "result": "The expected busiest link carries about 1.34 times the mean load.\n\n**Mechanism:** Each of the 128 leaf-switch/link sets receives a Binomial(448, 1/8) load. This has mean 56 and standard deviation sqrt(448\u00b7(1/8)\u00b7(7/8)) = 7. Treating the 128 loads as nearly independent (they are weakly negatively correlated within a leaf), the finish time is set by the maximum of 128 such draws.\n\n**Estimate:** For 128 draws the expected normal maximum is about 2.6\u03c3 above the mean. The binomial's slight positive skew (about 0.11) fattens the upper tail. I computed tail probabilities P(max \u2265 k) with an Edgeworth-corrected tail and summed them to get E[max] \u2248 74.8. This is an analytic estimate, not a Monte Carlo run.\n\nThe ratio is therefore 74.8 / 56 \u2248 1.34. Even with perfectly uniform random hashing, the busiest link carries about 34% more than the mean.\n\n```json\n{\"busiest_over_mean\": 1.34}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0228548,
+ "duration_ms": 26985,
+ "permission_denials": [],
+ "id": "ecmp",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 28.5,
+ "answer": {
+  "busiest_over_mean": 1.34
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "result": "H-Net is slower than the BPE Transformer here. The ratio is about 0.43 in the simulator.\n\nI ran `tokens_or_bytes` with simulation on `hgx_b300_8`, batch 64, 8192 bytes of context. The `b300` preset name was rejected.\n\n- **Simulated:** H-Net generates about 23.0k text bytes/s and the BPE Transformer about 53.0k, a ratio of 0.433. The error band is 0.37 to 0.49.\n- **Closed-form HBM roofline:** H-Net reads 1.32x more bytes per text byte than the BPE model. That gives a roofline ratio of 0.76.\n- **Why the simulation is lower than the roofline:** The H-Net's small decode GEMMs and Mamba state updates reach only a fraction of HBM bandwidth. It also launches many more kernels per step. The BPE decode is 84% HBM-bound kernel time, but H-Net spends only about 40% of GPU time in HBM-bound kernels.\n- **Why H-Net doesn't win on bytes:** Each BPE step yields about 4.45 bytes. H-Net's main network steps only about once every 4.7 bytes, so it saves few weight reads. Its 8192-byte byte-level KV cache is also large.\n\nThis agrees with an earlier note in memory. That note said the BPE model wins by about 2.2x per byte at batch 64, which is a ratio of about 0.46.\n\n```json\n{\"ratio\": 0.43}\n```",
+ "is_error": false,
+ "num_turns": 3,
+ "total_cost_usd": 0.05257930000000001,
+ "duration_ms": 106359,
+ "permission_denials": [],
+ "id": "hnet",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 109.5,
+ "answer": {
+  "ratio": 0.43
+ }
+}

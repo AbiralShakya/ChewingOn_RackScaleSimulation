@@ -1,0 +1,15 @@
+{
+ "result": "The simulator puts this GEMM at about 23 \u00b5s. I did not measure it on hardware.\n\n- **Work:** 2\u00b7256\u00b718560\u00b74096 \u2248 38.9 GFLOP. The B-matrix weights are 18560\u00d74096\u00d72 B \u2248 152 MB.\n- **Compute floor:** at roughly 2.2 PFLOPS dense BF16, the FLOPs alone take about 17 \u00b5s.\n- **Memory floor:** 152 MB at about 7\u20138 TB/s of HBM takes about 19\u201322 \u00b5s. The shape is skinny (M=256), so streaming the weights competes with the tensor-core time.\n- **Simulator result:** I ran it on the `hgx_b300_8` preset (a single GPU) with a 300 ns launch gap, as for CUDA-graph replay. It gives 22.9 \u00b5s, of which the kernel is 21.9 \u00b5s at about 1.79 PFLOPS, with a stated error band of \u00b113%. The roofline replay of the same program gives 24.3 \u00b5s.\n\nI take 23 \u00b5s as the best single estimate.\n\n```json\n{\"time_us\": 23}\n```",
+ "is_error": false,
+ "num_turns": 3,
+ "total_cost_usd": 0.11342870000000002,
+ "duration_ms": 8729,
+ "permission_denials": [],
+ "id": "gemm_m256",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 11.0,
+ "answer": {
+  "time_us": 23
+ }
+}

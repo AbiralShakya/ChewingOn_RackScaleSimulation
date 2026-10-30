@@ -1,0 +1,15 @@
+{
+ "result": "Decode attention at this size is HBM-bound, because each sequence reads its whole KV cache once for a single query token.\n\n- KV bytes read: 64 sequences \u00d7 16384 tokens \u00d7 8 KV heads \u00d7 128 dim \u00d7 2 (K and V) \u00d7 2 bytes (BF16) \u2248 4.29 GB.\n- B300 HBM3e peaks at about 8 TB/s. A split-KV kernel typically sustains about 85% of that, roughly 6.8 TB/s. That gives about 630 \u00b5s.\n- The combine kernel and launch gaps add roughly 10 \u00b5s.\n- The total is about 640 \u00b5s.\n\nI did not run the simulator. This is a roofline estimate with an assumed bandwidth efficiency.\n\n```json\n{\"time_us\": 640}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.014181599999999999,
+ "duration_ms": 6531,
+ "permission_denials": [],
+ "id": "attn_decode",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 8.6,
+ "answer": {
+  "time_us": 640
+ }
+}

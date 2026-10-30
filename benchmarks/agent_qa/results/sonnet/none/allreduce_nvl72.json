@@ -1,0 +1,15 @@
+{
+ "result": "A 64 MiB BF16 all-reduce is 67.1 MB. NVLS offloads the reduction to the NVSwitch, so each GPU sends the data once and receives the reduced result once. Per-GPU traffic is therefore about 1\u00d7 the message size, compared with about 2\u00d7 for a ring.\n\nNVLink 5 gives roughly 900 GB/s per direction per GPU. NCCL NVLS typically reaches about 55\u201360% of that at large sizes, so algorithmic bandwidth is about 500 GB/s. At 64 MiB the pipeline is not fully saturated, so I assume about 400 GB/s effective, which gives about 168 \u00b5s. Adding about 20\u201330 \u00b5s for launch, switch and pipeline-fill latency across 72 GPUs brings the total to about 190 \u00b5s.\n\nThis is an estimate from typical NVLS efficiency, not a measurement.\n\n```json\n{\"time_us\": 190}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.012864800000000001,
+ "duration_ms": 12490,
+ "permission_denials": [],
+ "id": "allreduce_nvl72",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 14.0,
+ "answer": {
+  "time_us": 190
+ }
+}

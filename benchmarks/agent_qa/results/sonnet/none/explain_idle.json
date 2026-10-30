@@ -1,0 +1,16 @@
+{
+ "result": "**Mechanism:** At TP=8 each GPU holds about 2 GB of weights and about 2 GB of KV cache (batch 32 \u00d7 4096 tokens \u00d7 128 KB/token \u00f7 8). At roughly 8 TB/s that is only about 0.5 ms of true HBM time per step. The work is therefore split into many tiny kernels:\n\n- Per layer there are about 10-15 small kernels (RMSNorm, QKV GEMM, RoPE, KV write, attention, O-proj GEMM, residual add, MLP GEMMs, SiLU-mul).\n- There are also 2 all-reduces per layer. Across 32 layers that is about 500 kernels and 64 all-reduces, each moving only about 256 KB.\n\nEach kernel runs for a few microseconds, and each small NVLink all-reduce takes about 10-15 \u00b5s, so about 1 ms in total.\n\n**Where the time goes:** Without CUDA graphs, eager PyTorch/vLLM needs roughly 10-20 \u00b5s of CPU launch and Python overhead per op. That is longer than most of the kernels themselves, so the GPU waits for the CPU between launches. A rough eager step is about 5-7 ms, of which only about 1.5-2 ms is kernels plus collectives. The HBM-bound and latency-bound kernel shares and the all-reduce share are each much smaller than the idle share. Idle gaps come to roughly 65-75% of GPU time.\n\nThis is a first-principles estimate, not a measurement from a node or a simulation run.\n\n```json\n{\"dominant\": \"idle_gaps\", \"idle_fraction\": 0.7}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.014934299999999998,
+ "duration_ms": 11314,
+ "permission_denials": [],
+ "id": "explain_idle",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 14.9,
+ "answer": {
+  "dominant": "idle_gaps",
+  "idle_fraction": 0.7
+ }
+}

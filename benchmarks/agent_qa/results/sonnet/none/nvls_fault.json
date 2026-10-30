@@ -1,0 +1,16 @@
+{
+ "result": "A half-rate link cuts GPU 0's NVLink bandwidth to 17.5/18 of healthy, about 97.2%. Every GPU in the collective moves its share through its own links, so GPU 0 is the slowest participant and sets the pace. I'm assuming traffic is rebalanced across the surviving link capacity. If traffic were instead striped evenly over all 18 links, the half-rate link would take twice as long and the slowdown would approach 2x, so this assumption matters a lot. These are modelled estimates, not measurements.\n\n- **NVLS:** At 64 MiB the collective is mostly bandwidth-bound. The in-switch reduction (SHARP) means each GPU sends and receives roughly one copy of the data. The bandwidth term therefore scales by about 18/17.5 = 1.029. A small fixed latency of roughly 15\u201320 \u00b5s dilutes that slightly, giving about 1.027.\n- **Ring:** The same 1.029 applies to the bandwidth term. A 72-GPU ring takes 2\u00d771 sequential steps, each with a per-hop latency, and that latency is unaffected by the slow link. Latency is a larger share of the total than for NVLS, so the slowdown is diluted more, to about 1.015.\n\n```json\n{\"nvls_slowdown\": 1.027, \"ring_slowdown\": 1.015}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0185801,
+ "duration_ms": 17141,
+ "permission_denials": [],
+ "id": "nvls_fault",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 18.5,
+ "answer": {
+  "nvls_slowdown": 1.027,
+  "ring_slowdown": 1.015
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "result": "Llama-3-70B uses grouped-query attention with 80 layers, 8 KV heads, and head dimension 128 (hidden 8192 / 64 query heads).\n\nPer token, each layer stores K and V:\n2 (K and V) \u00d7 8 KV heads \u00d7 128 head dim \u00d7 2 bytes (BF16) = 4,096 bytes per layer.\n\nAcross all 80 layers: 4,096 \u00d7 80 = 327,680 bytes per token (320 KiB).\n\n```json\n{\"kv_bytes_per_token\": 327680}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0055932,
+ "duration_ms": 5624,
+ "permission_denials": [],
+ "id": "kv_bytes",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 7.4,
+ "answer": {
+  "kv_bytes_per_token": 327680
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "result": "H-Net comes out slower than the BPE Transformer here, at roughly 0.6x, because every byte step costs a full weight read while each BPE step yields 4.45 bytes. This is a rough memory-bandwidth estimate. I did not run the simulator or open any saved results.\n\n**BPE Transformer (~1.6B, Llama-3 tokenizer)**\n- Each decode step emits one token, which is 4.45 bytes of text.\n- The 8192-byte context is about 1840 tokens.\n- A step reads about 3.2 GB of bf16 weights plus the KV cache for 64 sequences. With GQA, 24 layers and 8 KV heads of dim 64, that is about 12 GB.\n- At roughly 8 TB/s, that is about 1.9 ms per step.\n- Throughput is 64 \u00d7 4.45 / 1.9 ms, or about 150k bytes/s.\n\n**H-Net 1-stage XL (byte-level, dynamic chunking)**\n- The Mamba encoder and decoder run on every byte, but their state is constant-size, so they add little traffic.\n- The main Transformer runs only once per chunk, about every 4.5 bytes, and its KV cache is also about 1840 chunks long.\n- With 64 sequences at independent chunk boundaries, the probability that no sequence fires the main network on a given step is essentially zero. So the main-network weights are read at nearly every step, and only the KV read shrinks to about 1/4.5.\n- A step then reads about 3.2 GB of weights plus about 2.6 GB of KV, around 6 GB in total. That is about 0.75 ms per step, ignoring extra kernel-launch overhead from the byte-level Mamba layers.\n- Throughput is 64 bytes per step / 0.75 ms, or about 85k bytes/s.\n\n**Ratio**\n- 85k / 150k \u2248 0.57. I round up to 0.6 as a single estimate.\n\n```json\n{\"ratio\": 0.6}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.021127700000000003,
+ "duration_ms": 36330,
+ "permission_denials": [],
+ "id": "hnet",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 37.8,
+ "answer": {
+  "ratio": 0.6
+ }
+}

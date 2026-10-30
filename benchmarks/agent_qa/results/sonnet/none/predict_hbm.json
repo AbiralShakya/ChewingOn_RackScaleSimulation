@@ -1,0 +1,15 @@
+{
+ "result": "Decode at this batch size is mostly memory-bound, but not entirely, so a 1.5x bandwidth gain gives well under 1.5x.\n\n**Bytes read per GPU per step (TP=8):**\n- Weights: 70B params in FP16 is 140 GB, or 17.5 GB per GPU.\n- KV cache: Llama-3-70B has 80 layers, 8 KV heads and head dim 128, which is about 320 KB per token. At 64 sequences \u00d7 8192 tokens, that is about 172 GB in total, or about 21.5 GB per GPU.\n- Total is about 39 GB per GPU. At roughly 80% of 8 TB/s, that is about 6 ms.\n\n**Parts that don't scale with HBM bandwidth:**\n- There are 160 all-reduces per step (2 per layer), each on a ~1 MB payload. They are latency-bound on NVLink5 at roughly 8\u201310 \u00b5s each, which is about 1.5 ms.\n- Without CUDA graphs, there are about 1000+ small kernel launches per step. Their gaps, plus partially exposed CPU launch overhead, add roughly 1 ms or more of time that faster HBM cannot remove.\n\n**Estimate:**\n- Old step: about 6 + 1.5 + 1 \u2248 8.5 ms.\n- New step: the memory part drops to about 4 ms, so about 4 + 2.5 \u2248 6.5 ms.\n- Speedup is about 1.3x. I shade it slightly lower because eager launch overhead may be partly CPU-bound.\n\n```json\n{\"speedup\": 1.27}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0167732,
+ "duration_ms": 13338,
+ "permission_denials": [],
+ "id": "predict_hbm",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 14.6,
+ "answer": {
+  "speedup": 1.27
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "result": "TP4 with batch 256 gives the most tokens/s per GPU: about 2,005. I got this from the closed-form scaling ladder, not from a simulated run. The `best_layout` simulation was still running when I stopped, so I haven't confirmed the numbers below against it.\n\n**Mechanism.** At 8192 context, decode on a B300 is dominated by reading the KV cache, which grows with batch. Weight reads are shared across the batch. More TP shards both the weights and the KV cache. That cuts per-GPU HBM time, but it adds all-reduce time and leaves fewer replicas. The 30 tokens/s per user floor caps how large a batch each TP degree can run.\n\n**Closed-form results for batches in {1, 8, 32, 128, 256}.**\n\n| TP | Best batch | Step (ms) | Tokens/s per user | Tokens/s per GPU |\n|---|---|---|---|---|\n| 1 | 32 | 33.3 | 30.03 | 961 |\n| 2 | 128 | 23.9 | 41.8 | 1,337 |\n| 4 | 256 | 31.9 | 31.3 | 2,005 |\n| 8 | 256 | about 18.5 | about 54 | about 1,730 |\n\n- **TP2 at batch 256** fails the floor. Its step is about 41 ms, which is about 24 tokens/s per user.\n- **TP8 at batch 256** is a rough estimate from the ladder's terms, not a ladder output. The ladder's own TP8 row used batch 512, which is outside your allowed set.\n- **TP4 at batch 256** is the best option that clears the floor.\n\n**Caveat.** TP4's margin over the floor is thin (31.3 against 30). A simulated step slightly slower than the closed form would push it under, and TP8 at batch 256 would then be the fallback.\n\n```json\n{\"tp\": 4, \"batch\": 256, \"tokens_per_s_per_gpu\": 2005}\n```",
+ "is_error": false,
+ "num_turns": 3,
+ "total_cost_usd": 0.056011399999999996,
+ "duration_ms": 137839,
+ "permission_denials": [],
+ "id": "plan_llama70b",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 145.4,
+ "answer": {
+  "tp": 4,
+  "batch": 256,
+  "tokens_per_s_per_gpu": 2005
+ }
+}

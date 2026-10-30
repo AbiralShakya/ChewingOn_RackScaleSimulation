@@ -1,0 +1,16 @@
+{
+ "result": "Tiles: M 4864/128 = 38, N 4096/256 = 16, so 608 tiles. On 148 SMs, 608/148 = 4.108 waves, so the GEMM runs 5 waves (ceil).\n\nEfficiency = 4.108 / 5 = 0.8216.\n\n```json\n{\"waves\": 5, \"efficiency\": 0.8216}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.010912100000000001,
+ "duration_ms": 4485,
+ "permission_denials": [],
+ "id": "waves",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 6.5,
+ "answer": {
+  "waves": 5,
+  "efficiency": 0.8216
+ }
+}

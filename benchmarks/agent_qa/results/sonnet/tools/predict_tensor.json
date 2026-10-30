@@ -1,0 +1,15 @@
+{
+ "result": "Doubling the tensor-core FLOP rate speeds up the DeepSeek-V3 decode step by only about 1.03x. This is the simulator's result for EP=8 with data-parallel attention, batch 128 per GPU, BF16 and a 4096-token context. I chose that context myself because the question didn't give one.\n\nDecode at this batch is mostly limited by HBM bandwidth, memory latency and the all-to-all communication, not by tensor-core math. In the simulator's breakdown, memory-latency-bound kernels, HBM-bound kernels and collectives together take about 42% of the baseline step. Another 30% is tensor-pipeline stalls, which faster math units don't remove. Only the 25% of time that is purely tensor-bound shrinks, and it shrinks by less than half because of wave and tile effects. The step goes from 41.1 ms to 39.8 ms.\n\nThat 3.4% gain is well inside the simulator's \u00b126% error band, so the sign and rough size are reliable but not the exact figure. The simulator's own roofline-style closed form gives about 1.24x, which is an upper bound because it assumes every kernel scales ideally. I'm going with the simulated value.\n\n```json\n{\"speedup\": 1.03}\n```",
+ "is_error": false,
+ "num_turns": 4,
+ "total_cost_usd": 0.060707599999999994,
+ "duration_ms": 45145,
+ "permission_denials": [],
+ "id": "predict_tensor",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 47.7,
+ "answer": {
+  "speedup": 1.03
+ }
+}

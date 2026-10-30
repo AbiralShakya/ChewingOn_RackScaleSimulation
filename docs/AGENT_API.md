@@ -10,12 +10,14 @@ that does performance engineering. Three layers share one implementation:
 | `rackscale-mcp` | the registry over the Model Context Protocol | Claude Code, Claude Desktop, any MCP client |
 
 All three return identical answers. Every time carries an **error band**, and every run carries
-**provenance**.
+**provenance**. Every simulated answer also carries an **`answer` block** of one shape (below): the
+number, its band, the closed form beside it, and the bottleneck with why.
 
 ## Contents
 
 - [Quickstart](#quickstart)
 - [The loop it is built for](#the-loop-it-is-built-for)
+- [The answer block](#the-answer-block)
 - [Tools](#tools)
 - [Workload specs](#workload-specs)
 - [Hardware knobs](#hardware-knobs)
@@ -23,6 +25,7 @@ All three return identical answers. Every time carries an **error band**, and ev
 - [Error bands](#error-bands)
 - [Provenance and caching](#provenance-and-caching)
 - [Worked example: an agent tunes DeepSeek-V3 decode](#worked-example-an-agent-tunes-deepseek-v3-decode)
+- [Benchmark: Claude with and without the tools](#benchmark-claude-with-and-without-the-tools)
 - [Limits](#limits)
 
 ## Quickstart
@@ -30,7 +33,12 @@ All three return identical answers. Every time carries an **error band**, and ev
 ```bash
 maturin develop --release && pip install mcp      # the MCP SDK is only needed for rackscale-mcp
 claude mcp add rackscale -- rackscale-mcp         # register with Claude Code (stdio)
+export MCP_TOOL_TIMEOUT=1800000                    # plan searches and full-model runs take minutes
 ```
+
+Claude Code gives an MCP tool call 60 s by default. `best_layout`, full-model `simulate` runs and
+`power_thermal` cap sweeps can take several minutes, and an agent whose calls time out falls back
+to closed forms (the benchmark below caught exactly that), so raise `MCP_TOOL_TIMEOUT`.
 
 Then ask, in plain words: *"Simulate DeepSeek-V3 decode on HGX B200 at EP8, batch 32 per rank, first
 4 layers. What bounds it, and what would you change?"*
@@ -64,6 +72,37 @@ api.kernel(r["run_id"], "lm_head")["role_anatomy"]   # producer / MMA / epilogue
    the most stalled warp-cycles.
 4. **Test.** `what_if` and `sweep` re-simulate with a change and compare the result against the error
    band. The verdict says when a difference is too small to trust.
+5. **Explain to a person.** `learn(topic)` gives the mechanism behind a number (idea, formula, a
+   worked example computed on a real preset, the book chapter), and `html_report` writes a page.
+
+## The answer block
+
+`simulate`, `what_if` (its result), `gemm_tiling`, `tail_latency`, `power_thermal`, `tokens_or_bytes`,
+`predict_gpu` and `scaling_math` all return `answer`:
+
+```python
+r = api.run("hgx_b300_8", {"model": "llama3-8b", "phase": "decode", "batch": 32, "context": 4096,
+                           "parallel": {"tp": 8}})
+r["answer"]
+# {'quantity': 'step time', 'value': 3151.0, 'unit': 'us',
+#  'band': {'lo': 2428.0, 'hi': 3874.0, 'band_pct': 22.95, 'worst_seen_pct': 83.5},
+#  'closed_form': {'value': 1557.0, 'formula': 'roofline replay of the same program: kernels at
+#                  max(FLOPs / peak, bytes / HBM BW) + launch gap, collectives at alpha + bytes / link BW ...'},
+#  'sim_over_closed_form': 2.024,
+#  'bottleneck': 'idle', 'share_of_gpu_time': 0.5,
+#  'why': 'GPUs sit between kernels: launch gaps, dependencies on other ranks or pipeline bubbles. ...'}
+```
+
+- **value and band**: the simulated number and its error band from measured validation
+  ([Error bands](#error-bands)); `worst_seen_pct` is the worst error measured for that mix of kernels.
+- **closed_form**: the textbook number for the same question. For a run it is the roofline replay of
+  the *exact program* that was simulated (`scaling.replay`); `toolkit.textbook(rec)` also splits the
+  gap into kernels slower than their roofline, collectives slower than their closed form, and idle
+  time plus lost overlap. For `scaling_math` (closed form only) the block instead carries
+  `expected_simulated_us`, the range the simulator lands in for that phase: 1.3-2.2x the textbook for
+  training, 1.9-2.1x for prefill, 0.96-1.5x for decode, over 22 plans (book chapter 11.5).
+- **bottleneck and why**: the largest part of GPU time (kernels by bound, collectives, idle) and the
+  mechanism that makes it cost time, in a sentence that says what helps and what does not.
 
 ## Tools
 
@@ -72,7 +111,7 @@ api.kernel(r["run_id"], "lm_head")["role_anatomy"]   # producer / MMA / epilogue
 | `list_hardware` | `api.hardware(name=None)` | GPU and system presets, peaks, calibration status, and the knob table |
 | `list_models` | `api.models_list()` | models the lowering knows, with sizes |
 | `describe_workload` | `api.workload(spec)` | kernel and collective counts and tokens per step, without simulating |
-| `simulate` | `api.run(system, workload, mode, overrides, launch_gap_ns)` | run id, step time ± band, tokens/s, MFU, anatomy, top kernels, collectives, warnings, provenance |
+| `simulate` | `api.run(system, workload, mode, overrides, launch_gap_ns, variability, net)` | run id, step time ± band, tokens/s, MFU, anatomy, top kernels, collectives, warnings, provenance, and the answer block; `variability` adds stragglers, `net` link faults and packet-level routing |
 | `find_bottlenecks` | `api.bottlenecks(run_id, top)` | time split by bound, per-kernel diagnosis and levers, ranked what-ifs |
 | `inspect_kernel` | `api.kernel(run_id, name)` or `api.kernel(system=, spec=)` | time ± band, role anatomy, top SASS PCs, mbarrier waits, waves, padding, diagnosis |
 | `what_if` | `api.what_if(run_id, change)` | the new run plus a comparison with the significance verdict |
@@ -81,6 +120,13 @@ api.kernel(r["run_id"], "lm_head")["role_anatomy"]   # producer / MMA / epilogue
 | `check_scaling_math` | `scaling.check(model, system, phase, Plan(...), layers)` | textbook vs roofline replay vs simulator, signed errors, the gap split into kernel efficiency, clock, collectives and overlap |
 | `scaling_ladder` | `scaling.ladder(model, system, phase, gpus=...)` | the best closed-form plan at each GPU count from 1 GPU to the rack: step, tokens/s per GPU, MFU, memory, dominant term, scaling efficiency |
 | `simulate_colocated` | `colocate.run([Tenant(...)], system, layers, flows=[Flow(...)])` | several models on one rack (own GPUs or shared GPUs), each tenant's step together and alone and the slowdown, each flow's delivered rate |
+| `gemm_tiling` | `toolkit.gemm_tiling(system, m, n, k, vary={knob: [...]})` | parallelism inside one GPU (ch. 15): one GEMM per tiling choice (`tile_n`, `stages`, `cluster`, `split_k`, `reserve_sms`): time ± band, time at the full vs power-capped clock, waves, bound, the wave-quantised roofline and Little's-law bytes in flight |
+| `tail_latency` | `toolkit.tail_latency(ranks, sigma, plane_scale=, flows=, links=, simulate=)` | the tail (ch. 16): straggler overhead σ·E[max_N \|Z\|], a slow or dead NVLink plane for NVLS vs ring, ECMP collisions; `simulate=True` checks them on the rack |
+| `power_thermal` | `toolkit.power_thermal(run_id, caps_w=, coolant_c=)` | power (ch. 17): board power, energy and tokens per joule, the swing a supply sees, re-simulated power caps beside the cube-root closed form, the thermal limit of a coolant temperature |
+| `tokens_or_bytes` | `toolkit.tokens_or_bytes(model, baseline, simulate=)` | H-Net vs BPE per byte of text (ch. 13): prefill FLOPs per byte, decode HBM bytes per byte by part, text bytes/s |
+| `predict_gpu` | `toolkit.predict_gpu(system, workload, changes)` | a GPU we don't have: the simulated step beside a first-order roofline prediction, and whether the bottleneck moved |
+| `html_report` | `toolkit.html_report(run_ids, path)` | an HTML page for a person: time split, kernels by bound, stalls, roofline, collectives |
+| `learn` | `learn.learn(topic, **params)` | a concept (roofline, waves, Little's law, split-K, power cap, all-reduce, EP, TP, bubbles, ZeRO, KV cache, stragglers, ECMP, H-Net, ...): idea, formula, worked numbers, chapter, the tool call that shows it |
 | `compare_runs` | `api.compare(a, b)` | step and throughput deltas, per-op deltas, stall-anatomy deltas |
 | `list_runs` | `api.runs()` | runs kept in this session |
 | `accuracy` | `api.accuracy_table()` | the evidence behind every band |

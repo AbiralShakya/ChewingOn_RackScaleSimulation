@@ -79,6 +79,7 @@ nav:
       - 2. A model on an NVL72 rack: tutorials/rack-run.md
       - 3. Capture an engine, replay on a rack: tutorials/capture-replay.md
       - 4. Drive it from an agent (MCP): tutorials/agent.md
+      - 5. Ask the rack (tools, mechanisms, a benchmark): tutorials/ask-the-rack.md
   - Guide:
       - book/README.md
       - 1. Rooflines: book/01-rooflines.md

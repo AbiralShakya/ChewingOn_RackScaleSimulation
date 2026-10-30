@@ -134,6 +134,17 @@ pub enum KernelSpec {
         k: u64,
         #[serde(default = "bf16")]
         dtype: String,
+        /// Tiling overrides (Blackwell only; `None` keeps the lowering's
+        /// own choice): output tile width, shared-memory stages, cluster
+        /// size for B multicast, and split-K factor. Chapter 15.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tile_n: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stages: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cluster: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        split_k: Option<u64>,
     },
     GroupedGemm {
         ms: Vec<u64>,

@@ -1,0 +1,15 @@
+{
+ "result": "The GEMM streams a 28672\u00d74096 BF16 weight matrix, which is about 235 MB. With M=1 it does very little compute per byte, so it is bound by HBM bandwidth. At roughly 7 TB/s of achievable bandwidth that is about 34 \u00b5s. The simulator gives about 39 \u00b5s. A real cuBLAS GEMV-like kernel usually reaches about 85\u201390% of peak bandwidth, which is about 36\u201340 \u00b5s. Inside a CUDA graph there is no launch overhead on top of that. I'll estimate 38 \u00b5s.\n\n```json\n{\"time_us\": 38}\n```",
+ "is_error": false,
+ "num_turns": 3,
+ "total_cost_usd": 0.09551359999999999,
+ "duration_ms": 8679,
+ "permission_denials": [],
+ "id": "gemm_m1",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 11.1,
+ "answer": {
+  "time_us": 38
+ }
+}

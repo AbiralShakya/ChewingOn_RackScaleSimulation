@@ -1,0 +1,15 @@
+{
+ "result": "Each phase waits for the slowest of the 72 GPUs, so the jitter cost per phase is set by the maximum of 72 draws of |Z|.\n\n**Mechanism:** The all-reduce is a barrier, so every phase takes T\u00b7(1 + 0.05\u00b7max|Z\u1d62|) for i = 1\u202672. The all-reduce time itself is not jitter and is not part of the jitter-free compute baseline.\n\n**Expected max of 72 half-normals:**\n- The median of the max solves (2\u03a6(x) \u2212 1)^72 = 0.5, which gives x \u2248 2.59.\n- The distribution of the max is roughly Gumbel with scale about 1/hazard \u2248 0.34 at x \u2248 2.6. The mean sits about 0.21 scale units above the median, which is about +0.07.\n- So E[max|Z|] \u2248 2.66.\n\n**Overhead:** Over 16 phases the jitter-free compute is 16T. The expected added time is 16\u00b7T\u00b70.05\u00b72.66. Relative to 16T, that is 0.05 \u00d7 2.66 \u2248 13.3%.\n\n```json\n{\"overhead_pct\": 13.3}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.0153845,
+ "duration_ms": 14695,
+ "permission_denials": [],
+ "id": "stragglers",
+ "condition": "none",
+ "model": "sonnet",
+ "wall_s": 15.9,
+ "answer": {
+  "overhead_pct": 13.3
+ }
+}

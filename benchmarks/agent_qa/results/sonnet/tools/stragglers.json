@@ -1,0 +1,15 @@
+{
+ "result": "Each phase ends in an all-reduce over all 72 GPUs, so every phase waits for the slowest GEMM. The step therefore pays \u03c3\u00b7E[max over 72 of |Z|] on each of the 16 GEMMs.\n\n- The jitter-free compute time is 16 \u00d7 T_gemm. The overhead per phase is T_gemm \u00d7 0.05 \u00d7 E[max\u2087\u2082 |Z|].\n- The 16 phases cancel in the ratio, so overhead % = 5 \u00d7 E[max\u2087\u2082 |Z|].\n- To estimate E[max\u2087\u2082 |Z|], take the median of the maximum. It solves 2(1\u2212\u03a6(x)) = 1 \u2212 0.5^(1/72) \u2248 0.0096, which gives x \u2248 2.59.\n- The mean of the maximum sits about 0.08 above the median (Gumbel correction), so E[max\u2087\u2082 |Z|] \u2248 2.67.\n- Overhead \u2248 5 \u00d7 2.67 \u2248 13.4%.\n\nI did not run the simulator or the `tail_latency` tool for this. The figure comes from the closed form above and a hand estimate of the extreme-value statistics. The all-reduce time is not in the denominator, since the question asks for a percentage of the compute time only.\n\n```json\n{\"overhead_pct\": 13.4}\n```",
+ "is_error": false,
+ "num_turns": 1,
+ "total_cost_usd": 0.019406700000000002,
+ "duration_ms": 16477,
+ "permission_denials": [],
+ "id": "stragglers",
+ "condition": "tools",
+ "model": "sonnet",
+ "wall_s": 19.2,
+ "answer": {
+  "overhead_pct": 13.4
+ }
+}

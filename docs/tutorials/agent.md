@@ -21,13 +21,22 @@ loop as tools whose answers carry the information an agent needs to not fool its
 | `find_bottlenecks(run_id)` | each kernel classed (HBM, tensor, memory latency, ...) with ready-to-run what-ifs |
 | `inspect_kernel(run_id, name)` | per-warp-role stalls and the SASS instructions warps wait on |
 | `what_if(run_id, change)`, `sweep(run_id, key, values)` | re-simulate with a change and compare |
+| `best_layout`, `scaling_math`, `check_scaling_math`, `scaling_ladder` | plan search, closed forms term by term, and how far reality departs from them |
+| `simulate_colocated` | several models on one rack at once |
+| `gemm_tiling`, `tail_latency`, `power_thermal`, `tokens_or_bytes` | inside one GPU, the tail, power and cooling, H-Net vs BPE |
+| `predict_gpu` | a GPU we don't have, against a first-order prediction |
+| `learn`, `html_report` | the mechanism behind a number, and a page for a person |
 | `compare_runs`, `list_runs`, `accuracy` | bookkeeping, and the validation table behind the bands |
+
+Every simulated answer carries an `answer` block: the value and its band, the closed form beside
+it, and the bottleneck with why ([tutorial 5](ask-the-rack.md) walks through them).
 
 ## With Claude Code (or any MCP client)
 
 ```bash
 pip install 'rackscale[agent]'
 claude mcp add rackscale -- rackscale-mcp
+export MCP_TOOL_TIMEOUT=1800000   # tool calls get 60 s by default; plan searches take minutes
 ```
 
 Then ask, for example:
