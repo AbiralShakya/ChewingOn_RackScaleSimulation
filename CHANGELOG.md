@@ -6,6 +6,17 @@ until 1.0, a minor version may change simulated timings, and the release notes s
 ## [Unreleased]
 
 ### Added
+- Board power per kernel (`rsim_gpu::kernel_power_w`: idle, plus the tensor term of the power
+  model at the clock the kernel ran at, scaled by tensor utilisation, plus HBM traffic at
+  `power.hbm_pj_per_bit`, est. 4 pJ/bit) and `Report["power"]`: the summed GPU board power over
+  time in 1000 bins, with mean, peak, trough, energy and the largest step, plus each rank's
+  `energy_j` and `avg_power_w`. Collectives draw idle plus 15% of the dynamic range (est).
+  `rackscale.power` closed forms: the cap trade-off (clock as (cap − idle)^(1/3)), the energy
+  storage that flattens a step, the board limit a cold plate allows at a coolant temperature,
+  54 V vs 800 V conduction loss, coolant flow and racks per CDU, and `with_power_cap` to
+  simulate any system at another board limit. Book chapter 17 with
+  `docs/book/scripts/power_cooling.py`. Timings are unchanged; reports gain the power fields
+  when the GPU has a power model (B300, GB300).
 - `RunConfig.variability`: seeded per-GPU (`gpu_sigma`), per-kernel (`kernel_sigma`) and named
   (`slow_ranks`) slowdowns, so ranks differ the way real GPUs do. `NetConfig.faults`: links that
   never trained (left out of routing, NVLS planes included), run degraded (`rate_scale`) or flap

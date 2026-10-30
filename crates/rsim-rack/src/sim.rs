@@ -309,6 +309,10 @@ fn memo_prefetch_jobs(lps: &[Lp]) -> Vec<(Arc<GpuSpec>, GpuConfig, Arc<KernelLau
     jobs
 }
 
+/// What the report reads from a finished rank: spans, kernels, their
+/// board power, finish time and busy cycles.
+pub(crate) type RankResult = (Vec<Span>, Vec<KernelDone>, Vec<f64>, Time, u64);
+
 /// Shared across ranks: the power-capped clock's wall-time factor per
 /// distinct `(kernel, reserved SMs)` (see [`rsim_gpu::dvfs_stretch`]).
 type DvfsCache = Mutex<HashMap<(usize, u32), Arc<std::sync::OnceLock<f64>>>>;
@@ -321,6 +325,8 @@ struct StreamState {
     op_start: Time,
     /// Fast mode: the memoized result and SMs held by the running kernel.
     memo: Option<(KernelDone, u32)>,
+    /// Fast mode: the running kernel's board power (W), when modelled.
+    memo_w: Option<f64>,
 }
 
 pub struct RankLp {
@@ -337,6 +343,8 @@ pub struct RankLp {
     pub(crate) launch_gap: Time,
     pub spans: Vec<Span>,
     pub kernels: Vec<KernelDone>,
+    /// Board power while each of `kernels` ran (W; NaN = no power model).
+    pub kernel_w: Vec<f64>,
     pub finish: Time,
     memo: Option<Arc<KernelMemo>>,
     dvfs: Arc<DvfsCache>,
@@ -422,17 +430,24 @@ impl RankLp {
     }
 
     /// What the report reads from a finished rank.
-    pub(crate) fn result(&self) -> (Vec<Span>, Vec<KernelDone>, Time, u64) {
+    pub(crate) fn result(&self) -> RankResult {
         (
             self.spans.clone(),
             self.kernels.clone(),
+            self.kernel_w.clone(),
             self.finish,
             self.gpu.busy_cycles,
         )
     }
 
-    pub(crate) fn take_result(&mut self, r: (Vec<Span>, Vec<KernelDone>, Time, u64)) {
-        (self.spans, self.kernels, self.finish, self.gpu.busy_cycles) = r;
+    pub(crate) fn take_result(&mut self, r: RankResult) {
+        (
+            self.spans,
+            self.kernels,
+            self.kernel_w,
+            self.finish,
+            self.gpu.busy_cycles,
+        ) = r;
     }
 
     /// Identity of a kernel for caches shared across ranks.
@@ -571,6 +586,7 @@ impl RankLp {
             let start = ready.max(now);
             let c = self.cyc(start);
             let mut d = memo.get(&self.gpu.spec, &self.gpu.cfg, &k, n - held);
+            self.streams[s].memo_w = rsim_gpu::kernel_power_w(&self.gpu.spec, &k, &d);
             self.memo_held += held;
             let dur = ((d.end_cycle - d.start_cycle) as f64
                 * self.dvfs_factor(&k, n - held, Some(&d), &d)
@@ -627,7 +643,9 @@ impl LogicalProcess for RankLp {
                 for mut d in done.drain(..) {
                     let s = (d.tag >> 32) as usize;
                     let mut end = self.ps(d.end_cycle);
+                    let mut watts = f64::NAN;
                     if let FlatOp::Kernel { k, .. } = &self.streams[s].ops[self.streams[s].pc] {
+                        watts = rsim_gpu::kernel_power_w(&self.gpu.spec, k, &d).unwrap_or(f64::NAN);
                         let x =
                             self.dvfs_factor(&k.clone(), 0, None, &d) * self.variability_factor();
                         if x > 1.0 {
@@ -641,6 +659,7 @@ impl LogicalProcess for RankLp {
                     }
                     self.finish_op(s, end, "kernel");
                     self.kernels.push(d);
+                    self.kernel_w.push(watts);
                 }
                 continue;
             }
@@ -652,6 +671,7 @@ impl LogicalProcess for RankLp {
                 Local::StreamNext(s) => self.kick(s, t, out),
                 Local::MemoDone(s) => {
                     let (d, held) = self.streams[s].memo.take().unwrap();
+                    let watts = self.streams[s].memo_w.take().unwrap_or(f64::NAN);
                     self.memo_held -= held;
                     self.memo_active -= 1;
                     if self.memo_active == 0 {
@@ -659,6 +679,7 @@ impl LogicalProcess for RankLp {
                     }
                     self.finish_op(s, t, "kernel");
                     self.kernels.push(d);
+                    self.kernel_w.push(watts);
                     self.start_memo_pending(t);
                 }
                 Local::FixedDone(s) => {
@@ -1267,6 +1288,7 @@ impl Simulation {
                         blocked_on: None,
                         op_start: 0,
                         memo: None,
+                        memo_w: None,
                     })
                     .collect(),
                 q: EventQueue::new(),
@@ -1278,6 +1300,7 @@ impl Simulation {
                 launch_gap: (gap * 1000.0) as Time,
                 spans: vec![],
                 kernels: vec![],
+                kernel_w: vec![],
                 finish: 0,
                 memo: memo.clone(),
                 dvfs: dvfs.clone(),

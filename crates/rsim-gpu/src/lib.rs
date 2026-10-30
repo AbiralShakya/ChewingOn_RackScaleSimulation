@@ -34,8 +34,8 @@ pub mod synth_ssm;
 
 pub use detail::{DetailConfig, KernelDetail, PcStat, WarpRecord, WarpTimeline};
 pub use gpu::{
-    dvfs_clock_mhz, dvfs_possible, dvfs_stretch, run_alone, tcgen05_stretch, Gpu, GpuConfig,
-    KernelDone, SchedPolicy,
+    dvfs_clock_mhz, dvfs_possible, dvfs_stretch, kernel_power_w, run_alone, tcgen05_stretch, Gpu,
+    GpuConfig, KernelDone, SchedPolicy,
 };
 pub use kernel::{BarInit, BarOp, KernelLaunch, KernelSource, WarpRole};
 pub use stats::{KernelStats, Stall, StallCounts};

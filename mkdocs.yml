@@ -97,6 +97,7 @@ nav:
       - 14. Why cycle level: book/14-why-cycle-level.md
       - 15. Parallelism inside one GPU: book/15-parallelism-inside-one-gpu.md
       - 16. Stragglers, flaps, tail latency: book/16-stragglers-flaps-tail-latency.md
+      - 17. Power, cooling and the clock: book/17-power-cooling-and-the-clock.md
   - Reference:
       - Command line: reference/cli.md
       - Python API: reference/python.md

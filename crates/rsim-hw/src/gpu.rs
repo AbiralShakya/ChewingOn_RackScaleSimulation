@@ -465,6 +465,15 @@ pub struct PowerSpec {
     /// stays there, measured by calibration/src/bench_dvfs.cu). 0 = none.
     #[serde(default)]
     pub tcgen05_mhz: f64,
+    /// Energy per bit moved to or from HBM, picojoules: the power of a
+    /// kernel the tensor cores do not dominate (estimate; HBM3/3e devices
+    /// are quoted at about 3-4 pJ/bit, before on-chip movement).
+    #[serde(default = "default_hbm_pj_per_bit")]
+    pub hbm_pj_per_bit: f64,
+}
+
+fn default_hbm_pj_per_bit() -> f64 {
+    4.0
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -480,6 +489,15 @@ impl PowerSpec {
     /// Sustained SM clock for a tensor-bound kernel, or `None` when no
     /// measured run covers `dtype`.
     pub fn sustained_mhz(&self, dtype: &str, flops: f64) -> Option<f64> {
+        let d = self.dynamic_w(dtype, flops)?;
+        let budget = (self.cap_w - self.idle_w).max(1.0);
+        Some(self.max_mhz * (budget / d).cbrt().min(1.0))
+    }
+
+    /// Dynamic power `D` (W at `max_mhz`) of a fully tensor-bound kernel of
+    /// `dtype` and `flops`, interpolated in log(FLOPs) between the measured
+    /// runs; `None` when no run covers `dtype`.
+    pub fn dynamic_w(&self, dtype: &str, flops: f64) -> Option<f64> {
         let mut pts: Vec<(f64, f64)> = self
             .runs
             .iter()
@@ -494,7 +512,7 @@ impl PowerSpec {
         }
         pts.sort_by(|a, b| a.0.total_cmp(&b.0));
         let x = flops.ln();
-        let d = if x <= pts[0].0 {
+        Some(if x <= pts[0].0 {
             pts[0].1
         } else if x >= pts[pts.len() - 1].0 {
             pts[pts.len() - 1].1
@@ -502,9 +520,7 @@ impl PowerSpec {
             let i = pts.iter().position(|p| p.0 >= x).unwrap();
             let (a, b) = (pts[i - 1], pts[i]);
             a.1 + (b.1 - a.1) * (x - a.0) / (b.0 - a.0)
-        };
-        let budget = (self.cap_w - self.idle_w).max(1.0);
-        Some(self.max_mhz * (budget / d).cbrt().min(1.0))
+        })
     }
 }
 

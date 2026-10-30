@@ -33,6 +33,7 @@ reproduce its numbers. The scripts live in [`scripts/`](scripts/).
 | 14 | [Why cycle level, and how far to trust a simulated rack](14-why-cycle-level.md) | say which effects only a cycle-level model sees, what in it is real SASS, and how per-kernel error carries to a node and a rack |
 | 15 | [Parallelism inside one GPU](15-parallelism-inside-one-gpu.md) | climb the ladder inside one chip (lanes, warps, warp roles, pipeline stages, tiles, clusters, waves, split-K, SMs taken by NCCL) with a closed form and a simulator run at each rung |
 | 16 | [Stragglers, flaps and tail latency](16-stragglers-flaps-tail-latency.md) | say what jitter, one slow GPU, a dead or degraded link, a flap and ECMP hash collisions cost a synchronous step, from closed forms checked against the simulator |
+| 17 | [Power, cooling and the clock](17-power-cooling-and-the-clock.md) | follow the watts from one kernel to a rack's power trace, size the energy storage it needs, trade the board limit against work per joule, and say what the coolant temperature, 800 V feeds and CDUs do to the clock |
 
 ## The ladder
 
@@ -46,15 +47,15 @@ a warp to a building full of racks. This is where each rung is treated.
 | lanes and warps | 32 lanes, up to 16 warps per SMSP | issue slot, registers | 4–27 cycles | [2](02-inside-the-gpu.md), [15.2](15-parallelism-inside-one-gpu.md) |
 | warp roles and CTAs on one SM | producer, MMA, softmax, epilogue | the slowest role, 228 KB of shared memory | 21–77 cycles (`bar.sync`), mbarriers | [3](03-kernels-sass-cycles.md), [15.3–15.4](15-parallelism-inside-one-gpu.md) |
 | SM pairs (clusters) | 2 SMs | L2 → SM bandwidth | 193 cycles (DSMEM) | [15.5](15-parallelism-inside-one-gpu.md) |
-| one GPU | 148 SMs | SM count, HBM, the power cap | 320–706 cycles (L2), 0.55–1.7 µs (launch) | [1](01-rooflines.md), [15.6–15.9](15-parallelism-inside-one-gpu.md) |
+| one GPU | 148 SMs | SM count, HBM, the power cap | 320–706 cycles (L2), 0.55–1.7 µs (launch) | [1](01-rooflines.md), [15.6–15.9](15-parallelism-inside-one-gpu.md), [17.1](17-power-cooling-and-the-clock.md) |
 | GPUs in a node | 8 GPUs on NVLink | NVLink bandwidth, SMs for NCCL | µs-scale collectives | [4](04-networks-collectives.md), [5](05-parallelism.md), [11](11-every-parallelism.md) |
-| NVL72 rack | 72 GPUs on NVSwitch | NVLink, in-switch reduction, rack power | µs-scale collectives | [6](06-inference.md), [7](07-training.md), [11](11-every-parallelism.md), [12](12-many-models-one-rack.md) |
+| NVL72 rack | 72 GPUs on NVSwitch | NVLink, in-switch reduction, rack power | µs-scale collectives | [6](06-inference.md), [7](07-training.md), [11](11-every-parallelism.md), [12](12-many-models-one-rack.md), [17.2–17.4](17-power-cooling-and-the-clock.md) |
 | nodes and racks | many NVLink domains on InfiniBand / RoCE | NIC bandwidth, oversubscribed spines | tens of µs, plus tail latency | [4](04-networks-collectives.md), [8](08-async-rl.md), [11](11-every-parallelism.md), [16](16-stragglers-flaps-tail-latency.md) |
 | every rung above one GPU | ranks in lockstep | the slowest rank, the slowest link | the maximum, not the mean | [16](16-stragglers-flaps-tail-latency.md) |
-| the facility | racks, power shelves, CDUs | 800 V distribution, coolant flow | — | planned |
+| the facility | racks, power shelves, CDUs | megawatts, coolant temperature and flow | the power swing of a synchronous step | [17](17-power-cooling-and-the-clock.md) |
 
-Still being written: the power and cooling envelope that every rung above one GPU shares,
-and sender-side congestion control (DCQCN, Ultra Ethernet) for lossy fabrics.
+Still being written: sender-side congestion control (DCQCN, Ultra Ethernet) for lossy fabrics
+(chapter 16.5 says what is missing).
 
 ## Seeing it
 
