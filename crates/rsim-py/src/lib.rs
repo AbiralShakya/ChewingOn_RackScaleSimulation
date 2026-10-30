@@ -94,6 +94,15 @@ fn kernel(py: Python<'_>, gpu: &str, kind: &str, dims: Vec<u64>, dtype: &str) ->
         ),
         "elementwise" => rsim_gpu::synth::elementwise("elementwise", d(0)?, 2, 2.0, 1),
         "rownorm" => rsim_gpu::synth::row_norm("rmsnorm", d(0)?, d(1)?, 2.0),
+        "embedding_bag" => rsim_gpu::synth::embedding_bag(
+            "embedding_bag",
+            d(0)?,
+            d(1)?,
+            d(2)?,
+            rsim_gpu::synth::dtype(dtype).bytes,
+            d(3)?,
+            dims.get(4) == Some(&1),
+        ),
         "ssm_update" => {
             rsim_gpu::synth_ssm::ssm_state_update(&g, d(0)?, d(1)?, d(2)?, d(3)?, d(4)?, 2.0)
         }

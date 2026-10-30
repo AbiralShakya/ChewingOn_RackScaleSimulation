@@ -128,6 +128,9 @@ class Model:
     gla: Optional[GLA] = None
     #: Linear-attention mixer for ``L`` blocks.
     linear: Optional[LinearAttn] = None
+    #: Gated MLP (SwiGLU: gate, up, down) or the plain two-matrix MLP of
+    #: ViT and DiT (fc1, GELU, fc2).
+    gated: bool = True
 
     def with_layers(self, n: int) -> "Model":
         """Keep the first ``n`` layers. For a block stack, a layer is one block."""
@@ -148,8 +151,11 @@ class Model:
         return (self.hidden * la.in_proj_out + la.conv_dim * la.d_conv + la.heads_v * la.d_v * self.hidden
                 + 2 * la.heads_v)
 
+    def _mlp_mats(self) -> int:
+        return 3 if self.gated else 2
+
     def mlp_params(self) -> int:
-        return 3 * self.hidden * self.ffn
+        return self._mlp_mats() * self.hidden * self.ffn
 
     def attn_params(self) -> int:
         h = self.hidden
@@ -173,7 +179,7 @@ class Model:
             m = self.moe
             return 3 * h * m.expert_ffn * (m.topk + m.shared_experts) + h * m.experts
         ffn = self.moe.dense_ffn if self.moe and self.moe.dense_ffn else self.ffn
-        return 3 * h * ffn
+        return self._mlp_mats() * h * ffn
 
     def active_params(self, lm_head: bool = True) -> int:
         """Parameters touched per token (embedding lookups excluded, LM head optional)."""
@@ -192,7 +198,7 @@ class Model:
             m = self.moe
             return 3 * h * m.expert_ffn * (m.experts + m.shared_experts) + h * m.experts
         ffn = self.moe.dense_ffn if self.moe and self.moe.dense_ffn else self.ffn
-        return 3 * h * ffn
+        return self._mlp_mats() * h * ffn
 
     def total_params(self) -> int:
         """Every parameter, embedding and (untied) LM head included."""
@@ -339,6 +345,22 @@ GDN_HYBRID_8B = replace(GDN_8B, name="gdn-hybrid-8b", blocks="LFLFLFAF" * 8)
 _GDN_70B = LinearAttn(heads_qk=32, heads_v=64, d_k=128, d_v=128, d_conv=4, chunk=64, delta=True)
 GDN_HYBRID_70B = Model("gdn-hybrid-70b", hidden=8192, layers=160, heads=64, kv_heads=8, head_dim=128, ffn=28672,
                        vocab=128256, linear=_GDN_70B, blocks="LFLFLFAF" * 20)
+
+# Vision and diffusion transformers (chapter 18; `rackscale.vision`). Plain
+# GELU MLPs and full multi-head attention. Encoders, so kept out of ALL.
+VIT_L_14 = Model("vit-l/14", hidden=1024, layers=24, heads=16, kv_heads=16, head_dim=64, ffn=4096, vocab=0,
+                 gated=False)
+VIT_H_14 = Model("vit-h/14", hidden=1280, layers=32, heads=16, kv_heads=16, head_dim=80, ffn=5120, vocab=0,
+                 gated=False)
+VIT_22B = Model("vit-22b", hidden=6144, layers=48, heads=48, kv_heads=48, head_dim=128, ffn=24576, vocab=0,
+                gated=False)
+DIT_XL_2 = Model("dit-xl/2", hidden=1152, layers=28, heads=16, kv_heads=16, head_dim=72, ffn=4608, vocab=0,
+                 gated=False)
+#: A video DiT with the shape of Wan2.1-14B (dim 5120, 40 blocks, 40 heads,
+#: FFN 13824, cross-attention to 512 text tokens).
+VIDEO_DIT_14B = Model("video-dit-14b", hidden=5120, layers=40, heads=40, kv_heads=40, head_dim=128, ffn=13824,
+                      vocab=0, gated=False)
+VISION = {m.name: m for m in [VIT_L_14, VIT_H_14, VIT_22B, DIT_XL_2, VIDEO_DIT_14B]}
 
 ALL = {m.name: m for m in [LLAMA32_1B, LLAMA32_3B, LLAMA3_8B, QWEN25_32B, LLAMA3_70B, LLAMA3_405B,
                            MIXTRAL_8X7B, MIXTRAL_8X22B, QWEN3_30B_A3B, QWEN3_235B_A22B, DEEPSEEK_V3,

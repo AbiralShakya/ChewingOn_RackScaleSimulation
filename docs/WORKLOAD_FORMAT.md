@@ -58,6 +58,7 @@ over DP), even when only a few `layers` are simulated; see `lower.memory`.
 | `attention` | `batch heads_q heads_kv sq skv d causal`; `d > 256` selects MLA (shared K/V latent) |
 | `elementwise` | `n inputs elem_bytes flops_per_elem` |
 | `row_norm` | `rows cols elem_bytes` |
+| `embedding_bag` | `bags pooling dim table_rows`, `elem_bytes` (default 4), `update` (backward with the optimizer fused: read, update and write every gathered row) |
 | `sass` | `path kernel grid block regs smem branch_profile` |
 | `trace` | `path` (Accel-Sim `.traceg`) |
 | `path` | `path` (`.rpath` from the NVBit `warp_path` tool, see `research/flash_attention/`), optional `regs` |

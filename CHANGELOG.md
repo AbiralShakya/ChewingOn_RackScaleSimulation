@@ -6,6 +6,17 @@ until 1.0, a minor version may change simulated timings, and the release notes s
 ## [Unreleased]
 
 ### Added
+- Workloads beyond language models. `embedding_bag` kernels (sum-pooled gathers of random rows,
+  four loads in flight per warp; `update: true` is the backward with the optimizer fused) and
+  `rsim kernel embedding_bag`. `rackscale.vision`: ViT encoders (`vit_forward`), diffusion
+  transformers with adaLN, classifier-free guidance, cross-attention to text and Ulysses sequence
+  parallelism (`dit_sample`), and VLM prefill (`vlm_prefill`), with closed-form FLOPs.
+  `rackscale.recsys`: DLRM-style steps with table-wise sharded embeddings, all-to-all and
+  data-parallel MLPs (`step`), and the gather-versus-all-to-all closed form (`balance`). Models
+  `VIT_L_14`, `VIT_H_14`, `VIT_22B`, `DIT_XL_2`, `VIDEO_DIT_14B`, `recsys.DLRM_2TB`;
+  `Model.gated = False` for plain GELU MLPs; `AddrGen.offset`; `extrap` extrapolates long
+  embedding gathers. Book chapter 18 with `docs/book/scripts/beyond_llm.py`. No timing changes
+  for existing workloads.
 - Board power per kernel (`rsim_gpu::kernel_power_w`: idle, plus the tensor term of the power
   model at the clock the kernel ran at, scaled by tensor utilisation, plus HBM traffic at
   `power.hbm_pj_per_bit`, est. 4 pJ/bit) and `Report["power"]`: the summed GPU board power over
