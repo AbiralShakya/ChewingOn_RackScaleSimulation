@@ -108,11 +108,11 @@ def main() -> None:
                                             for w in WORKLOADS), flush=True)
     else:
         ctx = mp.get_context("spawn")
-        start, q = ctx.Barrier(len(gpus)), ctx.Queue()
+        start, q = ctx.Barrier(len(gpus), timeout=1800), ctx.Queue()
         procs = [ctx.Process(target=_worker, args=(g, a.reps, start, q)) for g in gpus]
         for p in procs:
             p.start()
-        per = sorted((q.get() for _ in procs), key=lambda r: r["gpu"])
+        per = sorted((q.get(timeout=4 * 3600) for _ in procs), key=lambda r: r["gpu"])
         for p in procs:
             p.join()
     node = {}

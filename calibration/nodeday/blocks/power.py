@@ -124,12 +124,12 @@ def main() -> None:
     a = ap.parse_args()
     gpus = [int(g) for g in a.gpus.split(",")]
     ctx = mp.get_context("spawn")
-    start, q = ctx.Barrier(len(gpus)), ctx.Queue()
+    start, q = ctx.Barrier(len(gpus), timeout=1800), ctx.Queue()
     base = os.path.splitext(a.out)[0]
     procs = [ctx.Process(target=worker, args=(g, a.seconds, start, q, f"{base}.gpu{g}.csv")) for g in gpus]
     for p in procs:
         p.start()
-    got = dict(q.get() for _ in procs)
+    got = dict(q.get(timeout=4 * 3600) for _ in procs)
     for p in procs:
         p.join()
     from nvml import limits

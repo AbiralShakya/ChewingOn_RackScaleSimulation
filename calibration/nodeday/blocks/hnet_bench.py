@@ -36,6 +36,10 @@ import torch
 import torch.nn.functional as F
 
 BYTES_PER_TOKEN = 4.45  # rackscale.hnet.BYTES_PER_BPE_TOKEN
+try:
+    from flash_attn import flash_attn_with_kvcache as _fa_kvcache
+except ImportError:
+    _fa_kvcache = None
 CTX = 8192
 
 
@@ -103,9 +107,13 @@ class BPE(torch.nn.Module):
                 self.k[i, :b, pos0:pos0 + t], self.v[i, :b, pos0:pos0 + t] = k, v
                 a = F.scaled_dot_product_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2),
                                                    is_causal=True).transpose(1, 2)
-            else:
-                from flash_attn import flash_attn_with_kvcache
-                a = flash_attn_with_kvcache(q, self.k[i, :b], self.v[i, :b], k, v, cache_seqlens=seqlens)
+            elif _fa_kvcache is not None:
+                a = _fa_kvcache(q, self.k[i, :b], self.v[i, :b], k, v, cache_seqlens=seqlens)
+            else:  # every sequence is at the same position here, so plain SDPA over the cache is exact
+                p = self.pos
+                self.k[i, :b, p], self.v[i, :b, p] = k[:, 0], v[:, 0]
+                a = F.scaled_dot_product_attention(q.transpose(1, 2), self.k[i, :b, :p + 1].transpose(1, 2),
+                                                   self.v[i, :b, :p + 1].transpose(1, 2)).transpose(1, 2)
             x = x + self.o[i](a.reshape(b, t, self.d))
             g, u = self.gu[i](F.rms_norm(x, (self.d,), self.n2[i])).chunk(2, -1)
             x = x + self.dn[i](F.silu(g) * u)
@@ -128,6 +136,7 @@ def bpe_runs(dev, prompts, steps: int, batches) -> dict:
             m(ids)
             tok = torch.randint(0, 128256, (b, 1), device=dev)
             lens = torch.full((b,), t, device=dev, dtype=torch.int32)
+            m.pos = t
             eager = _median_us(lambda: m(tok, seqlens=lens), steps)
             g = torch.cuda.CUDAGraph()
             s = torch.cuda.Stream()
@@ -138,7 +147,7 @@ def bpe_runs(dev, prompts, steps: int, batches) -> dict:
             with torch.cuda.graph(g):
                 m(tok, seqlens=lens)
             graph = _median_us(g.replay, steps)
-            row = dict(batch=b, step_us_eager=eager, step_us_graph=graph,
+            row = dict(batch=b, step_us_eager=eager, step_us_graph=graph, attention="flash_attn" if _fa_kvcache else "sdpa",
                        us_per_byte_eager=eager / BYTES_PER_TOKEN, us_per_byte_graph=graph / BYTES_PER_TOKEN)
             if b == batches[0]:
                 row["kernels_per_step"] = _kernels(lambda: m(tok, seqlens=lens), 8)

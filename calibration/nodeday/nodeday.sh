@@ -42,7 +42,8 @@ mkdir -p "$ND_OUT"
 ALL_GPUS=$(seq -s, 0 $((NGPU - 1)))
 first() { seq -s, 0 $(($1 - 1)); }
 NCCL_TESTS=$ND_EXT/nccl-tests/build
-nccl_lib() { python -c "import nvidia.nccl, os; print(os.path.join(os.path.dirname(nvidia.nccl.__file__), 'lib'))" 2>/dev/null; }
+# nvidia.nccl is a namespace package (no __file__): the wheel's directory is __path__[0].
+nccl_lib() { python -c "import nvidia.nccl, os; print(os.path.join(list(nvidia.nccl.__path__)[0], 'lib'))" 2>/dev/null; }
 
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 
@@ -103,7 +104,7 @@ setup_extras() {
       git clone -q https://github.com/deepseek-ai/DeepEP "$ND_EXT/DeepEP"
     fi
     pip install -q nvidia-nvshmem-cu12 nvidia-nvshmem-cu13 2>/dev/null
-    (cd "$ND_EXT/DeepEP" && NVSHMEM_DIR=$(python -c "import nvidia.nvshmem, os; print(os.path.dirname(nvidia.nvshmem.__file__))" 2>/dev/null) \
+    (cd "$ND_EXT/DeepEP" && NVSHMEM_DIR=$(python -c "import nvidia.nvshmem; print(list(nvidia.nvshmem.__path__)[0])" 2>/dev/null) \
       pip install -q --no-build-isolation .) || log "DeepEP not installed"
 
     log "nvbandwidth (per-pair copy bandwidth)"
