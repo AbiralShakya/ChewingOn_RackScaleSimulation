@@ -157,16 +157,62 @@ def table(doc: dict) -> str:
             if p.get(k):
                 lines.append(f"- {c['id']} {k.replace('predicted_', '').replace('_', ' ')}: {p[k]:,.0f} tok/s/GPU "
                              f"({(p[k] - c['measured']) / c['measured']:+.1%})")
+        if p.get("predicted_decode_only"):
+            # Added after the first comparison (so not a frozen prediction): with attention DP,
+            # every rank's step waits for the slowest, so a step costs a prefill whenever any of
+            # the W ranks has one, probability 1 - (1 - batch/OSL)^W, not batch/OSL.
+            pts = p["points"]
+            b, w = pts["decode"]["point"]["batch"], pts["decode"]["result"]["world"]
+            q = b / SIM[c["id"]]["osl"]
+            t = pts["decode"]["result"]["step_us"] + (1 - (1 - q) ** w) * pts["prefill"]["result"]["step_us"]
+            v = b / (t * 1e-6)
+            lines.append(f"- {c['id']} with attention-DP synchronisation (post hoc, same simulated steps): "
+                         f"{v:,.0f} tok/s/GPU ({(v - c['measured']) / c['measured']:+.1%})")
         if c.get("measured_alt") and p.get("predicted"):
             lines.append(f"- {c['id']} against the alternative published figure {c['measured_alt']:,.0f}: "
                          f"{(p['predicted'] - c['measured_alt']) / c['measured_alt']:+.1%}")
+    lines += ["", FINDINGS]
     return "\n".join(lines) + "\n"
+
+
+FINDINGS = """## What the misses say (read from the simulated breakdowns)
+
+- **SGLang H100 decode, -2.7%.** The one case run exactly as published (PD-disaggregated decode,
+  two-batch overlap) lands within 3%. Without two-batch overlap the simulator gives -13.6%, so
+  the overlap is doing real work in the published number.
+- **SGLang H100 prefill, -45.8%.** Communication is 2.57 s of the simulated 4.07 s step. The
+  lowering sends every token to each of its top-8 experts as a plain all-to-all
+  (`python/rackscale/lower.py`, `moe_dispatch`). DeepSeek-V3 limits each token to 4 nodes and
+  DeepEP sends it once per node over InfiniBand, then fans it out over NVLink; SGLang also overlaps
+  the two micro-batches in prefill. Neither is modelled, so the simulator is pessimistic here.
+  This is a lowering gap, not a fabric one.
+- **TensorRT-LLM, +95% (B200) and +67% (H200).** The decode step alone is close to what the
+  hardware can do; the miss is in how prefill shares the iterations. With attention DP, all 8
+  ranks wait for any rank that is prefilling, so prefill costs far more than its token share.
+  Accounting for that with the same simulated steps gives +0.9% on H200 and +25% on B200. This
+  composition was added after seeing the first result, so it is reported as post hoc. The frozen
+  errors above stay the headline.
+- **SGLang GB200 decode, not simulated.** 1,408 sequences of 2,048 tokens need 203 GB of BF16 MLA
+  KV cache per GPU, more than a GB200 holds, so the published run must have used a shorter
+  average KV length or an FP8 cache. The post does not say which, so the case is left unscored.
+- **DeepSeek production, -12.4% (soft).** A 24-hour average with load swings and an inferred batch;
+  shown for scale only.
+"""
+
+
+def rebuild() -> None:
+    """Rewrite RESULTS.md from predictions.json without simulating."""
+    doc = json.load(open(os.path.join(HERE, "predictions.json")))
+    open(os.path.join(HERE, "RESULTS.md"), "w").write(table(doc))
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*")
+    ap.add_argument("--table", action="store_true", help="only rebuild RESULTS.md")
     a = ap.parse_args()
+    if a.table:
+        return rebuild()
     pub = json.load(open(os.path.join(HERE, "published.json")))
     path = os.path.join(HERE, "predictions.json")
     old = json.load(open(path)) if os.path.exists(path) else {}

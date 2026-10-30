@@ -1,0 +1,597 @@
+{
+ "git_sha": "1161306",
+ "created_utc": "2026-10-30T18:28:52+00:00",
+ "cases": [
+  {
+   "id": "sglang-h100-decode",
+   "source": "https://lmsys.org/blog/2025-05-05-large-scale-ep/",
+   "date": "2025-05-05",
+   "engine": "SGLang (PD disaggregation, large-scale EP, two-batch overlap)",
+   "hardware": "9 nodes x 8 H100, InfiniBand (decode side of 12 nodes)",
+   "config": "DeepSeek-V3, decode EP72 with DP attention, batch 256 per GPU, KV length 2000, no MTP",
+   "stated": "22,282 output tokens/s per node (profile table, SGLang default)",
+   "metric": "output tok/s per GPU",
+   "measured": 2785.25,
+   "derived": "22,282 / 8 GPUs per node",
+   "role": "primary",
+   "prediction": {
+    "points": {
+     "decode": {
+      "point": {
+       "model": "deepseek-v3",
+       "system": "h100_9n",
+       "phase": "decode",
+       "plan": {
+        "tp": 1,
+        "ep": 72,
+        "pp": 1,
+        "dp": 1
+       },
+       "batch": 256,
+       "context": 2000,
+       "seqlen": 0,
+       "chunk": 0,
+       "micro_batches": 1,
+       "schedule": "1f1b",
+       "launch": "graph",
+       "overlap": true,
+       "dtype": "fp8",
+       "study": "",
+       "tag": ""
+      },
+      "result": {
+       "step_us": 94460.111475,
+       "tok_s_gpu": 2710.1386606742835,
+       "tpot_ms": 94.46011147499999,
+       "world": 72,
+       "fits": true,
+       "memory_total_gb": 62.177957205333335,
+       "hbm_gb": 80.0,
+       "classes_us": {
+        "attention": 27269.1517388384,
+        "gemm": 26524.84984879781,
+        "moe_experts": 11268.375941550901,
+        "norm_elementwise": 1633.401617082121,
+        "lm_head": 579.4000887034457,
+        "communication": 27184.932240027323
+       },
+       "breakdown_us": {
+        "compute": 3037.7335456326655,
+        "hbm": 40913.03961314125,
+        "latency": 23324.40607619877,
+        "comm": 27184.932240027323,
+        "launch": 0.0
+       },
+       "dominant": "hbm",
+       "mfu": 0.22193260656024608,
+       "sim_wall_s": 156.66408443450928
+      }
+     },
+     "no_overlap": {
+      "point": {
+       "model": "deepseek-v3",
+       "system": "h100_9n",
+       "phase": "decode",
+       "plan": {
+        "tp": 1,
+        "ep": 72,
+        "pp": 1,
+        "dp": 1
+       },
+       "batch": 256,
+       "context": 2000,
+       "seqlen": 0,
+       "chunk": 0,
+       "micro_batches": 1,
+       "schedule": "1f1b",
+       "launch": "graph",
+       "overlap": false,
+       "dtype": "fp8",
+       "study": "",
+       "tag": ""
+      },
+      "result": {
+       "step_us": 106332.3,
+       "tok_s_gpu": 2407.5469071956495,
+       "tpot_ms": 106.3323,
+       "world": 72,
+       "fits": true,
+       "memory_total_gb": 62.177957205333335,
+       "hbm_gb": 80.0,
+       "classes_us": {
+        "attention": 24897.033333333107,
+        "moe_experts": 10443.201092896572,
+        "gemm": 14730.718579235116,
+        "norm_elementwise": 1254.1934426226296,
+        "lm_head": 354.67213114755015,
+        "communication": 54072.848219,
+        "launch_idle": 579.6332017650275
+       },
+       "breakdown_us": {
+        "compute": 10443.201092896572,
+        "hbm": 28071.275409835613,
+        "latency": 13165.342076502791,
+        "comm": 54072.848219,
+        "launch": 579.6332017650275
+       },
+       "dominant": "comm",
+       "mfu": 0.196897662822905,
+       "sim_wall_s": 77.04408407211304
+      }
+     }
+    },
+    "predicted": 2710.1386606742835,
+    "model": "one decode step: 94460 us",
+    "predicted_no_overlap": 2407.5469071956495
+   },
+   "error": -0.02696753947606731
+  },
+  {
+   "id": "sglang-h100-prefill",
+   "source": "https://lmsys.org/blog/2025-05-05-large-scale-ep/",
+   "date": "2025-05-05",
+   "engine": "SGLang (PD disaggregation, large-scale EP)",
+   "hardware": "4 nodes x 8 H100, InfiniBand (prefill side)",
+   "config": "DeepSeek-V3, prefill EP32 with DP attention, 16,384 tokens per GPU as 4 prompts of 4,096",
+   "stated": "59,337 input tokens/s per node with simulated perfect EPLB; 50,302 with the default expert distribution",
+   "metric": "input tok/s per GPU",
+   "measured": 7417.125,
+   "derived": "59,337 / 8. The simulator routes tokens uniformly, which is what 'simulated perfect EPLB' approximates; the default-EPLB figure (6,287.75 per GPU) is kept as a second reference.",
+   "measured_alt": 6287.75,
+   "role": "primary",
+   "prediction": {
+    "points": {
+     "prefill": {
+      "point": {
+       "model": "deepseek-v3",
+       "system": "h100_4n",
+       "phase": "prefill",
+       "plan": {
+        "tp": 1,
+        "ep": 32,
+        "pp": 1,
+        "dp": 1
+       },
+       "batch": 4,
+       "context": 0,
+       "seqlen": 4096,
+       "chunk": 0,
+       "micro_batches": 1,
+       "schedule": "1f1b",
+       "launch": "graph",
+       "overlap": false,
+       "dtype": "fp8",
+       "study": "",
+       "tag": ""
+      },
+      "result": {
+       "step_us": 4074963.144262,
+       "tok_s_gpu": 4020.64986110868,
+       "ttft_ms": 4074.9631442620002,
+       "world": 32,
+       "fits": true,
+       "memory_total_gb": 40.850096128,
+       "hbm_gb": 80.0,
+       "classes_us": {
+        "attention": 527846.7333333216,
+        "moe_experts": 509049.5191256887,
+        "gemm": 393118.99453551986,
+        "norm_elementwise": 78878.3803278741,
+        "communication": 2565454.4852090003,
+        "launch_idle": 615.0317305950448
+       },
+       "breakdown_us": {
+        "compute": 844475.6262295156,
+        "hbm": 664418.0010928888,
+        "latency": 0.0,
+        "comm": 2565454.4852090003,
+        "launch": 615.0317305950448
+       },
+       "dominant": "comm",
+       "mfu": 0.3226897091267294,
+       "sim_wall_s": 1071.0497283935547
+      }
+     }
+    },
+    "predicted": 4020.64986110868,
+    "model": "one prefill step: 4074963 us"
+   },
+   "error": -0.4579234054827605
+  },
+  {
+   "id": "sglang-gb200-decode",
+   "source": "https://lmsys.org/blog/2025-09-25-gb200-part-2/",
+   "date": "2025-09-25",
+   "engine": "SGLang (PD disaggregation, large-scale EP)",
+   "hardware": "GB200 NVL72, 48 decode ranks",
+   "config": "DeepSeek-V3/R1, BF16 attention + FP8 MoE, decode EP48, batch 1408 per GPU at 2k ISL, no MTP",
+   "stated": "18,471 input and 9,087 output tokens per second (per GPU) for BF16 attention + FP8 MoE",
+   "metric": "output tok/s per GPU",
+   "measured": 9087.0,
+   "derived": "as stated; KV length taken as 2,048 (output length not stated)",
+   "role": "primary",
+   "prediction": {
+    "points": {
+     "decode": {
+      "point": {
+       "model": "deepseek-v3",
+       "system": "gb200",
+       "phase": "decode",
+       "plan": {
+        "tp": 1,
+        "ep": 48,
+        "pp": 1,
+        "dp": 1
+       },
+       "batch": 1408,
+       "context": 2048,
+       "seqlen": 0,
+       "chunk": 0,
+       "micro_batches": 1,
+       "schedule": "1f1b",
+       "launch": "graph",
+       "overlap": true,
+       "dtype": "fp8",
+       "study": "",
+       "tag": ""
+      },
+      "result": {
+       "world": 48,
+       "fits": false,
+       "memory_total_gb": 233.374941184,
+       "hbm_gb": 186.0
+      }
+     },
+     "no_overlap": {
+      "point": {
+       "model": "deepseek-v3",
+       "system": "gb200",
+       "phase": "decode",
+       "plan": {
+        "tp": 1,
+        "ep": 48,
+        "pp": 1,
+        "dp": 1
+       },
+       "batch": 1408,
+       "context": 2048,
+       "seqlen": 0,
+       "chunk": 0,
+       "micro_batches": 1,
+       "schedule": "1f1b",
+       "launch": "graph",
+       "overlap": false,
+       "dtype": "fp8",
+       "study": "",
+       "tag": ""
+      },
+      "result": {
+       "world": 48,
+       "fits": false,
+       "memory_total_gb": 233.374941184,
+       "hbm_gb": 186.0
+      }
+     }
+    },
+    "error": "decode: does not fit in HBM"
+   }
+  },
+  {
+   "id": "trtllm-b200-r1-fp4",
+   "source": "https://nvidia.github.io/TensorRT-LLM/blogs/Best_perf_practice_on_DeepSeek-R1_in_TensorRT-LLM.html",
+   "date": "page last updated 2026-10-26",
+   "engine": "TensorRT-LLM (in-flight batching, attention DP, CUDA graphs)",
+   "hardware": "8 x B200 (one node)",
+   "config": "nvidia/DeepSeek-R1-FP4, TP8 EP8 attention DP, max_batch 384 per rank, concurrency 3072, ISL 1K OSL 2K synthetic, no MTP",
+   "stated": "Per GPU Output Throughput 4548.0105 tps/gpu",
+   "metric": "output tok/s per GPU (end to end: prefill runs in the same iterations)",
+   "measured": 4548.0105,
+   "role": "primary",
+   "prediction": {
+    "points": {
+     "decode": {
+      "point": {
+       "model": "deepseek-v3",
+       "system": "b200",
+       "phase": "decode",
+       "plan": {
+        "tp": 1,
+        "ep": 8,
+        "pp": 1,
+        "dp": 1
+       },
+       "batch": 384,
+       "context": 2048,
+       "seqlen": 0,
+       "chunk": 0,
+       "micro_batches": 1,
+       "schedule": "1f1b",
+       "launch": "graph",
+       "overlap": false,
+       "dtype": "fp4",
+       "study": "",
+       "tag": ""
+      },
+      "result": {
+       "step_us": 36035.809267,
+       "tok_s_gpu": 10656.067056933012,
+       "tpot_ms": 36.03580926699999,
+       "world": 8,
+       "fits": true,
+       "memory_total_gb": 104.691761152,
+       "hbm_gb": 180.0,
+       "classes_us": {
+        "attention": 18555.601831896525,
+        "moe_experts": 4753.437500000014,
+        "gemm": 4433.239762931047,
+        "norm_elementwise": 1079.5646551724137,
+        "lm_head": 165.96012931034443,
+        "communication": 6512.44845199999,
+        "launch_idle": 535.5569356896631
+       },
+       "breakdown_us": {
+        "compute": 2793.90625000001,
+        "hbm": 1594.5975215517226,
+        "latency": 24599.30010775861,
+        "comm": 6512.44845199999,
+        "launch": 535.5569356896631
+       },
+       "dominant": "latency",
+       "mfu": 0.38564373713945166,
+       "sim_wall_s": 17.038641452789307
+      }
+     },
+     "prefill": {
+      "point": {
+       "model": "deepseek-v3",
+       "system": "b200",
+       "phase": "prefill",
+       "plan": {
+        "tp": 1,
+        "ep": 8,
+        "pp": 1,
+        "dp": 1
+       },
+       "batch": 1,
+       "context": 0,
+       "seqlen": 1024,
+       "chunk": 0,
+       "micro_batches": 1,
+       "schedule": "1f1b",
+       "launch": "graph",
+       "overlap": false,
+       "dtype": "fp4",
+       "study": "",
+       "tag": ""
+      },
+      "result": {
+       "step_us": 38755.912177,
+       "tok_s_gpu": 26421.775220341762,
+       "ttft_ms": 38.75591217699999,
+       "world": 8,
+       "fits": true,
+       "memory_total_gb": 49.633787904,
+       "hbm_gb": 180.0,
+       "classes_us": {
+        "moe_experts": 9323.093749999995,
+        "attention": 4003.5851293103774,
+        "gemm": 8431.564655172413,
+        "norm_elementwise": 2173.608836206866,
+        "communication": 14255.795697999978,
+        "launch_idle": 568.2641083103681
+       },
+       "breakdown_us": {
+        "compute": 9059.929418103393,
+        "hbm": 4023.9067887930773,
+        "latency": 10848.01616379318,
+        "comm": 14255.795697999978,
+        "launch": 568.2641083103681
+       },
+       "dominant": "comm",
+       "mfu": 0.8623443823851092,
+       "sim_wall_s": 20.5717990398407
+      }
+     }
+    },
+    "predicted": 8867.839511686536,
+    "predicted_decode_only": 10656.067056933012,
+    "model": "batch / (t_decode + batch/OSL * t_prefill) = 384 / (36036 + 384/2048 x 38756) us"
+   },
+   "error": 0.9498282846283084
+  },
+  {
+   "id": "trtllm-h200-r1",
+   "source": "https://nvidia.github.io/TensorRT-LLM/blogs/Best_perf_practice_on_DeepSeek-R1_in_TensorRT-LLM.html",
+   "date": "page last updated 2026-10-26",
+   "engine": "TensorRT-LLM (in-flight batching, attention DP, CUDA graphs)",
+   "hardware": "8 x H200 (one node)",
+   "config": "deepseek-ai/DeepSeek-R1 (FP8 per the page's Hopper recommendation; not stated for the row), TP8 EP8 attention DP, max_batch 128, concurrency 1024, ISL 1K OSL 2K, no MTP",
+   "stated": "Per GPU Output Throughput 1436.1584 tokens/sec/gpu",
+   "metric": "output tok/s per GPU (end to end)",
+   "measured": 1436.1584,
+   "role": "primary",
+   "prediction": {
+    "points": {
+     "decode": {
+      "point": {
+       "model": "deepseek-v3",
+       "system": "h200",
+       "phase": "decode",
+       "plan": {
+        "tp": 1,
+        "ep": 8,
+        "pp": 1,
+        "dp": 1
+       },
+       "batch": 128,
+       "context": 2048,
+       "seqlen": 0,
+       "chunk": 0,
+       "micro_batches": 1,
+       "schedule": "1f1b",
+       "launch": "graph",
+       "overlap": false,
+       "dtype": "fp8",
+       "study": "",
+       "tag": ""
+      },
+      "result": {
+       "step_us": 46887.566667,
+       "tok_s_gpu": 2729.9348014595917,
+       "tpot_ms": 46.887566666999994,
+       "world": 8,
+       "fits": true,
+       "memory_total_gb": 117.276606464,
+       "hbm_gb": 141.0,
+       "classes_us": {
+        "moe_experts": 16050.374863388017,
+        "attention": 8924.26666666664,
+        "gemm": 14201.373770491778,
+        "norm_elementwise": 789.5934426229535,
+        "lm_head": 260.31311475409956,
+        "communication": 6082.0160680000035,
+        "launch_idle": 579.6287410765008
+       },
+       "breakdown_us": {
+        "compute": 16050.374863388017,
+        "hbm": 10652.731693989052,
+        "latency": 13522.815300546417,
+        "comm": 6082.0160680000035,
+        "launch": 579.6287410765008
+       },
+       "dominant": "compute",
+       "mfu": 0.22469130934653553,
+       "sim_wall_s": 15.747313737869263
+      }
+     },
+     "prefill": {
+      "point": {
+       "model": "deepseek-v3",
+       "system": "h200",
+       "phase": "prefill",
+       "plan": {
+        "tp": 1,
+        "ep": 8,
+        "pp": 1,
+        "dp": 1
+       },
+       "batch": 1,
+       "context": 0,
+       "seqlen": 1024,
+       "chunk": 0,
+       "micro_batches": 1,
+       "schedule": "1f1b",
+       "launch": "graph",
+       "overlap": false,
+       "dtype": "fp8",
+       "study": "",
+       "tag": ""
+      },
+      "result": {
+       "step_us": 102706.477596,
+       "tok_s_gpu": 9970.159857180037,
+       "ttft_ms": 102.70647759599998,
+       "world": 8,
+       "fits": true,
+       "memory_total_gb": 99.061399552,
+       "hbm_gb": 141.0,
+       "classes_us": {
+        "moe_experts": 32062.9071038251,
+        "gemm": 28995.286885245943,
+        "attention": 6460.400000000061,
+        "norm_elementwise": 3382.0366120217964,
+        "communication": 31190.82170400006,
+        "launch_idle": 615.0252909070405
+       },
+       "breakdown_us": {
+        "compute": 52752.40437158471,
+        "hbm": 9842.436612021856,
+        "latency": 8305.78961748634,
+        "comm": 31190.82170400006,
+        "launch": 615.0252909070405
+       },
+       "dominant": "compute",
+       "mfu": 0.7400576097572035,
+       "sim_wall_s": 42.61659789085388
+      }
+     }
+    },
+    "predicted": 2401.1981295788364,
+    "predicted_decode_only": 2729.9348014595917,
+    "model": "batch / (t_decode + batch/OSL * t_prefill) = 128 / (46888 + 128/2048 x 102706) us"
+   },
+   "error": 0.6719591164726929
+  },
+  {
+   "id": "deepseek-production-decode",
+   "source": "https://github.com/deepseek-ai/open-infra-index/blob/main/202502OpenSourceWeek/day_6_one_more_thing_deepseekV3R1_inference_system_overview.md",
+   "date": "2025-02 (24 h window 2025-02-27/28)",
+   "engine": "DeepSeek's own inference system",
+   "hardware": "18-node H800 decode units (8 GPUs per node)",
+   "config": "Decode EP144 with DP attention, FP8 GEMMs and dispatch, BF16 MLA and combine, average KV length 4,989; batch per GPU not stated",
+   "stated": "~14.8k tokens/s output per H800 node; average output speed 20-22 tokens/s per user",
+   "metric": "output tok/s per GPU",
+   "measured": 1850.0,
+   "derived": "14,800 / 8. Batch per GPU ~88 = 14,800 / 8 / 21 tok/s per user. A 24 h production average with unknown MTP use and load, so it is context, not a scored holdout.",
+   "role": "soft",
+   "prediction": {
+    "points": {
+     "decode": {
+      "point": {
+       "model": "deepseek-v3",
+       "system": "h800_18n",
+       "phase": "decode",
+       "plan": {
+        "tp": 1,
+        "ep": 144,
+        "pp": 1,
+        "dp": 1
+       },
+       "batch": 88,
+       "context": 4989,
+       "seqlen": 0,
+       "chunk": 0,
+       "micro_batches": 1,
+       "schedule": "1f1b",
+       "launch": "graph",
+       "overlap": true,
+       "dtype": "fp8",
+       "study": "",
+       "tag": ""
+      },
+      "result": {
+       "step_us": 54317.461749,
+       "tok_s_gpu": 1620.1051589385086,
+       "tpot_ms": 54.317461748999996,
+       "world": 144,
+       "fits": true,
+       "memory_total_gb": 52.50931677866667,
+       "hbm_gb": 80.0,
+       "classes_us": {
+        "attention": 19005.82084774027,
+        "gemm": 24760.202820398445,
+        "moe_experts": 4404.029024325731,
+        "norm_elementwise": 1115.2464171724005,
+        "lm_head": 542.1987045708098,
+        "communication": 4489.963934792351
+       },
+       "breakdown_us": {
+        "compute": 1108.779457007292,
+        "hbm": 31381.165840239282,
+        "latency": 17337.552516961077,
+        "comm": 4489.963934792351,
+        "launch": 0.0
+       },
+       "dominant": "hbm",
+       "mfu": 0.15250187641521482,
+       "sim_wall_s": 146.35201454162598
+      }
+     }
+    },
+    "predicted": 1620.1051589385086,
+    "model": "one decode step: 54317 us"
+   },
+   "error": -0.12426748165486023
+  }
+ ]
+}

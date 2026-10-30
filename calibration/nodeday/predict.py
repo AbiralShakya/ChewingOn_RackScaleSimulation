@@ -26,11 +26,14 @@ import re
 import subprocess
 import sys
 from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 from typing import Dict, List, Optional
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 OUT = os.path.join(HERE, "predictions")
+# Forking after the native simulator has started its threads can leave a worker stuck on a futex.
+SPAWN = multiprocessing.get_context("spawn")
 RSIM = os.environ.get("RSIM", os.path.join(ROOT, "target", "release", "rsim"))
 
 #: key -> (rackscale.sweep system key, rsim system preset, rsim GPU preset, SMs)
@@ -104,7 +107,7 @@ def steps(key: str, which: str, jobs: int) -> List[dict]:
             continue
         for layers in c["layers"]:
             todo.append((key, c, layers))
-    with ProcessPoolExecutor(jobs) as ex:
+    with ProcessPoolExecutor(jobs, mp_context=SPAWN) as ex:
         rows = list(ex.map(run_step, todo))
     for r in rows:
         s = f"{r['sim_us']:10.0f} us" if "sim_us" in r else r["error"]
@@ -188,7 +191,7 @@ def _overlap_job(job):
 def gemm(key: str, jobs: int) -> List[dict]:
     gpu = SYSTEMS[key][2]
     todo = [(gpu, d, n) for d in ("bf16", "fp8") for n in GEMM_SIZES]
-    with ProcessPoolExecutor(jobs) as ex:
+    with ProcessPoolExecutor(jobs, mp_context=SPAWN) as ex:
         rows = list(ex.map(_gemm_job, todo))
     print(f"  [{key}] gemm  {len(rows)} shapes", flush=True)
     return rows
@@ -196,7 +199,7 @@ def gemm(key: str, jobs: int) -> List[dict]:
 
 def overlap(key: str, jobs: int) -> List[dict]:
     gpu, sms = SYSTEMS[key][2], SYSTEMS[key][3]
-    with ProcessPoolExecutor(jobs) as ex:
+    with ProcessPoolExecutor(jobs, mp_context=SPAWN) as ex:
         rows = list(ex.map(_overlap_job, [(gpu, sms, r) for r in OVERLAP_RESERVE["reserve"]]))
     print(f"  [{key}] overlap {len(rows)} points", flush=True)
     return rows
