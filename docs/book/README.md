@@ -28,6 +28,7 @@ reproduce its numbers. The scripts live in [`scripts/`](scripts/).
 | 9 | [How far to trust the numbers](09-validation.md) | know which results are measured, which are calibrated simulation, and which rest on presets |
 | 10 | [Bring your own workload](10-bring-your-own-workload.md) | capture any engine or kernel library on one GPU and replay it on a rack |
 | 11 | [Every parallelism, in closed form, checked cycle by cycle](11-every-parallelism.md) | write the step time of any DP / ZeRO / FSDP / HSDP / TP / SP / CP / PP / EP plan as formulas, and know how far and why the simulator departs from them |
+| 12 | [Many models, one rack](12-many-models-one-rack.md) | say what jobs sharing an NVL72 cost each other: partitioned GPUs, KV streams between prefill and decode pools, and models sharing a GPU |
 
 ## Seeing it
 

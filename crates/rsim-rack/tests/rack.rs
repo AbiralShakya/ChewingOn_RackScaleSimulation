@@ -132,3 +132,49 @@ fn viz_bundle_round_trips() {
     assert!(!page.contains("/*RSVIZ_DATA*/"));
     assert_eq!(rsim_rack::viz::from_html(&page).unwrap(), b);
 }
+
+/// A job's timing must not depend on unrelated jobs elsewhere in the system:
+/// two TP4 groups of an NVL72 on disjoint GPUs and links (ring all-reduces,
+/// no shared switch ALU) give the second group the same finish whether or
+/// not the first group's communicators are created before its own.
+#[test]
+fn disjoint_jobs_do_not_perturb_each_other() {
+    let job = |ranks: &str| {
+        format!(
+            r#"{{"streams": [[
+              {{"op": "kernel", "kernel": {{"type": "gemm", "m": 1024, "n": 4096, "k": 4096}}}},
+              {{"op": "collective", "kind": "all_reduce", "bytes": 3145728, "group": {ranks}, "algo": "ring"}},
+              {{"op": "collective", "kind": "all_gather", "bytes": 1048576, "group": {ranks}}}
+            ]]}}"#
+        )
+    };
+    let idle = r#"{"streams": [[{"op": "delay", "ns": 0}]]}"#;
+    let wl = |first: bool| {
+        let ranks: Vec<String> = (0..72)
+            .map(|r| {
+                if (4..8).contains(&r) {
+                    job("[4, 5, 6, 7]")
+                } else if first && r < 4 {
+                    job("[0, 1, 2, 3]")
+                } else {
+                    idle.to_string()
+                }
+            })
+            .collect();
+        format!(r#"{{"name": "two-jobs", "ranks": [{}]}}"#, ranks.join(","))
+    };
+    let finish = |w: String| -> Vec<f64> {
+        let out = simulate(
+            "preset: gb300_nvl72\n",
+            &w,
+            RunConfig {
+                trace: false,
+                memoize_kernels: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        out.report.ranks[4..8].iter().map(|r| r.finish_us).collect()
+    };
+    assert_eq!(finish(wl(true)), finish(wl(false)));
+}

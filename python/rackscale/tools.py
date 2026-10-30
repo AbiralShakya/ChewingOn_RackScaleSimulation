@@ -34,6 +34,9 @@ A typical performance-engineering loop:
 7. scaling_math(model, system, phase, plan) -> the closed-form step for any DP / ZeRO / FSDP / HSDP /
    TP / SP / CP / PP / EP plan, term by term; check_scaling_math runs the same plan through a roofline
    replay and the simulator and says where and why reality departs from the formulas.
+   scaling_ladder(model, system, phase) -> the best plan at every GPU count from 1 GPU to the rack.
+8. simulate_colocated(tenants) -> several models on one rack at once (partitioned or sharing GPUs),
+   each tenant's slowdown from the others.
 Bands come from measured validation (accuracy tool). Differences between runs are more
 reliable than absolute times, especially on GPUs without measured calibration.
 Runs are cached by content, so repeating a call is free. Fast mode takes seconds to a minute;
@@ -158,6 +161,45 @@ TOOLS: List[dict] = [
            "micro_batches": {"type": "integer"}, "batch": {"type": "integer"}, "context": {"type": "integer"},
            "optimizer": {"type": "boolean"}},
           ["model"]),
+    _tool("scaling_ladder",
+          lambda model, system="gb300", phase="train", gpus=None, **kw: _ladder(model, system, phase, gpus, kw),
+          "From one GPU to the whole rack in closed form: at each GPU count, the best plan (train: the most tokens/s "
+          "per GPU at a fixed global batch over every TP / SP / CP / PP / DP / ZeRO / HSDP plan that fits in HBM; "
+          "decode: the most tokens/s per GPU over TP / PP / EP layouts and batches with a per-user speed floor), "
+          "with its step time, MFU, memory, dominant term, every term in ms and the scaling efficiency against the "
+          "smallest count that fits. Takes well under a second.",
+          {"model": {"type": "string", "description": "a list_models name"},
+           "system": {"type": "string", "description": "gb300 (NVL72), b300, h100, a100, or a system preset"},
+           "phase": {"type": "string", "enum": ["train", "decode"]},
+           "gpus": {"type": "array", "items": {"type": "integer"},
+                    "description": "GPU counts (default 1, 2, 4, 8, 16, 36, 72; counts above the system are skipped)"},
+           "seqlen": {"type": "integer", "description": "train: tokens per sequence (default 8192)"},
+           "global_batch": {"type": "integer", "description": "train: sequences per step (default 256)"},
+           "context": {"type": "integer", "description": "decode: context length (default 8192)"},
+           "min_tps_user": {"type": "number", "description": "decode: minimum tokens/s per user"},
+           "dtype": {"type": "string", "enum": ["bf16", "fp8", "fp4"]}},
+          ["model"]),
+    _tool("simulate_colocated",
+          lambda tenants, system="gb300", layers=2, flows=None, alone=True, mode="fast": _colocated(
+              tenants, system, layers, flows, alone, mode),
+          "Run several models on one rack at the same time: each tenant has its own model, phase, parallel plan and "
+          "GPUs (disjoint GPUs = a partitioned rack sharing the NVLink switches; overlapping GPUs = MPS-style "
+          "sharing), plus optional flows between tenants (KV caches from a prefill pool to a decode pool, weights "
+          "from a trainer to samplers). Returns each tenant's step time together and alone, the slowdown, and each "
+          "flow's delivered rate. "
+          "Exact mode makes tenants on the same GPU share SMs, L2 and HBM cycle by cycle.",
+          {"tenants": {"type": "array", "items": {"type": "object"},
+                       "description": "[{name, model, phase: decode|prefill|train, plan: {...}, gpus: [0, 1, ...] or "
+                                      "'0-63', batch, context, seqlen, micro_batches, steps}]"},
+           "system": {"type": "string", "description": "gb300 (NVL72) or another system key"},
+           "layers": {"type": "integer", "description": "layers per tenant model (fewer = faster)"},
+           "flows": {"type": "array", "items": {"type": "object"},
+                     "description": "[{name, src: gpus, dst: gpus, bytes, times, every_ns, sms, start_ns}]: "
+                                    "send/recv from each src GPU to the dst GPU at the same position, one transfer "
+                                    "issued every every_ns (offered rate bytes/every_ns per pair)"},
+           "alone": {"type": "boolean", "description": "also simulate each tenant alone to measure interference"},
+           "mode": {"type": "string", "enum": ["fast", "exact"]}},
+          ["tenants"]),
     _tool("compare_runs", lambda run_a, run_b: api.compare(run_a, run_b),
           "Compare two runs: step time and throughput with a significance verdict, per-op and stall deltas.",
           {"run_a": _RUN_ID, "run_b": _RUN_ID}, ["run_a", "run_b"]),
@@ -192,6 +234,38 @@ def _scaling_math(model, system, phase, plan, kw) -> dict:
 def _check_math(model, system, phase, plan, layers, kw) -> dict:
     from . import scaling
     return dict(scaling.check(model, system, phase, _plan(plan), layers=layers, **kw), schema="rackscale-api/v1")
+
+
+def _ladder(model, system, phase, gpus, kw) -> dict:
+    from . import scaling
+    if gpus:
+        kw["gpus"] = tuple(gpus)
+    return dict(scaling.ladder(model, system, phase, **kw), schema="rackscale-api/v1")
+
+
+def _gpus(g) -> list:
+    if isinstance(g, str):
+        out = []
+        for part in g.split(","):
+            lo, _, hi = part.partition("-")
+            out += list(range(int(lo), int(hi or lo) + 1))
+        return out
+    return list(g)
+
+
+def _colocated(tenants, system, layers, flows, alone, mode) -> dict:
+    from . import colocate as co
+    ts = []
+    for t in tenants:
+        t = dict(t)
+        t["plan"] = _plan(t.get("plan"))
+        t["gpus"] = _gpus(t.get("gpus", []))
+        ts.append(co.Tenant(**t))
+    fl = [co.Flow(**{**f, "src": _gpus(f["src"]), "dst": _gpus(f["dst"])}) for f in (flows or [])]
+    res = co.run(ts, system, layers=layers, alone=alone, fast=mode != "exact", flows=fl)
+    res.pop("report", None)
+    res["summary"] = co.summary(res)
+    return dict(res, schema="rackscale-api/v1")
 
 
 _BY_NAME = {t["name"]: t for t in TOOLS}

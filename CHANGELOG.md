@@ -15,6 +15,20 @@ until 1.0, a minor version may change simulated timings, and the release notes s
   and splits the difference into kernel efficiency, power-capped clock, collectives and overlap.
   Agent tools `scaling_math` and `check_scaling_math`. Book chapter 11 and
   `research/parallelism/check_math.py` (22 cases on GB300 NVL72).
+- `rackscale.colocate`: several models on one rack at once. Each tenant (model, phase, parallel
+  plan, GPUs) is lowered on its own and placed on its GPUs of one shared workload, partitioned or
+  sharing GPUs MPS-style, with optional `Flow`s between tenants (KV caches from a prefill pool,
+  weights from a trainer) issued on a clock. Reports each tenant's step together and alone, and
+  each flow's delivered rate. Agent tool `simulate_colocated`; book chapter 12;
+  `research/colocation/run.py`.
+- `rackscale.scaling.ladder`: the best closed-form plan at every GPU count from one GPU to the
+  rack (training at a fixed global batch, decode under a per-user speed floor), with
+  `best_train`, `best_decode`, `train_plans` and `decode_plans`. Agent tool `scaling_ladder`;
+  table in book chapter 11. `scaling.replay(..., spans=True)` returns every op's span for
+  timelines.
+- Rank reports carry `stream_finish_us`, when each stream finished its last op, so jobs that
+  share a GPU are timed by their own streams.
+- `host` ops are documented in the workload format.
 - One install gives every command: the `rsim` command line now runs in-process from the Python
   package, so `pip install rackscale` provides `rackscale`, `rsim` and `rackscale-mcp`.
   `rackscale presets|system|kernel|sass|path|timeline|validate|net|viz` forward to it.
@@ -26,7 +40,19 @@ until 1.0, a minor version may change simulated timings, and the release notes s
   and command-line and Python references; release workflow with prebuilt wheels; issue and PR
   templates; `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CITATION.cff`.
 
+### Changed (simulated timings)
+- Each network transfer's starting NVLink plane is seeded from its communicator's GPUs instead of
+  the order in which the workload created communicators, so a job's timing no longer depends on
+  unrelated jobs elsewhere in the system (a TP4 group's finish used to move by 2% when another TP4
+  group was added on other GPUs). Single-job results move as the seed changes: in our checks
+  makespans by −0.5% to +1.6%, transfer-mode all-to-alls by −6% to +12% and one GB200 32 MiB
+  all-gather by +23%; packet-mode all-to-alls and the median validation point did not move.
+  `docs/NETWORK.md` has the new validation numbers.
+
 ### Fixed
+- `scaling.estimate` for inference counts every DP group's batch (`tokens_per_step` was one
+  group's), and with PP it now gives the step a token takes through all stages and the tokens of
+  the pp batches in flight; inference plan labels leave out training-only terms (schedule, ZeRO).
 - `rsim run`, `rsim system` and `rsim viz run` accept a system preset name as well as a YAML path.
 - File errors name the file; unknown GPU presets list the valid ones.
 - Piping output to `head` no longer panics.

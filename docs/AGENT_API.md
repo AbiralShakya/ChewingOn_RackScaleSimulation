@@ -79,6 +79,8 @@ api.kernel(r["run_id"], "lm_head")["role_anatomy"]   # producer / MMA / epilogue
 | `sweep` | `api.sweep(run_id, key, values, objective)` | one row per value and the best value |
 | `scaling_math` | `scaling.estimate(model, hardware(system), phase, Plan(...))` | closed-form step, MFU, throughput, memory, critical batches; every term with its formula |
 | `check_scaling_math` | `scaling.check(model, system, phase, Plan(...), layers)` | textbook vs roofline replay vs simulator, signed errors, the gap split into kernel efficiency, clock, collectives and overlap |
+| `scaling_ladder` | `scaling.ladder(model, system, phase, gpus=...)` | the best closed-form plan at each GPU count from 1 GPU to the rack: step, tokens/s per GPU, MFU, memory, dominant term, scaling efficiency |
+| `simulate_colocated` | `colocate.run([Tenant(...)], system, layers, flows=[Flow(...)])` | several models on one rack (own GPUs or shared GPUs), each tenant's step together and alone and the slowdown, each flow's delivered rate |
 | `compare_runs` | `api.compare(a, b)` | step and throughput deltas, per-op deltas, stall-anatomy deltas |
 | `list_runs` | `api.runs()` | runs kept in this session |
 | `accuracy` | `api.accuracy_table()` | the evidence behind every band |

@@ -1,0 +1,368 @@
+{
+ "partition": {
+  "system": "GB300 NVL72",
+  "layers": 4,
+  "together_makespan_us": 4561.325113,
+  "tenants": [
+   {
+    "name": "deepseek",
+    "model": "deepseek-v3",
+    "phase": "decode",
+    "plan": "ep64",
+    "gpus": 64,
+    "steps": 3,
+    "step_us": 1520.4417043333333,
+    "tokens_per_step": 4096,
+    "tok_s": 2693953.9926629215,
+    "alone_step_us": 1520.4417043333333,
+    "slowdown": 0.0
+   },
+   {
+    "name": "llama8b",
+    "model": "llama3-8b",
+    "phase": "decode",
+    "plan": "tp8",
+    "gpus": 8,
+    "steps": 3,
+    "step_us": 535.6845416666666,
+    "tokens_per_step": 64,
+    "tok_s": 119473.30008978388,
+    "alone_step_us": 535.6845416666666,
+    "slowdown": 0.0
+   }
+  ],
+  "flows": [],
+  "warnings": [],
+  "wall_s": 57.1404082775116
+ },
+ "mixed": {
+  "system": "GB300 NVL72",
+  "layers": 2,
+  "together_makespan_us": 6433.288232,
+  "tenants": [
+   {
+    "name": "trainer",
+    "model": "llama3-70b",
+    "phase": "train",
+    "plan": "tp8 dp2 fsdp",
+    "gpus": 16,
+    "steps": 1,
+    "step_us": 6433.288232,
+    "tokens_per_step": 8192,
+    "tok_s": 1273376.8027448144,
+    "alone_step_us": 6433.288232,
+    "slowdown": 0.0
+   },
+   {
+    "name": "moe",
+    "model": "qwen3-30b-a3b",
+    "phase": "decode",
+    "plan": "tp4",
+    "gpus": 4,
+    "steps": 4,
+    "step_us": 397.298185,
+    "tokens_per_step": 128,
+    "tok_s": 322176.1508928111,
+    "alone_step_us": 397.298185,
+    "slowdown": 0.0
+   },
+   {
+    "name": "1b-0",
+    "model": "llama3.2-1b",
+    "phase": "decode",
+    "plan": "1 GPU",
+    "gpus": 1,
+    "steps": 6,
+    "step_us": 478.09715466666665,
+    "tokens_per_step": 64,
+    "tok_s": 133864.0052033385,
+    "alone_step_us": 478.09715466666665,
+    "slowdown": 0.0
+   },
+   {
+    "name": "1b-1",
+    "model": "llama3.2-1b",
+    "phase": "decode",
+    "plan": "1 GPU",
+    "gpus": 1,
+    "steps": 6,
+    "step_us": 478.09715466666665,
+    "tokens_per_step": 64,
+    "tok_s": 133864.0052033385,
+    "alone_step_us": 478.09715466666665,
+    "slowdown": 0.0
+   },
+   {
+    "name": "1b-2",
+    "model": "llama3.2-1b",
+    "phase": "decode",
+    "plan": "1 GPU",
+    "gpus": 1,
+    "steps": 6,
+    "step_us": 478.09715466666665,
+    "tokens_per_step": 64,
+    "tok_s": 133864.0052033385,
+    "alone_step_us": 478.09715466666665,
+    "slowdown": 0.0
+   },
+   {
+    "name": "1b-3",
+    "model": "llama3.2-1b",
+    "phase": "decode",
+    "plan": "1 GPU",
+    "gpus": 1,
+    "steps": 6,
+    "step_us": 478.09715466666665,
+    "tokens_per_step": 64,
+    "tok_s": 133864.0052033385,
+    "alone_step_us": 478.09715466666665,
+    "slowdown": 0.0
+   }
+  ],
+  "flows": [],
+  "warnings": [],
+  "wall_s": 304.6115140914917
+ },
+ "disagg 2 GB/s": {
+  "system": "GB300 NVL72",
+  "layers": 2,
+  "together_makespan_us": 2922.206423,
+  "tenants": [
+   {
+    "name": "decode",
+    "model": "llama3-70b",
+    "phase": "decode",
+    "plan": "tp8",
+    "gpus": 8,
+    "steps": 8,
+    "step_us": 365.275802875,
+    "tokens_per_step": 64,
+    "tok_s": 175210.0727622006,
+    "alone_step_us": 365.211225,
+    "slowdown": 0.00017682335749680256
+   }
+  ],
+  "flows": [
+   {
+    "name": "kv",
+    "pairs": 8,
+    "bytes": 4194304,
+    "times": 2,
+    "sms": 4,
+    "delivered_gbps": 2.0,
+    "span_us": 2127.413989,
+    "offered_gbps": 2.0
+   }
+  ],
+  "warnings": [],
+  "wall_s": 18.239965200424194
+ },
+ "disagg 10 GB/s": {
+  "system": "GB300 NVL72",
+  "layers": 2,
+  "together_makespan_us": 2930.929971,
+  "tenants": [
+   {
+    "name": "decode",
+    "model": "llama3-70b",
+    "phase": "decode",
+    "plan": "tp8",
+    "gpus": 8,
+    "steps": 8,
+    "step_us": 366.366246375,
+    "tokens_per_step": 64,
+    "tok_s": 174688.5818037172,
+    "alone_step_us": 365.211225,
+    "slowdown": 0.003162611924099501
+   }
+  ],
+  "flows": [
+   {
+    "name": "kv",
+    "pairs": 8,
+    "bytes": 4194304,
+    "times": 7,
+    "sms": 4,
+    "delivered_gbps": 9.999999999999998,
+    "span_us": 2546.896813,
+    "offered_gbps": 10.0
+   }
+  ],
+  "warnings": [],
+  "wall_s": 20.090075254440308
+ },
+ "disagg 25 GB/s": {
+  "system": "GB300 NVL72",
+  "layers": 2,
+  "together_makespan_us": 2940.821578,
+  "tenants": [
+   {
+    "name": "decode",
+    "model": "llama3-70b",
+    "phase": "decode",
+    "plan": "tp8",
+    "gpus": 8,
+    "steps": 8,
+    "step_us": 367.60269725,
+    "tokens_per_step": 64,
+    "tok_s": 174101.00763345257,
+    "alone_step_us": 365.211225,
+    "slowdown": 0.006548189338922983
+   }
+  ],
+  "flows": [
+   {
+    "name": "kv",
+    "pairs": 8,
+    "bytes": 4194304,
+    "times": 18,
+    "sms": 4,
+    "delivered_gbps": 25.0,
+    "span_us": 2882.919317,
+    "offered_gbps": 25.0
+   }
+  ],
+  "warnings": [],
+  "wall_s": 18.616935968399048
+ },
+ "disagg 50 GB/s": {
+  "system": "GB300 NVL72",
+  "layers": 2,
+  "together_makespan_us": 2976.357857,
+  "tenants": [
+   {
+    "name": "decode",
+    "model": "llama3-70b",
+    "phase": "decode",
+    "plan": "tp8",
+    "gpus": 8,
+    "steps": 8,
+    "step_us": 372.044732125,
+    "tokens_per_step": 64,
+    "tok_s": 172022.3254726725,
+    "alone_step_us": 365.211225,
+    "slowdown": 0.018711109235484136
+   }
+  ],
+  "flows": [
+   {
+    "name": "kv",
+    "pairs": 8,
+    "bytes": 4194304,
+    "times": 35,
+    "sms": 4,
+    "delivered_gbps": 49.99999999999999,
+    "span_us": 2881.897587,
+    "offered_gbps": 50.0
+   }
+  ],
+  "warnings": [],
+  "wall_s": 18.04443073272705
+ },
+ "disagg 100 GB/s": {
+  "system": "GB300 NVL72",
+  "layers": 2,
+  "together_makespan_us": 3014.95156,
+  "tenants": [
+   {
+    "name": "decode",
+    "model": "llama3-70b",
+    "phase": "decode",
+    "plan": "tp8",
+    "gpus": 8,
+    "steps": 8,
+    "step_us": 376.868945,
+    "tokens_per_step": 64,
+    "tok_s": 169820.3071627459,
+    "alone_step_us": 365.211225,
+    "slowdown": 0.03192048656226265
+   }
+  ],
+  "flows": [
+   {
+    "name": "kv",
+    "pairs": 8,
+    "bytes": 4194304,
+    "times": 70,
+    "sms": 4,
+    "delivered_gbps": 99.99999999999999,
+    "span_us": 2925.959858,
+    "offered_gbps": 100.0
+   }
+  ],
+  "warnings": [],
+  "wall_s": 17.998114109039307
+ },
+ "shared (fast)": {
+  "system": "GB300 NVL72",
+  "layers": 1,
+  "together_makespan_us": 662.785926,
+  "tenants": [
+   {
+    "name": "8b",
+    "model": "llama3-8b",
+    "phase": "decode",
+    "plan": "tp4",
+    "gpus": 4,
+    "steps": 2,
+    "step_us": 210.376003,
+    "tokens_per_step": 32,
+    "tok_s": 152108.60337526235,
+    "alone_step_us": 145.6436385,
+    "slowdown": 0.4444572050429789
+   },
+   {
+    "name": "1b",
+    "model": "llama3.2-1b",
+    "phase": "decode",
+    "plan": "tp4",
+    "gpus": 4,
+    "steps": 4,
+    "step_us": 165.6964815,
+    "tokens_per_step": 64,
+    "tok_s": 386248.3947795838,
+    "alone_step_us": 124.619298,
+    "slowdown": 0.32962136811266585
+   }
+  ],
+  "flows": [],
+  "warnings": [],
+  "wall_s": 27.782618284225464
+ },
+ "shared (exact)": {
+  "system": "GB300 NVL72",
+  "layers": 1,
+  "together_makespan_us": 578.36137,
+  "tenants": [
+   {
+    "name": "8b",
+    "model": "llama3-8b",
+    "phase": "decode",
+    "plan": "tp4",
+    "gpus": 4,
+    "steps": 2,
+    "step_us": 173.382355,
+    "tokens_per_step": 32,
+    "tok_s": 184563.18695175182,
+    "alone_step_us": 138.275857,
+    "slowdown": 0.25388740132704424
+   },
+   {
+    "name": "1b",
+    "model": "llama3.2-1b",
+    "phase": "decode",
+    "plan": "tp4",
+    "gpus": 4,
+    "steps": 4,
+    "step_us": 144.5903425,
+    "tokens_per_step": 64,
+    "tok_s": 442629.8388497144,
+    "alone_step_us": 120.3098015,
+    "slowdown": 0.2018168153988682
+   }
+  ],
+  "flows": [],
+  "warnings": [],
+  "wall_s": 315.73525381088257
+ }
+}
