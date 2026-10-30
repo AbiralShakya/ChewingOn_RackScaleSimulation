@@ -6,6 +6,13 @@ until 1.0, a minor version may change simulated timings, and the release notes s
 ## [Unreleased]
 
 ### Added
+- `RunConfig.variability`: seeded per-GPU (`gpu_sigma`), per-kernel (`kernel_sigma`) and named
+  (`slow_ranks`) slowdowns, so ranks differ the way real GPUs do. `NetConfig.faults`: links that
+  never trained (left out of routing, NVLS planes included), run degraded (`rate_scale`) or flap
+  (down windows, optionally repeating), in both transfer and packet fidelity; adaptive switches
+  route around a down port. `rackscale.tail` closed forms (expected maximum of N half-normals,
+  straggler tax by sync interval, striped-link slowdowns, ECMP balls into bins). Book chapter 16
+  with `docs/book/scripts/tail_latency.py`. Off by default; no timing changes.
 - Run reports (`rackscale.report`): a self-contained HTML page per run, or several runs side by
   side, with KPI tiles, where the GPU time goes, every kernel on the roofline (with the FP8/FP4
   roofs when kernels use them), the top kernels, the scheduler-stall anatomy and the collectives;

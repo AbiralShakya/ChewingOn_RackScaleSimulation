@@ -68,7 +68,17 @@ and scale-out switches route adaptively (least-loaded equal-cost port) or by ECM
 stream results packet by packet. Multi-node presets build rail-optimised two-level fat-trees
 with `spines` and an `oversubscription` ratio.
 
-**What is not modelled.** Link-level retries and errors; NVLink flit-level arbitration inside
+**Faults** (`net.faults`, chapter 16 of the book). A link between two named nodes (`gpu3`,
+`nvsw0.2`, `leaf1`, `spine4`, `sw0`) can be dead for the whole run (left out of routing and of
+the NVLS planes, as a link that never trained), run at `rate_scale` of its rate (kept in
+routing: a link retrained at lower width), or go down for windows (`start_us`, `duration_us`,
+`repeat`, `period_us`). A frame that would run into a down window waits for it to end; in
+packet mode a down port reads as busy, so adaptive switches route new packets elsewhere while
+ECMP and NVLink's address interleave keep queuing behind it.
+
+**What is not modelled.** Bit errors, FEC latency variance and link-level replay as such (a
+fault window stands in for them); sender-side congestion control (ECN / DCQCN, Ultra Ethernet
+NSCC and RCCC): the scale-out fabric is lossless and credit based; NVLink flit-level arbitration inside
 the switch (packets are 4 KiB trains); PCIe between NIC and GPU; GPUDirect RDMA proxy
 threads; NCCL's runtime tuner plugins; topology-aware rank reordering. Packets larger than
 `max_packets_per_transfer × packet_bytes` are coarsened to bound cost and hold one nominal

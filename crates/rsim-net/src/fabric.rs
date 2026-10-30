@@ -23,15 +23,62 @@ pub struct Channel {
     /// Busy picoseconds per time bin of `bin_ps` (empty when binning is off).
     pub busy_bins: Vec<f32>,
     pub bin_ps: f64,
+    /// Windows in which the link is down or degraded (see `LinkFault`).
+    pub faults: Vec<FaultWindow>,
+    /// Down for the whole run: routing leaves it out, as the fabric
+    /// manager does with a link that failed to train.
+    pub dead: bool,
+}
+
+/// `[start, end)` in ps, during which the link runs at `scale` of its rate
+/// (0 = down: nothing starts until `end`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FaultWindow {
+    pub start: f64,
+    pub end: f64,
+    pub scale: f64,
 }
 
 impl Channel {
+    /// When `wire` bytes offered at `t` can start, and how long they take,
+    /// given the link's fault windows. A frame that would run into a down
+    /// window is lost and resent after it (link-level replay).
+    #[inline]
+    pub fn slot(&self, t: f64, wire: f64) -> (f64, f64) {
+        let base = wire / self.rate;
+        if self.faults.is_empty() {
+            return (t, base);
+        }
+        let mut start = t;
+        loop {
+            let at = self
+                .faults
+                .iter()
+                .find(|f| start >= f.start && start < f.end);
+            match at {
+                Some(f) if f.scale <= 0.0 => start = f.end,
+                Some(f) => return (start, base / f.scale),
+                None => {
+                    let cut = self
+                        .faults
+                        .iter()
+                        .filter(|f| f.scale <= 0.0 && f.start > start && f.start < start + base)
+                        .map(|f| f.end)
+                        .fold(f64::NAN, f64::max);
+                    if cut.is_nan() {
+                        return (start, base);
+                    }
+                    start = cut;
+                }
+            }
+        }
+    }
+
     /// FCFS: serialise `wire` bytes (carrying `payload` bytes of data);
     /// returns the time the last byte leaves the sender.
     #[inline]
     pub fn serve(&mut self, t: Time, wire: f64, payload: u64) -> Time {
-        let start = self.free_at.max(t as f64);
-        let dur = wire / self.rate;
+        let (start, dur) = self.slot(self.free_at.max(t as f64), wire);
         self.free_at = start + dur;
         self.bytes += payload;
         self.busy_ps += dur;
@@ -133,6 +180,8 @@ impl Fabric {
                     busy_ps: 0.0,
                     busy_bins: Vec::new(),
                     bin_ps: 0.0,
+                    faults: Vec::new(),
+                    dead: false,
                 });
             }
         }
@@ -190,7 +239,7 @@ impl Fabric {
     pub fn attached_switches(&self, g: usize) -> Vec<(usize, ChannelId)> {
         self.adj[g]
             .iter()
-            .filter(|&&c| !self.is_gpu[self.channels[c].to])
+            .filter(|&&c| !self.is_gpu[self.channels[c].to] && !self.channels[c].dead)
             .map(|&c| (self.channels[c].to, c))
             .collect()
     }
@@ -199,7 +248,7 @@ impl Fabric {
         self.adj[a]
             .iter()
             .copied()
-            .find(|&c| self.channels[c].to == b)
+            .find(|&c| self.channels[c].to == b && !self.channels[c].dead)
     }
 
     /// All shortest paths (as channel lists) from `src` to `dst`, never
@@ -223,6 +272,9 @@ impl Fabric {
             }
             for &c in &self.adj[u] {
                 let v = self.channels[c].to;
+                if self.channels[c].dead {
+                    continue;
+                }
                 if dist[v] == usize::MAX {
                     dist[v] = dist[u] + 1;
                     q.push_back(v);
@@ -249,7 +301,7 @@ impl Fabric {
                 if dist[u] != usize::MAX && dist[u] + 1 == dist[v] && (u == src || !self.is_gpu[u])
                 {
                     for &c in &self.adj[u] {
-                        if self.channels[c].to == v {
+                        if self.channels[c].to == v && !self.channels[c].dead {
                             let mut s = suffix.clone();
                             s.push(c);
                             stack.push((u, s));
@@ -272,7 +324,7 @@ impl Fabric {
             let mut q = VecDeque::from([dst]);
             // Reverse BFS: a node u reaches v via channel u->v.
             let mut radj = vec![Vec::new(); n];
-            for c in &self.channels {
+            for c in self.channels.iter().filter(|c| !c.dead) {
                 radj[c.to].push(c.from);
             }
             while let Some(v) = q.pop_front() {
@@ -302,7 +354,10 @@ impl Fabric {
             .copied()
             .filter(|&c| {
                 let v = self.channels[c].to;
-                d[v] != u32::MAX && d[v] + 1 == d[u] && (v == dst || !self.is_gpu[v])
+                !self.channels[c].dead
+                    && d[v] != u32::MAX
+                    && d[v] + 1 == d[u]
+                    && (v == dst || !self.is_gpu[v])
             })
             .collect()
     }
@@ -328,6 +383,32 @@ mod tests {
         let p = f.paths(0, 71).clone();
         assert_eq!(p.len(), 18);
         assert!(p.iter().all(|x| x.len() == 2));
+    }
+
+    #[test]
+    fn dead_link_leaves_routing_and_down_window_waits() {
+        let sys = presets::system("gb200_nvl72").unwrap().build().unwrap();
+        let mut f = Fabric::new(&sys, 1.0);
+        let c = f.adj[0][0];
+        f.channels[c].dead = true;
+        assert_eq!(f.paths(0, 71).len(), 17);
+        let ch = &mut f.channels[c];
+        ch.faults.push(FaultWindow {
+            start: 100.0,
+            end: 500.0,
+            scale: 0.0,
+        });
+        ch.faults.push(FaultWindow {
+            start: 1000.0,
+            end: 2000.0,
+            scale: 0.5,
+        });
+        let w = ch.rate * 50.0; // 50 ps of wire time
+        assert_eq!(ch.slot(0.0, w), (0.0, 50.0));
+        // Would run into the outage: resent after it.
+        assert_eq!(ch.slot(80.0, w), (500.0, 50.0));
+        assert_eq!(ch.slot(200.0, w), (500.0, 50.0));
+        assert_eq!(ch.slot(1500.0, w), (1500.0, 100.0));
     }
 
     #[test]

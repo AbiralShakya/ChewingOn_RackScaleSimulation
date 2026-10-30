@@ -24,7 +24,7 @@ pub mod packet;
 pub mod phy;
 
 pub use collective::{Algo, CollKind, Collective};
-pub use engine::{run_one, Fidelity, NetConfig, NetEngine, NetEvent};
+pub use engine::{run_one, Fidelity, LinkFault, NetConfig, NetEngine, NetEvent};
 pub use fabric::Fabric;
 pub use nccl::Proto;
 pub use packet::{PacketConfig, Routing};

@@ -47,6 +47,67 @@ pub struct RunConfig {
     /// Exact mode: simulate ranks that run in lockstep with an identical
     /// rank once (see `fold`). Results are the same either way.
     pub fold_ranks: bool,
+    /// GPU-to-GPU and kernel-to-kernel slowdowns (stragglers). Off by
+    /// default: every rank runs its kernels exactly as modelled.
+    pub variability: Variability,
+}
+
+/// Slowdowns that make ranks differ, as on real hardware: silicon and
+/// cooling differences between GPUs, clocks that wander under the power
+/// cap, OS and driver noise. Every factor is at least 1 (no GPU runs faster
+/// than its model) and is drawn from a seeded hash, so a run is
+/// reproducible. Chapter 16 of the book works out what they cost.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Variability {
+    /// Fixed per-GPU slowdown `1 + gpu_sigma * |Z|`, drawn once per rank.
+    pub gpu_sigma: f64,
+    /// Per-kernel slowdown `1 + kernel_sigma * |Z|`, drawn for every kernel
+    /// a rank runs.
+    pub kernel_sigma: f64,
+    /// Named stragglers: `[rank, factor]`, on top of the draws.
+    pub slow_ranks: Vec<(usize, f64)>,
+    pub seed: u64,
+}
+
+impl Variability {
+    pub fn active(&self) -> bool {
+        self.gpu_sigma > 0.0 || self.kernel_sigma > 0.0 || !self.slow_ranks.is_empty()
+    }
+
+    /// The fixed slowdown of `rank`.
+    pub fn gpu_factor(&self, rank: usize) -> f64 {
+        let named: f64 = self
+            .slow_ranks
+            .iter()
+            .filter(|(r, _)| *r == rank)
+            .map(|(_, f)| f.max(1.0))
+            .product();
+        (1.0 + self.gpu_sigma * half_normal(self.seed, rank as u64, u64::MAX)) * named
+    }
+
+    /// The slowdown of the `n`-th kernel `rank` runs.
+    pub fn kernel_factor(&self, rank: usize, n: u64) -> f64 {
+        if self.kernel_sigma <= 0.0 {
+            return 1.0;
+        }
+        1.0 + self.kernel_sigma * half_normal(self.seed, rank as u64, n)
+    }
+}
+
+/// |Z| for a standard normal Z, from a hash of `(seed, a, b)` (Box-Muller).
+fn half_normal(seed: u64, a: u64, b: u64) -> f64 {
+    let mix = |mut x: u64| {
+        x ^= x >> 30;
+        x = x.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        x ^= x >> 27;
+        x = x.wrapping_mul(0x94D0_49BB_1331_11EB);
+        x ^ (x >> 31)
+    };
+    let h = mix(seed ^ mix(a.wrapping_add(0x9E37_79B9_7F4A_7C15) ^ mix(b)));
+    let u1 = ((h >> 11) as f64 + 0.5) / (1u64 << 53) as f64;
+    let u2 = ((mix(h) >> 11) as f64 + 0.5) / (1u64 << 53) as f64;
+    ((-2.0 * u1.ln()).sqrt() * (std::f64::consts::TAU * u2).cos()).abs()
 }
 
 impl Default for RunConfig {
@@ -62,6 +123,7 @@ impl Default for RunConfig {
             persist_memo: false,
             detail_ranks: Vec::new(),
             fold_ranks: true,
+            variability: Variability::default(),
         }
     }
 }
@@ -286,9 +348,22 @@ pub struct RankLp {
     /// SMs held by running memoized kernels, and kernels waiting for SMs.
     memo_held: u32,
     memo_pending: std::collections::VecDeque<(usize, Arc<KernelLaunch>, u64, Time)>,
+    variability: Variability,
+    /// This rank's fixed slowdown, and kernels it has timed so far.
+    gpu_factor: f64,
+    kernels_timed: u64,
 }
 
 impl RankLp {
+    /// Slowdown of the next kernel this rank times (see [`Variability`]).
+    fn variability_factor(&mut self) -> f64 {
+        let k = self
+            .variability
+            .kernel_factor(self.rank, self.kernels_timed);
+        self.kernels_timed += 1;
+        self.gpu_factor * k
+    }
+
     /// When each stream finished its last op (0 for a stream that ran
     /// nothing).
     pub fn stream_finish(&self) -> Vec<Time> {
@@ -498,7 +573,8 @@ impl RankLp {
             let mut d = memo.get(&self.gpu.spec, &self.gpu.cfg, &k, n - held);
             self.memo_held += held;
             let dur = ((d.end_cycle - d.start_cycle) as f64
-                * self.dvfs_factor(&k, n - held, Some(&d), &d)) as u64;
+                * self.dvfs_factor(&k, n - held, Some(&d), &d)
+                * self.variability_factor()) as u64;
             d.tag = tag;
             d.start_cycle = c;
             d.end_cycle = c + dur;
@@ -552,9 +628,11 @@ impl LogicalProcess for RankLp {
                     let s = (d.tag >> 32) as usize;
                     let mut end = self.ps(d.end_cycle);
                     if let FlatOp::Kernel { k, .. } = &self.streams[s].ops[self.streams[s].pc] {
-                        let x = self.dvfs_factor(&k.clone(), 0, None, &d);
+                        let x =
+                            self.dvfs_factor(&k.clone(), 0, None, &d) * self.variability_factor();
                         if x > 1.0 {
-                            // Power-capped clock: stretch this kernel's span.
+                            // Power-capped clock and stragglers: stretch
+                            // this kernel's span.
                             let start = self.streams[s].op_start;
                             end = start + ((end - start) as f64 * x) as Time;
                             let cyc = (d.end_cycle - d.start_cycle) as f64 * x;
@@ -1208,6 +1286,9 @@ impl Simulation {
                 memo_since: 0,
                 memo_held: 0,
                 memo_pending: Default::default(),
+                variability: self.cfg.variability.clone(),
+                gpu_factor: self.cfg.variability.gpu_factor(rank),
+                kernels_timed: 0,
             };
             for s in 0..lp.streams.len() {
                 lp.q.push(0, Local::StreamNext(s));
@@ -1240,7 +1321,11 @@ impl Simulation {
         // Exact mode folds ranks that are in lockstep onto one simulated
         // rank (see `fold`); the result is the same as simulating each.
         // Traces name every rank's own events, so they turn it off.
-        let fold = self.cfg.fold_ranks && memo.is_none() && !self.cfg.trace;
+        // Stragglers make ranks differ, so nothing is in lockstep.
+        let fold = self.cfg.fold_ranks
+            && memo.is_none()
+            && !self.cfg.trace
+            && !self.cfg.variability.active();
         let end = if fold {
             let mut first: HashMap<String, usize> = HashMap::new();
             let classes: Vec<usize> = lps
@@ -1266,5 +1351,29 @@ impl Simulation {
             wall_s,
             self.cfg.trace,
         ))
+    }
+}
+
+#[cfg(test)]
+mod variability_tests {
+    use super::*;
+
+    #[test]
+    fn half_normal_draws_have_the_right_mean_and_are_seeded() {
+        let n = 200_000u64;
+        let m: f64 = (0..n).map(|i| half_normal(7, 3, i)).sum::<f64>() / n as f64;
+        assert!(
+            (m - (2.0 / std::f64::consts::PI).sqrt()).abs() < 0.01,
+            "mean {m}"
+        );
+        assert_eq!(half_normal(7, 3, 11), half_normal(7, 3, 11));
+        assert_ne!(half_normal(7, 3, 11), half_normal(8, 3, 11));
+        let v = Variability {
+            slow_ranks: vec![(5, 1.1)],
+            ..Default::default()
+        };
+        assert!(v.active());
+        assert_eq!((v.gpu_factor(5), v.gpu_factor(4)), (1.1, 1.0));
+        assert_eq!(v.kernel_factor(5, 0), 1.0);
     }
 }
