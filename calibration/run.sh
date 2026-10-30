@@ -3,6 +3,7 @@
 #
 #   CUDA_VISIBLE_DEVICES=3 ./run.sh            # results/<gpu>-sm<cc>/calibration.json
 #   NCU=0 ./run.sh                              # skip the Nsight Compute reference set
+#   CAL_OUT=/path/to/dir ./run.sh               # write somewhere other than results/<gpu>
 #
 # Each bench runs in its own process; a failing bench is logged and skipped,
 # the rest still run.
@@ -19,7 +20,8 @@ cc=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader -i "$gpu_index" | 
 slug=$(echo "$name" | sed 's/NVIDIA //; s/[^A-Za-z0-9]\+/-/g; s/-$//' | tr 'A-Z' 'a-z')
 # A MIG slice reports the parent GPU's name; tag the profile (e.g. -mig-3g-40gb).
 mig=$(nvidia-smi -L | grep -oE 'MIG [0-9]+g\.[0-9]+gb' | head -1 | tr 'A-Z' 'a-z' | tr ' .' '--')
-out="results/${slug}-sm${cc}${mig:+-$mig}"
+# CAL_OUT keeps a second GPU of a model already in results/ from overwriting it (the node day).
+out="${CAL_OUT:-results/${slug}-sm${cc}${mig:+-$mig}}"
 mkdir -p "$out/raw"
 echo "GPU $gpu_index: $name (sm_$cc) -> $out"
 
@@ -49,7 +51,7 @@ for c in $(./build/bench_tc --list); do
   run "tc_$c" ./build/bench_tc "$c"
 done
 
-for b in mma_sync cpasync l2part overlap; do
+for b in mma_sync cpasync l2part overlap open; do
   [ -x "build/bench_$b" ] && run "$b" "./build/bench_$b"
 done
 
