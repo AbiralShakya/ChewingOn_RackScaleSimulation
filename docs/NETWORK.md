@@ -97,33 +97,33 @@ from NVLink framing and NCCL's per-channel limits.
 
 | class | role | n | transfer: mean / median / max \|err\| | packet: mean / median / max \|err\| |
 |---|---|---|---|---|
-| measured | fit | 3 | 6.6% / 6.8% / 12.8% | 6.4% / 7.3% / 11.6% |
-| measured | **holdout** | 17 | 16.3% / 10.6% / 43.3% | **9.8% / 7.8%** / 35.1% |
-| NCCL model | fit | 35 | 7.6% / 3.5% / 22.1% | 7.9% / 3.8% / 43.3% |
-| NCCL model | holdout | 30 | 11.6% / 10.5% / 26.2% | 10.5% / 7.8% / 26.0% |
-| bound | holdout | 1 | pass (983 ≥ 450) | pass (989 ≥ 450) |
+| measured | fit | 3 | 8.8% / 5.8% / 19.3% | 6.5% / 7.7% / 11.6% |
+| measured | **holdout** | 17 | 16.0% / 9.1% / 37.2% | **9.8% / 7.8%** / 35.1% |
+| NCCL model | fit | 35 | 7.2% / 3.4% / 21.9% | 7.5% / 3.8% / 42.9% |
+| NCCL model | holdout | 30 | 11.8% / 11.4% / 26.2% | 10.4% / 7.8% / 26.0% |
+| bound | holdout | 1 | pass (986 ≥ 450) | pass (994 ≥ 450) |
 
 Every measured point (time in µs unless marked GB/s; error = sim / published − 1):
 
 | point | published | transfer | packet | source |
 |---|---|---|---|---|
-| H100 8-GPU NVLS all-reduce peak busbw | ~480 GB/s | 513 (+6.8%) | 515 (+7.3%) | [nccl-tests #212](https://github.com/NVIDIA/nccl-tests/issues/212) |
-| NVL72 a2a EP8, batch 8 | 17.6 | 17.6 (+0.2%) | 17.5 (−0.3%) | [TRT-LLM blog 18](https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md) |
-| NVL72 a2a EP8, batch 128 | 31.7 | 40.2 (+26.7%) | 36.8 (+15.9%) | 〃 |
-| NVL72 a2a EP8, batch 512 | 89.5 | 112.6 (+25.9%) | 99.0 (+10.6%) | 〃 |
-| NVL72 a2a EP8, batch 2048 | 311.8 | 351.7 (+12.8%) | 347.9 (+11.6%) | 〃 |
-| NVL72 a2a EP16, batch 8 | 18.9 | 18.1 (−4.2%) | 17.8 (−6.1%) | 〃 |
-| NVL72 a2a EP16, batch 128 | 34.6 | 46.5 (+34.5%) | 38.9 (+12.4%) | 〃 |
-| NVL72 a2a EP16, batch 512 | 97.1 | 138.1 (+42.2%) | 107.6 (+10.8%) | 〃 |
-| NVL72 a2a EP16, batch 2048 | 343.3 | 412.7 (+20.2%) | 382.2 (+11.3%) | 〃 |
-| NVL72 a2a EP32, batch 8 | 19.4 | 17.8 (−8.5%) | 18.1 (−6.7%) | 〃 |
-| NVL72 a2a EP32, batch 128 | 37.8 | 38.9 (+2.9%) | 39.0 (+3.3%) | 〃 |
-| NVL72 a2a EP32, batch 512 | 109.6 | 107.6 (−1.9%) | 108.1 (−1.4%) | 〃 |
-| NVL72 a2a EP32, batch 2048 | 373.7 | 382.2 (+2.3%) | 384.3 (+2.8%) | 〃 |
-| NVL72 a2a EP64, batch 8 | 20.4 | 11.6 (−43.3%) | 13.3 (−35.1%) | 〃 |
-| NVL72 a2a EP64, batch 128 | 41.6 | 37.3 (−10.3%) | 38.4 (−7.8%) | 〃 |
-| NVL72 a2a EP64, batch 512 | 115.7 | 101.2 (−12.5%) | 105.4 (−8.9%) | 〃 |
-| NVL72 a2a EP64, batch 2048 | 399.2 | 356.8 (−10.6%) | 373.6 (−6.4%) | 〃 |
+| H100 8-GPU NVLS all-reduce peak busbw | ~480 GB/s | 508 (+5.8%) | 517 (+7.7%) | [nccl-tests #212](https://github.com/NVIDIA/nccl-tests/issues/212) |
+| NVL72 a2a EP8, batch 8 | 17.6 | 17.9 (+1.4%) | 17.5 (−0.3%) | [TRT-LLM blog 18](https://github.com/NVIDIA/TensorRT-LLM/blob/main/docs/source/blogs/tech_blog/blog18_Optimizing_MoE_Communication_with_One_Sided_AlltoAll_Over_NVLink.md) |
+| NVL72 a2a EP8, batch 128 | 31.7 | 42.7 (+34.8%) | 36.8 (+15.9%) | 〃 |
+| NVL72 a2a EP8, batch 512 | 89.5 | 123 (+37.2%) | 99.0 (+10.6%) | 〃 |
+| NVL72 a2a EP8, batch 2048 | 311.8 | 372 (+19.3%) | 348 (+11.6%) | 〃 |
+| NVL72 a2a EP16, batch 8 | 18.9 | 17.9 (−5.3%) | 17.8 (−6.1%) | 〃 |
+| NVL72 a2a EP16, batch 128 | 34.6 | 44.6 (+28.8%) | 38.9 (+12.4%) | 〃 |
+| NVL72 a2a EP16, batch 512 | 97.1 | 130 (+34.1%) | 108 (+10.8%) | 〃 |
+| NVL72 a2a EP16, batch 2048 | 343.3 | 397 (+15.7%) | 382 (+11.3%) | 〃 |
+| NVL72 a2a EP32, batch 8 | 19.4 | 18.2 (−6.4%) | 18.1 (−6.7%) | 〃 |
+| NVL72 a2a EP32, batch 128 | 37.8 | 40.4 (+6.9%) | 39.0 (+3.3%) | 〃 |
+| NVL72 a2a EP32, batch 512 | 109.6 | 114 (+3.7%) | 108 (−1.4%) | 〃 |
+| NVL72 a2a EP32, batch 2048 | 373.7 | 406 (+8.7%) | 384 (+2.8%) | 〃 |
+| NVL72 a2a EP64, batch 8 | 20.4 | 13.1 (−36.0%) | 13.3 (−35.1%) | 〃 |
+| NVL72 a2a EP64, batch 128 | 41.6 | 38.3 (−8.0%) | 38.4 (−7.8%) | 〃 |
+| NVL72 a2a EP64, batch 512 | 115.7 | 105 (−9.2%) | 105 (−8.9%) | 〃 |
+| NVL72 a2a EP64, batch 2048 | 399.2 | 372 (−6.8%) | 374 (−6.4%) | 〃 |
 | H800 EP8 dispatch, NVLink | 153 GB/s | 158 (+3.3%) | 157 (+2.3%) | [DeepEP @567632d](https://github.com/deepseek-ai/DeepEP/blob/567632d/README.md) |
 | H800 EP16 dispatch, RDMA | 43 GB/s | 34.9 (−18.8%) | 34.9 (−18.7%) | 〃 |
 | B200 EP8, NVLink (logical) | 726 GB/s | 792 (+9.1%) | 769 (+5.9%) | [DeepEP V2 @3e490fb](https://github.com/deepseek-ai/DeepEP/blob/3e490fb/README.md) |
@@ -143,12 +143,19 @@ logical bytes, so they are not used.
 **Known gaps.**
 
 - *Custom kernels are not NCCL.* TensorRT-LLM's and DeepEP's all-to-all kernels are one-sided
-  stores into symmetric memory. The simulator runs NCCL's two-sided protocol: it is 10–27%
-  slow at EP8/16 mid sizes in transfer mode, and too fast at EP64 batch 8, where the real
-  kernel's synchronisation over 64 ranks costs 20 µs and the simulator's LL path 12 µs.
+  stores into symmetric memory. The simulator runs NCCL's two-sided protocol: it is 29–37%
+  slow at EP8/16 mid sizes in transfer mode (11–16% in packet mode), and too fast at EP64
+  batch 8, where the real kernel's synchronisation over 64 ranks costs 20 µs and the
+  simulator's LL path 13 µs.
 - *Transfer vs packet on all-to-all.* Packet mode is closer on the TRT-LLM table (mean
-  error 9.8% vs 16.3%) because round-robin VOQs share the links between many peers, while the
+  error 9.8% vs 16.0%) because round-robin VOQs share the links between many peers, while the
   FCFS chunk servers of transfer mode let a few peers run ahead and finish the rest late.
+- *Transfer mode depends on lane placement.* Each transfer starts on a pseudo-random plane.
+  When that seed changed from the communicator's creation index to a hash of its GPUs (so a
+  job's timing no longer depends on unrelated jobs elsewhere in the rack), transfer-mode
+  all-to-alls moved by −6% to +12% and one 32 MiB GB200 all-gather by +23%, with no physical
+  change; packet-mode all-to-alls did not move. The median point did not move in either mode.
+  Read transfer-mode all-to-all times as ±10%, and prefer packet mode for EP studies.
 - *NVLS small-message latency on NVL72* is 20 µs in the simulator against 25 µs in NCCL's
   model, and NCCL's model is the only reference; no measured GB200 small-message latency is
   public.

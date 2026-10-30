@@ -252,13 +252,16 @@ class Replay:
     #: Rank 0's kernel time by kernel type, and collective time by kind.
     kernels: Dict[str, float]
     collectives: Dict[str, float]
+    #: With ``spans=True``: (rank, stream, kind, name, start_s, end_s) of
+    #: every kernel, collective and transfer, for timelines.
+    spans: List[tuple] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {"step_us": self.step * 1e6, "ranks": self.ranks[:8], "kernels_us": {k: v * 1e6 for k, v in self.kernels.items()},
                 "collectives_us": {k: v * 1e6 for k, v in self.collectives.items()}}
 
 
-def replay(wl: dict, hw: Hardware) -> Replay:
+def replay(wl: dict, hw: Hardware, *, spans: bool = False) -> Replay:
     """Time a lowered workload on an ideal machine.
 
     Every kernel takes its roofline time (plus the launch gap), every
@@ -291,6 +294,7 @@ def replay(wl: dict, hw: Hardware) -> Replay:
     p2p_post: Dict[Tuple[int, int, int], Dict[str, float]] = {}
     pend_p2p: Dict[Tuple[int, int], Tuple[int, int, int]] = {}
     stats = [dict(kernel=0.0, collective=0.0, p2p=0.0) for _ in range(nr)]
+    out_spans: List[tuple] = []
     by_kernel: Dict[str, float] = {}
     by_coll: Dict[str, float] = {}
 
@@ -312,6 +316,8 @@ def replay(wl: dict, hw: Hardware) -> Replay:
                     if kind == "kernel":
                         k = op["kernel"]
                         d = kernel_time(k, hw) + hw.launch
+                        if spans:
+                            out_spans.append((r, s, "kernel", op.get("name") or k["type"], t[r][s], t[r][s] + d))
                         t[r][s] += d
                         stats[r]["kernel"] += d
                         if r == 0:
@@ -331,6 +337,8 @@ def replay(wl: dict, hw: Hardware) -> Replay:
                     elif kind == "collective":
                         d = coll_cost(op)
                         if symmetric:
+                            if spans:
+                                out_spans.append((r, s, "collective", op.get("name") or op["kind"], t[r][s], t[r][s] + d))
                             t[r][s] += d
                         else:
                             if (r, s) not in pend_coll:
@@ -344,6 +352,8 @@ def replay(wl: dict, hw: Hardware) -> Replay:
                             if len(posts) < len(g):
                                 break
                             done = coll_done.setdefault((g, seq), max(posts.values()) + d)
+                            if spans:
+                                out_spans.append((r, s, "collective", op.get("name") or op["kind"], done - d, done))
                             t[r][s] = done
                             del pend_coll[(r, s)]
                         stats[r]["collective"] += d
@@ -353,6 +363,8 @@ def replay(wl: dict, hw: Hardware) -> Replay:
                         peer = (r + op["peer"]) % world if op.get("relative") else op["peer"]
                         d = p2p(op["bytes"], hw, cross_domain=(r // hw.domain) != (peer // hw.domain))
                         if symmetric:
+                            if spans:
+                                out_spans.append((r, s, kind, f"{kind} {op['bytes'] / 2**20:.1f} MiB", t[r][s], t[r][s] + d))
                             t[r][s] += d
                         else:
                             src, dst = (r, peer) if kind == "send" else (peer, r)
@@ -366,6 +378,8 @@ def replay(wl: dict, hw: Hardware) -> Replay:
                             if len(posts) < 2:
                                 break
                             t[r][s] = max(posts.values()) + d
+                            if spans:
+                                out_spans.append((r, s, kind, f"{kind} {op['bytes'] / 2**20:.1f} MiB", t[r][s] - d, t[r][s]))
                             del pend_p2p[(r, s)]
                         stats[r]["p2p"] += d
                     else:
@@ -378,7 +392,8 @@ def replay(wl: dict, hw: Hardware) -> Replay:
         raise RuntimeError(f"replay deadlock: rank {r} stream {s} blocked on {streams[r][s][ip[r][s]]}")
     ranks = [dict(rank=r, finish_us=max(t[r] or [0.0]) * 1e6, kernel_us=stats[r]["kernel"] * 1e6,
                   collective_us=stats[r]["collective"] * 1e6, p2p_us=stats[r]["p2p"] * 1e6) for r in range(nr)]
-    return Replay(step=max(max(x) for x in t if x), ranks=ranks, kernels=by_kernel, collectives=by_coll)
+    return Replay(step=max(max(x) for x in t if x), ranks=ranks, kernels=by_kernel, collectives=by_coll,
+                  spans=out_spans)
 
 
 # ---------------------------------------------------------------------------
@@ -418,7 +433,7 @@ class Plan:
         return Parallel(tp=self.tp, ep=self.ep, dp=self.dp, pp=self.pp, zero=self.zero, shard=self.shard,
                         sp=self.sp, comm_sms=comm_sms)
 
-    def label(self) -> str:
+    def label(self, train: bool = True) -> str:
         parts = []
         for k, d in (("tp", 1), ("cp", 1), ("pp", 1), ("dp", 1), ("ep", 1)):
             v = getattr(self, k)
@@ -428,9 +443,9 @@ class Plan:
             parts.append("sp")
         if self.cp > 1:
             parts.append(self.cp_kind)
-        if self.pp > 1:
+        if self.pp > 1 and train:
             parts.append(self.schedule + (f"v{self.virtual}" if self.virtual > 1 else ""))
-        if self.dp > 1:
+        if self.dp > 1 and train:
             parts.append({0: "ddp", 1: "zero1", 2: "zero2", 3: "fsdp"}[self.zero] +
                          (f"-hsdp{self.shard}" if self.shard and self.shard != self.dp else ""))
         return " ".join(parts) or "1 GPU"
@@ -537,7 +552,6 @@ def _estimate_train(m: Model, hw: Hardware, plan: Plan, mb: int, seqlen: int, mb
                       dict(flops=flops_gpu, C=C)))
     # HBM: every weight read in forward, dgrad and wgrad of each micro-batch;
     # activations are kernel-internal at first order.
-    w_bytes = p_gpu * eb * (1.0 / s if plan.zero == 3 else 1.0)
     t_w = 3 * mbs * p_gpu * eb / hw.hbm_bw
     terms.append(Term("weight reads", t_w, "3 m P_gpu b / beta", "memory", dict(p_gpu=p_gpu)))
     # TP: two collectives per mixer per pass (fwd, bwd), on the compute stream.
@@ -699,8 +713,9 @@ def _estimate_infer(m: Model, hw: Hardware, phase: str, plan: Plan, batch: int, 
     sq = 1 if decode else seqlen
     skv = context if decode else seqlen
     rows = batch * sq // (cp if not decode else 1)  # tokens through one GPU's GEMMs
-    # Sequences the step serves across the whole replica group.
-    seqs = batch * (ep if ep > 1 else 1)
+    # Sequences the step serves across the whole replica group (each DP
+    # group of the plan serves its own batch).
+    seqs = batch * (ep if ep > 1 else plan.dp)
     tokens = seqs * sq
     flops = lower._model_flops(m, tokens, skv if decode else seqlen // 2, False, lm_head=decode) / world
     terms: List[Term] = [Term("matmul + attention FLOPs", flops / C, "2 N_active T (+ attention) / world / C", "compute",
@@ -756,6 +771,18 @@ def _estimate_infer(m: Model, hw: Hardware, phase: str, plan: Plan, batch: int, 
                               "L_attn (cp-1) max(0, KV/W - step)", "exposed", dict(transfer=x, step_compute=step_c)))
     step, no_ov, perfect = _combine(terms)
     mem = lower.memory(m, par, phase=phase, batch=batch, context=context, seqlen=seqlen)
+    if pp > 1:
+        # The terms above are one stage's share of one batch. A token
+        # crosses all pp stages; with pp batches in flight every stage stays
+        # busy, so a stage-time later the next batch's token is out.
+        stage = step
+        step = pp * stage
+        no_ov, perfect = pp * no_ov, pp * perfect
+        tokens *= pp
+        flops *= pp
+        for k in ("kv_cache", "ssm_state"):
+            if k in mem:
+                mem[k] *= pp
     out = _finish(m, hw, plan, phase, terms, step, no_ov, perfect, flops, dtype, mem)
     replicas = max(1, hw.gpus // world)
     out.update(batch=batch, context=context, seqlen=seqlen, replicas=replicas, tokens_per_step=tokens)
@@ -771,6 +798,135 @@ def _estimate_infer(m: Model, hw: Hardware, phase: str, plan: Plan, batch: int, 
     return out
 
 
+# ---------------------------------------------------------------------------
+# plan search and the single-GPU-to-rack ladder
+
+
+def _divisors(n: int) -> List[int]:
+    return [d for d in range(1, n + 1) if n % d == 0]
+
+
+def train_plans(model: Union[str, Model], gpus: int, *, seqlen: int = 8192) -> List[Plan]:
+    """Every training plan on ``gpus`` GPUs that divides the model: TP in
+    {1, 2, 4, 8} (with and without SP), PP stages, CP for long sequences,
+    DP with each ZeRO stage, HSDP groups of 8 when DP spans more."""
+    m = _model(model)
+    out = []
+    n_layers = _layers(m)
+    for tp in (1, 2, 4, 8):
+        if gpus % tp or m.heads % tp or (m.kv_heads % tp and tp % m.kv_heads):
+            continue
+        for cp in ((1, 2, 4, 8) if seqlen >= 32768 else (1,)):
+            for pp in (1, 2, 4, 8, 9, 16):
+                if gpus % (tp * cp * pp) or pp > n_layers:
+                    continue
+                dp = gpus // (tp * cp * pp)
+                zeros = (0, 1, 3) if pp == 1 else (1,)
+                for zero in (zeros if dp > 1 else (1,)):
+                    shards = [0] + ([8] if zero == 3 and dp > 8 and dp % 8 == 0 else [])
+                    for shard in shards:
+                        for sp in ((False, True) if tp > 1 else (False,)):
+                            for sched in (("1f1b", "zb") if pp > 1 else ("1f1b",)):
+                                out.append(Plan(tp=tp, sp=sp, cp=cp, pp=pp, schedule=sched, dp=dp, zero=zero,
+                                                shard=shard))
+    return out
+
+
+def decode_plans(model: Union[str, Model], gpus: int) -> List[Plan]:
+    """Decode replica layouts that fit in ``gpus``: TP up to the domain, PP
+    for what TP cannot hold, EP with data-parallel attention for MoE."""
+    m = _model(model)
+    out = []
+    for tp in (1, 2, 4, 8, 16, 32, 64, 72):
+        if tp > gpus or m.heads % tp or (m.kv_heads % tp and tp % m.kv_heads):
+            continue
+        for pp in (1, 2, 4, 8):
+            if tp * pp <= gpus:
+                out.append(Plan(tp=tp, pp=pp))
+    if m.moe:
+        for ep in _divisors(gpus):
+            if 1 < ep <= m.moe.experts:
+                out.append(Plan(ep=ep))
+    return out
+
+
+def best_train(model: Union[str, Model], hw: Hardware, gpus: int, *, seqlen: int = 8192,
+               global_batch: int = 256, dtype: str = "bf16") -> Optional[dict]:
+    """The training plan with the most tokens/s per GPU on ``gpus`` GPUs
+    that fits in HBM, at a fixed global batch of ``global_batch``
+    sequences (micro-batches of one sequence; a plan's DP replicas split
+    the global batch). ``None`` when nothing fits."""
+    best = None
+    hwg = replace(hw, gpus=gpus)
+    for plan in train_plans(model, gpus, seqlen=seqlen):
+        m = max(1, -(-global_batch // plan.dp))
+        if plan.pp > 1 and m < plan.pp:
+            continue
+        e = estimate(model, hwg, "train", plan, micro_batch=1, seqlen=seqlen, micro_batches=m, dtype=dtype)
+        if not e["fits"]:
+            continue
+        if best is None or e["tok_s_gpu"] > best["tok_s_gpu"]:
+            best = e
+    return best
+
+
+def best_decode(model: Union[str, Model], hw: Hardware, gpus: int, *, context: int = 8192,
+                min_tps_user: float = 0.0, batches=(1, 4, 16, 32, 64, 128, 256, 512), dtype: str = "bf16") -> Optional[dict]:
+    """The decode layout and batch with the most tokens/s per GPU on
+    ``gpus`` GPUs (whole replicas only) that fits in HBM and gives every
+    user at least ``min_tps_user`` tokens/s."""
+    best = None
+    hwg = replace(hw, gpus=gpus)
+    for plan in decode_plans(model, gpus):
+        for b in batches:
+            e = estimate(model, hwg, "decode", plan, batch=b, context=context, dtype=dtype)
+            if not e["fits"] or e["tok_s_user"] < min_tps_user:
+                continue
+            e["tok_s_total"] = e["tok_s_rack"]
+            if best is None or e["tok_s_total"] > best["tok_s_total"]:
+                best = e
+    return best
+
+
+def ladder(model: Union[str, Model], system: str = "gb300", phase: str = "train", *,
+           gpus=(1, 2, 4, 8, 16, 36, 72), seqlen: int = 8192, global_batch: int = 256, context: int = 8192,
+           min_tps_user: float = 0.0, dtype: str = "bf16") -> dict:
+    """From one GPU to the rack: the best plan at each GPU count, with
+    step time, throughput, per-user speed, MFU and memory, and the scaling
+    efficiency against the smallest count that fits (closed form)."""
+    hw = hardware(system)
+    rows = []
+    for n in gpus:
+        if n > hw.gpus:
+            continue
+        if phase == "train":
+            e = best_train(model, hw, n, seqlen=seqlen, global_batch=global_batch, dtype=dtype)
+        elif phase == "decode":
+            e = best_decode(model, hw, n, context=context, min_tps_user=min_tps_user, dtype=dtype)
+        else:
+            raise ValueError("ladder phases: train, decode")
+        if e is None:
+            rows.append(dict(gpus=n, fits=False))
+            continue
+        row = dict(gpus=n, fits=True, plan=e["label"], plan_spec=e["plan"], step_ms=e["step_us"] / 1e3,
+                   tok_s_gpu=e["tok_s_gpu"], mfu=e["mfu"], memory_gb=e["memory_total_gb"], dominant=e["dominant"],
+                   terms={t["name"]: t["us"] / 1e3 for t in e["terms"]})
+        if phase == "train":
+            row.update(tok_s=e["tok_s"], tokens_per_step=e["tokens_per_step"])
+        else:
+            # Whole replicas only: GPUs left over count against throughput.
+            row.update(tok_s=e["tok_s_total"], tok_s_gpu=e["tok_s_total"] / n, tok_s_user=e["tok_s_user"],
+                       batch=e["batch"], replicas=e["replicas"])
+        rows.append(row)
+    base = next((r for r in rows if r["fits"]), None)
+    for r in rows:
+        if r["fits"] and base:
+            r["scaling_efficiency"] = r["tok_s_gpu"] / base["tok_s_gpu"]
+    return dict(model=_model(model).name, system=hw.name, phase=phase, rows=rows,
+                assumptions=dict(seqlen=seqlen, global_batch=global_batch, context=context,
+                                 min_tps_user=min_tps_user, dtype=dtype))
+
+
 def _finish(m: Model, hw: Hardware, plan: Plan, phase: str, terms: List[Term], step: float, no_ov: float,
             perfect: float, flops_gpu: float, dtype: str, mem: dict) -> dict:
     mem_gb = {k: v / 1e9 for k, v in mem.items()}
@@ -778,7 +934,8 @@ def _finish(m: Model, hw: Hardware, plan: Plan, phase: str, terms: List[Term], s
     dom = max(terms, key=lambda x: x.seconds if x.kind != "overlapped" else
               max(0.0, x.seconds - x.detail.get("window", 0.0)))
     return dict(
-        model=m.name, hardware=hw.name, phase=phase, plan=asdict(plan), label=plan.label(), world=plan.world,
+        model=m.name, hardware=hw.name, phase=phase, plan=asdict(plan), label=plan.label(phase == "train"),
+        world=plan.world,
         dtype=dtype, step_us=step * 1e6, bounds_us=dict(no_overlap=no_ov * 1e6, perfect_overlap=perfect * 1e6),
         mfu=flops_gpu / (hw.peak(dtype) * step), dominant=dom.name,
         terms=[dict(name=x.name, us=x.seconds * 1e6, kind=x.kind, formula=x.formula,

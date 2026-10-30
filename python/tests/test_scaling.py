@@ -1,5 +1,7 @@
 """rackscale.scaling and the ZeRO / FSDP / HSDP / sequence-parallel / Ulysses lowerings."""
 
+from dataclasses import replace
+
 import pytest
 
 import rackscale as rs
@@ -157,6 +159,57 @@ def test_estimate_train_terms():
     fsdp = sc.estimate("llama3-70b", hw, "train", sc.Plan(tp=8, dp=9, zero=3), micro_batch=1, seqlen=4096)
     assert fsdp["memory_gb"]["weights"] < est["memory_gb"]["weights"]
 
+
+
+def test_replay_spans_cover_the_step():
+    hw = _hw(alpha_p2p=1e-6)
+    wl = lower.train_step(models.LLAMA3_8B.with_layers(2), lower.Parallel(pp=2), 1, 1024, micro_batches=4)
+    r = sc.replay(wl, hw, spans=True)
+    assert not sc.replay(wl, hw).spans
+    kinds = {s[2] for s in r.spans}
+    assert {"kernel", "send", "recv"} <= kinds
+    for rank in (0, 1):
+        own = [s for s in r.spans if s[0] == rank]
+        assert all(s[4] <= s[5] for s in own)
+        assert max(s[5] for s in own) * 1e6 == pytest.approx(r.ranks[rank]["finish_us"])
+
+
+def test_inference_label_drops_training_terms():
+    p = sc.Plan(tp=8, pp=2, dp=2, zero=1)
+    assert p.label() == "tp8 pp2 dp2 1f1b zero1"
+    assert p.label(train=False) == "tp8 pp2 dp2"
+
+
+def test_decode_counts_every_dp_group_and_pipeline_stage():
+    hw = _hw()
+    one = sc.estimate("llama3-8b", hw, "decode", sc.Plan(tp=4), batch=32, context=4096)
+    dp = sc.estimate("llama3-8b", hw, "decode", sc.Plan(tp=4, dp=2), batch=32, context=4096)
+    assert dp["tokens_per_step"] == 2 * one["tokens_per_step"] == 64
+    pp = sc.estimate("llama3-70b", hw, "decode", sc.Plan(tp=4, pp=2), batch=32, context=4096)
+    # pp batches in flight: pp x the tokens, each one pp stage-times old.
+    assert pp["tokens_per_step"] == 2 * 32
+    assert pp["tok_s_user"] == pytest.approx(1e6 / pp["step_us"])
+
+
+def test_ladder_from_one_gpu_to_the_rack():
+    train = sc.ladder("llama3-70b", "gb300", "train", gpus=(1, 8, 72))
+    rows = {r["gpus"]: r for r in train["rows"]}
+    assert not rows[1]["fits"]  # 70B with Adam state does not fit on one GPU
+    assert rows[8]["fits"] and rows[72]["fits"]
+    assert rows[8]["scaling_efficiency"] == 1.0  # the first count that fits is the base
+    assert rows[8]["memory_gb"] <= 288
+    assert sum(rows[72]["terms"].values()) >= rows[72]["step_ms"] * 0.999  # terms bound the step
+    hw = sc.hardware("gb300")
+    best = sc.best_train("llama3-70b", hw, 72)
+    assert best["label"] == rows[72]["plan"]
+    assert all(sc.estimate("llama3-70b", replace(hw, gpus=72), "train", p, micro_batch=1, seqlen=8192,
+                           micro_batches=max(1, -(-256 // p.dp)))["tok_s_gpu"] <= best["tok_s_gpu"] * (1 + 1e-9)
+               for p in sc.train_plans("llama3-70b", 72)[:40])
+    dec = sc.ladder("llama3-70b", "gb300", "decode", gpus=(8, 72), min_tps_user=30)
+    for r in dec["rows"]:
+        assert r["fits"] and r["tok_s_user"] >= 30
+    with pytest.raises(ValueError):
+        sc.ladder("llama3-8b", "gb300", "prefill")
 
 @native
 def test_check_runs_against_simulator():

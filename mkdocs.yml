@@ -92,6 +92,7 @@ nav:
       - 9. Validation: book/09-validation.md
       - 10. Bring your own workload: book/10-bring-your-own-workload.md
       - 11. Every parallelism, checked: book/11-every-parallelism.md
+      - 12. Many models, one rack: book/12-many-models-one-rack.md
   - Reference:
       - Command line: reference/cli.md
       - Python API: reference/python.md

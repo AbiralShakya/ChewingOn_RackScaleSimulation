@@ -198,6 +198,38 @@ outweighs the 141 GB of weights once split), so TP buys per-user speed almost li
 dense model; an MoE expert sees *B k* / *E* of it, which is why DeepSeek-V3 at 64 sequences per
 GPU stays weight bound and quadruples its batch for 2× the throughput.
 
+### From one GPU to the rack
+
+`sc.ladder(model, "gb300", phase)` (MCP tool `scaling_ladder`) searches every plan above at each
+GPU count and keeps the one with the most tokens/s per GPU that fits in 288 GB: training at a
+fixed global batch of 256 sequences of 8192 tokens, decode at 8192 context with every user at 30
+tokens/s or more. Each cell is the plan and its tokens/s per GPU, then MFU and memory (training)
+or tokens/s per user (decode). It is closed form, so MFU assumes kernels at peak; 11.5 measures
+how far they are from it.
+
+| GPUs | Llama-3-8B train | Llama-3-70B train | Llama-3-405B train | Llama-3-70B decode | DeepSeek-V3 decode |
+|---|---|---|---|---|---|
+| 1 | 1 GPU: 50,954 (100%, 165 GB) | does not fit | does not fit | 1 GPU b32: 961 (30/user) | does not fit |
+| 2 | dp2 fsdp: 50,954 (100%, 102 GB) | does not fit | does not fit | tp2 b64: 1,337 (42/user) | does not fit |
+| 4 | dp4 fsdp: 50,952 (100%, 70 GB) | does not fit | does not fit | tp4 b256: 2,005 (31/user) | does not fit |
+| 8 | dp8 fsdp: 50,950 (100%, 54 GB) | tp2 dp4 fsdp: 5,210 (94%, 234 GB) | does not fit | tp8 b512: 2,128 (33/user) | ep8 b32: 979 (31/user) |
+| 16 | dp16 fsdp: 50,944 (100%, 46 GB) | dp16 fsdp: 5,558 (100%, 257 GB) | does not fit | tp8 b512: 2,128 (33/user) | ep16 b128: 4,242 (33/user) |
+| 36 | dp36 fsdp: 50,938 (100%, 41 GB) | dp36 fsdp: 5,558 (100%, 217 GB) | does not fit | tp4 b256: 2,005 (31/user) | ep36 b128: 5,429 (42/user) |
+| 72 | dp72 fsdp: 50,915 (100%, 39 GB) | dp72 fsdp: 5,558 (100%, 202 GB) | tp4 dp18 fsdp: 914 (93%, 237 GB) | tp8 b512: 2,128 (33/user) | ep72 b128: 6,113 (48/user) |
+
+- **Training scales linearly once the model fits.** Every micro-batch puts 8192 tokens on each
+  GPU, 3× the FSDP critical batch of 2738, so the gathers and scatters hide at every count and
+  tokens/s per GPU stays flat. The only losses are the plans memory forces: Llama-3-70B on 8 GPUs
+  needs TP2 inside FSDP (94% MFU, 234 GB), and 16 GPUs drop it for 6.7% more per GPU.
+  Llama-3-405B fits only on the whole rack, as TP4 x FSDP18.
+- **Dense decode gets cheaper per token as the replica grows, up to TP8.** TP splits the weight
+  reads, so more of the 33 ms that a 30-tokens/s user allows goes to KV reads: the batch grows
+  from 32 to 512 and tokens/s per GPU 2.2×. Past 8 GPUs the rack adds replicas, not speed, and at
+  36 GPUs TP4 wins because TP8 would leave 4 GPUs idle.
+- **MoE decode keeps gaining to 72.** Each GPU's share of DeepSeek-V3's experts shrinks with EP,
+  so serving a user at the same speed costs fewer weight bytes per token: 6.2× more tokens/s per
+  GPU at EP72 than at EP8. That is what a 72-GPU NVLink domain buys an MoE model.
+
 ## 11.5 The check: formulas vs replay vs cycles
 
 The closed forms leave things out on purpose. To know what they leave out, each case below is
@@ -225,45 +257,45 @@ more than one GPU.
 | case | GPUs | textbook µs | replay µs | sim µs | sim vs replay | sim vs textbook | kernel efficiency µs | power clock µs | collectives µs | overlap + idle µs |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1 GPU | 1 | 4685 | 5116 | 9141 | +78.7% | +95.1% | +1378 | +2620 | +0 | +28 |
-| DDP | 8 | 4871 | 5606 | 9980 | +78.0% | +104.9% | +1415 | +2615 | +675 | -331 |
-| ZeRO-2 | 8 | 4685 | 5546 | 9702 | +74.9% | +107.1% | +1372 | +2619 | +277 | -112 |
-| ZeRO-2 + optimizer | 8 | 8399 | 6559 | 11009 | +67.8% | +31.1% | +1414 | +2615 | +543 | -122 |
-| FSDP | 8 | 7243 | 5975 | 10377 | +73.7% | +43.3% | +1488 | +2605 | +859 | -550 |
-| HSDP 4x2 | 8 | 6401 | 5980 | 10423 | +74.3% | +62.8% | +1448 | +2609 | +926 | -540 |
-| TP8 | 8 | 924 | 1174 | 2056 | +75.1% | +122.6% | +355 | +101 | +397 | +29 |
-| TP8 + SP | 8 | 1188 | 1266 | 2493 | +96.9% | +109.9% | +405 | +101 | +691 | +29 |
-| TP2 x DP4 | 8 | 2681 | 3196 | 5672 | +77.5% | +111.6% | +763 | +1116 | +606 | -8 |
-| TP2 x FSDP4 (HSDP 2) | 8 | 3099 | 3387 | 6251 | +84.5% | +101.7% | +769 | +1109 | +1336 | -350 |
+| DDP | 8 | 4871 | 5606 | 9967 | +77.8% | +104.6% | +1415 | +2615 | +612 | -282 |
+| ZeRO-2 | 8 | 4685 | 5546 | 9705 | +75.0% | +107.1% | +1372 | +2619 | +280 | -112 |
+| ZeRO-2 + optimizer | 8 | 8399 | 6559 | 11000 | +67.7% | +31.0% | +1414 | +2615 | +523 | -111 |
+| FSDP | 8 | 7243 | 5975 | 10377 | +73.7% | +43.3% | +1488 | +2605 | +849 | -540 |
+| HSDP 4x2 | 8 | 6401 | 5980 | 10425 | +74.3% | +62.9% | +1448 | +2609 | +934 | -547 |
+| TP8 | 8 | 924 | 1174 | 2057 | +75.2% | +122.7% | +355 | +101 | +398 | +29 |
+| TP8 + SP | 8 | 1188 | 1266 | 2506 | +98.0% | +111.1% | +405 | +101 | +705 | +29 |
+| TP2 x DP4 | 8 | 2681 | 3196 | 5638 | +76.4% | +110.3% | +763 | +1116 | +590 | -26 |
+| TP2 x FSDP4 (HSDP 2) | 8 | 3099 | 3387 | 6238 | +84.2% | +101.3% | +769 | +1109 | +1343 | -370 |
 | PP2 GPipe m8 | 2 | 21164 | 23105 | 41490 | +79.6% | +96.0% | +5470 | +10384 | +2805 | -274 |
 | PP2 1F1B m8 | 2 | 21164 | 23346 | 42676 | +82.8% | +101.6% | +5456 | +10339 | +2805 | +729 |
 | PP2 ZB-H1 m8 | 2 | 19602 | 22377 | 40024 | +78.9% | +104.2% | +5456 | +10340 | +2805 | -954 |
-| TP2 x PP2 x DP2 1F1B m4 | 8 | 6745 | 7735 | 14325 | +85.2% | +112.4% | +1545 | +2236 | +1911 | +899 |
-| prefill TP4 | 4 | 1155 | 1415 | 2426 | +71.5% | +110.1% | +303 | +386 | +311 | +12 |
-| prefill TP4 + SP | 4 | 1155 | 1436 | 2443 | +70.1% | +111.5% | +333 | +386 | +276 | +12 |
+| TP2 x PP2 x DP2 1F1B m4 | 8 | 6745 | 7735 | 14293 | +84.8% | +111.9% | +1545 | +2236 | +1899 | +878 |
+| prefill TP4 | 4 | 1155 | 1415 | 2435 | +72.2% | +110.9% | +303 | +386 | +320 | +12 |
+| prefill TP4 + SP | 4 | 1155 | 1436 | 2444 | +70.2% | +111.6% | +333 | +386 | +277 | +12 |
 | prefill CP8 ring | 8 | 6470 | 7727 | 13690 | +77.2% | +111.6% | +4060 | +1877 | +4916 | -4889 |
-| prefill CP8 Ulysses | 8 | 6816 | 7231 | 12749 | +76.3% | +87.0% | +3383 | +1874 | +250 | +11 |
+| prefill CP8 Ulysses | 8 | 6816 | 7231 | 12770 | +76.6% | +87.4% | +3383 | +1874 | +271 | +11 |
 | decode 1 GPU b64 | 1 | 1066 | 936 | 1087 | +16.1% | +2.0% | +137 | +0 | +0 | +13 |
-| decode TP8 b64 (70B) | 8 | 243 | 225 | 359 | +59.9% | +47.7% | +60 | +0 | +61 | +14 |
-| decode MoE TP4 (Qwen3-30B-A3B) | 4 | 237 | 234 | 302 | +29.1% | +27.5% | +23 | +0 | +29 | +16 |
-| decode EP8 (DeepSeek-V3) | 8 | 1740 | 1510 | 1671 | +10.6% | -4.0% | +100 | +1 | +30 | +30 |
+| decode TP8 b64 (70B) | 8 | 243 | 225 | 366 | +62.8% | +50.3% | +60 | +0 | +67 | +14 |
+| decode MoE TP4 (Qwen3-30B-A3B) | 4 | 237 | 234 | 304 | +29.8% | +28.1% | +23 | +0 | +30 | +16 |
+| decode EP8 (DeepSeek-V3) | 8 | 1740 | 1510 | 1672 | +10.7% | -3.9% | +100 | +1 | +30 | +30 |
 
 Selected collectives (all of them are in [`results/check.md`](../../research/parallelism/results/check.md)):
 
 | case | kind | algo | size | ranks | n | closed form µs | sim µs | error |
 |---|---|---|---|---|---|---|---|---|
-| DDP | all_reduce | Nvls | 416.0 MiB | 8 | 2 | 489.7 | 827.3 | +68.9% |
-| FSDP | all_gather | Ring | 416.0 MiB | 8 | 4 | 429.1 | 570.8 | +33.0% |
-| HSDP 4x2 | all_reduce | Nvls | 104.0 MiB | 2 | 8 | 126.2 | 276.1 | +118.8% |
-| TP8 | all_reduce | Nvls | 32.0 MiB | 8 | 8 | 42.3 | 91.9 | +117.4% |
-| TP8 + SP | all_gather | Ring | 32.0 MiB | 8 | 8 | 37.6 | 80.0 | +112.7% |
+| DDP | all_reduce | Nvls | 416.0 MiB | 8 | 2 | 489.7 | 795.9 | +62.5% |
+| FSDP | all_gather | Ring | 416.0 MiB | 8 | 4 | 429.1 | 568.8 | +32.6% |
+| HSDP 4x2 | all_reduce | Nvls | 104.0 MiB | 2 | 8 | 126.2 | 279.3 | +121.3% |
+| TP8 | all_reduce | Nvls | 32.0 MiB | 8 | 8 | 42.3 | 92.0 | +117.6% |
+| TP8 + SP | all_gather | Ring | 32.0 MiB | 8 | 8 | 37.6 | 82.0 | +118.0% |
 | PP2 1F1B m8 | send_recv | Direct | 32.0 MiB | 2 | 16 | 40.3 | 215.6 | +435.3% |
-| prefill CP8 Ulysses | all_to_all | Direct | 96.0 MiB | 8 | 2 | 102.9 | 170.2 | +65.4% |
-| decode TP8 b64 (70B) | all_reduce | Ring | 1.0 MiB | 8 | 4 | 6.2 | 21.4 | +247.3% |
-| decode EP8 (DeepSeek-V3) | all_to_all | Direct | 7.0 MiB | 8 | 1 | 12.1 | 28.6 | +135.4% |
+| prefill CP8 Ulysses | all_to_all | Direct | 96.0 MiB | 8 | 2 | 102.9 | 176.4 | +71.5% |
+| decode TP8 b64 (70B) | all_reduce | Ring | 1.0 MiB | 8 | 4 | 6.2 | 23.0 | +272.9% |
+| decode EP8 (DeepSeek-V3) | all_to_all | Direct | 7.0 MiB | 8 | 1 | 12.1 | 29.4 | +142.0% |
 
 How to read it:
 
-- **The roofline replay is optimistic by 68-97% for training and 11-60% for decode.** No case
+- **The roofline replay is optimistic by 68-98% for training and 11-63% for decode.** No case
   comes in under it, which is the sanity check: the replay is a lower bound on the program the
   simulator runs.
 - **The textbook is closer to the replay than either is to the simulator** (-21% to +28%). Where it
@@ -284,12 +316,12 @@ Five effects make up the gap, and none is in a closed form:
    GEMM reaches 1988 TFLOP/s (81%) and causal FlashAttention at 4096 tokens 1131 (46%):
    prologues, epilogues, the last partial wave, softmax on the MUFU pipe. Thin GEMMs under TP
    lose more (TP8 adds 355 µs on 836).
-3. **Collectives at 25-75% of the link.** NVLS all-reduces of 32 MiB reach 42% of *B*/*W*
+3. **Collectives at 25-75% of the link.** NVLS all-reduces of 32 MiB take 2.2× their closed form
    (92 µs against 42), ring reduce-scatters and gathers about 75%, small decode all-reduces
-   (1 MiB) 29%, where launch, fences and protocol steps dominate. Two-rank NVLS all-reduces are
-   the worst case (+143% to +206%): NCCL's tuner picks NVLS for them, and the switch round trip
+   (1 MiB) 27%, where launch, fences and protocol steps dominate. Two-rank NVLS all-reduces are
+   the worst case (+140% to +207%): NCCL's tuner picks NVLS for them, and the switch round trip
    costs more than the 1-hop ring would. Sequence parallelism turns a 92 µs NVLS all-reduce into
-   two 80 µs ring collectives: TP8 + SP is 21% slower than TP8 here, which the formulas predicted
+   two 82 µs ring collectives: TP8 + SP is 22% slower than TP8 here, which the formulas predicted
    in direction and the simulator in size.
 4. **Communication takes SMs.** Point-to-point transfers get 2 SMs each in this lowering (the
    NCCL p2p default), and an SM channel is a rate-limited copy engine, so a 32 MiB pipeline hop
@@ -298,7 +330,7 @@ Five effects make up the gap, and none is in a closed form:
    longer. Every collective also takes 20 SMs from the GEMMs it overlaps with, which a roofline
    with "perfect overlap" cannot see.
 5. **Overlap is a schedule, not a max().** The overlap column is near zero or negative when
-   slow collectives stayed hidden (FSDP: -550 µs, they were 859 µs slower and still mostly
+   slow collectives stayed hidden (FSDP: -540 µs, they were 849 µs slower and still mostly
    hidden), positive when a dependency exposed them (1F1B's +729 µs: the activation gradient
    leaves after the weight-gradient GEMMs, so the upstream stage waits; ZB-H1 sends it first and
    gets -954 µs).
@@ -315,4 +347,7 @@ absolute step differs by up to 2×.
 | one estimate | `rackscale.scaling.estimate(model, hardware("gb300"), phase, Plan(...))` |
 | one check | `rackscale.scaling.check(model, "gb300", phase, Plan(...), layers=2, ...)` |
 | the table in 11.5 | `python research/parallelism/check_math.py` (about 40 minutes on 4 cores) |
-| from an agent | MCP tools `scaling_math`, `check_scaling_math` |
+| the best plan from 1 GPU to the rack | `rackscale.scaling.ladder(model, "gb300", "train")` (or `"decode"`, `min_tps_user=30`) |
+| from an agent | MCP tools `scaling_math`, `scaling_ladder`, `check_scaling_math` |
+
+Next: [12. Many models, one rack](12-many-models-one-rack.md).

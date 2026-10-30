@@ -143,6 +143,8 @@ pub(crate) struct CollState {
     pub island_of_rank: Vec<usize>,
     pub chan_rate: f64,
     pub model_us: f64,
+    /// Seeds each transfer's starting lane (see [`lane_seed`]).
+    pub lane_seed: u64,
 }
 
 #[derive(Clone, Debug, Serialize, Default)]
@@ -536,6 +538,7 @@ impl NetEngine {
                 island_of_rank,
                 chan_rate,
                 model_us,
+                lane_seed: lane_seed(coll, desc),
             },
         );
     }
@@ -785,10 +788,9 @@ impl NetEngine {
         }
         let per = tr.bytes.div_ceil(n);
         let copies_per: Vec<u32> = lanes.iter().map(|l| l.len() as u32).collect();
+        let off = lane_offset(self.colls[&coll].lane_seed, tid, nl as usize) as u64;
         let units: u64 = (0..n)
-            .map(|i| {
-                copies_per[((i + lane_offset(coll, tid, nl as usize) as u64) % nl) as usize] as u64
-            })
+            .map(|i| copies_per[((i + off) % nl) as usize] as u64)
             .sum();
         let src_gpu = match tr.src {
             End::Rank(r) => Some(self.colls[&coll].desc.ranks[r]),
@@ -801,7 +803,6 @@ impl NetEngine {
         cs.x[tid as usize].units_total = units as u32;
         cs.x[tid as usize].lanes = lanes.clone();
         let mut left = tr.bytes;
-        let off = lane_offset(coll, tid, nl as usize) as u64;
         for i in 0..n {
             let b = per.min(left);
             left -= b;
@@ -1003,8 +1004,30 @@ impl NetEngine {
 
 /// Starting lane of a transfer, so short transfers do not all pile onto
 /// the first plane.
-pub(crate) fn lane_offset(coll: u64, tid: u32, nl: usize) -> usize {
-    ((coll as usize).wrapping_mul(31) ^ (tid as usize).wrapping_mul(2654435761)) % nl.max(1)
+pub(crate) fn lane_offset(seed: u64, tid: u32, nl: usize) -> usize {
+    ((seed as usize).wrapping_mul(31) ^ (tid as usize).wrapping_mul(2654435761)) % nl.max(1)
+}
+
+/// The lane seed of collective `coll`: its sequence number within its
+/// communicator (the low 32 bits of the id) under a hash of the
+/// communicator's GPUs and kind, in place of the communicator's index. The
+/// index counts communicators in the order the workload creates them, so
+/// adding an unrelated job elsewhere in the rack would renumber this one's and
+/// move its transfers onto other lanes; the hash depends only on the
+/// collective itself.
+pub(crate) fn lane_seed(coll: u64, desc: &Collective) -> u64 {
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    for v in desc
+        .ranks
+        .iter()
+        .map(|&r| r as u64)
+        .chain([desc.kind as u64])
+    {
+        for b in v.to_le_bytes() {
+            h = (h ^ b as u64).wrapping_mul(0x0100_0000_01b3);
+        }
+    }
+    ((h ^ (h >> 32)) << 32) | (coll & 0xffff_ffff)
 }
 
 pub(crate) fn proto_idx(p: Proto) -> usize {

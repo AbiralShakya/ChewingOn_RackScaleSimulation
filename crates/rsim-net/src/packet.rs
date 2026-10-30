@@ -225,7 +225,7 @@ impl NetEngine {
             .max(1) as u32;
         let npk = tr.bytes.div_ceil(payload as u64) as u32;
         let nl = lanes.len() as u32;
-        let off = crate::engine::lane_offset(coll, tid, nl as usize) as u32;
+        let off = crate::engine::lane_offset(self.colls[&coll].lane_seed, tid, nl as usize) as u32;
         let units: u64 = (0..npk)
             .map(|k| lanes[((k + off) % nl) as usize].len() as u64)
             .sum();

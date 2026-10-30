@@ -43,6 +43,7 @@ over DP), even when only a few `layers` are simulated; see `lower.memory`.
 | `send` / `recv` | `bytes`, `peer`, `relative` (peer is an offset), `sms` (default 2) |
 | `record` / `wait` | `event`; waits match records in order, CUDA-event style, across the rank's streams |
 | `delay` | `ns` |
+| `host` | `at_ns`: the stream's next op cannot start before this time from the start of the run (a host launch timeline, or a transfer issued on a clock) |
 | `loop` | `times`, `body` |
 
 **Groups.** A group is `"world"`, `"block:N"` (my aligned block of N ranks, e.g. TP),

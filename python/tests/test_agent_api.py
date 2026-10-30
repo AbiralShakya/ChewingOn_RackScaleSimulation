@@ -104,6 +104,27 @@ def test_tools_registry(base):
     assert any(r["run_id"] == base["run_id"] for r in out["runs"])
 
 
+def test_simulate_colocated_tool():
+    out = json.loads(tools.call_json("simulate_colocated", {
+        "tenants": [{"name": "a", "model": "llama3.2-1b", "phase": "decode", "plan": {"tp": 2}, "gpus": "0-1",
+                     "batch": 8, "context": 1024, "steps": 2},
+                    {"name": "b", "model": "llama3.2-1b", "phase": "decode", "gpus": [2], "batch": 8,
+                     "context": 1024, "steps": 2}],
+        "flows": [{"name": "kv", "src": [3], "dst": [2], "bytes": 1 << 20, "times": 2, "every_ns": 50000}],
+        "layers": 1}))
+    assert [t["name"] for t in out["tenants"]] == ["a", "b"] and out["flows"][0]["delivered_gbps"] > 0
+    assert "flow kv" in out["summary"]
+
+
+
+def test_scaling_ladder_tool():
+    out = json.loads(tools.call_json("scaling_ladder", {"model": "llama3-70b", "phase": "decode", "gpus": [8, 72],
+                                                        "min_tps_user": 30}))
+    assert [r["gpus"] for r in out["rows"]] == [8, 72]
+    assert all(r["fits"] and r["tok_s_user"] >= 30 for r in out["rows"])
+    assert "error" in tools.call("scaling_ladder", {"model": "llama3-70b", "phase": "prefill"})
+
+
 def test_mcp_server_builds():
     pytest.importorskip("mcp")
     from rackscale import mcp_server

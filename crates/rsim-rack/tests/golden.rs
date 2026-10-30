@@ -2,8 +2,12 @@
 //! digest of the whole report (wall-clock fields aside), and neither may
 //! depend on how many host threads run the PDES windows or the memoized
 //! kernels. The digests are main's before the simulator-speed work, re-taken
-//! on main after the NCCL network model (#13) changed collective timing
-//! (`RSIM_GOLDEN_PRINT=1` prints new values instead of checking them).
+//! on main after the NCCL network model (#13) changed collective timing,
+//! again when ranks gained `stream_finish_us` (the old digests still held
+//! with that field removed), and when transfer lanes were seeded from the
+//! communicator instead of its creation index (this workload's makespan
+//! moved +0.15%). `RSIM_GOLDEN_PRINT=1` prints new values instead of
+//! checking them.
 
 use rsim_rack::{simulate, RunConfig};
 
@@ -89,7 +93,7 @@ fn exact_mode_is_pinned_and_thread_count_independent() {
     assert_eq!(one, many, "exact report depends on the thread count");
     eprintln!("exact digest {:#018x}", digest(&one));
     if std::env::var_os("RSIM_GOLDEN_PRINT").is_none() {
-        assert_eq!(digest(&one), 0x29f1_7b59_b1d4_9712);
+        assert_eq!(digest(&one), 0x7b49_14c9_530a_b8ad);
     }
 }
 
@@ -100,7 +104,7 @@ fn fast_mode_is_pinned_and_thread_count_independent() {
     assert_eq!(one, many, "fast report depends on the thread count");
     eprintln!("fast digest {:#018x}", digest(&one));
     if std::env::var_os("RSIM_GOLDEN_PRINT").is_none() {
-        assert_eq!(digest(&one), 0xaabf_763d_09c6_0736);
+        assert_eq!(digest(&one), 0x85ab_b80b_dced_bc0f);
     }
 }
 

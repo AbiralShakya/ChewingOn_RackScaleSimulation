@@ -289,6 +289,16 @@ pub struct RankLp {
 }
 
 impl RankLp {
+    /// When each stream finished its last op (0 for a stream that ran
+    /// nothing).
+    pub fn stream_finish(&self) -> Vec<Time> {
+        let mut f = vec![0; self.streams.len()];
+        for s in &self.spans {
+            f[s.stream] = f[s.stream].max(s.end);
+        }
+        f
+    }
+
     /// Wall-time factor of the power-capped clock for kernel `k` (1.0 when
     /// the GPU has no power model or the kernel cannot hit the cap).
     /// `nominal` is the kernel's cold run with `reserved` SMs held back when

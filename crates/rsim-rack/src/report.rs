@@ -22,6 +22,10 @@ pub struct RankReport {
     pub kernel_us: f64,
     pub collective_us: f64,
     pub kernels: usize,
+    /// When each of the rank's streams finished. Streams on one GPU can
+    /// belong to different jobs (colocated models, a background transfer),
+    /// and each job's time is its own streams' finish.
+    pub stream_finish_us: Vec<f64>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -235,6 +239,7 @@ pub fn build_report(
             kernel_us,
             collective_us: coll_us,
             kernels: r.kernels.len(),
+            stream_finish_us: r.stream_finish().iter().map(|&t| t as f64 / 1e6).collect(),
         });
         let slots_per_cycle = (spec.sm_count * spec.sub_partitions) as u64;
         for k in &r.kernels {
