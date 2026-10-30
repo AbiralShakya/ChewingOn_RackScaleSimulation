@@ -15,6 +15,12 @@ until 1.0, a minor version may change simulated timings, and the release notes s
 - `--system a,b,c` simulates the same workload on several systems and prints a comparison
   (step, speedup, MFU, GPU idle); `--report` then writes a list. `rackscale demo` writes the
   comparison report.
+- `rsim kernel gemm ... --tile-n --stages --cluster --split-k --reserve-sms` and
+  `synth::gemm_with(GemmOpts)`: override the Blackwell GEMM's tiling choices and hold SMs back for
+  communication kernels. Book chapter 15 (parallelism inside one GPU: Little's law, warp roles,
+  pipeline depth, the L2 → SM tile budget, waves, split-K, SMs taken by NCCL) with
+  `docs/book/scripts/intra_gpu.py`, and a ladder map from one lane to the facility in the book's
+  README. Default GEMM timings are unchanged.
 - Every data-parallel sharding in the lowering: `Parallel(zero=0|1|2|3)` (DDP, ZeRO-1/2, FSDP with
   one-layer prefetch), `shard=` for HSDP, `sp=True` for Megatron sequence parallelism, and
   `prefill_cp(kind="ulysses")`. Default layouts lower exactly as before.

@@ -424,7 +424,15 @@ fn gemm_hopper(m: u64, n: u64, k: u64, dt: Dtype) -> KernelLaunch {
 }
 
 /// Blackwell tcgen05 GEMM.
-fn gemm_blackwell(m: u64, n: u64, k: u64, dt: Dtype, sms: u64, ultra_fp4: bool) -> KernelLaunch {
+fn gemm_blackwell(
+    m: u64,
+    n: u64,
+    k: u64,
+    dt: Dtype,
+    sms: u64,
+    ultra_fp4: bool,
+    o: &GemmOpts,
+) -> KernelLaunch {
     let kb = if ultra_fp4 {
         192
     } else if dt.bytes <= 1.0 {
@@ -433,19 +441,26 @@ fn gemm_blackwell(m: u64, n: u64, k: u64, dt: Dtype, sms: u64, ultra_fp4: bool) 
         64u64
     };
     let tm = 128u64;
-    let tn = if n >= 256 && m.div_ceil(tm) * n.div_ceil(256) * 2 > sms {
-        256
-    } else {
-        128
-    };
+    let tn = o
+        .tile_n
+        .unwrap_or(if n >= 256 && m.div_ceil(tm) * n.div_ceil(256) * 2 > sms {
+            256
+        } else {
+            128
+        });
     let k_total = k.div_ceil(kb).max(1);
     let tiles_m = m.div_ceil(tm);
     let tiles_n = n.div_ceil(tn);
-    let split = split_k(sms, tiles_m * tiles_n, k_total);
+    let split = o
+        .split_k
+        .unwrap_or_else(|| split_k(sms, tiles_m * tiles_n, k_total))
+        .clamp(1, k_total);
     let k_iters = k_total.div_ceil(split);
     let a_bytes = (tm * kb) as f64 * dt.bytes;
     let b_bytes = (tn * kb) as f64 * dt.bytes;
-    let cluster = if tiles_m >= 2 && split == 1 { 2 } else { 1 };
+    let cluster = o
+        .cluster
+        .unwrap_or(if tiles_m >= 2 && split == 1 { 2 } else { 1 });
     // cuBLAS/CUTLASS sm100 GEMMs are persistent: with cluster launch control
     // a CTA that finishes a tile's mainloop starts the next tile while its
     // epilogue drains the other half of a double-buffered TMEM accumulator.
@@ -456,7 +471,7 @@ fn gemm_blackwell(m: u64, n: u64, k: u64, dt: Dtype, sms: u64, ultra_fp4: bool) 
     // one CTA per SM was 8-30% slow on multi-wave GEMMs; two are within
     // about 10%.
     let multi_wave = tiles_m * tiles_n * split > sms;
-    let stages = if multi_wave { 2 } else { 4 };
+    let stages = o.stages.unwrap_or(if multi_wave { 2 } else { 4 }).max(1);
     let ml = Mainloop {
         tile_m: tm,
         tile_n: tn,
@@ -751,6 +766,35 @@ fn gemm_mma_sync(m: u64, n: u64, k: u64, dt: Dtype, sms: u64) -> KernelLaunch {
 
 /// GEMM `C[m,n] = A[m,k] @ B[k,n]` lowered for the GPU's architecture.
 pub fn gemm(g: &GpuSpec, m: u64, n: u64, k: u64, dtype_name: &str) -> KernelLaunch {
+    gemm_with(g, m, n, k, dtype_name, &GemmOpts::default())
+}
+
+/// Overrides of the tiling choices `gemm` makes on its own, for studying
+/// what each one buys (chapter 15 of the book). `None` keeps the default.
+/// Only the Blackwell lowering takes them; the others ignore them.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct GemmOpts {
+    /// Output tile width (UMMA N): 64, 128 or 256. The tile height is 128.
+    pub tile_n: Option<u64>,
+    /// Depth of the shared-memory ring between the TMA producer and the
+    /// MMA issuer. Fewer stages use less shared memory, so more CTAs fit
+    /// on one SM.
+    pub stages: Option<u32>,
+    /// CTAs per cluster sharing the B operand by TMA multicast (1 or 2).
+    pub cluster: Option<u32>,
+    /// Split the K loop across this many CTAs (fp32 partials).
+    pub split_k: Option<u64>,
+}
+
+/// `gemm` with explicit tiling choices.
+pub fn gemm_with(
+    g: &GpuSpec,
+    m: u64,
+    n: u64,
+    k: u64,
+    dtype_name: &str,
+    o: &GemmOpts,
+) -> KernelLaunch {
     let dt = dtype(dtype_name);
     match g.arch {
         Arch::Hopper => gemm_hopper(m, n, k, dt),
@@ -760,7 +804,7 @@ pub fn gemm(g: &GpuSpec, m: u64, n: u64, k: u64, dtype_name: &str) -> KernelLaun
             let ultra = dt.name == "fp4"
                 && dtype_name != "fp4_k64"
                 && g.tensor.flops_per_cycle_per_sm.contains_key("fp4_k96");
-            gemm_blackwell(m, n, k, dt, g.sm_count as u64, ultra)
+            gemm_blackwell(m, n, k, dt, g.sm_count as u64, ultra, o)
         }
         Arch::Ampere => gemm_mma_sync(m, n, k, dt, g.sm_count as u64),
     }

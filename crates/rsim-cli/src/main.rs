@@ -56,6 +56,12 @@ enum Cmd {
         calibration: Option<PathBuf>,
         #[arg(long)]
         json: bool,
+        #[command(flatten)]
+        tiling: Tiling,
+        /// Hold back this many SMs, as NCCL kernels running beside the
+        /// GEMM would.
+        #[arg(long, default_value_t = 0)]
+        reserve_sms: u32,
     },
     /// Replay measured reference kernels (ncu_reference.json) and report
     /// simulated vs measured SM cycles.
@@ -200,6 +206,16 @@ pub(crate) fn sim_kernel(
     k: KernelLaunch,
     detail: rsim_gpu::DetailConfig,
 ) -> Result<(KernelDone, f64)> {
+    sim_kernel_reserved(gpu, k, detail, 0)
+}
+
+/// [`sim_kernel`] with `reserved` SMs held back for communication kernels.
+pub(crate) fn sim_kernel_reserved(
+    gpu: rsim_hw::GpuSpec,
+    k: KernelLaunch,
+    detail: rsim_gpu::DetailConfig,
+    reserved: u32,
+) -> Result<(KernelDone, f64)> {
     let spec = gpu.clone();
     let launch = Arc::new(k);
     let cfg = GpuConfig {
@@ -208,13 +224,14 @@ pub(crate) fn sim_kernel(
         ..Default::default()
     };
     let mut g = Gpu::new(0, gpu, cfg.clone(), false);
+    g.reserve_sms(reserved);
     g.submit(launch.clone(), 0, 0);
     let mut out = vec![];
     let t0 = std::time::Instant::now();
     g.advance(u64::MAX / 2, &mut out);
     let wall = t0.elapsed().as_secs_f64();
     let mut d = out.pop().context("kernel did not finish")?;
-    let stretch = rsim_gpu::dvfs_stretch(&spec, &cfg, &launch, &d, 0);
+    let stretch = rsim_gpu::dvfs_stretch(&spec, &cfg, &launch, &d, reserved);
     let sustained = rsim_gpu::dvfs_clock_mhz(&spec, &launch, &d)
         .unwrap_or(spec.sm_clock_mhz)
         .min(spec.sm_clock_mhz / rsim_gpu::tcgen05_stretch(&spec, &d));
@@ -305,12 +322,49 @@ pub(crate) fn synth_kernel(
     Ok(k)
 }
 
+/// GEMM tiling overrides (`rsim kernel gemm`, Blackwell).
+#[derive(clap::Args, Clone, Debug, Default)]
+pub(crate) struct Tiling {
+    /// Output tile width (UMMA N): 64, 128 or 256.
+    #[arg(long)]
+    tile_n: Option<u64>,
+    /// Shared-memory pipeline stages between TMA and the MMA issuer.
+    #[arg(long)]
+    stages: Option<u32>,
+    /// CTAs per cluster sharing B by TMA multicast (1 or 2).
+    #[arg(long)]
+    cluster: Option<u32>,
+    /// Split the K loop across this many CTAs.
+    #[arg(long)]
+    split_k: Option<u64>,
+}
+
+impl Tiling {
+    fn opts(&self) -> synth::GemmOpts {
+        synth::GemmOpts {
+            tile_n: self.tile_n,
+            stages: self.stages,
+            cluster: self.cluster,
+            split_k: self.split_k,
+        }
+    }
+}
+
 fn run_kernel(gpu: rsim_hw::GpuSpec, k: KernelLaunch, json: bool) -> Result<()> {
+    run_kernel_reserved(gpu, k, json, 0)
+}
+
+fn run_kernel_reserved(
+    gpu: rsim_hw::GpuSpec,
+    k: KernelLaunch,
+    json: bool,
+    reserved: u32,
+) -> Result<()> {
     let ghz = gpu.sm_clock_mhz / 1000.0;
     let peak = gpu.peak_tensor_tflops("bf16");
     let hbm = gpu.hbm.bw_gbps;
     let (flops, bytes, name) = (k.flops, k.bytes, k.name.clone());
-    let (d, wall) = sim_kernel(gpu, k, Default::default())?;
+    let (d, wall) = sim_kernel_reserved(gpu, k, Default::default(), reserved)?;
     if json {
         println!("{}", serde_json::to_string_pretty(&d)?);
         return Ok(());
@@ -456,6 +510,8 @@ fn dispatch(cli: Cli) -> Result<()> {
             dtype,
             calibration,
             json,
+            tiling,
+            reserve_sms,
         } => {
             let mut g = presets::gpu(&gpu).with_context(|| {
                 format!(
@@ -467,8 +523,18 @@ fn dispatch(cli: Cli) -> Result<()> {
                 rsim_hw::calibration::apply_file(&mut g, c)?;
             }
             let g = g;
-            let k = synth_kernel(&g, &kind, &dims, &dtype)?;
-            run_kernel(g, k, json)?;
+            let k = if kind == "gemm" && tiling.opts() != Default::default() {
+                if dims.len() < 3 {
+                    bail!("gemm needs 3 dimensions");
+                }
+                if g.arch != rsim_hw::Arch::Blackwell {
+                    bail!("--tile-n/--stages/--cluster/--split-k apply to Blackwell GEMMs only");
+                }
+                synth::gemm_with(&g, dims[0], dims[1], dims[2], &dtype, &tiling.opts())
+            } else {
+                synth_kernel(&g, &kind, &dims, &dtype)?
+            };
+            run_kernel_reserved(g, k, json, reserve_sms)?;
         }
         Cmd::Validate {
             reference,
