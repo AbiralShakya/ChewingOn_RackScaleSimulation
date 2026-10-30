@@ -1,0 +1,82 @@
+{
+  "about": "Published DeepSeek-V3/R1 serving measurements with configurations stated well enough to simulate. Values are copied from the source; 'derived' fields are arithmetic on stated values and say so. Nothing here was used to fit the simulator.",
+  "cases": [
+    {
+      "id": "sglang-h100-decode",
+      "source": "https://lmsys.org/blog/2025-05-05-large-scale-ep/",
+      "date": "2025-05-05",
+      "engine": "SGLang (PD disaggregation, large-scale EP, two-batch overlap)",
+      "hardware": "9 nodes x 8 H100, InfiniBand (decode side of 12 nodes)",
+      "config": "DeepSeek-V3, decode EP72 with DP attention, batch 256 per GPU, KV length 2000, no MTP",
+      "stated": "22,282 output tokens/s per node (profile table, SGLang default)",
+      "metric": "output tok/s per GPU",
+      "measured": 2785.25,
+      "derived": "22,282 / 8 GPUs per node",
+      "role": "primary"
+    },
+    {
+      "id": "sglang-h100-prefill",
+      "source": "https://lmsys.org/blog/2025-05-05-large-scale-ep/",
+      "date": "2025-05-05",
+      "engine": "SGLang (PD disaggregation, large-scale EP)",
+      "hardware": "4 nodes x 8 H100, InfiniBand (prefill side)",
+      "config": "DeepSeek-V3, prefill EP32 with DP attention, 16,384 tokens per GPU as 4 prompts of 4,096",
+      "stated": "59,337 input tokens/s per node with simulated perfect EPLB; 50,302 with the default expert distribution",
+      "metric": "input tok/s per GPU",
+      "measured": 7417.125,
+      "derived": "59,337 / 8. The simulator routes tokens uniformly, which is what 'simulated perfect EPLB' approximates; the default-EPLB figure (6,287.75 per GPU) is kept as a second reference.",
+      "measured_alt": 6287.75,
+      "role": "primary"
+    },
+    {
+      "id": "sglang-gb200-decode",
+      "source": "https://lmsys.org/blog/2025-09-25-gb200-part-2/",
+      "date": "2025-09-25",
+      "engine": "SGLang (PD disaggregation, large-scale EP)",
+      "hardware": "GB200 NVL72, 48 decode ranks",
+      "config": "DeepSeek-V3/R1, BF16 attention + FP8 MoE, decode EP48, batch 1408 per GPU at 2k ISL, no MTP",
+      "stated": "18,471 input and 9,087 output tokens per second (per GPU) for BF16 attention + FP8 MoE",
+      "metric": "output tok/s per GPU",
+      "measured": 9087.0,
+      "derived": "as stated; KV length taken as 2,048 (output length not stated)",
+      "role": "primary"
+    },
+    {
+      "id": "trtllm-b200-r1-fp4",
+      "source": "https://nvidia.github.io/TensorRT-LLM/blogs/Best_perf_practice_on_DeepSeek-R1_in_TensorRT-LLM.html",
+      "date": "page last updated 2026-10-26",
+      "engine": "TensorRT-LLM (in-flight batching, attention DP, CUDA graphs)",
+      "hardware": "8 x B200 (one node)",
+      "config": "nvidia/DeepSeek-R1-FP4, TP8 EP8 attention DP, max_batch 384 per rank, concurrency 3072, ISL 1K OSL 2K synthetic, no MTP",
+      "stated": "Per GPU Output Throughput 4548.0105 tps/gpu",
+      "metric": "output tok/s per GPU (end to end: prefill runs in the same iterations)",
+      "measured": 4548.0105,
+      "role": "primary"
+    },
+    {
+      "id": "trtllm-h200-r1",
+      "source": "https://nvidia.github.io/TensorRT-LLM/blogs/Best_perf_practice_on_DeepSeek-R1_in_TensorRT-LLM.html",
+      "date": "page last updated 2026-10-26",
+      "engine": "TensorRT-LLM (in-flight batching, attention DP, CUDA graphs)",
+      "hardware": "8 x H200 (one node)",
+      "config": "deepseek-ai/DeepSeek-R1 (FP8 per the page's Hopper recommendation; not stated for the row), TP8 EP8 attention DP, max_batch 128, concurrency 1024, ISL 1K OSL 2K, no MTP",
+      "stated": "Per GPU Output Throughput 1436.1584 tokens/sec/gpu",
+      "metric": "output tok/s per GPU (end to end)",
+      "measured": 1436.1584,
+      "role": "primary"
+    },
+    {
+      "id": "deepseek-production-decode",
+      "source": "https://github.com/deepseek-ai/open-infra-index/blob/main/202502OpenSourceWeek/day_6_one_more_thing_deepseekV3R1_inference_system_overview.md",
+      "date": "2025-02 (24 h window 2025-02-27/28)",
+      "engine": "DeepSeek's own inference system",
+      "hardware": "18-node H800 decode units (8 GPUs per node)",
+      "config": "Decode EP144 with DP attention, FP8 GEMMs and dispatch, BF16 MLA and combine, average KV length 4,989; batch per GPU not stated",
+      "stated": "~14.8k tokens/s output per H800 node; average output speed 20-22 tokens/s per user",
+      "metric": "output tok/s per GPU",
+      "measured": 1850.0,
+      "derived": "14,800 / 8. Batch per GPU ~88 = 14,800 / 8 / 21 tok/s per user. A 24 h production average with unknown MTP use and load, so it is context, not a scored holdout.",
+      "role": "soft"
+    }
+  ]
+}

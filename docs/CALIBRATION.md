@@ -140,7 +140,7 @@ ncu's `smsp__cycles_active.avg` counts the cycles an SMSP has a warp resident. C
 
 ### Microbenchmarks that would settle the rest
 
-None of these were run: they need the GPUs.
+None of these were run: they need the GPUs. `calibration/src/bench_open.cu` now implements 1, 2 (on an HMMA load), 4, 8 and 9, and the [node-day runbook](../calibration/nodeday/README.md) runs those plus 7, 10 and 11 on one GPU of a rented node; 3, 5 and 6 need the B300 the FA4 recordings came from.
 
 1. **FFMA launch/tail.** `thr_kernel<FFMA>` and `<EX2>` with every CTA stamping `%globaltimer`, `clock64` and `%smid` at entry and exit, 10 runs each, plus ncu with `--clock-control base` five times (`sm__cycles_elapsed.{min,max}`, `smsp__cycles_active.{min,max}`). Separates start skew, tail and replay-pass variance.
 2. **Per-SM clocks under FA4.** The same stamps on all 148 SMs during FA4 s4096: per-SM MHz says whether `sm__cycles_elapsed` spread is clock (compare with min) or skew (compare with max).

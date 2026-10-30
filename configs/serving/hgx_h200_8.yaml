@@ -1,0 +1,12 @@
+# HGX H200 8-GPU: the HGX H100 baseboard (4 NVSwitch3, 18 NVLink4 links per
+# GPU split 5/4/4/5) with H200 GPUs (141 GB HBM3e, 4.8 TB/s).
+name: HGX H200 8-GPU
+gpus:
+  - preset: h200_sxm
+    count: 8
+topology:
+  kind: switched
+  switches: 4
+  switch: {name: NVSwitch3 (NVLink4), ports: 64, gbps_per_port_per_dir: 25.0, latency_ns: 100.0, in_network_reduction: true}
+  links_per_gpu_per_switch: [5, 4, 4, 5]
+  link: {gbps_per_dir: 25.0, latency_ns: 20.0}
