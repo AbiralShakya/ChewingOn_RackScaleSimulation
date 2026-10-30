@@ -36,6 +36,11 @@ until 1.0, a minor version may change simulated timings, and the release notes s
 - Book chapter 14, "Why cycle level, and how far to trust a simulated rack": what only the
   cycle-level model sees, which kernels run as real SASS, and how per-kernel error carries to a
   node and a rack.
+- NVL72 Scaling Lab (`docs/viz/scaling-lab.html`, built from `research/learn/`): the closed
+  forms of chapter 11 recomputed in the browser for any model and plan, next to the replay and
+  simulator numbers of chapters 11 to 13 (collectives, roofline, pipeline schedules, jobs sharing
+  a rack, tokens against bytes). `research/learn/verify.py` checks the JavaScript port against
+  `rackscale.scaling`.
 - Rank reports carry `stream_finish_us`, when each stream finished its last op, so jobs that
   share a GPU are timed by their own streams.
 - `host` ops are documented in the workload format.

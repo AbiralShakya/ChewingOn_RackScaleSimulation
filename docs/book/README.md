@@ -41,6 +41,11 @@ The interactive pages are in [`docs/viz/`](../viz/), and [`docs/VIZ.md`](../VIZ.
 each view. To see any simulation this way, add `rsim viz run ...` or call `rs.viz()` from
 Python.
 
+Chapters 6 and 11 to 13 have a companion page, the [NVL72 Scaling Lab](../viz/scaling-lab.html).
+Pick a model, a plan and a batch, and it recomputes every closed form of chapter 11 in the
+browser, next to the replay and simulator numbers from those chapters: collectives, the
+roofline, pipeline schedules, jobs sharing a rack, and tokens against bytes.
+
 ## The three kinds of number in this guide
 
 Every number is one of these, and the text says which:
