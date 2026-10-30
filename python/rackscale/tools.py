@@ -31,6 +31,9 @@ A typical performance-engineering loop:
    verdict on whether the difference beats the error band.
 6. best_layout(model, system, phase) -> the best TP / EP / PP layout and batch under a latency
    target, and what bounds each step (compute, HBM, latency, communication, launch gaps).
+7. scaling_math(model, system, phase, plan) -> the closed-form step for any DP / ZeRO / FSDP / HSDP /
+   TP / SP / CP / PP / EP plan, term by term; check_scaling_math runs the same plan through a roofline
+   replay and the simulator and says where and why reality departs from the formulas.
 Bands come from measured validation (accuracy tool). Differences between runs are more
 reliable than absolute times, especially on GPUs without measured calibration.
 Runs are cached by content, so repeating a call is free. Fast mode takes seconds to a minute;
@@ -50,6 +53,9 @@ _WORKLOAD = {
 _OVERRIDES = {"type": "object", "description": "hardware knobs {name or path: value}; 'x1.5' scales the current value. "
                                                "See list_hardware().knobs"}
 _RUN_ID = {"type": "string", "description": "run id returned by simulate / what_if"}
+_PLAN = {"type": "object", "description": "parallel plan: {tp, sp (bool, Megatron sequence parallel), cp, cp_kind: "
+                                          "ring|ulysses, pp, schedule: gpipe|1f1b|interleaved|zb, virtual, dp, zero: "
+                                          "0 (DDP)|1|2|3 (FSDP), shard (HSDP group size), ep}. world = tp*cp*pp*dp."}
 
 
 def _tool(name: str, fn: Callable, description: str, properties: Dict[str, Any], required: List[str]) -> dict:
@@ -125,6 +131,33 @@ TOOLS: List[dict] = [
            "max_ttft_ms": {"type": "number", "description": "prefill: maximum time to first token"},
            "launch": {"type": "string", "enum": ["eager", "graph", "megakernel"]}},
           ["model", "system"]),
+    _tool("scaling_math",
+          lambda model, system="gb300", phase="train", plan=None, **kw: _scaling_math(model, system, phase, plan, kw),
+          "Closed-form ('How to Scale Your Model') step time, MFU, throughput, memory and critical batch sizes for "
+          "any parallel plan, in milliseconds: every term (matmul FLOPs, weight and KV reads, TP / EP / CP / PP "
+          "communication, pipeline bubble, DP / ZeRO / FSDP / HSDP traffic, Adam) with its formula and whether it "
+          "is exposed or overlapped. Use it to rank layouts before simulating, or to explain a simulated result.",
+          {"model": {"type": "string", "description": "a list_models name"},
+           "system": {"type": "string", "description": "gb300 (NVL72), b300, h100, a100, or a system preset"},
+           "phase": {"type": "string", "enum": ["train", "prefill", "decode"]},
+           "plan": _PLAN, "micro_batch": {"type": "integer"}, "seqlen": {"type": "integer"},
+           "micro_batches": {"type": "integer"}, "batch": {"type": "integer"}, "context": {"type": "integer"},
+           "dtype": {"type": "string", "enum": ["bf16", "fp8", "fp4"]}},
+          ["model"]),
+    _tool("check_scaling_math",
+          lambda model, system="gb300", phase="train", plan=None, layers=2, **kw: _check_math(
+              model, system, phase, plan, layers, kw),
+          "Run one plan three ways on a model cut to `layers` layers: the closed-form estimate, a roofline replay "
+          "of the exact lowered program (ideal kernels, closed-form collectives, perfect overlap) and the "
+          "cycle-level simulator. Returns signed errors and splits sim - replay into kernel efficiency, the "
+          "power-capped clock, collective efficiency and lost overlap; plus every collective's simulated vs "
+          "closed-form time. Takes 10 s to a few minutes.",
+          {"model": {"type": "string"}, "system": {"type": "string"},
+           "phase": {"type": "string", "enum": ["train", "prefill", "decode"]}, "plan": _PLAN,
+           "layers": {"type": "integer"}, "micro_batch": {"type": "integer"}, "seqlen": {"type": "integer"},
+           "micro_batches": {"type": "integer"}, "batch": {"type": "integer"}, "context": {"type": "integer"},
+           "optimizer": {"type": "boolean"}},
+          ["model"]),
     _tool("compare_runs", lambda run_a, run_b: api.compare(run_a, run_b),
           "Compare two runs: step time and throughput with a significance verdict, per-op and stall deltas.",
           {"run_a": _RUN_ID, "run_b": _RUN_ID}, ["run_a", "run_b"]),
@@ -142,6 +175,23 @@ def _best_layout(model, system, phase, context, seqlen, batches, min_tps_user, m
                           batches=tuple(batches or (1, 8, 32, 128, 256)), min_tps_user=min_tps_user,
                           max_ttft_ms=float("inf") if max_ttft_ms is None else max_ttft_ms, launch=launch)
     return dict(sweep.plan_report(out, system), schema="rackscale-api/v1")
+
+
+def _plan(plan) -> "Any":
+    from .scaling import Plan
+    return Plan(**(plan or {}))
+
+
+def _scaling_math(model, system, phase, plan, kw) -> dict:
+    from . import scaling
+    est = scaling.estimate(model, scaling.hardware(system), phase, _plan(plan), **kw)
+    est["explain"] = scaling.explain(est)
+    return dict(est, schema="rackscale-api/v1")
+
+
+def _check_math(model, system, phase, plan, layers, kw) -> dict:
+    from . import scaling
+    return dict(scaling.check(model, system, phase, _plan(plan), layers=layers, **kw), schema="rackscale-api/v1")
 
 
 _BY_NAME = {t["name"]: t for t in TOOLS}

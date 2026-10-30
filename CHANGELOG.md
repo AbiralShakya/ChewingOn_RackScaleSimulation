@@ -6,6 +6,15 @@ until 1.0, a minor version may change simulated timings, and the release notes s
 ## [Unreleased]
 
 ### Added
+- Every data-parallel sharding in the lowering: `Parallel(zero=0|1|2|3)` (DDP, ZeRO-1/2, FSDP with
+  one-layer prefetch), `shard=` for HSDP, `sp=True` for Megatron sequence parallelism, and
+  `prefill_cp(kind="ulysses")`. Default layouts lower exactly as before.
+- `rackscale.scaling`: closed-form step time, MFU, throughput, memory and critical batch sizes for
+  any DP / ZeRO / FSDP / HSDP / TP / SP / CP / PP / EP plan; a roofline replay of any lowered
+  workload; and `check()`, which runs a plan through the formulas, the replay and the simulator
+  and splits the difference into kernel efficiency, power-capped clock, collectives and overlap.
+  Agent tools `scaling_math` and `check_scaling_math`. Book chapter 11 and
+  `research/parallelism/check_math.py` (22 cases on GB300 NVL72).
 - One install gives every command: the `rsim` command line now runs in-process from the Python
   package, so `pip install rackscale` provides `rackscale`, `rsim` and `rackscale-mcp`.
   `rackscale presets|system|kernel|sass|path|timeline|validate|net|viz` forward to it.

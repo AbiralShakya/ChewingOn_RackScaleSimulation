@@ -35,7 +35,7 @@ from typing import Dict, List, Optional
 from .models import Model
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Parallel:
     tp: int = 1
     ep: int = 1
@@ -45,9 +45,37 @@ class Parallel:
     #: Pipeline stages (training). Ranks are laid out tp-innermost, then dp,
     #: then pp: rank = (stage * dp + d) * tp + t.
     pp: int = 1
+    #: Data-parallel sharding of training state (Rajbhandari et al. 2020):
+    #: 0 = DDP (gradient all-reduce, everything replicated), 1 = optimizer
+    #: state sharded, 2 = optimizer state and gradients sharded (gradient
+    #: reduce-scatter; the default), 3 = parameters sharded too (FSDP: every
+    #: layer's weights are all-gathered before its forward and again before
+    #: its backward).
+    zero: int = 2
+    #: Hybrid sharding (HSDP): ZeRO-3 inside groups of ``shard`` DP ranks,
+    #: plain replication across the ``dp // shard`` groups (gradients are
+    #: reduce-scattered in the group, then all-reduced across groups).
+    #: 0 = shard over all of ``dp``.
+    shard: int = 0
+    #: Megatron sequence parallelism: with ``tp > 1``, norms, residuals and
+    #: dropout run on ``1/tp`` of the tokens, and each TP all-reduce becomes a
+    #: reduce-scatter followed by an all-gather before the next block.
+    sp: bool = False
 
     def world(self) -> int:
         return max(self.tp * self.dp * self.pp, self.ep, 1)
+
+    def __repr__(self) -> str:
+        # The fields added after v0.1 are shown only when set, so workload
+        # names (and the result caches keyed on them) stay as they were.
+        extra = "".join(f", {k}={v}" for k, v, d in (("zero", self.zero, 2), ("shard", self.shard, 0),
+                                                      ("sp", self.sp, False)) if v != d)
+        return (f"Parallel(tp={self.tp}, ep={self.ep}, dp={self.dp}, comm_sms={self.comm_sms}, "
+                f"pp={self.pp}{extra})")
+
+    def shard_group(self) -> int:
+        """DP ranks that share one copy of the sharded state."""
+        return self.shard if self.shard else self.dp
 
 
 class ParallelError(ValueError):
@@ -61,6 +89,12 @@ def check(m: Model, p: Parallel) -> None:
     for name, v in (("tp", p.tp), ("ep", p.ep), ("dp", p.dp), ("pp", p.pp)):
         if v < 1:
             errs.append(f"{name}={v} must be >= 1")
+    if p.zero not in (0, 1, 2, 3):
+        errs.append(f"zero={p.zero} must be 0 (DDP), 1, 2 or 3 (FSDP)")
+    if p.shard and (p.shard < 1 or p.dp % p.shard):
+        errs.append(f"shard={p.shard} must divide dp={p.dp} (HSDP shard groups)")
+    if p.shard and p.shard != p.dp and p.zero != 3:
+        errs.append("shard (HSDP) shards parameters inside each group, so it needs zero=3")
     if errs:
         raise ParallelError("; ".join(errs))
     if p.tp > 1:
@@ -107,12 +141,39 @@ def _coll(kind: str, nbytes: float, group: str, sms: int, name: str = "") -> dic
     return d
 
 
+def _sp(p: Parallel) -> bool:
+    return bool(p.sp) and p.tp > 1
+
+
+def _rows(t: int, p: Parallel) -> int:
+    """Tokens a rank's norms and residuals see: all of them, or ``1/tp``
+    under sequence parallelism."""
+    return max(1, t // p.tp) if _sp(p) else t
+
+
+def _tp_enter(t: int, h: int, p: Parallel, tag: str, what: str) -> List[dict]:
+    """Sequence parallelism gathers the sequence shards before a block's first GEMM."""
+    if not _sp(p):
+        return []
+    return [_coll("all_gather", t * h * 2, f"block:{p.tp}", p.comm_sms, f"{tag}{what}_allgather")]
+
+
+def _tp_exit(t: int, h: int, p: Parallel, tag: str, what: str) -> List[dict]:
+    """The partial sums of a row-parallel GEMM: one all-reduce, or a
+    reduce-scatter onto the sequence shards under sequence parallelism."""
+    if p.tp <= 1:
+        return []
+    if _sp(p):
+        return [_coll("reduce_scatter", t * h * 2, f"block:{p.tp}", p.comm_sms, f"{tag}{what}_reducescatter")]
+    return [_coll("all_reduce", t * h * 2, f"block:{p.tp}", p.comm_sms, f"{tag}{what}_allreduce")]
+
+
 def _attention_ops(m: Model, p: Parallel, batch: int, sq: int, skv: int, causal: bool, tag: str) -> List[dict]:
     """Attention block for `batch` sequences of `sq` new tokens each."""
     t = batch * sq
     h = m.hidden
     tp = p.tp
-    ops = [_k(f"{tag}input_norm", type="row_norm", rows=t, cols=h)]
+    ops = [_k(f"{tag}input_norm", type="row_norm", rows=_rows(t, p), cols=h)] + _tp_enter(t, h, p, tag, "attn")
     if m.gla:
         a = m.gla
         heads = max(1, m.heads // tp)
@@ -168,16 +229,17 @@ def _attention_ops(m: Model, p: Parallel, batch: int, sq: int, skv: int, causal:
             ops.append(_k(f"{tag}attn_combine", type="elementwise", n=batch * hq * m.head_dim * 4, inputs=1, elem_bytes=4.0,
                           flops_per_elem=4))
         ops.append(_gemm(f"{tag}o_proj", t, h, hq * m.head_dim))
-    if tp > 1:
-        ops.append(_coll("all_reduce", t * h * 2, f"block:{tp}", p.comm_sms, f"{tag}attn_allreduce"))
-    ops.append(_k(f"{tag}residual", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
+    ops += _tp_exit(t, h, p, tag, "attn")
+    ops.append(_k(f"{tag}residual", type="elementwise", n=_rows(t, p) * h, inputs=2, flops_per_elem=1))
     return ops
 
 
 def _ffn_ops(m: Model, p: Parallel, layer: int, t: int, tag: str) -> List[dict]:
     h = m.hidden
-    ops = [_k(f"{tag}post_attn_norm", type="row_norm", rows=t, cols=h)]
+    ops = [_k(f"{tag}post_attn_norm", type="row_norm", rows=_rows(t, p), cols=h)]
     moe = m.moe
+    if p.ep <= 1:
+        ops += _tp_enter(t, h, p, tag, "moe" if moe and layer >= moe.first_dense_layers else "mlp")
     if moe and layer >= moe.first_dense_layers:
         ep = p.ep
         local = max(1, moe.experts // ep)
@@ -206,8 +268,8 @@ def _ffn_ops(m: Model, p: Parallel, layer: int, t: int, tag: str) -> List[dict]:
             ops += [_gemm(f"{tag}shared_gate_up", t, 2 * sf, h), _gemm(f"{tag}shared_down", t, h, sf)]
         if ep > 1:
             ops.append(_coll("all_to_all", t * moe.topk * h * 2, f"block:{ep}", p.comm_sms, f"{tag}moe_combine"))
-        elif p.tp > 1:
-            ops.append(_coll("all_reduce", t * h * 2, f"block:{p.tp}", p.comm_sms, f"{tag}moe_allreduce"))
+        else:
+            ops += _tp_exit(t, h, p, tag, "moe")
     else:
         ffn = (moe.dense_ffn if moe and moe.dense_ffn else m.ffn) // p.tp
         ops += [
@@ -215,9 +277,8 @@ def _ffn_ops(m: Model, p: Parallel, layer: int, t: int, tag: str) -> List[dict]:
             _k(f"{tag}act_mul", type="elementwise", n=t * ffn, inputs=2, flops_per_elem=4),
             _gemm(f"{tag}down_proj", t, h, ffn),
         ]
-        if p.tp > 1:
-            ops.append(_coll("all_reduce", t * h * 2, f"block:{p.tp}", p.comm_sms, f"{tag}mlp_allreduce"))
-    ops.append(_k(f"{tag}residual2", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
+        ops += _tp_exit(t, h, p, tag, "mlp")
+    ops.append(_k(f"{tag}residual2", type="elementwise", n=_rows(t, p) * h, inputs=2, flops_per_elem=1))
     return ops
 
 
@@ -237,7 +298,7 @@ def _mamba2_ops(m: Model, p: Parallel, batch: int, sq: int, tag: str) -> List[di
     groups = max(1, mb.ngroups // tp)
     d_in = heads * mb.headdim
     conv_dim = d_in + 2 * groups * mb.d_state
-    ops = [_k(f"{tag}input_norm", type="row_norm", rows=t, cols=h),
+    ops = [_k(f"{tag}input_norm", type="row_norm", rows=_rows(t, p), cols=h), *_tp_enter(t, h, p, tag, "mamba"),
            _gemm(f"{tag}in_proj", t, 2 * d_in + 2 * groups * mb.d_state + heads, h)]
     ssm = dict(batch=batch, heads=heads, headdim=mb.headdim, d_state=mb.d_state, groups=groups)
     ops.append(_k(f"{tag}conv1d", type="conv1d", batch=batch, dim=conv_dim, seqlen=sq, width=mb.d_conv))
@@ -249,9 +310,8 @@ def _mamba2_ops(m: Model, p: Parallel, batch: int, sq: int, tag: str) -> List[di
             ops.append(_k(f"{tag}ssd_{stage}", type="ssd", stage=stage, seqlen=sq, chunk=mb.chunk, **ssm))
     ops += [_k(f"{tag}gated_norm", type="row_norm", rows=t, cols=d_in),
             _gemm(f"{tag}out_proj", t, h, d_in)]
-    if tp > 1:
-        ops.append(_coll("all_reduce", t * h * 2, f"block:{tp}", p.comm_sms, f"{tag}mamba_allreduce"))
-    ops.append(_k(f"{tag}residual", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
+    ops += _tp_exit(t, h, p, tag, "mamba")
+    ops.append(_k(f"{tag}residual", type="elementwise", n=_rows(t, p) * h, inputs=2, flops_per_elem=1))
     return ops
 
 
@@ -269,7 +329,7 @@ def _linear_ops(m: Model, p: Parallel, batch: int, sq: int, tag: str) -> List[di
     hv = la.heads_v // tp
     hqk = la.heads_qk // tp
     conv_dim = 2 * hqk * la.d_k + hv * la.d_v
-    ops = [_k(f"{tag}input_norm", type="row_norm", rows=t, cols=h),
+    ops = [_k(f"{tag}input_norm", type="row_norm", rows=_rows(t, p), cols=h), *_tp_enter(t, h, p, tag, "linear"),
            _gemm(f"{tag}in_proj", t, conv_dim + hv * la.d_v + hv * (2 if la.delta else 1), h),
            _k(f"{tag}conv1d", type="conv1d", batch=batch, dim=conv_dim, seqlen=sq, width=la.d_conv)]
     ssm = dict(batch=batch, heads=hv, headdim=la.d_v, d_state=la.d_k, groups=hqk)
@@ -287,9 +347,8 @@ def _linear_ops(m: Model, p: Parallel, batch: int, sq: int, tag: str) -> List[di
             ops.append(_k(f"{tag}lin_{stage}", type="ssd", stage=stage, seqlen=sq, chunk=la.chunk, **ssm))
     ops += [_k(f"{tag}gated_norm", type="row_norm", rows=t, cols=hv * la.d_v),
             _gemm(f"{tag}out_proj", t, h, hv * la.d_v)]
-    if tp > 1:
-        ops.append(_coll("all_reduce", t * h * 2, f"block:{tp}", p.comm_sms, f"{tag}linear_allreduce"))
-    ops.append(_k(f"{tag}residual", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
+    ops += _tp_exit(t, h, p, tag, "linear")
+    ops.append(_k(f"{tag}residual", type="elementwise", n=_rows(t, p) * h, inputs=2, flops_per_elem=1))
     return ops
 
 
@@ -297,13 +356,12 @@ def _mlp_ops(m: Model, p: Parallel, t: int, tag: str) -> List[dict]:
     """Standalone MLP block (hybrid stacks): pre-norm, gate/up, act, down, residual."""
     h = m.hidden
     ffn = m.ffn // p.tp
-    ops = [_k(f"{tag}mlp_norm", type="row_norm", rows=t, cols=h),
+    ops = [_k(f"{tag}mlp_norm", type="row_norm", rows=_rows(t, p), cols=h), *_tp_enter(t, h, p, tag, "mlp"),
            _gemm(f"{tag}gate_up_proj", t, 2 * ffn, h),
            _k(f"{tag}act_mul", type="elementwise", n=t * ffn, inputs=2, flops_per_elem=4),
            _gemm(f"{tag}down_proj", t, h, ffn)]
-    if p.tp > 1:
-        ops.append(_coll("all_reduce", t * h * 2, f"block:{p.tp}", p.comm_sms, f"{tag}mlp_allreduce"))
-    ops.append(_k(f"{tag}mlp_residual", type="elementwise", n=t * h, inputs=2, flops_per_elem=1))
+    ops += _tp_exit(t, h, p, tag, "mlp")
+    ops.append(_k(f"{tag}mlp_residual", type="elementwise", n=_rows(t, p) * h, inputs=2, flops_per_elem=1))
     return ops
 
 
@@ -398,8 +456,9 @@ def memory(m: Model, p: Parallel, *, phase: str, batch: int = 1, context: int = 
     First-order and stated so it can be checked: weights in the model dtype;
     KV cache for ``batch`` sequences of ``context`` tokens (``batch`` is per
     rank, as in :func:`decode_step`); Mamba-2 conv and SSM state; for
-    training, BF16 gradients and FP32 Adam state (master weights, m, v) both
-    sharded over ``dp`` (ZeRO-2, which is what :func:`train_step` lowers),
+    training, BF16 gradients and FP32 Adam state (master weights, m, v),
+    sharded over the DP shard group as ``p.zero`` says (ZeRO-1 shards the
+    optimizer state, ZeRO-2 the gradients too, ZeRO-3 the weights as well),
     and activations of about ``34 * tokens * hidden`` bytes per layer
     divided by ``tp`` (Korthikanti et al. 2022 with FlashAttention and
     sequence parallelism, no recomputation), times the micro-batches a stage
@@ -425,8 +484,14 @@ def memory(m: Model, p: Parallel, *, phase: str, batch: int = 1, context: int = 
             ffn = max(m.ffn, m.moe.expert_ffn * m.moe.topk if m.moe else 0)
             out["activations"] = t * (4 * m.hidden + 2 * ffn / p.tp) * 2.0
     elif phase == "train":
-        out["grads"] = 2.0 * w / p.dp
-        out["optimizer"] = 12.0 * w / p.dp
+        s = p.shard_group()
+        if p.zero == 3:
+            # The shard, plus the two layers FSDP holds gathered at once
+            # (the running one and the prefetched one).
+            n_l = len(m.block_list()) if m.blocks is not None else m.layers
+            out["weights"] = w * m.bytes_per_param() * (1.0 / s + 2.0 / n_l)
+        out["grads"] = 2.0 * w / (s if p.zero >= 2 else 1)
+        out["optimizer"] = 12.0 * w / (s if p.zero >= 1 else 1)
         layers = len(m.block_list()) if m.blocks is not None else m.layers
         in_flight = micro_batches if schedule == "gpipe" else min(micro_batches, p.pp)
         per_layer = 34.0 * batch * seqlen * m.hidden / p.tp
@@ -476,7 +541,8 @@ def prefill(m: Model, p: Parallel, batch: int, seqlen: int, *, layers: Optional[
     }
 
 
-def prefill_cp(m: Model, cp: int, seqlen: int, *, layers: Optional[int] = None, comm_sms: int = 2) -> dict:
+def prefill_cp(m: Model, cp: int, seqlen: int, *, layers: Optional[int] = None, comm_sms: int = 2,
+               kind: str = "ring") -> dict:
     """Context-parallel prefill of one ``seqlen``-token sequence over ``cp``
     ranks, ``seqlen / cp`` tokens each (no TP; one model replica per rank).
 
@@ -492,7 +558,16 @@ def prefill_cp(m: Model, cp: int, seqlen: int, *, layers: Optional[int] = None, 
       for the delta rule), sends it on, and adds ``C_t S_in`` to its outputs.
       Successive layers pipeline across ranks. The ``d_conv - 1``-token conv
       halo is not exchanged (a few KB).
+
+    With ``kind="ulysses"`` (DeepSpeed-Ulysses, Jacobs et al. 2023) attention
+    blocks instead all-to-all Q, K and V from sequence shards to head shards,
+    run causal attention over the whole sequence on ``heads / cp`` heads, and
+    all-to-all the output back. KV heads fewer than ``cp`` are replicated.
     """
+    if kind == "ulysses":
+        return _prefill_ulysses(m, cp, seqlen, layers=layers)
+    if kind != "ring":
+        raise ValueError(f"unknown context-parallel kind {kind!r} (ring, ulysses)")
     if seqlen % cp:
         raise ParallelError(f"seqlen={seqlen} is not a multiple of cp={cp}")
     if m.moe or m.mla or m.gla:
@@ -570,6 +645,44 @@ def prefill_cp(m: Model, cp: int, seqlen: int, *, layers: Optional[int] = None, 
     return {
         "name": f"{m.name} prefill s{seqlen} cp{cp}",
         "ranks": ranks,
+        "model_flops": _model_flops(m, seqlen, seqlen // 2, False, lm_head=False),
+    }
+
+
+def _prefill_ulysses(m: Model, cp: int, seqlen: int, *, layers: Optional[int] = None) -> dict:
+    if seqlen % cp:
+        raise ParallelError(f"seqlen={seqlen} is not a multiple of cp={cp}")
+    if m.moe or m.mla or m.gla or m.gta or "M" in m.block_list() or "L" in m.block_list():
+        raise ValueError("Ulysses prefill lowers dense GQA attention + MLP stacks")
+    if m.heads % cp:
+        raise ParallelError(f"Ulysses needs cp={cp} to divide {m.name}'s {m.heads} query heads")
+    if m.kv_heads % cp and cp % m.kv_heads:
+        raise ParallelError(f"cp={cp} and {m.kv_heads} KV heads: one must divide the other")
+    if layers is not None:
+        m = m.with_layers(layers)
+    p = Parallel()
+    t = seqlen // cp
+    hq, hkv, d = m.heads, m.kv_heads, m.head_dim
+    hq_l, hkv_l = hq // cp, max(1, hkv // cp)
+    ops: List[dict] = []
+    for li, b in enumerate(m.block_list()):
+        tag = f"l{li}."
+        if b == "F":
+            ops += _mlp_ops(m, p, t, tag)
+            continue
+        # Each rank sends (cp - 1)/cp of its t x (H + 2 H_kv) x d shard; the
+        # ``bytes`` of an all-to-all are the rank's whole buffer.
+        ops += [_k(f"{tag}input_norm", type="row_norm", rows=t, cols=m.hidden),
+                _gemm(f"{tag}qkv_proj", t, (hq + 2 * hkv) * d, m.hidden),
+                _coll("all_to_all", t * (hq + 2 * hkv_l * cp) * d * 2, "world", 16, f"{tag}ulysses_qkv_a2a"),
+                _k(f"{tag}attention", type="attention", batch=1, heads_q=hq_l, heads_kv=hkv_l, sq=seqlen, skv=seqlen,
+                   d=d, causal=True),
+                _coll("all_to_all", t * hq * d * 2, "world", 16, f"{tag}ulysses_out_a2a"),
+                _gemm(f"{tag}o_proj", t, m.hidden, hq * d),
+                _k(f"{tag}residual", type="elementwise", n=t * m.hidden, inputs=2, flops_per_elem=1)]
+    return {
+        "name": f"{m.name} prefill s{seqlen} cp{cp} ulysses",
+        "spmd": {"world": cp, "program": {"streams": [ops]}},
         "model_flops": _model_flops(m, seqlen, seqlen // 2, False, lm_head=False),
     }
 
@@ -721,6 +834,13 @@ def train_step(m: Model, p: Parallel, micro_batch: int, seqlen: int, *, layers: 
                  schedule=schedule)
     if layers is not None:
         m = m.with_layers(layers)
+    if p.zero == 3 and (p.pp > 1 or micro_batches > 1):
+        raise ParallelError("zero=3 (FSDP) is lowered for one micro-batch without pipeline stages; "
+                            "use zero<=2 with pp, or one micro-batch")
+    if p.zero in (0, 3):
+        wl = _train_sharded(m, p, micro_batch, seqlen, optimizer)
+        wl["memory"] = mem
+        return wl
     if p.pp > 1 or micro_batches > 1 or optimizer:
         wl = _train_pipeline(m, p, micro_batch, seqlen, micro_batches, schedule, grad_bucket_layers, optimizer)
         wl["memory"] = mem
@@ -751,6 +871,96 @@ def train_step(m: Model, p: Parallel, micro_batch: int, seqlen: int, *, layers: 
         "model_flops": _model_flops(m, t * world // max(1, p.tp), seqlen // 2, True, lm_head=False),
         "memory": mem,
     }
+
+
+def _dp_groups(p: Parallel, rank: int) -> tuple:
+    """(shard group, replica group) of ``rank`` for data-parallel ranks laid
+    out as rank = d * tp + t (no pipeline stages). The shard group holds
+    ``shard_group()`` consecutive DP ranks; the replica group links the ranks
+    with the same position in every shard group."""
+    tp, s = p.tp, p.shard_group()
+    d, t = rank // tp, rank % tp
+    k = d // s
+    shard = [(k * s + j) * tp + t for j in range(s)]
+    repl = [(kk * s + d % s) * tp + t for kk in range(p.dp // s)]
+    return shard, repl
+
+
+def _train_sharded(m: Model, p: Parallel, micro_batch: int, seqlen: int, optimizer: bool) -> dict:
+    """One training step under DDP (``zero=0``) or FSDP / ZeRO-3 and HSDP
+    (``zero=3``), one micro-batch, no pipeline stages.
+
+    * DDP: each layer's gradients are all-reduced over DP on a communication
+      stream as soon as its backward finishes.
+    * FSDP: a gather stream all-gathers layer ``l``'s BF16 weights before its
+      forward (issued when layer ``l - 1``'s forward starts, FSDP's one-layer
+      prefetch) and again before its backward; a reduce stream
+      reduce-scatters each layer's gradients when they are ready. Under HSDP
+      the gather and scatter run inside the shard group and the gradient
+      shard is then all-reduced across the replica groups.
+    """
+    tp, dp = p.tp, p.dp
+    world = tp * dp
+    n_layers = len(m.blocks) if m.blocks is not None else m.layers
+    s = p.shard_group()
+    fwd = [_layer_ops(m, p, l, micro_batch, seqlen, f"L{l}.") for l in range(n_layers)]
+    bwd = [sum(_backward(_layer_ops(m, p, l, micro_batch, seqlen, f"L{l}.bwd.")), []) for l in range(n_layers)]
+    lp = [_layer_params(m, p, l) for l in range(n_layers)]
+
+    def program(rank: int) -> List[List[dict]]:
+        if dp > 1:
+            shard, repl = _dp_groups(p, rank)
+        comp: List[dict] = []
+        gather: List[dict] = []
+        reduce: List[dict] = []
+        fsdp = p.zero == 3 and dp > 1
+        for l in range(n_layers):
+            if fsdp:
+                if l:
+                    gather.append({"op": "wait", "event": f"fstart{l - 1}"})
+                gather += [_coll("all_gather", lp[l] * 2, shard, p.comm_sms, f"param_ag_fwd{l}"),
+                           {"op": "record", "event": f"agf{l}"}]
+                comp += [{"op": "wait", "event": f"agf{l}"}, {"op": "record", "event": f"fstart{l}"}]
+            comp += fwd[l]
+        for l in reversed(range(n_layers)):
+            if fsdp:
+                if l < n_layers - 1:
+                    gather.append({"op": "wait", "event": f"bstart{l + 1}"})
+                gather += [_coll("all_gather", lp[l] * 2, shard, p.comm_sms, f"param_ag_bwd{l}"),
+                           {"op": "record", "event": f"agb{l}"}]
+                comp += [{"op": "wait", "event": f"agb{l}"}, {"op": "record", "event": f"bstart{l}"}]
+            comp += bwd[l]
+            if dp > 1:
+                comp.append({"op": "record", "event": f"grad{l}"})
+                reduce.append({"op": "wait", "event": f"grad{l}"})
+                if fsdp:
+                    reduce.append(_coll("reduce_scatter", lp[l] * 2, shard, p.comm_sms, f"grad_rs{l}"))
+                    if len(repl) > 1:
+                        reduce.append(_coll("all_reduce", lp[l] * 2 / s, repl, p.comm_sms, f"grad_ar{l}"))
+                else:
+                    reduce.append(_coll("all_reduce", lp[l] * 2, shard, p.comm_sms, f"grad_ar{l}"))
+        if optimizer:
+            if reduce:
+                reduce.append({"op": "record", "event": "grads_done"})
+                comp.append({"op": "wait", "event": "grads_done"})
+            n = sum(lp) / (s if p.zero == 3 else 1)
+            comp.append(_k("adam_step", type="elementwise", n=max(1, int(n)), inputs=4, elem_bytes=4.0,
+                           flops_per_elem=12))
+        return [x for x in (comp, gather, reduce) if x]
+
+    name = f"{m.name} train mb{micro_batch} s{seqlen} {p}"
+    flops = _model_flops(m, micro_batch * seqlen * dp, seqlen // 2, True, lm_head=False)
+    if p.shard and p.shard != dp and tp > 1:
+        # HSDP shard groups are not expressible as block/stride groups when
+        # TP is innermost: give every rank its own program.
+        return {"name": name, "ranks": [{"streams": program(r)} for r in range(world)], "model_flops": flops}
+    streams = program(0)
+    if dp > 1:
+        named = {tuple(_dp_groups(p, 0)[0]): f"block:{s}" if tp == 1 else f"stride:{tp}",
+                 tuple(_dp_groups(p, 0)[1]): f"stride:{s * tp}"}
+        streams = [[_rewrite_groups(op, named[tuple(op["group"])]) if op.get("op") == "collective" else op
+                    for op in st] for st in streams]
+    return {"name": name, "spmd": {"world": world, "program": {"streams": streams}}, "model_flops": flops}
 
 
 def _train_pipeline(m: Model, p: Parallel, micro_batch: int, seqlen: int, mbs: int, schedule: str,
@@ -802,8 +1012,9 @@ def _train_pipeline(m: Model, p: Parallel, micro_batch: int, seqlen: int, mbs: i
                         if (l - mine[0]) % grad_bucket_layers == 0:
                             ev = f"grad{l}"
                             comp.append({"op": "record", "event": ev})
+                            kind = "all_reduce" if p.zero == 0 else "reduce_scatter"
                             grads += [{"op": "wait", "event": ev},
-                                      _coll("reduce_scatter", bucket * 2, dp_group, p.comm_sms, f"grad_rs{l}")]
+                                      _coll(kind, bucket * 2, dp_group, p.comm_sms, f"grad_rs{l}")]
                             bucket = 0.0
                 if not first and not split_w:
                     # GPipe and 1F1B run each backward as one pass, so the
@@ -817,7 +1028,7 @@ def _train_pipeline(m: Model, p: Parallel, micro_batch: int, seqlen: int, mbs: i
                 frecv += [{"op": "recv", "bytes": act_bytes, "peer": prv}, {"op": "record", "event": f"fin{i}"}]
                 bsend += [{"op": "wait", "event": f"bout{i}"}, {"op": "send", "bytes": act_bytes, "peer": prv}]
         if optimizer:
-            shard = sum(_layer_params(m, p, l) for l in mine) / dp
+            shard = sum(_layer_params(m, p, l) for l in mine) / (dp if p.zero else 1)
             if grads:
                 grads.append({"op": "record", "event": "grads_done"})
                 comp.append({"op": "wait", "event": "grads_done"})
@@ -825,7 +1036,7 @@ def _train_pipeline(m: Model, p: Parallel, micro_batch: int, seqlen: int, mbs: i
             # gradient in, three FP32 tensors and the BF16 weight out.
             comp.append(_k("adam_step", type="elementwise", n=max(1, int(shard)), inputs=4, elem_bytes=4.0,
                            flops_per_elem=12))
-            if dp > 1:
+            if dp > 1 and p.zero:
                 comp.append(_coll("all_gather", shard * dp * 2, dp_group, p.comm_sms, "param_allgather"))
         ranks.append({"streams": [x for x in (comp, grads, fsend, frecv, bsend, brecv) if x]})
     tokens = micro_batch * seqlen * mbs * dp
