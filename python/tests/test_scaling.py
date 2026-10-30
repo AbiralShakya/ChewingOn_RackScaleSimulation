@@ -93,6 +93,16 @@ def test_hsdp_groups():
         lower.check(M, lower.Parallel(dp=8, zero=2, shard=4))
 
 
+def test_fsdp_with_tp_keeps_tp_groups():
+    # TP collectives stay "block:tp"; the FSDP gathers go over the ranks with the same TP index.
+    wl = lower.train_step(M, lower.Parallel(tp=8, dp=2, zero=3), 1, 1024)
+    groups = {(c["kind"], c["group"]) for c in _colls(wl)}
+    assert ("all_reduce", "block:8") in groups and ("all_gather", "stride:8") in groups
+    assert all(isinstance(g, str) for _, g in groups)
+    ddp = lower.train_step(M, lower.Parallel(tp=2, dp=4, zero=0), 1, 1024)
+    assert {c["group"] for c in _colls(ddp) if c["kind"] == "all_reduce"} == {"block:2", "stride:2"}
+
+
 def test_sequence_parallel_lowering():
     wl = lower.prefill(M, lower.Parallel(tp=4, sp=True), 1, 4096)
     ops = wl["spmd"]["program"]["streams"][0]

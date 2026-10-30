@@ -958,7 +958,9 @@ def _train_sharded(m: Model, p: Parallel, micro_batch: int, seqlen: int, optimiz
     if dp > 1:
         named = {tuple(_dp_groups(p, 0)[0]): f"block:{s}" if tp == 1 else f"stride:{tp}",
                  tuple(_dp_groups(p, 0)[1]): f"stride:{s * tp}"}
-        streams = [[_rewrite_groups(op, named[tuple(op["group"])]) if op.get("op") == "collective" else op
+        # Only the DP collectives carry explicit rank lists; TP's are already "block:tp".
+        streams = [[_rewrite_groups(op, named[tuple(op["group"])])
+                    if op.get("op") == "collective" and isinstance(op["group"], list) else op
                     for op in st] for st in streams]
     return {"name": name, "spmd": {"world": world, "program": {"streams": streams}}, "model_flops": flops}
 
