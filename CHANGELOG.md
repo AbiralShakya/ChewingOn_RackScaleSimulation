@@ -6,6 +6,15 @@ until 1.0, a minor version may change simulated timings, and the release notes s
 ## [Unreleased]
 
 ### Added
+- Run reports (`rackscale.report`): a self-contained HTML page per run, or several runs side by
+  side, with KPI tiles, where the GPU time goes, every kernel on the roofline (with the FP8/FP4
+  roofs when kernels use them), the top kernels, the scheduler-stall anatomy and the collectives;
+  hover tooltips; light and dark. Each figure is also written as a standalone SVG for articles.
+  `--html` and `--figures` on every simulate command, `rackscale report *.json`, and
+  `examples/report_gallery.py` (published in the examples gallery).
+- `--system a,b,c` simulates the same workload on several systems and prints a comparison
+  (step, speedup, MFU, GPU idle); `--report` then writes a list. `rackscale demo` writes the
+  comparison report.
 - `rsim kernel gemm ... --tile-n --stages --cluster --split-k --reserve-sms` and
   `synth::gemm_with(GemmOpts)`: override the Blackwell GEMM's tiling choices and hold SMs back for
   communication kernels. Book chapter 15 (parallelism inside one GPU: Little's law, warp roles,

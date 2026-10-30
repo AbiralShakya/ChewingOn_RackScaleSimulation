@@ -36,7 +36,8 @@ RSIM_COMMANDS = {
 
 
 def _common(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--system", default="gb200_nvl72", help="preset name or system YAML path")
+    p.add_argument("--system", default="gb200_nvl72",
+                   help="preset name or system YAML path; several, comma separated, to compare them")
     p.add_argument("--trace", help="write a Perfetto trace (open in ui.perfetto.dev)")
     p.add_argument("--report", help="write the full JSON report")
     p.add_argument("--dump-workload", help="write the lowered workload JSON and continue")
@@ -44,7 +45,11 @@ def _common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--fast", action="store_true", help="simulate each distinct kernel once and reuse it across ranks/layers")
     p.add_argument("--per-sm", action="store_true", help="add one Perfetto track per SM with a span per CTA (exact mode)")
     p.add_argument("--viz", metavar="PAGE.html", help="also write the zoomable viewer page (rack down to SASS) for rank 0")
-    p.add_argument("--open", action="store_true", help="open the --viz page (or Perfetto for --trace) in a browser")
+    p.add_argument("--html", metavar="REPORT.html",
+                   help="write the run report: step anatomy, roofline, costliest kernels, stalls (one page, no server)")
+    p.add_argument("--figures", metavar="DIR", help="write each report figure as a standalone SVG (for articles, slides)")
+    p.add_argument("--title", help="title for the --html report")
+    p.add_argument("--open", action="store_true", help="open the --html report, else the --viz page, else Perfetto")
 
 
 def _model_args(p: argparse.ArgumentParser) -> None:
@@ -198,10 +203,18 @@ def rsim_entry() -> None:
 
 
 def _extra_commands(sub) -> None:
-    dm = sub.add_parser("demo", help="a 30-second tour: Llama-3-70B decode on HGX H100 vs B200, then the viewer")
-    dm.add_argument("-o", "--out", default="rackscale_demo.html", help="viewer page to write")
-    dm.add_argument("--open", action="store_true", help="open the page in a browser")
+    dm = sub.add_parser("demo", help="a 30-second tour: Llama-3-70B decode on HGX H100 vs B200, a report and the viewer")
+    dm.add_argument("-o", "--out", default="rackscale_demo.html",
+                    help="report page to write (the viewer goes next to it, as *_viewer.html)")
+    dm.add_argument("--open", action="store_true", help="open the report in a browser")
     sub.add_parser("models", help="list the built-in model architectures")
+    rp = sub.add_parser("report", help="build the HTML report (and SVG figures) from saved --report JSON files")
+    rp.add_argument("reports", nargs="+", help="JSON written by --report; several to compare them")
+    rp.add_argument("-o", "--out", default="report.html")
+    rp.add_argument("--system", help="system(s) the runs used, comma separated (default: recorded in the JSON)")
+    rp.add_argument("--figures", metavar="DIR")
+    rp.add_argument("--title")
+    rp.add_argument("--open", action="store_true")
     v = sub.add_parser("view", help="open a viewer page (.html) or a Perfetto trace (.json) in a browser")
     v.add_argument("file")
 
@@ -259,10 +272,20 @@ def _demo(a) -> int:
     h, b = rows[0][1].makespan_us, rows[1][1].makespan_us
     print(f"\nB200 is {h / b:.2f}x faster per step here. Full anatomy of the B200 run:\n")
     print(_term.colorize_summary(rows[1][1].summary()))
-    with _term.progress(f"writing the viewer page {a.out} (rack -> GPU -> SMs -> warps -> SASS)"):
-        viz("hgx_b200_8", wl, a.out, name="Llama-3-70B decode, TP8 on HGX B200", warp_sms=[0])
-    print(f"\nviewer: {os.path.abspath(a.out)}  (no server needed; `rackscale view {a.out}`)")
-    print("next:   rackscale decode deepseek-v3 --system gb200_nvl72 --ep 72 --layers 4 --fast --viz ds.html --open")
+    from . import report
+    root, ext = os.path.splitext(a.out)
+    viewer = f"{root}_viewer{ext or '.html'}"
+    for _, r in rows:
+        r.raw["gpu_spec"] = report._gpu_spec(_)
+    report.write([r for _, r in rows], a.out, system=[s for s, _ in rows],
+                 title="Llama-3-70B decode, TP8: HGX H100 vs HGX B200",
+                 note="One decode step, the first 2 of 80 layers, 32 sequences per GPU at 4k context, tensor "
+                      "parallel over 8 GPUs, every SM of every GPU simulated at cycle level (fast mode).")
+    with _term.progress(f"writing the viewer page {viewer} (rack -> GPU -> SMs -> warps -> SASS)"):
+        viz("hgx_b200_8", wl, viewer, name="Llama-3-70B decode, TP8 on HGX B200", warp_sms=[0])
+    print(f"\nreport: {os.path.abspath(a.out)}  (roofline, where the time goes, stalls; `rackscale view {a.out}`)")
+    print(f"viewer: {os.path.abspath(viewer)}  (zoom from the rack to one SASS instruction)")
+    print("next:   rackscale decode deepseek-v3 --system gb200_nvl72,gb300_nvl72 --ep 72 --layers 4 --fast --html ds.html --open")
     if a.open:
         _open(a.out)
     return 0
@@ -273,6 +296,8 @@ def _run(a, cmd) -> int:
         return _demo(a)
     if a.cmd == "models":
         return _models()
+    if a.cmd == "report":
+        return _report(a)
     if a.cmd == "view":
         if not os.path.exists(a.file):
             raise OSError(f"no such file: {a.file}")
@@ -307,34 +332,109 @@ def _run(a, cmd) -> int:
     if a.dump_workload and isinstance(wl, dict):
         with open(a.dump_workload, "w") as f:
             json.dump(wl, f, indent=1)
-    rep = _simulate(a, wl)
-    if a.report:
-        with open(a.report, "w") as f:
-            json.dump(rep.raw, f, indent=1)
+    _simulate(a, wl)
     return 0
 
 
+def _systems(a) -> list:
+    s = a.system
+    if "," in s and not os.path.exists(s):
+        return [x.strip() for x in s.split(",") if x.strip()]
+    return [s]
+
+
+def _title(a) -> str:
+    if not getattr(a, "model", None):
+        return f"{a.cmd} {getattr(a, 'workload', '') or ''}".strip()
+    lay = " ".join(f"{k.upper()}{getattr(a, k)}" for k in ("tp", "ep", "pp", "dp") if getattr(a, k, 1) > 1) or "1 GPU per replica"
+    if a.cmd == "decode":
+        what = f"batch {a.batch} per GPU, {a.context // 1024}k context" if a.context >= 1024 else f"batch {a.batch}"
+    elif a.cmd == "prefill":
+        what = f"batch {a.batch}, {a.seqlen} tokens"
+    else:
+        what = f"micro-batch {a.micro_batch}, {a.seqlen} tokens"
+    layers = f", first {a.layers} layers" if a.layers else ""
+    return f"{a.model} {a.cmd} · {lay} · {what}{layers}"
+
+
+def _suffixed(path: str, system: str, many: bool) -> str:
+    if not many:
+        return path
+    root, ext = os.path.splitext(path)
+    return f"{root}_{os.path.splitext(os.path.basename(system))[0]}{ext}"
+
+
 def _simulate(a, wl):
-    """Simulate with a progress line, print the summary, write/open --trace and --viz."""
-    from . import viz
+    """Simulate on each system with a progress line, print the summaries, write --report/--trace/--viz/--html."""
+    from . import report, viz
     cfg = {"gpu": {"per_sm_counters": True}} if a.per_sm else None
     what = f"{a.model} {a.cmd}" if getattr(a, "model", None) else a.cmd
     mode = "fast mode" if a.fast else "exact, every SM of every GPU"
-    with _term.progress(f"simulating {what} on {a.system} ({mode})"):
-        rep = simulate(a.system, wl, trace=a.trace, launch_gap_ns=a.launch_gap_ns, fast=a.fast, config=cfg)
-    print(_term.colorize_summary(rep.summary()))
-    if a.trace:
-        print(f"trace  -> {a.trace} (open in https://ui.perfetto.dev)")
-    if a.viz:
-        with _term.progress(f"writing viewer page {a.viz}"):
-            viz(a.system, wl, a.viz, fast=a.fast, launch_gap_ns=a.launch_gap_ns)
-        print(f"viewer -> {a.viz} (open in any browser, or `rackscale view {a.viz}`)")
+    systems = _systems(a)
+    many = len(systems) > 1
+    reps, opened = [], None
+    for system in systems:
+        trace = _suffixed(a.trace, system, many) if a.trace else None
+        with _term.progress(f"simulating {what} on {system} ({mode})"):
+            rep = simulate(system, wl, trace=trace, launch_gap_ns=a.launch_gap_ns, fast=a.fast, config=cfg)
+        rep.raw["gpu_spec"] = report._gpu_spec(system)
+        reps.append(rep)
+        print(_term.colorize_summary(rep.summary()))
+        if trace:
+            print(f"trace  -> {trace} (open in https://ui.perfetto.dev)")
+            opened = opened or trace
+        if a.viz:
+            page = _suffixed(a.viz, system, many)
+            with _term.progress(f"writing viewer page {page}"):
+                viz(system, wl, page, fast=a.fast, launch_gap_ns=a.launch_gap_ns)
+            print(f"viewer -> {page} (open in any browser, or `rackscale view {page}`)")
+            opened = page
+        if many:
+            print()
+    if many:
+        base = reps[0].makespan_us
+        print(_term.style(f"{'system':<24} {'GPUs':>5} {'step':>12} {'speedup':>8} {'MFU':>6} {'GPU idle':>9}", "bold"))
+        for s, r in zip(systems, reps):
+            mfu = f"{100 * r.raw['mfu']:.1f}%" if r.raw.get("mfu") else "-"
+            print(f"{s:<24} {r.raw['world']:>5} {r.makespan_us:>9.1f} us {base / r.makespan_us:>7.2f}x {mfu:>6} "
+                  f"{100 * r.bubbles['gpu_idle_fraction']:>8.1f}%")
+    if a.report:
+        with open(a.report, "w") as f:
+            json.dump([r.raw for r in reps] if many else reps[0].raw, f, indent=1)
+    if a.html:
+        report.write(reps, a.html, system=systems, title=a.title or _title(a))
+        print(f"report -> {a.html} (open in any browser, or `rackscale view {a.html}`)")
+        opened = a.html
+    if a.figures:
+        out = report.figures(reps, a.figures, system=systems)
+        print(f"figures -> {a.figures}/ ({len(out)} SVGs)")
     if a.open:
-        if a.viz or a.trace:
-            _open(a.viz or a.trace)
+        if opened:
+            _open(opened)
         else:
-            print("--open needs --viz PAGE.html or --trace FILE.json", file=sys.stderr)
-    return rep
+            print("--open needs --html, --viz or --trace", file=sys.stderr)
+    return reps[0]
+
+
+def _report(a) -> int:
+    from . import report
+    runs = []
+    for p in a.reports:
+        with open(p) as f:
+            d = json.load(f)
+        runs += d if isinstance(d, list) else [d]
+    systems = a.system.split(",") if a.system else [r.get("gpu_spec") for r in runs]
+    if len(systems) != len(runs):
+        raise ValueError(f"{len(runs)} runs but {len(systems)} systems in --system")
+    if any(s is None for s in systems):
+        raise ValueError("these reports do not record their GPU; pass --system (the preset or YAML each run used)")
+    report.write(runs, a.out, system=systems, title=a.title)
+    print(f"report -> {a.out}")
+    if a.figures:
+        print(f"figures -> {a.figures}/ ({len(report.figures(runs, a.figures, system=systems))} SVGs)")
+    if a.open:
+        _open(a.out)
+    return 0
 
 
 def _replay(a) -> int:
@@ -365,9 +465,6 @@ def _replay(a) -> int:
                 continue
             print(f"{row['kernel']:<10} {row['name'][:56]:<56} {row['count']:>5} {row['measured_us'] or 0:>9.2f} "
                   f"{row['sim_us']:>9.2f} {row['error_pct'] or 0:>+7.1f}")
-    if a.report:
-        with open(a.report, "w") as f:
-            json.dump(rep.raw, f, indent=1)
     return 0
 
 

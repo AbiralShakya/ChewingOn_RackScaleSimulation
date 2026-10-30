@@ -25,9 +25,12 @@ positional arguments:
     capture   capture any CUDA program under the NVBit tool (`-- cmd ...`), or simulate a torch-
               profiler trace (PATH)
     replay    simulate a capture on a system with a parallelism plan
+    sweep     simulate a grid of models x systems x phases x layouts (rackscale.sweep)
+    plan      best layout (and decode batch) for a model on a system, with the bottleneck
     run       simulate a workload JSON/YAML file
-    demo      a 30-second tour: Llama-3-70B decode on HGX H100 vs B200, then the viewer
+    demo      a 30-second tour: Llama-3-70B decode on HGX H100 vs B200, a report and the viewer
     models    list the built-in model architectures
+    report    build the HTML report (and SVG figures) from saved --report JSON files
     view      open a viewer page (.html) or a Perfetto trace (.json) in a browser
 
 options:
@@ -57,8 +60,8 @@ usage: rackscale demo [-h] [-o OUT] [--open]
 
 options:
   -h, --help     show this help message and exit
-  -o, --out OUT  viewer page to write
-  --open         open the page in a browser
+  -o, --out OUT  report page to write (the viewer goes next to it, as *_viewer.html)
+  --open         open the report in a browser
 ```
 
 ### `rackscale decode`
@@ -68,13 +71,18 @@ usage: rackscale decode [-h] [--tp TP] [--ep EP] [--dp DP] [--pp PP] [--comm-sms
                         [--layers LAYERS] [--batch BATCH] [--context CONTEXT] [--overlap]
                         [--system SYSTEM] [--trace TRACE] [--report REPORT]
                         [--dump-workload DUMP_WORKLOAD] [--launch-gap-ns LAUNCH_GAP_NS] [--fast]
-                        [--per-sm] [--viz PAGE.html] [--open]
+                        [--per-sm] [--viz PAGE.html] [--html REPORT.html] [--figures DIR]
+                        [--title TITLE] [--open]
                         MODEL
 
 positional arguments:
-  MODEL                 one of: deepseek-v3, llama3-405b, llama3-70b, llama3-8b, mamba2-70b,
+  MODEL                 one of: deepseek-v3, gdn-8b, gdn-hybrid-70b, gdn-hybrid-8b, gla-8b,
+                        llama3-405b, llama3-70b, llama3-70b-gla2, llama3-70b-gta8, llama3-70b-mla,
+                        llama3-70b-mqa, llama3-8b, llama3-8b-gla2, llama3-8b-gta8, llama3-8b-mha,
+                        llama3-8b-mla, llama3-8b-mqa, llama3.2-1b, llama3.2-3b, mamba2-70b,
                         mamba2-70b-ssu8, mamba2-8b, mamba2-hybrid-70b, mamba2-hybrid-8b,
-                        mixtral-8x22b, qwen3-235b-a22b (see `rackscale models`)
+                        mixtral-8x22b, mixtral-8x7b, qwen2.5-32b, qwen3-235b-a22b, qwen3-30b-a3b
+                        (see `rackscale models`)
 
 options:
   -h, --help            show this help message and exit
@@ -88,7 +96,7 @@ options:
   --batch BATCH         sequences per rank
   --context CONTEXT
   --overlap             two-micro-batch compute/comm overlap (DeepSeek style)
-  --system SYSTEM       preset name or system YAML path
+  --system SYSTEM       preset name or system YAML path; several, comma separated, to compare them
   --trace TRACE         write a Perfetto trace (open in ui.perfetto.dev)
   --report REPORT       write the full JSON report
   --dump-workload DUMP_WORKLOAD
@@ -97,7 +105,11 @@ options:
   --fast                simulate each distinct kernel once and reuse it across ranks/layers
   --per-sm              add one Perfetto track per SM with a span per CTA (exact mode)
   --viz PAGE.html       also write the zoomable viewer page (rack down to SASS) for rank 0
-  --open                open the --viz page (or Perfetto for --trace) in a browser
+  --html REPORT.html    write the run report: step anatomy, roofline, costliest kernels, stalls
+                        (one page, no server)
+  --figures DIR         write each report figure as a standalone SVG (for articles, slides)
+  --title TITLE         title for the --html report
+  --open                open the --html report, else the --viz page, else Perfetto
 ```
 
 ### `rackscale prefill`
@@ -107,13 +119,17 @@ usage: rackscale prefill [-h] [--tp TP] [--ep EP] [--dp DP] [--pp PP] [--comm-sm
                          [--layers LAYERS] [--batch BATCH] [--seqlen SEQLEN] [--system SYSTEM]
                          [--trace TRACE] [--report REPORT] [--dump-workload DUMP_WORKLOAD]
                          [--launch-gap-ns LAUNCH_GAP_NS] [--fast] [--per-sm] [--viz PAGE.html]
-                         [--open]
+                         [--html REPORT.html] [--figures DIR] [--title TITLE] [--open]
                          MODEL
 
 positional arguments:
-  MODEL                 one of: deepseek-v3, llama3-405b, llama3-70b, llama3-8b, mamba2-70b,
+  MODEL                 one of: deepseek-v3, gdn-8b, gdn-hybrid-70b, gdn-hybrid-8b, gla-8b,
+                        llama3-405b, llama3-70b, llama3-70b-gla2, llama3-70b-gta8, llama3-70b-mla,
+                        llama3-70b-mqa, llama3-8b, llama3-8b-gla2, llama3-8b-gta8, llama3-8b-mha,
+                        llama3-8b-mla, llama3-8b-mqa, llama3.2-1b, llama3.2-3b, mamba2-70b,
                         mamba2-70b-ssu8, mamba2-8b, mamba2-hybrid-70b, mamba2-hybrid-8b,
-                        mixtral-8x22b, qwen3-235b-a22b (see `rackscale models`)
+                        mixtral-8x22b, mixtral-8x7b, qwen2.5-32b, qwen3-235b-a22b, qwen3-30b-a3b
+                        (see `rackscale models`)
 
 options:
   -h, --help            show this help message and exit
@@ -126,7 +142,7 @@ options:
                         model)
   --batch BATCH
   --seqlen SEQLEN
-  --system SYSTEM       preset name or system YAML path
+  --system SYSTEM       preset name or system YAML path; several, comma separated, to compare them
   --trace TRACE         write a Perfetto trace (open in ui.perfetto.dev)
   --report REPORT       write the full JSON report
   --dump-workload DUMP_WORKLOAD
@@ -135,7 +151,11 @@ options:
   --fast                simulate each distinct kernel once and reuse it across ranks/layers
   --per-sm              add one Perfetto track per SM with a span per CTA (exact mode)
   --viz PAGE.html       also write the zoomable viewer page (rack down to SASS) for rank 0
-  --open                open the --viz page (or Perfetto for --trace) in a browser
+  --html REPORT.html    write the run report: step anatomy, roofline, costliest kernels, stalls
+                        (one page, no server)
+  --figures DIR         write each report figure as a standalone SVG (for articles, slides)
+  --title TITLE         title for the --html report
+  --open                open the --html report, else the --viz page, else Perfetto
 ```
 
 ### `rackscale train`
@@ -146,13 +166,18 @@ usage: rackscale train [-h] [--tp TP] [--ep EP] [--dp DP] [--pp PP] [--comm-sms 
                        [--micro-batches MICRO_BATCHES] [--schedule {gpipe,1f1b,zb}] [--optimizer]
                        [--system SYSTEM] [--trace TRACE] [--report REPORT]
                        [--dump-workload DUMP_WORKLOAD] [--launch-gap-ns LAUNCH_GAP_NS] [--fast]
-                       [--per-sm] [--viz PAGE.html] [--open]
+                       [--per-sm] [--viz PAGE.html] [--html REPORT.html] [--figures DIR]
+                       [--title TITLE] [--open]
                        MODEL
 
 positional arguments:
-  MODEL                 one of: deepseek-v3, llama3-405b, llama3-70b, llama3-8b, mamba2-70b,
+  MODEL                 one of: deepseek-v3, gdn-8b, gdn-hybrid-70b, gdn-hybrid-8b, gla-8b,
+                        llama3-405b, llama3-70b, llama3-70b-gla2, llama3-70b-gta8, llama3-70b-mla,
+                        llama3-70b-mqa, llama3-8b, llama3-8b-gla2, llama3-8b-gta8, llama3-8b-mha,
+                        llama3-8b-mla, llama3-8b-mqa, llama3.2-1b, llama3.2-3b, mamba2-70b,
                         mamba2-70b-ssu8, mamba2-8b, mamba2-hybrid-70b, mamba2-hybrid-8b,
-                        mixtral-8x22b, qwen3-235b-a22b (see `rackscale models`)
+                        mixtral-8x22b, mixtral-8x7b, qwen2.5-32b, qwen3-235b-a22b, qwen3-30b-a3b
+                        (see `rackscale models`)
 
 options:
   -h, --help            show this help message and exit
@@ -170,7 +195,7 @@ options:
   --schedule {gpipe,1f1b,zb}
                         pipeline schedule: GPipe, 1F1B, or ZB-H1 zero-bubble
   --optimizer           end the step with an Adam update and DP all-gather
-  --system SYSTEM       preset name or system YAML path
+  --system SYSTEM       preset name or system YAML path; several, comma separated, to compare them
   --trace TRACE         write a Perfetto trace (open in ui.perfetto.dev)
   --report REPORT       write the full JSON report
   --dump-workload DUMP_WORKLOAD
@@ -179,7 +204,11 @@ options:
   --fast                simulate each distinct kernel once and reuse it across ranks/layers
   --per-sm              add one Perfetto track per SM with a span per CTA (exact mode)
   --viz PAGE.html       also write the zoomable viewer page (rack down to SASS) for rank 0
-  --open                open the --viz page (or Perfetto for --trace) in a browser
+  --html REPORT.html    write the run report: step anatomy, roofline, costliest kernels, stalls
+                        (one page, no server)
+  --figures DIR         write each report figure as a standalone SVG (for articles, slides)
+  --title TITLE         title for the --html report
+  --open                open the --html report, else the --viz page, else Perfetto
 ```
 
 ### `rackscale capture`
@@ -191,7 +220,8 @@ usage: rackscale capture [-h] [-o OUT] [--region REGION] [--key {config,func}] [
                          [--group GROUP] [--mode {resimulate,replay}] [--max-kernels MAX_KERNELS]
                          [--system SYSTEM] [--trace TRACE] [--report REPORT]
                          [--dump-workload DUMP_WORKLOAD] [--launch-gap-ns LAUNCH_GAP_NS] [--fast]
-                         [--per-sm] [--viz PAGE.html] [--open]
+                         [--per-sm] [--viz PAGE.html] [--html REPORT.html] [--figures DIR]
+                         [--title TITLE] [--open]
                          [path]
 
 positional arguments:
@@ -215,7 +245,7 @@ options:
   --group GROUP         communicator group for captured NCCL ops
   --mode {resimulate,replay}
   --max-kernels MAX_KERNELS
-  --system SYSTEM       preset name or system YAML path
+  --system SYSTEM       preset name or system YAML path; several, comma separated, to compare them
   --trace TRACE         write a Perfetto trace (open in ui.perfetto.dev)
   --report REPORT       write the full JSON report
   --dump-workload DUMP_WORKLOAD
@@ -224,7 +254,11 @@ options:
   --fast                simulate each distinct kernel once and reuse it across ranks/layers
   --per-sm              add one Perfetto track per SM with a span per CTA (exact mode)
   --viz PAGE.html       also write the zoomable viewer page (rack down to SASS) for rank 0
-  --open                open the --viz page (or Perfetto for --trace) in a browser
+  --html REPORT.html    write the run report: step anatomy, roofline, costliest kernels, stalls
+                        (one page, no server)
+  --figures DIR         write each report figure as a standalone SVG (for articles, slides)
+  --title TITLE         title for the --html report
+  --open                open the --html report, else the --viz page, else Perfetto
 ```
 
 ### `rackscale replay`
@@ -235,7 +269,7 @@ usage: rackscale replay [-h] [--plan PLAN] [--tp TP] [--ep EP] [--pp PP] [--dp D
                         [--host] [--steps STEPS] [--kernels] [--system SYSTEM] [--trace TRACE]
                         [--report REPORT] [--dump-workload DUMP_WORKLOAD]
                         [--launch-gap-ns LAUNCH_GAP_NS] [--fast] [--per-sm] [--viz PAGE.html]
-                        [--open]
+                        [--html REPORT.html] [--figures DIR] [--title TITLE] [--open]
                         capture
 
 positional arguments:
@@ -255,7 +289,7 @@ options:
   --host                replay the captured host issue time of every launch
   --steps STEPS         engine steps to replay, A:B (0-based, B exclusive)
   --kernels             also compare every recorded kernel alone to its measurement
-  --system SYSTEM       preset name or system YAML path
+  --system SYSTEM       preset name or system YAML path; several, comma separated, to compare them
   --trace TRACE         write a Perfetto trace (open in ui.perfetto.dev)
   --report REPORT       write the full JSON report
   --dump-workload DUMP_WORKLOAD
@@ -264,7 +298,11 @@ options:
   --fast                simulate each distinct kernel once and reuse it across ranks/layers
   --per-sm              add one Perfetto track per SM with a span per CTA (exact mode)
   --viz PAGE.html       also write the zoomable viewer page (rack down to SASS) for rank 0
-  --open                open the --viz page (or Perfetto for --trace) in a browser
+  --html REPORT.html    write the run report: step anatomy, roofline, costliest kernels, stalls
+                        (one page, no server)
+  --figures DIR         write each report figure as a standalone SVG (for articles, slides)
+  --title TITLE         title for the --html report
+  --open                open the --html report, else the --viz page, else Perfetto
 ```
 
 ### `rackscale run`
@@ -272,7 +310,8 @@ options:
 ```text
 usage: rackscale run [-h] [--system SYSTEM] [--trace TRACE] [--report REPORT]
                      [--dump-workload DUMP_WORKLOAD] [--launch-gap-ns LAUNCH_GAP_NS] [--fast]
-                     [--per-sm] [--viz PAGE.html] [--open]
+                     [--per-sm] [--viz PAGE.html] [--html REPORT.html] [--figures DIR]
+                     [--title TITLE] [--open]
                      workload
 
 positional arguments:
@@ -280,7 +319,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --system SYSTEM       preset name or system YAML path
+  --system SYSTEM       preset name or system YAML path; several, comma separated, to compare them
   --trace TRACE         write a Perfetto trace (open in ui.perfetto.dev)
   --report REPORT       write the full JSON report
   --dump-workload DUMP_WORKLOAD
@@ -289,7 +328,11 @@ options:
   --fast                simulate each distinct kernel once and reuse it across ranks/layers
   --per-sm              add one Perfetto track per SM with a span per CTA (exact mode)
   --viz PAGE.html       also write the zoomable viewer page (rack down to SASS) for rank 0
-  --open                open the --viz page (or Perfetto for --trace) in a browser
+  --html REPORT.html    write the run report: step anatomy, roofline, costliest kernels, stalls
+                        (one page, no server)
+  --figures DIR         write each report figure as a standalone SVG (for articles, slides)
+  --title TITLE         title for the --html report
+  --open                open the --html report, else the --viz page, else Perfetto
 ```
 
 ### `rackscale models`

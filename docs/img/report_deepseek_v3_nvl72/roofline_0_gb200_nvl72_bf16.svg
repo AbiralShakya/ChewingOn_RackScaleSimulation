@@ -1,0 +1,52 @@
+<svg class="rs" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 430" width="100%" role="img" aria-label="Kernels on the roofline" style="max-width:760px;height:auto"><style>.rs{font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  --surface:#fcfcfb; --surface-2:#f3f2ef; --grid:#e6e5e0; --axis:#c9c7c0;
+  --text:#0b0b0b; --text-2:#52514e; --text-3:#7a7873;
+  --c-tensor:#2a78d6; --c-hbm:#eb6834; --c-latency:#1baf7a; --c-coll:#eda100; --c-idle:#b9b7b0;
+  --c-roof:#0b0b0b;}@media (prefers-color-scheme:dark){:root:where(:not([data-theme=light])) .rs{
+  --surface:#1a1a19; --surface-2:#232321; --grid:#2f2f2c; --axis:#4a4945;
+  --text:#f0efec; --text-2:#c3c2b7; --text-3:#8f8d86;
+  --c-tensor:#3987e5; --c-hbm:#d95926; --c-latency:#199e70; --c-coll:#c98500; --c-idle:#5d5c57;
+  --c-roof:#f0efec;}}:root[data-theme=dark] .rs{
+  --surface:#1a1a19; --surface-2:#232321; --grid:#2f2f2c; --axis:#4a4945;
+  --text:#f0efec; --text-2:#c3c2b7; --text-3:#8f8d86;
+  --c-tensor:#3987e5; --c-hbm:#d95926; --c-latency:#199e70; --c-coll:#c98500; --c-idle:#5d5c57;
+  --c-roof:#f0efec;}.rs text{fill:var(--text-2);font-size:12px}.rs .t1{fill:var(--text);}.rs .t3{fill:var(--text-3);font-size:11px}.rs .grid{stroke:var(--grid);stroke-width:1}.rs .axis{stroke:var(--axis);stroke-width:1}.rs .roof{stroke:var(--c-roof);stroke-width:2;fill:none;stroke-linecap:round}.rs .bg{fill:var(--surface)}.rs .tensor{fill:var(--c-tensor)}.rs .hbm{fill:var(--c-hbm)}.rs .latency{fill:var(--c-latency)}.rs .coll{fill:var(--c-coll)}.rs .idle{fill:var(--c-idle)}.rs .bar{fill:var(--c-tensor)}.rs .dot{stroke:var(--surface);stroke-width:2;fill-opacity:.85}.rs [data-tip]:hover{opacity:.8}</style><rect class="bg" x="0" y="0" width="760" height="430"/><text x="16" y="22" class="t1" style="font-weight:600;font-size:13px">Kernels on the roofline</text><line class="grid" x1="64.0" y1="40" x2="64.0" y2="382"/><text x="64.0" y="400" text-anchor="middle" class="t3">10</text><line class="grid" x1="289.3" y1="40" x2="289.3" y2="382"/><text x="289.3" y="400" text-anchor="middle" class="t3">100</text><line class="grid" x1="514.7" y1="40" x2="514.7" y2="382"/><text x="514.7" y="400" text-anchor="middle" class="t3">1000</text><line class="grid" x1="740.0" y1="40" x2="740.0" y2="382"/><text x="740.0" y="400" text-anchor="middle" class="t3">10000</text><line class="grid" x1="64" y1="382.0" x2="740" y2="382.0"/><text x="56" y="386.0" text-anchor="end" class="t3">100</text><line class="grid" x1="64" y1="211.0" x2="740" y2="211.0"/><text x="56" y="215.0" text-anchor="end" class="t3">1000</text><line class="grid" x1="64" y1="40.0" x2="740" y2="40.0"/><text x="56" y="44.0" text-anchor="end" class="t3">10000</text><line class="axis" x1="64" y1="382" x2="740" y2="382"/><text x="402.0" y="420" text-anchor="middle" class="t3">arithmetic intensity (FLOP per byte of HBM traffic, log)</text><text transform="translate(16,211.0) rotate(-90)" text-anchor="middle" class="t3">TFLOPS (log)</text><polyline class="roof" points="85.8,382.0 400.8,143.0 740.0,143.0"/><text x="736" y="136.0" text-anchor="end" class="t1">dense BF16 peak 2,500 TFLOPS</text><text transform="translate(137.8,363.1) rotate(-37.2)" class="t1">HBM 8.0 TB/s</text><circle class="dot latency" cx="369.8" cy="227.3" r="18.0" data-tip="sm100_fmha_decode_b64_hq128_hkv1_sq1_skv4096_d576
+288 launches, 24.7% of GPU time
+803 TFLOPS at 227.6 FLOP/B (3,528 GB/s)
+49% of its roof"/><circle class="dot hbm" cx="311.6" cy="218.6" r="15.6" data-tip="sm100_gemm_bf16_64x129280x7168_tile128x256
+72 launches, 16.8% of GPU time
+903 TFLOPS at 125.5 FLOP/B (7,194 GB/s)
+100% of its roof"/><circle class="dot hbm" cx="309.7" cy="221.9" r="14.9" data-tip="sm100_gemm_bf16_64x36864x7168_tile128x256
+216 launches, 15.1% of GPU time
+863 TFLOPS at 123.2 FLOP/B (7,006 GB/s)
+97% of its roof"/><circle class="dot hbm" cx="305.9" cy="235.7" r="13.2" data-tip="sm100_gemm_bf16_64x7168x16384_tile128x128_splitk2
+288 launches, 10.7% of GPU time
+717 TFLOPS at 118.5 FLOP/B (6,054 GB/s)
+84% of its roof"/><circle class="dot hbm" cx="306.6" cy="234.9" r="12.4" data-tip="sm100_gemm_bf16_64x7168x18432_tile128x128_splitk2
+216 launches, 9.0% of GPU time
+725 TFLOPS at 119.2 FLOP/B (6,079 GB/s)
+84% of its roof"/><circle class="dot hbm" cx="298.0" cy="244.9" r="9.6" data-tip="sm100_gemm_bf16_64x24576x1536_tile128x256
+288 launches, 3.9% of GPU time
+633 TFLOPS at 109.2 FLOP/B (5,799 GB/s)
+81% of its roof"/><circle class="dot latency" cx="499.0" cy="187.6" r="8.1" data-tip="grouped_gemm_3x[512]x4096x7168
+72 launches, 2.1% of GPU time
+1,371 TFLOPS at 851.6 FLOP/B (1,609 GB/s)
+55% of its roof"/><circle class="dot hbm" cx="251.5" cy="280.3" r="8.0" data-tip="sm100_gemm_bf16_64x1536x7168_tile128x128_splitk12
+288 launches, 2.0% of GPU time
+393 TFLOPS at 68.0 FLOP/B (5,790 GB/s)
+80% of its roof"/><circle class="dot hbm" cx="199.7" cy="325.0" r="7.3" data-tip="sm100_gemm_bf16_64x576x7168_tile128x128_splitk28
+288 launches, 1.4% of GPU time
+215 TFLOPS at 40.0 FLOP/B (5,384 GB/s)
+75% of its roof"/><circle class="dot latency" cx="490.6" cy="195.7" r="7.1" data-tip="grouped_gemm_3x[512]x7168x2048
+72 launches, 1.2% of GPU time
+1,228 TFLOPS at 782.0 FLOP/B (1,571 GB/s)
+49% of its roof"/><circle class="dot hbm" cx="286.5" cy="254.2" r="6.6" data-tip="sm100_gemm_bf16_64x4096x7168_tile128x128_splitk4
+72 launches, 0.9% of GPU time
+559 TFLOPS at 97.2 FLOP/B (5,753 GB/s)
+80% of its roof"/><circle class="dot hbm" cx="272.7" cy="273.3" r="6.1" data-tip="sm100_gemm_bf16_64x7168x2048_tile128x128_splitk2
+72 launches, 0.6% of GPU time
+432 TFLOPS at 84.3 FLOP/B (5,128 GB/s)
+71% of its roof"/><circle class="dot latency" cx="190.9" cy="380.2" r="5.5" data-tip="sm100_gemm_bf16_64x256x7168_tile128x128_splitk28
+72 launches, 0.3% of GPU time
+102 TFLOPS at 36.6 FLOP/B (2,802 GB/s)
+39% of its roof"/><polyline class="axis" fill="none" points="311.6,218.6 394.0,310.0"/><text x="402.0" y="314.0" class="t1">sm100_gemm_bf16_64x129280x7168_tile… <tspan class="t3">17%</tspan></text><polyline class="axis" fill="none" points="309.7,221.9 394.0,328.0"/><text x="402.0" y="332.0" class="t1">sm100_gemm_bf16_64x36864x7168_tile1… <tspan class="t3">15%</tspan></text><polyline class="axis" fill="none" points="369.8,227.3 394.0,346.0"/><text x="402.0" y="350.0" class="t1">sm100_fmha_decode_b64_hq128_hkv1_sq… <tspan class="t3">25%</tspan></text><polyline class="axis" fill="none" points="305.9,235.7 394.0,364.0"/><text x="402.0" y="368.0" class="t1">sm100_gemm_bf16_64x7168x16384_tile1… <tspan class="t3">11%</tspan></text><circle class="tensor" cx="77" cy="50" r="5"/><text x="86" y="54" class="t1">Tensor-bound</text><circle class="hbm" cx="187.0" cy="50" r="5"/><text x="196.0" y="54" class="t1">HBM-bound</text><circle class="latency" cx="276.0" cy="50" r="5"/><text x="285.0" y="54" class="t1">Latency or pipeline bound</text></svg>

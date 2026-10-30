@@ -13,7 +13,7 @@
 
 ```bash
 pip install git+https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation    # no GPU needed
-rackscale demo --open       # 30 seconds: Llama-3-70B on HGX H100 vs B200, then the rack-to-SASS viewer
+rackscale demo --open       # 30 seconds: Llama-3-70B on HGX H100 vs B200, a run report and the rack-to-SASS viewer
 ```
 
 rackscale simulates every SM of every GPU in a rack (up to a 72-GPU GB200 NVL72) at the level
@@ -189,8 +189,14 @@ new hardware.
 pip install git+https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation      # builds the Rust core: needs a Rust toolchain (rustup.rs)
 rackscale --version
 rackscale demo --open                                                      # the 30-second tour
-rackscale decode deepseek-v3 --system gb200_nvl72 --ep 72 --layers 4 --fast --viz ds.html --open
+rackscale decode deepseek-v3 --system gb200_nvl72,gb300_nvl72 --ep 72 --layers 4 --fast --html ds.html --open
 ```
+
+`--html` writes a run report (roofline, where the GPU time goes, stall anatomy, collectives;
+several systems side by side), `--figures DIR` its figures as SVGs for articles, and `--viz` the
+rack-to-SASS viewer. Examples: [DeepSeek-V3 on NVL72, GB200 vs GB300, BF16 vs FP4](https://abiralshakya.github.io/ChewingOn_RackScaleSimulation/reports/deepseek_v3_nvl72.html).
+
+![DeepSeek-V3 decode step on NVL72](docs/img/report_deepseek_v3_nvl72/compare_step.svg)
 
 One install gives three commands: `rackscale` (models, captures, reports), `rsim` (the simulator
 core: kernels, SASS, validation, network sweeps, the viewer; also reachable as

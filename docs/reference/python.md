@@ -51,6 +51,24 @@ The built-in GPU, switch and system presets with their resolved specs.
 | `summary()` | the text report the CLI prints |
 | `raw`, `rep["key"]` | the full JSON report, including per-rank stats in `rep["ranks"]` and every collective in `rep["collectives"]` |
 
+## Run reports and figures
+
+```python
+from rackscale import report
+
+reps = [rs.simulate(s, wl, fast=True) for s in ("hgx_h100_8", "hgx_b200_8")]
+report.write(reps, "compare.html", system=["hgx_h100_8", "hgx_b200_8"], title="H100 vs B200",
+             note="Free text under the title.")
+report.figures(reps, "figs/", system=["hgx_h100_8", "hgx_b200_8"], labels=["H100", "B200"])
+```
+
+| function | what |
+|---|---|
+| `report.write(runs, path, system=None, *, title=None, note=None, labels=None)` | one self-contained HTML page for one run or several side by side. `system` (one name or one per run) gives the GPU spec for the roofline; `labels` name the runs (default: the system) |
+| `report.page(...)` | the same page as a string |
+| `report.figures(runs, out_dir, system=None, labels=None)` | each figure as a standalone SVG: `compare_step`, `time_split`, `roofline`, `top_kernels`, `stalls` (suffixed by run when there are several) |
+| `report.analyze(rep, system=None, label=None)` | the numbers behind the page: per-kernel `share`, `ai` (FLOP/byte), `bound` (tensor, hbm or latency), `roof_frac`, and the time `split` |
+
 ## Build workloads from a model
 
 ```python

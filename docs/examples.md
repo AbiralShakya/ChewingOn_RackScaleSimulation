@@ -3,6 +3,52 @@
 Everything here runs from a clone with `pip install .` (or `maturin develop --release`), on a
 CPU. Times are wall-clock on a 4-core machine.
 
+## Run reports
+
+One page per run, or several runs side by side: where the GPU time goes, every kernel on the
+roofline, what the warp schedulers wait on, the collectives, and each figure as a standalone SVG
+that drops into an article or a slide (light and dark aware). Hover any mark for its numbers.
+
+<div class="grid cards" markdown>
+
+-   **[DeepSeek-V3 decode on NVL72: GB200 vs GB300, BF16 vs FP4](reports/deepseek_v3_nvl72.html)**
+
+    ---
+
+    EP72, batch 64 per GPU, 4k context. GB300 alone is 2% slower than GB200 at its lower clock;
+    FP4 GEMMs cut the step 1.7x because decode GEMMs stream weights, not because of the FP4 peak.
+
+    ![step time by run](img/report_deepseek_v3_nvl72/compare_step.svg)
+
+-   **[Llama-3-70B decode, TP8: H100, B200, B300](reports/llama3_70b_generations.html)**
+
+    ---
+
+    Same workload on three generations; the roofline shows which kernels move with HBM bandwidth
+    and which stay latency bound.
+
+    ![roofline on B200](img/report_llama3_70b_generations/roofline_1_hgx_b200.svg)
+
+-   **[Llama-3-70B training step, TP8: H100 vs B200](reports/llama3_70b_train.html)**
+
+    ---
+
+    Forward and backward of 2 layers at 4k: training GEMMs sit on the compute roof.
+
+    ![time split on B200](img/report_llama3_70b_train/time_split_1_hgx_b200.svg)
+
+</div>
+
+Make your own from any simulate command, or from saved JSON reports:
+
+```bash
+rackscale decode deepseek-v3 --system gb200_nvl72,gb300_nvl72 --ep 72 --batch 64 --layers 4 --fast \
+    --html ds.html --figures ds_figs/ --open
+rackscale report a.json b.json -o compare.html           # any saved --report files
+```
+
+Rebuild these three with `python examples/report_gallery.py` (about a minute).
+
 ## Viewer pages
 
 Open one, click a GPU, then a kernel, then an SM. Each is a single self-contained HTML file.
@@ -45,7 +91,8 @@ FlashAttention replays), or one page with `python examples/viz_gallery.py deepse
 
 | script | what it shows | time |
 |---|---|---|
-| `rackscale demo` | Llama-3-70B decode on HGX H100 vs B200, the anatomy, and a viewer page | 3 s |
+| `rackscale demo` | Llama-3-70B decode on HGX H100 vs B200, the anatomy, a run report and a viewer page | 3 s |
+| [`report_gallery.py`](https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation/blob/main/examples/report_gallery.py) | the run reports above and their SVG figures | 1 min |
 | [`deepseek_v3_nvl72.py`](https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation/blob/main/examples/deepseek_v3_nvl72.py) | DeepSeek-V3 decode on NVL72 (EP72), single stream vs two-micro-batch overlap | 9 s |
 | [`async_rl_mixed.py`](https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation/blob/main/examples/async_rl_mixed.py) | asynchronous RL: 8 H100 samplers decode while 8 B200 trainers train, then push weights over InfiniBand | 11 s |
 | [`gb300_deepseek_fp4.py`](https://github.com/AbiralShakya/ChewingOn_RackScaleSimulation/blob/main/examples/gb300_deepseek_fp4.py) | GB200 vs GB300 NVL72, DeepSeek-V3 decode with BF16 vs FP4 weights | 1 min |
