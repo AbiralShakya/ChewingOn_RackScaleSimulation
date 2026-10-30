@@ -402,3 +402,37 @@ fn split_kv_decode_overlaps_softmax_with_mma() {
     let (_, ns2) = run(spec, two);
     assert!(ns2 < ns1, "split {ns2} ns vs single {ns1} ns");
 }
+
+/// The tiling overrides of chapter 15: the defaults reproduce `gemm`, and
+/// crossing a wave boundary (288 -> 304 tiles of 128 x 256 on 148 SMs, two
+/// to three tiles per SM) costs far more than the 5.6% of extra work.
+#[test]
+fn blackwell_gemm_tiling_and_waves() {
+    let spec = presets::b300();
+    let o = synth::GemmOpts::default();
+    let a = synth::gemm(&spec, 2304, 4096, 4096, "bf16");
+    let b = synth::gemm_with(&spec, 2304, 4096, 4096, "bf16", &o);
+    assert_eq!(
+        (a.name.as_str(), a.grid, a.smem_per_cta),
+        (b.name.as_str(), b.grid, b.smem_per_cta)
+    );
+    let o = synth::GemmOpts {
+        tile_n: Some(256),
+        stages: Some(2),
+        ..Default::default()
+    };
+    let one = synth::gemm_with(&spec, 2304, 4096, 4096, "bf16", &o);
+    let two = synth::gemm_with(&spec, 2432, 4096, 4096, "bf16", &o);
+    assert_eq!((one.grid[0], two.grid[0]), (288, 304));
+    let (_, t1) = run(spec.clone(), one);
+    let (_, t2) = run(spec.clone(), two);
+    assert!(t2 / t1 > 1.4, "wave step only {:.2}x", t2 / t1);
+    let split = synth::GemmOpts {
+        split_k: Some(4),
+        ..Default::default()
+    };
+    assert_eq!(
+        synth::gemm_with(&spec, 16, 8192, 8192, "bf16", &split).grid[0],
+        256
+    );
+}
